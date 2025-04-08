@@ -1,9 +1,9 @@
 ### 📜 `contract/README.md`
 
 ```md
-# Teachme Smart Contracts
+# Teachlink Smart Contracts
 
-This repository contains the smart contracts powering Teachme’s earning and reward system.
+This repository contains the smart contracts powering Teachlink’s earning and reward system.
 
 ## 🧱 Stack
 - Solidity
@@ -14,8 +14,8 @@ This repository contains the smart contracts powering Teachme’s earning and re
 ## 🔧 Setup
 
 ```bash
-git clone https://github.com/your-org/teachme-contract.git
-cd teachme-contract
+git clone https://github.com/your-org/teachlink-contract.git
+cd teachlink-contract
 npm install
 cp .env.example .env
 npx hardhat compile
