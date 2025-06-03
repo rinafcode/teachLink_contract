@@ -12,7 +12,11 @@ openzeppelin = "1.0.0"
 
 [[target.starknet-contract]]
 casm = true
+sierra = true
 
 [dev-dependencies]
-cairo_test = "2.9.4"
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.44.0" }
+snforge_std = "0.44.0"
+assert_macros = "2.9.1"
+
+[scripts]
+test = "snforge test"
