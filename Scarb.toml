@@ -2,7 +2,6 @@
 name = "teachlink"
 version = "0.1.0"
 edition = "2024_07"
-cairo-version = "2.9.4"
 
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
 
@@ -15,8 +14,11 @@ casm = true
 sierra = true
 
 [dev-dependencies]
-snforge_std = "0.44.0"
-assert_macros = "2.9.1"
+snforge_std = "0.40.0"
+assert_macros = "2.9.4"
 
 [scripts]
 test = "snforge test"
+
+[tool.scarb]
+allow-prebuilt-plugins = ["snforge_std"]
