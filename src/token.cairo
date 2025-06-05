@@ -2,7 +2,8 @@
 pub mod TeachLinkToken {
     use starknet::{ClassHash, get_caller_address, ContractAddress};
     use core::starknet::storage::{
-        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StoragePathEntry,
+        StoragePointerReadAccess, StoragePointerWriteAccess, Map, StorageMapReadAccess,
+        StorageMapWriteAccess,
     };
     use openzeppelin::{
         access::ownable::OwnableComponent, token::erc20::{ERC20Component, ERC20HooksEmptyImpl},
@@ -144,6 +145,13 @@ pub mod TeachLinkToken {
     ) {
         let caller = get_caller_address();
 
+        // Set deployer as initial minter and burner
+        self.minters.write(caller, true);
+        self.burners.write(caller, true);
+
+        // Initialize contract state
+        self.paused.write(false);
+
         // Initialize components
         self.ownable.initializer(caller);
         self.erc20.initializer(name, symbol);
@@ -152,13 +160,6 @@ pub mod TeachLinkToken {
             .register_interface(
                 interface_id: 0x36372b07000000000000000000000000,
             ); // IERC20 interface id
-
-        // Initialize contract state
-        self.paused.write(false);
-
-        // Set deployer as initial minter and burner
-        self.minters.entry(caller).write(true);
-        self.burners.entry(caller).write(true);
 
         // Mint total supply to the deployer
         self.erc20.mint(caller, total_supply);
@@ -236,7 +237,7 @@ pub mod TeachLinkToken {
         fn set_minter(ref self: ContractState, minter: ContractAddress, is_minter: bool) {
             self.ownable.assert_only_owner();
 
-            self.minters.entry(minter).write(is_minter);
+            self.minters.write(minter, is_minter);
 
             if is_minter {
                 self.emit(MinterAdded { minter });
@@ -251,7 +252,7 @@ pub mod TeachLinkToken {
         fn set_burner(ref self: ContractState, burner: ContractAddress, is_burner: bool) {
             self.ownable.assert_only_owner();
 
-            self.burners.entry(burner).write(is_burner);
+            self.burners.write(burner, is_burner);
 
             if is_burner {
                 self.emit(BurnerAdded { burner });
@@ -264,14 +265,14 @@ pub mod TeachLinkToken {
         /// @param account The address to check
         /// @return Whether the address has minter role
         fn is_minter(self: @ContractState, account: ContractAddress) -> bool {
-            self.minters.entry(account).read()
+            self.minters.read(account)
         }
 
         /// @notice Checks if an address has burner role
         /// @param account The address to check
         /// @return Whether the address has burner role
         fn is_burner(self: @ContractState, account: ContractAddress) -> bool {
-            self.burners.entry(account).read()
+            self.burners.read(account)
         }
 
         /// @notice Pauses the contract (only owner)
@@ -320,9 +321,9 @@ pub mod TeachLinkToken {
         /// @param account The account to freeze
         fn freeze_account(ref self: ContractState, account: ContractAddress) {
             self.ownable.assert_only_owner();
-            assert!(!self.frozen_accounts.entry(account).read(), "Account is already frozen");
+            assert!(!self.frozen_accounts.read(account), "Account is already frozen");
 
-            self.frozen_accounts.entry(account).write(true);
+            self.frozen_accounts.write(account, true);
 
             let caller = get_caller_address();
             self.emit(AccountFrozen { account, by: caller });
@@ -332,9 +333,9 @@ pub mod TeachLinkToken {
         /// @param account The account to unfreeze
         fn unfreeze_account(ref self: ContractState, account: ContractAddress) {
             self.ownable.assert_only_owner();
-            assert!(self.frozen_accounts.entry(account).read(), "Account is not frozen");
+            assert!(self.frozen_accounts.read(account), "Account is not frozen");
 
-            self.frozen_accounts.entry(account).write(false);
+            self.frozen_accounts.write(account, false);
 
             let caller = get_caller_address();
             self.emit(AccountUnfrozen { account, by: caller });
@@ -344,7 +345,7 @@ pub mod TeachLinkToken {
         /// @param account The account to check
         /// @return Whether the account is frozen
         fn is_frozen(self: @ContractState, account: ContractAddress) -> bool {
-            self.frozen_accounts.entry(account).read()
+            self.frozen_accounts.read(account)
         }
     }
 
@@ -355,7 +356,7 @@ pub mod TeachLinkToken {
         fn _assert_only_minter(self: @ContractState) {
             let caller = get_caller_address();
             assert!(
-                self.minters.entry(caller).read() || caller == self.ownable.owner(),
+                self.minters.read(caller) || caller == self.ownable.owner(),
                 "TeachLink: Caller is not a minter",
             );
         }
@@ -364,7 +365,7 @@ pub mod TeachLinkToken {
         fn _assert_only_burner(self: @ContractState) {
             let caller = get_caller_address();
             assert!(
-                self.burners.entry(caller).read() || caller == self.ownable.owner(),
+                self.burners.read(caller) || caller == self.ownable.owner(),
                 "TeachLink: Caller is not a burner",
             );
         }
@@ -376,7 +377,7 @@ pub mod TeachLinkToken {
 
         /// @notice Asserts that an account is not frozen
         fn _assert_not_frozen(self: @ContractState, account: ContractAddress) {
-            assert!(!self.frozen_accounts.entry(account).read(), "TeachLink: Account is frozen");
+            assert!(!self.frozen_accounts.read(account), "TeachLink: Account is frozen");
         }
     }
 }
