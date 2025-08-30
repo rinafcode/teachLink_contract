@@ -97,3 +97,55 @@ fn test_issue_certificate() {
     assert(certificate.instructor == INSTRUCTOR(), 'Wrong instructor');
     assert(!certificate.is_revoked, 'Certificate should not be revoked');
 }
+
+
+#[test]
+fn test_verify_certificate() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    let certificate_id = contract.issue_certificate(
+        STUDENT(),
+        1,
+        INSTRUCTOR(),
+        'completion_data_hash',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Verify certificate
+    let is_valid = contract.verify_certificate(certificate_id);
+    assert(is_valid, 'Certificate should be valid');
+}
+
+#[test]
+fn test_verify_course_completion() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    contract.issue_certificate(
+        STUDENT(),
+        1,
+        INSTRUCTOR(),
+        'completion_data_hash',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Verify course completion
+    let completed = contract.verify_course_completion(STUDENT(), 1);
+    assert(completed, 'Student should have completed course');
+    
+    // Verify non-completion for different course
+    let not_completed = contract.verify_course_completion(STUDENT(), 2);
+    assert(!not_completed, 'Student should not have completed course 2');
+}
+
