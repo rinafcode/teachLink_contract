@@ -95,3 +95,107 @@ mod ReputationSystem {
         token_id: u256,
         initial_score: u256,
     }
+
+    
+    #[derive(Drop, starknet::Event)]
+    struct ReviewSubmitted {
+        #[key]
+        review_id: u256,
+        #[key]
+        reviewer: ContractAddress,
+        #[key]
+        instructor: ContractAddress,
+        course_id: u256,
+        rating: u8,
+        weight: u256,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct ReputationUpdated {
+        #[key]
+        instructor: ContractAddress,
+        old_score: u256,
+        new_score: u256,
+        review_count: u32,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct ReviewFlagged {
+        #[key]
+        review_id: u256,
+        reason: u8,
+        flagged_by: ContractAddress,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct SuspiciousActivityReported {
+        #[key]
+        target: ContractAddress,
+        reporter: ContractAddress,
+        evidence_hash: felt252,
+    }
+
+    #[constructor]
+    fn constructor(
+        ref self: ContractState,
+        owner: ContractAddress,
+        name: ByteArray,
+        symbol: ByteArray,
+    ) {
+        self.ownable.initializer(owner);
+        self.erc721.initializer(name, symbol, "");
+        
+        // Initialize default settings
+        self.next_token_id.write(1);
+        self.next_review_id.write(1);
+        self.minimum_credibility.write(30); // Minimum 30% credibility to submit reviews
+        
+        // Initialize default weighting factors
+        let default_weights = WeightingFactors {
+            credibility_weight: 40,
+            recency_weight: 30,
+            volume_weight: 20,
+            consistency_weight: 10,
+        };
+        self.weighting_factors.write(default_weights);
+    }
+
+    #[abi(embed_v0)]
+    impl ReputationSystemImpl of IReputationSystem<ContractState> {
+        fn mint_instructor_token(
+            ref self: ContractState,
+            instructor: ContractAddress,
+            initial_score: u256
+        ) {
+            self.ownable.assert_only_owner();
+            self.pausable.assert_not_paused();
+            
+            assert(!self.is_instructor_registered(instructor), 'Instructor already registered');
+            
+            let token_id = self.next_token_id.read();
+            self.next_token_id.write(token_id + 1);
+            
+            // Mint soulbound token (non-transferable)
+            self.erc721._mint(instructor, token_id);
+            
+            // Create instructor reputation record
+            let reputation = InstructorReputation {
+                token_id,
+                instructor,
+                total_score: initial_score,
+                weighted_score: initial_score,
+                review_count: 0,
+                last_updated: get_block_timestamp(),
+                is_active: true,
+            };
+            
+            self.instructor_reputations.write(instructor, reputation);
+            self.instructor_to_token.write(instructor, token_id);
+            self.token_to_instructor.write(token_id, instructor);
+            
+            // Initialize empty review array
+            self.instructor_reviews.write(instructor, array![]);
+            
+            self.emit(InstructorRegistered { instructor, token_id, initial_score });
+        }
+
