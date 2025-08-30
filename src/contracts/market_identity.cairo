@@ -251,3 +251,105 @@ mod MarketXIdentity {
         fn revoke_credential(ref self: ContractState, credential_id: felt252) {
             let caller = get_caller_address();
             let credential = self.credentials.read(credential_id);
+
+            
+            assert(caller == credential.issuer, 'Only issuer can revoke');
+            assert(!credential.is_revoked, 'Already revoked');
+            
+            self.revoked_credentials.write(credential_id, true);
+            
+            self.emit(CredentialRevoked {
+                credential_id,
+                issuer: caller,
+                timestamp: get_block_timestamp(),
+            });
+        }
+
+        fn get_credential(self: @ContractState, credential_id: felt252) -> VerifiableCredential {
+            self.credentials.read(credential_id)
+        }
+
+        fn verify_credential(self: @ContractState, credential_id: felt252) -> bool {
+            let credential = self.credentials.read(credential_id);
+            
+            // Check if revoked
+            if self.revoked_credentials.read(credential_id) {
+                return false;
+            }
+            
+            // Check expiry
+            if !CredentialVerificationTrait::verify_credential_expiry(credential.expires_at) {
+                return false;
+            }
+            
+            // Check if issuer is authorized
+            if !self.authorized_issuers.read(credential.issuer) {
+                return false;
+            }
+            
+            // Check if subject DID is active
+            let subject_did = self.dids.read(credential.subject);
+            if !subject_did.is_active {
+                return false;
+            }
+            
+            true
+        }
+
+        fn create_selective_disclosure(
+            ref self: ContractState,
+            credential_id: felt252,
+            disclosed_fields: Array<felt252>,
+            proof_hash: felt252
+        ) -> felt252 {
+            let caller = get_caller_address();
+            let credential = self.credentials.read(credential_id);
+            let subject_did = self.dids.read(credential.subject);
+            
+            assert(caller == subject_did.controller, 'Only subject can disclose');
+            assert(self.verify_credential(credential_id), 'Invalid credential');
+            
+            let disclosure_id = self.disclosure_counter.read() + 1;
+            self.disclosure_counter.write(disclosure_id);
+            
+            let disclosure = SelectiveDisclosure {
+                credential_id,
+                disclosed_fields,
+                proof_hash,
+                created_at: get_block_timestamp(),
+            };
+            
+            self.selective_disclosures.write(disclosure_id, disclosure);
+            
+            self.emit(SelectiveDisclosureCreated {
+                disclosure_id,
+                credential_id,
+                creator: caller,
+                timestamp: get_block_timestamp(),
+            });
+            
+            disclosure_id
+        }
+
+        fn verify_selective_disclosure(
+            self: @ContractState,
+            disclosure_id: felt252,
+            proof: felt252
+        ) -> bool {
+            let disclosure = self.selective_disclosures.read(disclosure_id);
+            let credential = self.credentials.read(disclosure.credential_id);
+            
+            // Verify the credential is still valid
+            if !self.verify_credential(disclosure.credential_id) {
+                return false;
+            }
+            
+            // Verify the selective disclosure proof
+            let credential_hash = CredentialVerificationTrait::generate_credential_hash(
+                credential.issuer,
+                credential.subject,
+                credential.credential_type,
+                credential.achievement_data,
+                credential.issued_at
+            );
+            
