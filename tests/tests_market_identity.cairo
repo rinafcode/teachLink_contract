@@ -102,3 +102,123 @@ fn test_revoke_credential() {
         get_block_timestamp() + 31536000
     );
     
+    
+    // Verify it's valid before revocation
+    assert(contract.verify_credential(credential_id) == true, 'Should be valid');
+    
+    // Revoke credential
+    contract.revoke_credential(credential_id);
+    
+    // Verify it's invalid after revocation
+    assert(contract.verify_credential(credential_id) == false, 'Should be invalid');
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+#[test]
+fn test_create_attestation() {
+    let (contract, owner) = deploy_contract();
+    let user = contract_address_const::<'user'>();
+    let attester = contract_address_const::<'attester'>();
+    
+    // Setup
+    start_prank(CheatTarget::One(contract.contract_address), user);
+    let did_id = contract.create_did(user);
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    start_prank(CheatTarget::One(contract.contract_address), owner);
+    let credential_id = contract.issue_credential(
+        did_id,
+        'degree',
+        'computer_science_ms',
+        get_block_timestamp() + 31536000
+    );
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Create attestation
+    start_prank(CheatTarget::One(contract.contract_address), attester);
+    let attestation_id = contract.create_attestation(
+        credential_id,
+        'verified_employment'
+    );
+    
+    assert(attestation_id == 1, 'Attestation ID should be 1');
+    assert(contract.verify_attestation(attestation_id) == true, 'Attestation should be valid');
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+
+#[test]
+fn test_selective_disclosure() {
+    let (contract, owner) = deploy_contract();
+    let user = contract_address_const::<'user'>();
+    
+    // Setup
+    start_prank(CheatTarget::One(contract.contract_address), user);
+    let did_id = contract.create_did(user);
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    start_prank(CheatTarget::One(contract.contract_address), owner);
+    let credential_id = contract.issue_credential(
+        did_id,
+        'degree',
+        'computer_science_bs',
+        get_block_timestamp() + 31536000
+    );
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Create selective disclosure
+    start_prank(CheatTarget::One(contract.contract_address), user);
+    let disclosed_fields = array!['degree_type', 'graduation_year'];
+    let proof_hash = 'mock_proof_hash';
+    
+    let disclosure_id = contract.create_selective_disclosure(
+        credential_id,
+        disclosed_fields,
+        proof_hash
+    );
+    
+    assert(disclosure_id == 1, 'Disclosure ID should be 1');
+    
+    // Verify selective disclosure
+    let is_valid = contract.verify_selective_disclosure(disclosure_id, proof_hash);
+    assert(is_valid == true, 'Selective disclosure should be valid');
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+#[test]
+fn test_update_did_controller() {
+    let (contract, owner) = deploy_contract();
+    let user = contract_address_const::<'user'>();
+    let new_controller = contract_address_const::<'new_controller'>();
+    
+    start_prank(CheatTarget::One(contract.contract_address), user);
+    let did_id = contract.create_did(user);
+    
+    // Update controller
+    contract.update_did_controller(did_id, new_controller);
+    
+    let updated_did = contract.get_did(did_id);
+    assert(updated_did.controller == new_controller, 'Controller should be updated');
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+#[test]
+fn test_deactivate_did() {
+    let (contract, owner) = deploy_contract();
+    let user = contract_address_const::<'user'>();
+    
+    start_prank(CheatTarget::One(contract.contract_address), user);
+    let did_id = contract.create_did(user);
+    
+    // Deactivate DID
+    contract.deactivate_did(did_id);
+    
+    let deactivated_did = contract.get_did(did_id);
+    assert(deactivated_did.is_active == false, 'DID should be inactive');
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
