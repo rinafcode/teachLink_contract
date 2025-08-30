@@ -49,3 +49,54 @@ fn test_mint_instructor_token() {
     // Mint token for instructor
     contract.mint_instructor_token(INSTRUCTOR1(), 75);
     
+
+    // Verify instructor is registered
+    assert!(contract.is_instructor_registered(INSTRUCTOR1()), "Instructor should be registered");
+    
+    // Verify token ID
+    let token_id = contract.get_instructor_token_id(INSTRUCTOR1());
+    assert!(token_id == 1, "Token ID should be 1");
+    
+    // Verify initial score
+    let score = contract.get_weighted_score(INSTRUCTOR1());
+    assert!(score == 75, "Initial score should be 75");
+    
+    stop_cheat_caller_address(contract.contract_address);
+}
+
+#[test]
+#[should_panic(expected: 'Instructor already registered')]
+fn test_mint_duplicate_instructor_token() {
+    let contract = deploy_contract();
+    
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    
+    // Mint first token
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    
+    // Try to mint duplicate - should panic
+    contract.mint_instructor_token(INSTRUCTOR1(), 80);
+    
+    stop_cheat_caller_address(contract.contract_address);
+}
+
+#[test]
+fn test_submit_review() {
+    let contract = deploy_contract();
+    
+    // Setup instructor
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Submit review as reviewer
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    contract.submit_review(
+        INSTRUCTOR1(),
+        1, // course_id
+        5, // rating
+        'review_hash_123',
+        array!['proof1', 'proof2']
+    );
+    stop_cheat_caller_address(contract.contract_address);
+    
