@@ -48,3 +48,57 @@ fn test_issue_credential() {
         'computer_science_bs',
         get_block_timestamp() + 31536000 // 1 year from now
     );
+
+    
+    assert(credential_id == 1, 'Credential ID should be 1');
+    
+    let credential = contract.get_credential(credential_id);
+    assert(credential.issuer == owner, 'Issuer should be owner');
+    assert(credential.subject == did_id, 'Subject should be DID');
+    assert(credential.credential_type == 'degree', 'Type should be degree');
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+#[test]
+fn test_verify_credential() {
+    let (contract, owner) = deploy_contract();
+    let user = contract_address_const::<'user'>();
+    
+    // Create DID and issue credential
+    start_prank(CheatTarget::One(contract.contract_address), user);
+    let did_id = contract.create_did(user);
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    start_prank(CheatTarget::One(contract.contract_address), owner);
+    let credential_id = contract.issue_credential(
+        did_id,
+        'certificate',
+        'blockchain_course',
+        get_block_timestamp() + 31536000
+    );
+    
+    let is_valid = contract.verify_credential(credential_id);
+    assert(is_valid == true, 'Credential should be valid');
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+#[test]
+fn test_revoke_credential() {
+    let (contract, owner) = deploy_contract();
+    let user = contract_address_const::<'user'>();
+    
+    // Setup
+    start_prank(CheatTarget::One(contract.contract_address), user);
+    let did_id = contract.create_did(user);
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    start_prank(CheatTarget::One(contract.contract_address), owner);
+    let credential_id = contract.issue_credential(
+        did_id,
+        'certificate',
+        'blockchain_course',
+        get_block_timestamp() + 31536000
+    );
+    
