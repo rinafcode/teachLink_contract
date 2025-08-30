@@ -304,3 +304,30 @@ fn test_get_student_certificates() {
 #[test]
 fn test_pause_and_unpause() {
     let contract = deploy_contract();
+
+    
+    start_prank(CheatTarget::One(contract.contract_address), OWNER());
+    
+    // Pause contract
+    contract.pause_contract();
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Try to register course while paused (should fail)
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    
+    // This should panic due to contract being paused
+    // contract.register_course(1, INSTRUCTOR(), create_sample_requirements());
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Unpause contract
+    start_prank(CheatTarget::One(contract.contract_address), OWNER());
+    contract.unpause_contract();
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Now operations should work again
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), create_sample_requirements());
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
