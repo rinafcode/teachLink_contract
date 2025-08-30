@@ -395,3 +395,100 @@ mod ReputationSystem {
             // sort instructors by weighted_score
             array![]
         }
+
+        fn verify_reputation_score(
+            self: @ContractState,
+            instructor: ContractAddress,
+            claimed_score: u256
+        ) -> bool {
+            let actual_score = self.get_weighted_score(instructor);
+            actual_score == claimed_score
+        }
+
+        fn set_minimum_credibility(ref self: ContractState, threshold: u256) {
+            self.ownable.assert_only_owner();
+            assert!(threshold <= 100, "Threshold cannot exceed 100");
+            self.minimum_credibility.write(threshold);
+        }
+
+        fn pause_contract(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable._pause();
+        }
+
+        fn unpause_contract(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable._unpause();
+        }
+    }
+
+    #[generate_trait]
+    impl InternalImpl of InternalTrait {
+        fn _update_reviewer_profile(ref self: ContractState, reviewer: ContractAddress) {
+            let mut profile = self.reviewer_profiles.read(reviewer);
+            
+            if profile.total_reviews == 0 {
+                // First review, initialize profile
+                profile = ReviewerProfile {
+                    address: reviewer,
+                    credibility_score: 50,
+                    total_reviews: 1,
+                    accurate_reviews: 1, // Assume first review is accurate
+                    flagged_reviews: 0,
+                    registration_time: get_block_timestamp(),
+                };
+            } else {
+                profile.total_reviews += 1;
+                profile.accurate_reviews += 1; // Assume accurate until proven otherwise
+            }
+            
+            self.reviewer_profiles.write(reviewer, profile);
+        }
+        
+        fn _add_reputation_snapshot(
+            ref self: ContractState,
+            instructor: ContractAddress,
+            score: u256,
+            review_count: u32,
+            event_type: u8
+        ) {
+            let snapshot = ReputationSnapshot {
+                timestamp: get_block_timestamp(),
+                score,
+                review_count,
+                event_type,
+            };
+            
+            // Store snapshot with instructor and timestamp as key
+            let key = (instructor, get_block_timestamp());
+            self.reputation_history.write(key, snapshot);
+        }
+    }
+
+    // Override transfer functions to make tokens soulbound
+    #[abi(embed_v0)]
+    impl ERC721HooksImpl of ERC721Component::ERC721HooksTrait<ContractState> {
+        fn before_update(
+            ref self: ERC721Component::ComponentState<ContractState>,
+            to: ContractAddress,
+            token_id: u256,
+            auth: ContractAddress
+        ) {
+            // Prevent transfers (soulbound tokens)
+            let zero_address: ContractAddress = 0.try_into().unwrap();
+            let current_owner = self._owner_of(token_id);
+            
+            // Allow minting (from zero address) but not transfers
+            assert!(current_owner == zero_address, 'Soulbound: transfer not allowed');
+        }
+
+        fn after_update(
+            ref self: ERC721Component::ComponentState<ContractState>,
+            to: ContractAddress,
+            token_id: u256,
+            auth: ContractAddress
+        ) {
+            // No additional logic needed after update
+        }
+    }
+}
