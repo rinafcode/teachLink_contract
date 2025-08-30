@@ -199,3 +199,55 @@ mod MarketXIdentity {
             self.dids.read(did_id)
         }
 
+
+        fn issue_credential(
+            ref self: ContractState,
+            subject_did: felt252,
+            credential_type: felt252,
+            achievement_data: felt252,
+            expires_at: u64
+        ) -> felt252 {
+            let caller = get_caller_address();
+            assert(self.authorized_issuers.read(caller), 'Not authorized issuer');
+            
+            let subject = self.dids.read(subject_did);
+            assert(subject.is_active, 'Subject DID not active');
+            
+            let current_time = get_block_timestamp();
+            assert(expires_at > current_time, 'Invalid expiry time');
+            
+            let credential_id = self.credential_counter.read() + 1;
+            self.credential_counter.write(credential_id);
+            
+            let new_credential = VerifiableCredential {
+                id: credential_id,
+                issuer: caller,
+                subject: subject_did,
+                credential_type,
+                achievement_data,
+                issued_at: current_time,
+                expires_at,
+                is_revoked: false,
+            };
+            
+            self.credentials.write(credential_id, new_credential);
+            
+            // Add to user's credentials
+            let mut user_creds = self.user_credentials.read(subject_did);
+            user_creds.append(credential_id);
+            self.user_credentials.write(subject_did, user_creds);
+            
+            self.emit(CredentialIssued {
+                credential_id,
+                issuer: caller,
+                subject_did,
+                credential_type,
+                timestamp: current_time,
+            });
+            
+            credential_id
+        }
+
+        fn revoke_credential(ref self: ContractState, credential_id: felt252) {
+            let caller = get_caller_address();
+            let credential = self.credentials.read(credential_id);
