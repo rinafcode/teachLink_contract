@@ -41,3 +41,46 @@ trait ICourseNFTCertificate<TContractState> {
         course_id: u256,
         requirements: CourseRequirements
     );
+
+    
+    // Integration Functions
+    fn set_identity_contract(ref self: TContractState, contract_address: ContractAddress);
+    fn set_reputation_contract(ref self: TContractState, contract_address: ContractAddress);
+    
+    // Admin Functions
+    fn pause_contract(ref self: TContractState);
+    fn unpause_contract(ref self: TContractState);
+    fn upgrade_contract(ref self: TContractState, new_implementation: felt252);
+}
+
+#[derive(Drop, Serde, starknet::Store)]
+struct CertificateDetails {
+    certificate_id: u256,
+    student: ContractAddress,
+    course_id: u256,
+    instructor: ContractAddress,
+    issue_timestamp: u64,
+    completion_data: felt252,
+    metadata_uri: felt252,
+    is_revoked: bool,
+    verification_hash: felt252,
+}
+
+#[derive(Drop, Serde, starknet::Store)]
+struct CourseRequirements {
+    min_completion_percentage: u8,
+    required_assignments: u32,
+    min_quiz_score: u8,
+    required_participation: u32,
+    custom_requirements: felt252,
+}
+
+#[derive(Drop, Serde, starknet::Store)]
+struct CourseInfo {
+    course_id: u256,
+    instructor: ContractAddress,
+    requirements: CourseRequirements,
+    is_active: bool,
+    total_certificates_issued: u32,
+    creation_timestamp: u64,
+}
