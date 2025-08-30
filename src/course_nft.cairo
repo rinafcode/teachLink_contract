@@ -399,3 +399,75 @@ mod CourseNFTCertificate {
             
             assert(!self.course_exists.read(course_id), 'Course already exists');
             
+            let course_info = CourseInfo {
+                course_id,
+                instructor,
+                requirements,
+                is_active: true,
+                total_certificates_issued: 0,
+                creation_timestamp: get_block_timestamp(),
+            };
+            
+            self.courses.write(course_id, course_info);
+            self.course_exists.write(course_id, true);
+            self.total_courses.write(self.total_courses.read() + 1);
+            
+            self.emit(CourseRegistered {
+                course_id,
+                instructor,
+                timestamp: get_block_timestamp(),
+            });
+        }
+
+        fn update_course_requirements(
+            ref self: ContractState,
+            course_id: u256,
+            requirements: CourseRequirements
+        ) {
+            self.pausable.assert_not_paused();
+            
+            assert(self.course_exists.read(course_id), 'Course does not exist');
+            let mut course_info = self.courses.read(course_id);
+            
+            let caller = get_caller_address();
+            assert(
+                caller == course_info.instructor || caller == self.ownable.owner(),
+                'Unauthorized course update'
+            );
+            
+            course_info.requirements = requirements;
+            self.courses.write(course_id, course_info);
+            
+            self.emit(CourseUpdated {
+                course_id,
+                updated_by: caller,
+                timestamp: get_block_timestamp(),
+            });
+        }
+
+        fn set_identity_contract(ref self: ContractState, contract_address: ContractAddress) {
+            self.ownable.assert_only_owner();
+            self.identity_contract.write(contract_address);
+        }
+
+        fn set_reputation_contract(ref self: ContractState, contract_address: ContractAddress) {
+            self.ownable.assert_only_owner();
+            self.reputation_contract.write(contract_address);
+        }
+
+        fn pause_contract(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable._pause();
+        }
+
+        fn unpause_contract(ref self: ContractState) {
+            self.ownable.assert_only_owner();
+            self.pausable._unpause();
+        }
+
+        fn upgrade_contract(ref self: ContractState, new_implementation: felt252) {
+            self.ownable.assert_only_owner();
+            self.upgradeable._upgrade(new_implementation);
+        }
+    }
+}
