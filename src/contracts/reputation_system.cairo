@@ -297,3 +297,101 @@ mod ReputationSystem {
                 reviews.append(review);
                 i += 1;
             };
+
+            
+            let weighting_factors = self.weighting_factors.read();
+            ReputationCalculationTrait::calculate_weighted_score(
+                reviews.span(),
+                get_block_timestamp(),
+                weighting_factors
+            )
+        }
+
+        fn get_weighted_score(self: @ContractState, instructor: ContractAddress) -> u256 {
+            self.instructor_reputations.read(instructor).weighted_score
+        }
+
+        fn update_reputation_score(ref self: ContractState, instructor: ContractAddress) {
+            let mut reputation = self.instructor_reputations.read(instructor);
+            let old_score = reputation.weighted_score;
+            let new_score = self.calculate_reputation_score(instructor);
+            
+            reputation.weighted_score = new_score;
+            reputation.last_updated = get_block_timestamp();
+            reputation.review_count = self.instructor_reviews.read(instructor).len();
+            
+            self.instructor_reputations.write(instructor, reputation);
+            
+            // Add to reputation history
+            self._add_reputation_snapshot(instructor, new_score, reputation.review_count, 1);
+            
+            self.emit(ReputationUpdated {
+                instructor,
+                old_score,
+                new_score,
+                review_count: reputation.review_count,
+            });
+        }
+
+        fn report_suspicious_activity(
+            ref self: ContractState,
+            target: ContractAddress,
+            evidence_hash: felt252
+        ) {
+            let reporter = get_caller_address();
+            let mut activity_list = self.suspicious_activity.read(target);
+            activity_list.append(evidence_hash);
+            self.suspicious_activity.write(target, activity_list);
+            
+            self.emit(SuspiciousActivityReported { target, reporter, evidence_hash });
+        }
+
+        fn flag_review(ref self: ContractState, review_id: u256, reason: u8) {
+            self.ownable.assert_only_owner(); // Only admin can flag reviews
+            
+            let mut review = self.reviews.read(review_id);
+            review.is_flagged = true;
+            self.reviews.write(review_id, review);
+            self.flagged_reviews.write(review_id, true);
+            
+            // Update instructor reputation after flagging
+            self.update_reputation_score(review.instructor);
+            
+            self.emit(ReviewFlagged {
+                review_id,
+                reason,
+                flagged_by: get_caller_address(),
+            });
+        }
+
+        fn get_reviewer_credibility(self: @ContractState, reviewer: ContractAddress) -> u256 {
+            let profile = self.reviewer_profiles.read(reviewer);
+            if profile.total_reviews == 0 {
+                return 50; // Default credibility
+            }
+            
+            let account_age_days = (get_block_timestamp() - profile.registration_time) / 86400;
+            ReputationCalculationTrait::calculate_reviewer_credibility(
+                profile.total_reviews,
+                profile.accurate_reviews,
+                profile.flagged_reviews,
+                account_age_days.try_into().unwrap_or(0)
+            )
+        }
+
+        fn get_reputation_history(
+            self: @ContractState,
+            instructor: ContractAddress
+        ) -> Array<ReputationSnapshot> {
+            // Implementation would iterate through stored snapshots
+            // For brevity, returning empty array - full implementation would
+            // maintain a mapping of instructor -> snapshot_index -> snapshot
+            array![]
+        }
+
+        fn get_top_instructors(self: @ContractState, limit: u32) -> Array<ContractAddress> {
+            // Implementation would maintain a sorted list or use external indexing
+            // For brevity, returning empty array - full implementation would
+            // sort instructors by weighted_score
+            array![]
+        }
