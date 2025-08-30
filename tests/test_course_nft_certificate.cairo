@@ -51,3 +51,49 @@ fn test_deploy_contract() {
     // Contract should be deployed successfully
     assert(contract.contract_address != contract_address_const::<0>(), 'Contract not deployed');
 }
+
+
+#[test]
+fn test_register_course() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Verify course was registered
+    // Note: We would need getter functions to verify this properly
+}
+
+#[test]
+fn test_issue_certificate() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    // Register course first
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    // Issue certificate
+    let certificate_id = contract.issue_certificate(
+        STUDENT(),
+        1,
+        INSTRUCTOR(),
+        'completion_data_hash',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    assert(certificate_id == 1, 'Wrong certificate ID');
+    
+    // Verify certificate details
+    let certificate = contract.get_certificate_details(certificate_id);
+    assert(certificate.student == STUDENT(), 'Wrong student');
+    assert(certificate.course_id == 1, 'Wrong course ID');
+    assert(certificate.instructor == INSTRUCTOR(), 'Wrong instructor');
+    assert(!certificate.is_revoked, 'Certificate should not be revoked');
+}
