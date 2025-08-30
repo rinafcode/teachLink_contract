@@ -201,3 +201,52 @@ fn test_update_certificate_metadata() {
     contract.update_certificate_metadata(certificate_id, new_uri);
     
     stop_prank(CheatTarget::One(contract.contract_address));
+
+    
+    // Verify metadata was updated
+    let certificate = contract.get_certificate_details(certificate_id);
+    assert(certificate.metadata_uri == new_uri, 'Metadata not updated');
+}
+
+#[test]
+#[should_panic(expected: ('Course does not exist',))]
+fn test_issue_certificate_nonexistent_course() {
+    let contract = deploy_contract();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    
+    // Try to issue certificate for non-existent course
+    contract.issue_certificate(
+        STUDENT(),
+        999, // Non-existent course
+        INSTRUCTOR(),
+        'completion_data_hash',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+#[test]
+#[should_panic(expected: ('Unauthorized instructor',))]
+fn test_issue_certificate_wrong_instructor() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    start_prank(CheatTarget::One(contract.contract_address), OTHER_USER());
+    
+    // Try to issue certificate with wrong instructor
+    contract.issue_certificate(
+        STUDENT(),
+        1,
+        OTHER_USER(), // Wrong instructor
+        'completion_data_hash',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
