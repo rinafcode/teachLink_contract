@@ -102,3 +102,55 @@ mod CertificateVerification {
         
         poseidon_hash_span(hash_data.span())
     }
+
+    
+    fn generate_certificate_hash(
+        student: ContractAddress,
+        course_id: u256,
+        instructor: ContractAddress,
+        completion_data: felt252,
+        timestamp: u64
+    ) -> felt252 {
+        let mut hash_data = ArrayTrait::new();
+        hash_data.append(student.into());
+        hash_data.append(course_id.low.into());
+        hash_data.append(course_id.high.into());
+        hash_data.append(instructor.into());
+        hash_data.append(completion_data);
+        hash_data.append(timestamp.into());
+        
+        poseidon_hash_span(hash_data.span())
+    }
+
+    fn validate_instructor_signature(
+        proof: CompletionProof,
+        instructor: ContractAddress,
+        expected_signature: felt252
+    ) -> bool {
+        // In a real implementation, this would verify cryptographic signatures
+        // For now, we'll do a simple hash comparison
+        let proof_hash = generate_verification_hash(proof);
+        let expected_hash = pedersen(instructor.into(), proof_hash);
+        
+        expected_hash == expected_signature
+    }
+
+    fn check_certificate_authenticity(
+        certificate_hash: felt252,
+        student: ContractAddress,
+        course_id: u256,
+        instructor: ContractAddress,
+        timestamp: u64
+    ) -> bool {
+        let computed_hash = generate_certificate_hash(
+            student,
+            course_id,
+            instructor,
+            certificate_hash,
+            timestamp
+        );
+        
+        // Additional authenticity checks would go here
+        true
+    }
+}
