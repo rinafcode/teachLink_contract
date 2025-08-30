@@ -353,3 +353,56 @@ mod MarketXIdentity {
                 credential.issued_at
             );
             
+            
+            CredentialVerificationTrait::verify_selective_disclosure_proof(
+                credential_hash,
+                disclosure.disclosed_fields,
+                proof
+            )
+        }
+
+        fn create_attestation(
+            ref self: ContractState,
+            credential_id: felt252,
+            attestation_data: felt252
+        ) -> felt252 {
+            let caller = get_caller_address();
+            assert(self.verify_credential(credential_id), 'Invalid credential');
+            
+            let attestation_id = self.attestation_counter.read() + 1;
+            self.attestation_counter.write(attestation_id);
+            
+            let current_time = get_block_timestamp();
+            let attestation = Attestation {
+                id: attestation_id,
+                attester: caller,
+                credential_id,
+                attestation_data,
+                created_at: current_time,
+                is_valid: true,
+            };
+            
+            self.attestations.write(attestation_id, attestation);
+            
+            // Add to credential's attestations
+            let mut cred_attestations = self.credential_attestations.read(credential_id);
+            cred_attestations.append(attestation_id);
+            self.credential_attestations.write(credential_id, cred_attestations);
+            
+            self.emit(AttestationCreated {
+                attestation_id,
+                attester: caller,
+                credential_id,
+                timestamp: current_time,
+            });
+            
+            attestation_id
+        }
+
+        fn verify_attestation(self: @ContractState, attestation_id: felt252) -> bool {
+            let attestation = self.attestations.read(attestation_id);
+            
+            if !attestation.is_valid {
+                return false;
+            }
+            
