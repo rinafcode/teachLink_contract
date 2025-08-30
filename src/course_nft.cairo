@@ -70,3 +70,55 @@ mod CourseNFTCertificate {
         course_exists: LegacyMap<u256, bool>,
 
         
+        // Integration contracts
+        identity_contract: ContractAddress,
+        reputation_contract: ContractAddress,
+        
+        // Counters
+        next_certificate_id: u256,
+        total_certificates: u256,
+        total_courses: u256,
+        
+        // Anti-fraud measures
+        certificate_hashes: LegacyMap<felt252, bool>,
+        revoked_certificates: LegacyMap<u256, bool>,
+    }
+
+    #[event]
+    #[derive(Drop, starknet::Event)]
+    enum Event {
+        #[flat]
+        ERC721Event: ERC721Component::Event,
+        #[flat]
+        SRC5Event: SRC5Component::Event,
+        #[flat]
+        OwnableEvent: OwnableComponent::Event,
+        #[flat]
+        PausableEvent: PausableComponent::Event,
+        #[flat]
+        UpgradeableEvent: UpgradeableComponent::Event,
+        
+        CertificateIssued: CertificateIssued,
+        CertificateRevoked: CertificateRevoked,
+        CourseRegistered: CourseRegistered,
+        CourseUpdated: CourseUpdated,
+        MetadataUpdated: MetadataUpdated,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct CertificateIssued {
+        certificate_id: u256,
+        student: ContractAddress,
+        course_id: u256,
+        instructor: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct CertificateRevoked {
+        certificate_id: u256,
+        revoked_by: ContractAddress,
+        timestamp: u64,
+    }
+
+    
