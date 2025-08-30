@@ -52,3 +52,53 @@ mod CertificateVerification {
         if avg_quiz_score < requirements.min_quiz_score {
             meets_requirements = false;
         }
+
+        
+        // Verify participation
+        if proof.participation_score < requirements.required_participation {
+            meets_requirements = false;
+        }
+
+        // Generate verification hash
+        let verification_hash = generate_verification_hash(proof);
+
+        VerificationResult {
+            is_valid,
+            completion_percentage: proof.completion_percentage,
+            meets_requirements,
+            verification_timestamp: get_block_timestamp(),
+            verification_hash,
+        }
+    }
+
+    fn calculate_average_quiz_score(quiz_scores: Span<u8>) -> u8 {
+        if quiz_scores.len() == 0 {
+            return 0;
+        }
+
+        let mut total: u32 = 0;
+        let mut i = 0;
+        
+        loop {
+            if i >= quiz_scores.len() {
+                break;
+            }
+            total += (*quiz_scores.at(i)).into();
+            i += 1;
+        };
+
+        (total / quiz_scores.len()).try_into().unwrap()
+    }
+
+    fn generate_verification_hash(proof: CompletionProof) -> felt252 {
+        let mut hash_data = ArrayTrait::new();
+        hash_data.append(proof.student.into());
+        hash_data.append(proof.course_id.low.into());
+        hash_data.append(proof.course_id.high.into());
+        hash_data.append(proof.completion_percentage.into());
+        hash_data.append(proof.assignments_completed.into());
+        hash_data.append(proof.participation_score.into());
+        hash_data.append(proof.timestamp.into());
+        
+        poseidon_hash_span(hash_data.span())
+    }
