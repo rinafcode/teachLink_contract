@@ -199,3 +199,101 @@ mod ReputationSystem {
             self.emit(InstructorRegistered { instructor, token_id, initial_score });
         }
 
+
+        fn get_instructor_token_id(self: @ContractState, instructor: ContractAddress) -> u256 {
+            self.instructor_to_token.read(instructor)
+        }
+
+        fn is_instructor_registered(self: @ContractState, instructor: ContractAddress) -> bool {
+            let reputation = self.instructor_reputations.read(instructor);
+            reputation.is_active
+        }
+
+        fn submit_review(
+            ref self: ContractState,
+            instructor: ContractAddress,
+            course_id: u256,
+            rating: u8,
+            review_hash: felt252,
+            proof: Array<felt252>
+        ) {
+            self.pausable.assert_not_paused();
+            let reviewer = get_caller_address();
+            
+            assert!(rating >= 1 && rating <= 5, "Rating must be between 1 and 5");
+            assert!(self.is_instructor_registered(instructor), "Instructor not registered");
+            
+            // Check reviewer credibility
+            let reviewer_profile = self.reviewer_profiles.read(reviewer);
+            let credibility = if reviewer_profile.total_reviews == 0 {
+                50 // Default credibility for new reviewers
+            } else {
+                self.get_reviewer_credibility(reviewer)
+            };
+            
+            assert!(credibility >= self.minimum_credibility.read(), "Insufficient reviewer credibility");
+            
+            // Create review
+            let review_id = self.next_review_id.read();
+            self.next_review_id.write(review_id + 1);
+            
+            let review = Review {
+                id: review_id,
+                reviewer,
+                instructor,
+                course_id,
+                rating,
+                review_hash,
+                timestamp: get_block_timestamp(),
+                weight: credibility,
+                is_flagged: false,
+                credibility_score: credibility,
+            };
+            
+            self.reviews.write(review_id, review);
+            
+            // Add to instructor's review list
+            let mut instructor_review_list = self.instructor_reviews.read(instructor);
+            instructor_review_list.append(review_id);
+            self.instructor_reviews.write(instructor, instructor_review_list);
+            
+            // Update reviewer profile
+            self._update_reviewer_profile(reviewer);
+            
+            // Update instructor reputation
+            self.update_reputation_score(instructor);
+            
+            self.emit(ReviewSubmitted {
+                review_id,
+                reviewer,
+                instructor,
+                course_id,
+                rating,
+                weight: credibility,
+            });
+        }
+
+        fn get_review(self: @ContractState, review_id: u256) -> Review {
+            self.reviews.read(review_id)
+        }
+
+        fn get_instructor_reviews(self: @ContractState, instructor: ContractAddress) -> Array<u256> {
+            self.instructor_reviews.read(instructor)
+        }
+
+        fn calculate_reputation_score(self: @ContractState, instructor: ContractAddress) -> u256 {
+            let review_ids = self.instructor_reviews.read(instructor);
+            if review_ids.len() == 0 {
+                return self.instructor_reputations.read(instructor).total_score;
+            }
+            
+            let mut reviews = array![];
+            let mut i = 0;
+            loop {
+                if i >= review_ids.len() {
+                    break;
+                }
+                let review = self.reviews.read(*review_ids.at(i));
+                reviews.append(review);
+                i += 1;
+            };
