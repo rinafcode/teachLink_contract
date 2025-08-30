@@ -149,3 +149,55 @@ fn test_verify_course_completion() {
     assert(!not_completed, 'Student should not have completed course 2');
 }
 
+
+#[test]
+fn test_revoke_certificate() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    let certificate_id = contract.issue_certificate(
+        STUDENT(),
+        1,
+        INSTRUCTOR(),
+        'completion_data_hash',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    // Revoke certificate
+    contract.revoke_certificate(certificate_id);
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Verify certificate is revoked
+    let certificate = contract.get_certificate_details(certificate_id);
+    assert(certificate.is_revoked, 'Certificate should be revoked');
+    
+    // Verify certificate is no longer valid
+    let is_valid = contract.verify_certificate(certificate_id);
+    assert(!is_valid, 'Revoked certificate should not be valid');
+}
+
+#[test]
+fn test_update_certificate_metadata() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    let certificate_id = contract.issue_certificate(
+        STUDENT(),
+        1,
+        INSTRUCTOR(),
+        'completion_data_hash',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    // Update metadata
+    let new_uri = 'https://api.marketx.com/certificates/updated/1';
+    contract.update_certificate_metadata(certificate_id, new_uri);
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
