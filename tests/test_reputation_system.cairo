@@ -201,3 +201,75 @@ fn test_reviewer_credibility() {
     contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
     stop_cheat_caller_address(contract.contract_address);
     
+    
+    // Check reviewer credibility
+    let credibility = contract.get_reviewer_credibility(REVIEWER1());
+    assert!(credibility >= 50, "New reviewer should have at least 50% credibility");
+}
+
+#[test]
+fn test_anti_manipulation_measures() {
+    let contract = deploy_contract();
+    
+    // Setup instructor
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 50);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Submit multiple reviews from same reviewer (suspicious pattern)
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
+    contract.submit_review(INSTRUCTOR1(), 2, 5, 'review2', array![]);
+    contract.submit_review(INSTRUCTOR1(), 3, 5, 'review3', array![]);
+    contract.submit_review(INSTRUCTOR1(), 4, 5, 'review4', array![]);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Score should be penalized for suspicious patterns
+    let score = contract.get_weighted_score(INSTRUCTOR1());
+    let calculated_score = contract.calculate_reputation_score(INSTRUCTOR1());
+    
+    // The calculated score should be lower due to anti-gaming penalties
+    assert!(calculated_score < 100, "Score should be penalized for suspicious patterns");
+}
+
+#[test]
+fn test_reputation_verification() {
+    let contract = deploy_contract();
+    
+    // Setup instructor
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Get current score
+    let actual_score = contract.get_weighted_score(INSTRUCTOR1());
+    
+    // Verify correct score
+    assert!(contract.verify_reputation_score(INSTRUCTOR1(), actual_score), "Should verify correct score");
+    
+    // Verify incorrect score
+    assert!(!contract.verify_reputation_score(INSTRUCTOR1(), actual_score + 10), "Should reject incorrect score");
+}
+
+#[test]
+fn test_minimum_credibility_threshold() {
+    let contract = deploy_contract();
+    
+    // Set high minimum credibility
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.set_minimum_credibility(80);
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // New reviewer with default 50% credibility should not be able to review
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    
+    // This should fail due to insufficient credibility
+    let result = std::panic::catch_unwind(|| {
+        contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
+    });
+    
+    assert!(result.is_err(), "Should fail due to insufficient credibility");
+    
+    stop_cheat_caller_address(contract.contract_address);
+}
