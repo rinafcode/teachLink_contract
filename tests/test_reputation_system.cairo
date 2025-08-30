@@ -100,3 +100,53 @@ fn test_submit_review() {
     );
     stop_cheat_caller_address(contract.contract_address);
     
+    
+    // Verify review was created
+    let review = contract.get_review(1);
+    assert!(review.reviewer == REVIEWER1(), "Reviewer should match");
+    assert!(review.instructor == INSTRUCTOR1(), "Instructor should match");
+    assert!(review.rating == 5, "Rating should be 5");
+    assert!(review.course_id == 1, "Course ID should be 1");
+    
+    // Verify instructor's review list
+    let reviews = contract.get_instructor_reviews(INSTRUCTOR1());
+    assert!(reviews.len() == 1, "Should have 1 review");
+    assert!(*reviews.at(0) == 1, "Review ID should be 1");
+}
+
+#[test]
+#[should_panic(expected: 'Rating must be between 1 and 5')]
+fn test_submit_invalid_rating() {
+    let contract = deploy_contract();
+    
+    // Setup instructor
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Submit invalid review
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    contract.submit_review(
+        INSTRUCTOR1(),
+        1,
+        6, // Invalid rating > 5
+        'review_hash_123',
+        array![]
+    );
+    stop_cheat_caller_address(contract.contract_address);
+}
+
+#[test]
+fn test_reputation_score_calculation() {
+    let contract = deploy_contract();
+    
+    // Setup instructor
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 50);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Submit multiple reviews
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
+    stop_cheat_caller_address(contract.contract_address);
+    
