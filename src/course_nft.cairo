@@ -122,3 +122,86 @@ mod CourseNFTCertificate {
     }
 
     
+    #[derive(Drop, starknet::Event)]
+    struct CourseRegistered {
+        course_id: u256,
+        instructor: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct CourseUpdated {
+        course_id: u256,
+        updated_by: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct MetadataUpdated {
+        certificate_id: u256,
+        new_uri: felt252,
+        updated_by: ContractAddress,
+    }
+
+    #[constructor]
+    fn constructor(
+        ref self: ContractState,
+        owner: ContractAddress,
+        name: felt252,
+        symbol: felt252,
+        base_uri: felt252
+    ) {
+        self.erc721.initializer(name, symbol, base_uri);
+        self.ownable.initializer(owner);
+        self.next_certificate_id.write(1);
+        self.total_certificates.write(0);
+        self.total_courses.write(0);
+    }
+
+    #[abi(embed_v0)]
+    impl CourseNFTCertificateImpl of ICourseNFTCertificate<ContractState> {
+        fn issue_certificate(
+            ref self: ContractState,
+            student: ContractAddress,
+            course_id: u256,
+            instructor: ContractAddress,
+            completion_data: felt252,
+            metadata_uri: felt252
+        ) -> u256 {
+            self.pausable.assert_not_paused();
+            
+            // Verify course exists and instructor is authorized
+            assert(self.course_exists.read(course_id), 'Course does not exist');
+            let course_info = self.courses.read(course_id);
+            assert(course_info.instructor == instructor, 'Unauthorized instructor');
+            assert(course_info.is_active, 'Course is not active');
+            
+            // Verify caller is authorized (instructor or contract owner)
+            let caller = get_caller_address();
+            assert(
+                caller == instructor || caller == self.ownable.owner(),
+                'Unauthorized certificate issuer'
+            );
+            
+            // Generate certificate ID and verification hash
+            let certificate_id = self.next_certificate_id.read();
+            let timestamp = get_block_timestamp();
+            let verification_hash = CertificateVerification::generate_certificate_hash(
+                student, course_id, instructor, completion_data, timestamp
+            );
+            
+            // Ensure certificate hash is unique (prevent duplicates)
+            assert(!self.certificate_hashes.read(verification_hash), 'Certificate already exists');
+            
+            // Create certificate details
+            let certificate = CertificateDetails {
+                certificate_id,
+                student,
+                course_id,
+                instructor,
+                issue_timestamp: timestamp,
+                completion_data,
+                metadata_uri,
+                is_revoked: false,
+                verification_hash,
+            };
