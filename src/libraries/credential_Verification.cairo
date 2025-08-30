@@ -54,3 +54,47 @@ impl CredentialVerificationImpl of CredentialVerificationTrait {
             .update(issued_at.into())
             .finalize()
     }
+
+    
+    fn verify_selective_disclosure_proof(
+        original_credential_hash: felt252,
+        disclosed_fields: Array<felt252>,
+        proof_hash: felt252
+    ) -> bool {
+        let mut hasher = PedersenTrait::new();
+        hasher = hasher.update(original_credential_hash);
+        
+        let mut i = 0;
+        loop {
+            if i >= disclosed_fields.len() {
+                break;
+            }
+            hasher = hasher.update(*disclosed_fields.at(i));
+            i += 1;
+        };
+        
+        let computed_proof = hasher.finalize();
+        computed_proof == proof_hash
+    }
+    
+    fn validate_did_controller(
+        did_controller: ContractAddress,
+        caller: ContractAddress
+    ) -> bool {
+        did_controller == caller
+    }
+    
+    fn generate_attestation_hash(
+        attester: ContractAddress,
+        credential_id: felt252,
+        attestation_data: felt252,
+        timestamp: u64
+    ) -> felt252 {
+        PedersenTrait::new()
+            .update(attester.into())
+            .update(credential_id)
+            .update(attestation_data)
+            .update(timestamp.into())
+            .finalize()
+    }
+}
