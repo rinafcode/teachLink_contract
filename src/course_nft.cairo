@@ -205,3 +205,95 @@ mod CourseNFTCertificate {
                 is_revoked: false,
                 verification_hash,
             };
+
+            // Store certificate
+            self.certificates.write(certificate_id, certificate);
+            self.certificate_hashes.write(verification_hash, true);
+            
+            // Update mappings
+            let mut student_certs = self.student_certificates.read(student);
+            student_certs.append(certificate_id);
+            self.student_certificates.write(student, student_certs);
+            
+            let mut course_certs = self.course_certificates.read(course_id);
+            course_certs.append(certificate_id);
+            self.course_certificates.write(course_id, course_certs);
+            
+            let mut instructor_certs = self.instructor_certificates.read(instructor);
+            instructor_certs.append(certificate_id);
+            self.instructor_certificates.write(instructor, instructor_certs);
+            
+            // Mint NFT to student
+            self.erc721._mint(student, certificate_id);
+            self.erc721._set_token_uri(certificate_id, metadata_uri);
+            
+            // Update counters
+            self.next_certificate_id.write(certificate_id + 1);
+            self.total_certificates.write(self.total_certificates.read() + 1);
+            
+            // Update course certificate count
+            let mut updated_course = course_info;
+            updated_course.total_certificates_issued += 1;
+            self.courses.write(course_id, updated_course);
+            
+            // Emit event
+            self.emit(CertificateIssued {
+                certificate_id,
+                student,
+                course_id,
+                instructor,
+                timestamp,
+            });
+            
+            certificate_id
+        }
+
+        fn revoke_certificate(ref self: ContractState, certificate_id: u256) {
+            self.pausable.assert_not_paused();
+            
+            let certificate = self.certificates.read(certificate_id);
+            assert(certificate.certificate_id != 0, 'Certificate does not exist');
+            assert(!certificate.is_revoked, 'Certificate already revoked');
+            
+            let caller = get_caller_address();
+            // Only instructor, student, or contract owner can revoke
+            assert(
+                caller == certificate.instructor || 
+                caller == certificate.student || 
+                caller == self.ownable.owner(),
+                'Unauthorized revocation'
+            );
+            
+            // Update certificate status
+            let mut updated_certificate = certificate;
+            updated_certificate.is_revoked = true;
+            self.certificates.write(certificate_id, updated_certificate);
+            self.revoked_certificates.write(certificate_id, true);
+            
+            // Burn the NFT
+            self.erc721._burn(certificate_id);
+            
+            self.emit(CertificateRevoked {
+                certificate_id,
+                revoked_by: caller,
+                timestamp: get_block_timestamp(),
+            });
+        }
+
+        fn update_certificate_metadata(
+            ref self: ContractState, 
+            certificate_id: u256, 
+            new_uri: felt252
+        ) {
+            self.pausable.assert_not_paused();
+            
+            let certificate = self.certificates.read(certificate_id);
+            assert(certificate.certificate_id != 0, 'Certificate does not exist');
+            assert(!certificate.is_revoked, 'Certificate is revoked');
+            
+            let caller = get_caller_address();
+            assert(
+                caller == certificate.instructor || caller == self.ownable.owner(),
+                'Unauthorized metadata update'
+            );
+            
