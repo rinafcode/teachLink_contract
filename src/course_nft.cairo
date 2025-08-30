@@ -296,4 +296,106 @@ mod CourseNFTCertificate {
                 caller == certificate.instructor || caller == self.ownable.owner(),
                 'Unauthorized metadata update'
             );
+            // Update metadata URI
+            let mut updated_certificate = certificate;
+            updated_certificate.metadata_uri = new_uri;
+            self.certificates.write(certificate_id, updated_certificate);
+            
+            // Update NFT metadata
+            self.erc721._set_token_uri(certificate_id, new_uri);
+            
+            self.emit(MetadataUpdated {
+                certificate_id,
+                new_uri,
+                updated_by: caller,
+            });
+        }
+
+        fn verify_certificate(self: @ContractState, certificate_id: u256) -> bool {
+            let certificate = self.certificates.read(certificate_id);
+            
+            if certificate.certificate_id == 0 {
+                return false;
+            }
+            
+            if certificate.is_revoked {
+                return false;
+            }
+            
+            // Verify hash integrity
+            let computed_hash = CertificateVerification::generate_certificate_hash(
+                certificate.student,
+                certificate.course_id,
+                certificate.instructor,
+                certificate.completion_data,
+                certificate.issue_timestamp
+            );
+            
+            computed_hash == certificate.verification_hash
+        }
+
+        fn verify_course_completion(
+            self: @ContractState, 
+            student: ContractAddress, 
+            course_id: u256
+        ) -> bool {
+            let student_certs = self.student_certificates.read(student);
+            let mut i = 0;
+            
+            loop {
+                if i >= student_certs.len() {
+                    break false;
+                }
+                
+                let cert_id = *student_certs.at(i);
+                let certificate = self.certificates.read(cert_id);
+                
+                if certificate.course_id == course_id && !certificate.is_revoked {
+                    break true;
+                }
+                
+                i += 1;
+            }
+        }
+
+        fn get_certificate_details(
+            self: @ContractState, 
+            certificate_id: u256
+        ) -> CertificateDetails {
+            self.certificates.read(certificate_id)
+        }
+
+        fn get_student_certificates(
+            self: @ContractState, 
+            student: ContractAddress
+        ) -> Array<u256> {
+            self.student_certificates.read(student)
+        }
+
+        fn get_course_certificates(self: @ContractState, course_id: u256) -> Array<u256> {
+            self.course_certificates.read(course_id)
+        }
+
+        fn get_instructor_issued_certificates(
+            self: @ContractState, 
+            instructor: ContractAddress
+        ) -> Array<u256> {
+            self.instructor_certificates.read(instructor)
+        }
+
+        fn register_course(
+            ref self: ContractState,
+            course_id: u256,
+            instructor: ContractAddress,
+            requirements: CourseRequirements
+        ) {
+            self.pausable.assert_not_paused();
+            
+            let caller = get_caller_address();
+            assert(
+                caller == instructor || caller == self.ownable.owner(),
+                'Unauthorized course registration'
+            );
+            
+            assert(!self.course_exists.read(course_id), 'Course already exists');
             
