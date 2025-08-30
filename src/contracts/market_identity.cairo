@@ -101,3 +101,55 @@ mod MarketXIdentity {
         attester: ContractAddress,
         timestamp: u64,
     }
+
+    
+    #[derive(Drop, starknet::Event)]
+    struct SelectiveDisclosureCreated {
+        disclosure_id: felt252,
+        credential_id: felt252,
+        creator: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[constructor]
+    fn constructor(ref self: ContractState, owner: ContractAddress) {
+        self.contract_owner.write(owner);
+        self.did_counter.write(0);
+        self.credential_counter.write(0);
+        self.attestation_counter.write(0);
+        self.disclosure_counter.write(0);
+        
+        // Set owner as authorized issuer
+        self.authorized_issuers.write(owner, true);
+    }
+
+    #[abi(embed_v0)]
+    impl MarketXIdentityImpl of IMarketXIdentity<ContractState> {
+        fn create_did(ref self: ContractState, controller: ContractAddress) -> felt252 {
+            let caller = get_caller_address();
+            assert(caller == controller, 'Only controller can create DID');
+            
+            let current_time = get_block_timestamp();
+            let did_id = self.did_counter.read() + 1;
+            self.did_counter.write(did_id);
+            
+            let new_did = DID {
+                id: did_id,
+                controller,
+                created_at: current_time,
+                updated_at: current_time,
+                is_active: true,
+            };
+            
+            self.dids.write(did_id, new_did);
+            self.user_dids.write(controller, did_id);
+            
+            self.emit(DIDCreated {
+                did_id,
+                controller,
+                timestamp: current_time,
+            });
+            
+            did_id
+        }
+
