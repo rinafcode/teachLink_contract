@@ -47,3 +47,57 @@ mod MarketXIdentity {
         AttestationInvalidated: AttestationInvalidated,
         SelectiveDisclosureCreated: SelectiveDisclosureCreated,
     }
+
+    
+    #[derive(Drop, starknet::Event)]
+    struct DIDCreated {
+        did_id: felt252,
+        controller: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct DIDUpdated {
+        did_id: felt252,
+        old_controller: ContractAddress,
+        new_controller: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct DIDDeactivated {
+        did_id: felt252,
+        controller: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct CredentialIssued {
+        credential_id: felt252,
+        issuer: ContractAddress,
+        subject_did: felt252,
+        credential_type: felt252,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct CredentialRevoked {
+        credential_id: felt252,
+        issuer: ContractAddress,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct AttestationCreated {
+        attestation_id: felt252,
+        attester: ContractAddress,
+        credential_id: felt252,
+        timestamp: u64,
+    }
+
+    #[derive(Drop, starknet::Event)]
+    struct AttestationInvalidated {
+        attestation_id: felt252,
+        attester: ContractAddress,
+        timestamp: u64,
+    }
