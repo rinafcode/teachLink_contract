@@ -273,3 +273,41 @@ fn test_minimum_credibility_threshold() {
     
     stop_cheat_caller_address(contract.contract_address);
 }
+
+
+#[test]
+fn test_pause_functionality() {
+    let contract = deploy_contract();
+    
+    // Setup instructor
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    
+    // Pause contract
+    contract.pause_contract();
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Try to submit review while paused - should fail
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    
+    let result = std::panic::catch_unwind(|| {
+        contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
+    });
+    
+    assert!(result.is_err(), "Should fail when contract is paused");
+    
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Unpause and try again
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.unpause_contract();
+    stop_cheat_caller_address(contract.contract_address);
+    
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Should succeed now
+    let reviews = contract.get_instructor_reviews(INSTRUCTOR1());
+    assert!(reviews.len() == 1, "Review should be submitted after unpause");
+}
