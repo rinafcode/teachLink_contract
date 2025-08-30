@@ -406,3 +406,54 @@ mod MarketXIdentity {
                 return false;
             }
             
+            
+            // Verify the underlying credential is still valid
+            self.verify_credential(attestation.credential_id)
+        }
+
+        fn invalidate_attestation(ref self: ContractState, attestation_id: felt252) {
+            let caller = get_caller_address();
+            let mut attestation = self.attestations.read(attestation_id);
+            
+            assert(caller == attestation.attester, 'Only attester can invalidate');
+            assert(attestation.is_valid, 'Already invalid');
+            
+            attestation.is_valid = false;
+            self.attestations.write(attestation_id, attestation);
+            
+            self.emit(AttestationInvalidated {
+                attestation_id,
+                attester: caller,
+                timestamp: get_block_timestamp(),
+            });
+        }
+
+        fn get_user_credentials(self: @ContractState, did_id: felt252) -> Array<felt252> {
+            self.user_credentials.read(did_id)
+        }
+
+        fn get_credential_attestations(self: @ContractState, credential_id: felt252) -> Array<felt252> {
+            self.credential_attestations.read(credential_id)
+        }
+
+        fn is_credential_valid(self: @ContractState, credential_id: felt252) -> bool {
+            self.verify_credential(credential_id)
+        }
+    }
+
+    // Admin functions
+    #[generate_trait]
+    impl AdminImpl of AdminTrait {
+        fn add_authorized_issuer(ref self: ContractState, issuer: ContractAddress) {
+            let caller = get_caller_address();
+            assert(caller == self.contract_owner.read(), 'Only owner');
+            self.authorized_issuers.write(issuer, true);
+        }
+        
+        fn remove_authorized_issuer(ref self: ContractState, issuer: ContractAddress) {
+            let caller = get_caller_address();
+            assert(caller == self.contract_owner.read(), 'Only owner');
+            self.authorized_issuers.write(issuer, false);
+        }
+    }
+}
