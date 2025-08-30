@@ -153,3 +153,49 @@ mod MarketXIdentity {
             did_id
         }
 
+
+        fn update_did_controller(ref self: ContractState, did_id: felt252, new_controller: ContractAddress) {
+            let caller = get_caller_address();
+            let mut did = self.dids.read(did_id);
+            
+            assert(did.is_active, 'DID is not active');
+            assert(caller == did.controller, 'Only controller can update');
+            
+            let old_controller = did.controller;
+            did.controller = new_controller;
+            did.updated_at = get_block_timestamp();
+            
+            self.dids.write(did_id, did);
+            self.user_dids.write(new_controller, did_id);
+            
+            self.emit(DIDUpdated {
+                did_id,
+                old_controller,
+                new_controller,
+                timestamp: get_block_timestamp(),
+            });
+        }
+
+        fn deactivate_did(ref self: ContractState, did_id: felt252) {
+            let caller = get_caller_address();
+            let mut did = self.dids.read(did_id);
+            
+            assert(did.is_active, 'DID already inactive');
+            assert(caller == did.controller, 'Only controller can deactivate');
+            
+            did.is_active = false;
+            did.updated_at = get_block_timestamp();
+            
+            self.dids.write(did_id, did);
+            
+            self.emit(DIDDeactivated {
+                did_id,
+                controller: did.controller,
+                timestamp: get_block_timestamp(),
+            });
+        }
+
+        fn get_did(self: @ContractState, did_id: felt252) -> DID {
+            self.dids.read(did_id)
+        }
+
