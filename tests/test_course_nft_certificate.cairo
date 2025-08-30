@@ -250,3 +250,57 @@ fn test_issue_certificate_wrong_instructor() {
     
     stop_prank(CheatTarget::One(contract.contract_address));
 }
+
+
+#[test]
+#[should_panic(expected: ('Course already exists',))]
+fn test_register_duplicate_course() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    // Try to register same course again
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+}
+
+#[test]
+fn test_get_student_certificates() {
+    let contract = deploy_contract();
+    let requirements = create_sample_requirements();
+    
+    start_prank(CheatTarget::One(contract.contract_address), INSTRUCTOR());
+    contract.register_course(1, INSTRUCTOR(), requirements);
+    contract.register_course(2, INSTRUCTOR(), requirements);
+    
+    // Issue multiple certificates to same student
+    let cert1 = contract.issue_certificate(
+        STUDENT(),
+        1,
+        INSTRUCTOR(),
+        'completion_data_hash_1',
+        'https://api.marketx.com/certificates/1'
+    );
+    
+    let cert2 = contract.issue_certificate(
+        STUDENT(),
+        2,
+        INSTRUCTOR(),
+        'completion_data_hash_2',
+        'https://api.marketx.com/certificates/2'
+    );
+    
+    stop_prank(CheatTarget::One(contract.contract_address));
+    
+    // Get student certificates
+    let student_certs = contract.get_student_certificates(STUDENT());
+    assert(student_certs.len() == 2, 'Wrong number of certificates');
+}
+
+#[test]
+fn test_pause_and_unpause() {
+    let contract = deploy_contract();
