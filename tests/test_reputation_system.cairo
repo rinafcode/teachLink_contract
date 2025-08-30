@@ -150,3 +150,54 @@ fn test_reputation_score_calculation() {
     contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
     stop_cheat_caller_address(contract.contract_address);
     
+    
+    start_cheat_caller_address(contract.contract_address, REVIEWER2());
+    contract.submit_review(INSTRUCTOR1(), 2, 4, 'review2', array![]);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Check updated reputation score
+    let score = contract.get_weighted_score(INSTRUCTOR1());
+    assert!(score > 50, "Score should be updated and higher than initial");
+    
+    // Verify score calculation
+    let calculated_score = contract.calculate_reputation_score(INSTRUCTOR1());
+    assert!(calculated_score == score, "Calculated score should match stored score");
+}
+
+#[test]
+fn test_flag_review() {
+    let contract = deploy_contract();
+    
+    // Setup instructor and submit review
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Flag the review
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.flag_review(1, 1); // reason: 1 (spam)
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Verify review is flagged
+    let review = contract.get_review(1);
+    assert!(review.is_flagged, "Review should be flagged");
+}
+
+#[test]
+fn test_reviewer_credibility() {
+    let contract = deploy_contract();
+    
+    // Setup instructor
+    start_cheat_caller_address(contract.contract_address, OWNER());
+    contract.mint_instructor_token(INSTRUCTOR1(), 75);
+    stop_cheat_caller_address(contract.contract_address);
+    
+    // Submit review to establish reviewer profile
+    start_cheat_caller_address(contract.contract_address, REVIEWER1());
+    contract.submit_review(INSTRUCTOR1(), 1, 5, 'review1', array![]);
+    stop_cheat_caller_address(contract.contract_address);
+    
