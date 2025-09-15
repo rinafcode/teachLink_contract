@@ -600,3 +600,412 @@
                 let il_amount = hold_value - current_lp_value;
                 let il_percentage = (il_amount * 10000) / position.initial_total_value;
             
+            
+                // Only compensate if IL exceeds threshold
+                let threshold = self.il_protection_threshold.read();
+                if il_percentage >= threshold {
+                    let coverage = self.il_protection_coverage.read();
+                    let compensation = (il_amount * coverage) / 10000;
+                    
+                    // Subtract already claimed compensation
+                    if compensation > position.compensation_claimed {
+                        compensation - position.compensation_claimed
+                    } else {
+                        0
+                    }
+                } else {
+                    0
+                }
+            } else {
+                0
+            }
+        }
+        
+        fn _get_token_prices(self: @ContractState) -> (u256, u256) {
+            let oracle_address = self.oracle_address.read();
+            
+            if oracle_address.is_zero() {
+                // Fallback to pool ratio if no oracle
+                let reserve_a = self.reserve_a.read();
+                let reserve_b = self.reserve_b.read();
+                
+                if reserve_a > 0 && reserve_b > 0 {
+                    // Price of token A in terms of token B
+                    let price_a = (reserve_b * 1000000000000000000) / reserve_a;
+                    let price_b = 1000000000000000000; // Base price
+                    (price_a, price_b)
+                } else {
+                    (1000000000000000000, 1000000000000000000)
+                }
+            } else {
+                // Get prices from oracle (implementation depends on oracle interface)
+                self._get_oracle_prices(oracle_address)
+            }
+        }
+        
+        fn _get_oracle_prices(self: @ContractState, oracle: ContractAddress) -> (u256, u256) {
+            // Placeholder for oracle integration
+            // In real implementation, this would call the oracle contract
+            (1000000000000000000, 1000000000000000000)
+        }
+        
+        fn _calculate_user_portfolio_value(
+            self: @ContractState, 
+            user: ContractAddress, 
+            price_a: u256, 
+            price_b: u256
+        ) -> u256 {
+            let user_positions = self.user_positions.read(user);
+            let mut total_value = 0;
+            
+            let mut i = 0;
+            while i < user_positions.len() {
+                let position_id = *user_positions.at(i);
+                let position = self.positions.read(position_id);
+                
+                let value_a = position.token_a_amount * price_a;
+                let value_b = position.token_b_amount * price_b;
+                total_value += value_a + value_b;
+                
+                i += 1;
+            }
+            
+            total_value
+        }
+        
+        fn _get_user_token_a_amount(self: @ContractState, user: ContractAddress) -> u256 {
+            let user_positions = self.user_positions.read(user);
+            let mut total_amount = 0;
+            
+            let mut i = 0;
+            while i < user_positions.len() {
+                let position_id = *user_positions.at(i);
+                let position = self.positions.read(position_id);
+                total_amount += position.token_a_amount;
+                i += 1;
+            }
+            
+            total_amount
+        }
+        
+        fn _get_user_token_b_amount(self: @ContractState, user: ContractAddress) -> u256 {
+            let user_positions = self.user_positions.read(user);
+            let mut total_amount = 0;
+            
+            let mut i = 0;
+            while i < user_positions.len() {
+                let position_id = *user_positions.at(i);
+                let position = self.positions.read(position_id);
+                total_amount += position.token_b_amount;
+                i += 1;
+            }
+            
+            total_amount
+        }
+        
+        fn _calculate_lp_value(
+            self: @ContractState,
+            liquidity_amount: u256,
+            price_a: u256,
+            price_b: u256
+        ) -> u256 {
+            let total_supply = self.total_supply.read();
+            if total_supply == 0 {
+                return 0;
+            }
+            
+            let reserve_a = self.reserve_a.read();
+            let reserve_b = self.reserve_b.read();
+            
+            let token_a_amount = (liquidity_amount * reserve_a) / total_supply;
+            let token_b_amount = (liquidity_amount * reserve_b) / total_supply;
+            
+            (token_a_amount * price_a) + (token_b_amount * price_b)
+        }
+        
+        fn _update_il_positions_claimed(ref self: ContractState, user: ContractAddress, compensation: u256) {
+            let mut user_il_positions = self.user_il_positions.read(user);
+            let mut updated_positions: Array<ILPosition> = ArrayTrait::new();
+            let mut remaining_compensation = compensation;
+            
+            let mut i = 0;
+            while i < user_il_positions.len() {
+                let mut il_position = *user_il_positions.at(i);
+                
+                if il_position.is_active && remaining_compensation > 0 {
+                    let position_compensation = self._calculate_position_il_compensation(il_position);
+                    
+                    if position_compensation > 0 {
+                        let claim_amount = if remaining_compensation >= position_compensation {
+                            position_compensation
+                        } else {
+                            remaining_compensation
+                        };
+                        
+                        il_position.compensation_claimed += claim_amount;
+                        remaining_compensation -= claim_amount;
+                        
+                        // Update the stored position
+                        self.il_positions.write(il_position.id, il_position);
+                    }
+                }
+                
+                updated_positions.append(il_position);
+                i += 1;
+            }
+            
+            self.user_il_positions.write(user, updated_positions);
+        }
+        
+        fn _transfer_il_compensation(ref self: ContractState, user: ContractAddress, compensation: u256) {
+            // Transfer compensation in reward tokens if available
+            let reward_token_address = self.reward_token.read();
+            
+            if !reward_token_address.is_zero() {
+                let reward_token = IERC20Dispatcher { contract_address: reward_token_address };
+                reward_token.transfer(user, compensation);
+            } else {
+                // Fallback: mint additional LP tokens as compensation
+                let current_balance = self.balances.read(user);
+                self.balances.write(user, current_balance + compensation);
+                self.total_supply.write(self.total_supply.read() + compensation);
+                
+                self.emit(Transfer { 
+                    from: contract_address_const::<0>(), 
+                    to: user, 
+                    value: compensation 
+                });
+            }
+        }
+        
+        fn _check_advanced_trade_limits(ref self: ContractState, user: ContractAddress, amount: u256) {
+            let current_block = get_block_timestamp();
+            let last_trade = self.user_last_trade_block.read(user);
+            let trade_count = self.user_trade_count.read(user);
+            let mev_protection = self.mev_protection.read();
+            
+            // Check cooldown
+            let cooldown = self.trade_cooldown.read();
+            assert(current_block >= last_trade + cooldown, Errors::TRADE_COOLDOWN);
+            
+            // Check consecutive trade limit
+            if current_block == last_trade {
+                assert(trade_count < mev_protection.consecutive_trade_limit, 'Too many consecutive trades');
+                self.user_trade_count.write(user, trade_count + 1);
+            } else {
+                self.user_trade_count.write(user, 1);
+            }
+            
+            // Check trade size
+            assert(amount <= self.max_trade_size.read(), Errors::TRADE_SIZE_EXCEEDED);
+            
+            
+            // Check volume threshold
+            let block_volume = self.block_trade_volume.read(current_block);
+            if amount > mev_protection.volume_threshold {
+                self.emit(SuspiciousActivity { 
+                    user, 
+                    activity_type: 'LARGE_TRADE', 
+                    block_number: current_block 
+                });
+            }
+            
+            self.block_trade_volume.write(current_block, block_volume + amount);
+            self.user_last_trade_block.write(user, current_block);
+        }
+        
+        fn _detect_mev_attack(
+            ref self: ContractState,
+            amount_in: u256,
+            reserve_in: u256,
+            reserve_out: u256
+        ) {
+            let caller = get_caller_address();
+            let current_block = get_block_timestamp();
+            let mev_protection = self.mev_protection.read();
+            
+            // Check for sandwich attack patterns
+            let twap_data = self.twap_data.read();
+            let current_price = (reserve_out * 1000000000000000000) / reserve_in;
+            
+            if twap_data.price_average_0 > 0 {
+                let is_sandwich = AMM::detect_sandwich_attack(
+                    current_price,
+                    twap_data.price_average_0,
+                    500 // 5% deviation threshold
+                );
+                
+                if is_sandwich {
+                    self.emit(MEVDetected { 
+                        user: caller, 
+                        detection_type: 'SANDWICH_ATTACK', 
+                        severity: 1 
+                    });
+                    
+                    // Mark address as suspicious for repeated offenses
+                    let trade_count = self.user_trade_count.read(caller);
+                    if trade_count > 3 {
+                        self.suspicious_addresses.write(caller, true);
+                    }
+                }
+            }
+            
+            // Check for flash loan attacks
+            if mev_protection.flash_loan_protection {
+                let tx_info = get_tx_info().unbox();
+                // In a real implementation, check if this transaction involves flash loans
+                // This is a simplified check
+                if amount_in > reserve_in / 10 { // More than 10% of pool
+                    self.emit(MEVDetected { 
+                        user: caller, 
+                        detection_type: 'POTENTIAL_FLASH_LOAN', 
+                        severity: 2 
+                    });
+                }
+            }
+        }
+        
+        fn _calculate_dynamic_fee(self: @ContractState) -> u256 {
+            let base_fee = self.base_fee.read();
+            let max_fee = self.max_fee.read();
+            let volatility_factor = self.volatility_factor.read();
+            let volume_factor = self.volume_factor.read();
+            
+            AMM::calculate_dynamic_fee(base_fee, volatility_factor, volume_factor, max_fee)
+        }
+        
+        fn _update_twap_and_check_circuit_breaker(ref self: ContractState) {
+            let reserve_a = self.reserve_a.read();
+            let reserve_b = self.reserve_b.read();
+            let current_time = get_block_timestamp();
+            
+            // Update TWAP
+            let mut twap_data = self.twap_data.read();
+            AMM::update_twap(twap_data, reserve_a, reserve_b, current_time);
+            self.twap_data.write(twap_data);
+            
+            // Check circuit breaker conditions
+            if self.circuit_breaker_enabled.read() {
+                self._check_circuit_breaker_conditions(reserve_a, reserve_b);
+            }
+        }
+        
+        fn _check_circuit_breaker_conditions(ref self: ContractState, reserve_a: u256, reserve_b: u256) {
+            let current_time = get_block_timestamp();
+            let current_price = if reserve_a > 0 { (reserve_b * 1000000000000000000) / reserve_a } else { 0 };
+            let twap_data = self.twap_data.read();
+            
+            // Check for large price movements
+            if twap_data.price_average_0 > 0 {
+                let price_change = if current_price > twap_data.price_average_0 {
+                    ((current_price - twap_data.price_average_0) * 10000) / twap_data.price_average_0
+                } else {
+                    ((twap_data.price_average_0 - current_price) * 10000) / twap_data.price_average_0
+                };
+                
+                if price_change > self.price_change_threshold.read() {
+                    self._trigger_circuit_breaker('PRICE_SPIKE', price_change);
+                }
+            }
+            
+            // Check for volume spikes
+            let block_volume = self.block_trade_volume.read(current_time);
+            if block_volume > self.volume_spike_threshold.read() {
+                self._trigger_circuit_breaker('VOLUME_SPIKE', block_volume);
+            }
+        }
+        
+        fn _trigger_circuit_breaker(ref self: ContractState, trigger_type: felt252, trigger_value: u256) {
+            let current_time = get_block_timestamp();
+            let duration = self.circuit_breaker_duration.read();
+            
+            self.circuit_breaker_end_time.write(current_time + duration);
+            
+            self.emit(CircuitBreakerTriggered { 
+                trigger_type, 
+                duration, 
+                trigger_value 
+            });
+        }
+        
+        fn _check_circuit_breaker(self: @ContractState) {
+            if self.is_circuit_breaker_active() {
+                assert(false, Errors::CIRCUIT_BREAKER_ACTIVE);
+            }
+        }
+        
+        fn _check_suspicious_address(self: @ContractState, address: ContractAddress) {
+            if self.suspicious_addresses.read(address) {
+                assert(false, Errors::SUSPICIOUS_ADDRESS);
+            }
+        }
+        
+        fn _swap_with_protection(
+            ref self: ContractState,
+            amount_in: u256,
+            token_in: ContractAddress,
+            to: ContractAddress,
+            fee_rate: u256
+        ) -> u256 {
+            let reserve_a = self.reserve_a.read();
+            let reserve_b = self.reserve_b.read();
+            
+            let (amount_out, new_reserve_a, new_reserve_b) = if token_in == self.token_a.read() {
+                let amount_out = AMM::get_amount_out(amount_in, reserve_a, reserve_b, fee_rate);
+                let token_in_dispatcher = IERC20Dispatcher { contract_address: token_in };
+                let token_out_dispatcher = IERC20Dispatcher { contract_address: self.token_b.read() };
+                
+                token_in_dispatcher.transfer_from(get_caller_address(), get_contract_address(), amount_in);
+                token_out_dispatcher.transfer(to, amount_out);
+                
+                (amount_out, reserve_a + amount_in, reserve_b - amount_out)
+            } else {
+                let amount_out = AMM::get_amount_out(amount_in, reserve_b, reserve_a, fee_rate);
+                let token_in_dispatcher = IERC20Dispatcher { contract_address: token_in };
+                let token_out_dispatcher = IERC20Dispatcher { contract_address: self.token_a.read() };
+                
+                token_in_dispatcher.transfer_from(get_caller_address(), get_contract_address(), amount_in);
+                token_out_dispatcher.transfer(to, amount_out);
+                
+                (amount_out, reserve_a - amount_out, reserve_b + amount_in)
+            };
+            
+            self._update(new_reserve_a, new_reserve_b);
+            
+            let token_out = if token_in == self.token_a.read() {
+                self.token_b.read()
+            } else {
+                self.token_a.read()
+            };
+            
+            self.emit(Swap { 
+                sender: get_caller_address(), 
+                amount_in, 
+                amount_out, 
+                token_in, 
+                token_out, 
+                to 
+            });
+            
+            amount_out
+        }
+        
+        fn _execute_matched_orders(
+            ref self: ContractState,
+            batch_id: u64,
+            clearing_price: u256,
+            volume: u256
+        ) {
+            // Simplified order execution - in production, implement proper matching
+            let buy_orders = self.buy_orders.read(batch_id);
+            let sell_orders = self.sell_orders.read(batch_id);
+            
+            // Clear orders for next batch
+            self.buy_orders.write(batch_id, ArrayTrait::new());
+            self.sell_orders.write(batch_id, ArrayTrait::new());
+            
+            // In a real implementation, execute the matched trades here
+            // This would involve transferring tokens between matched buyers and sellers
+        }
+    }
+}
