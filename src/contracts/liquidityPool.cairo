@@ -400,4 +400,199 @@ pub mod LiquidityPool {
             flash_loan_protection: true,
         };
         self.mev_protection.write(mev_protection);
+     
+        // Initialize TWAP
+        let twap_data = TWAPData {
+            price_0_cumulative_last: 0,
+            price_1_cumulative_last: 0,
+            block_timestamp_last: get_block_timestamp(),
+            price_average_0: 0,
+            price_average_1: 0,
+            observation_count: 0,
+        };
+        self.twap_data.write(twap_data);
+        
+        // Initialize dynamic fees
+        self.base_fee.write(30); // 0.3%
+        self.max_fee.write(300); // 3%
+        self.reveal_window.write(5); // 5 blocks
+        
+        // Initialize circuit breaker
+        self.price_change_threshold.write(2000); // 20%
+        self.volume_spike_threshold.write(1000000 * 1000000000000000000); // 1M tokens
+        self.circuit_breaker_duration.write(3600); // 1 hour
+        
+        // Initialize batch auction
+        self.batch_duration.write(60); // 60 seconds
+        self.batch_counter.write(0);
+    }
     
+    #[abi(embed_v0)]
+    impl ERC20Impl of IERC20<ContractState> {
+        fn name(self: @ContractState) -> ByteArray {
+            self.name.read()
+        }
+        
+        fn symbol(self: @ContractState) -> ByteArray {
+            self.symbol.read()
+        }
+        
+        fn decimals(self: @ContractState) -> u8 {
+            self.decimals.read()
+        }
+        
+        fn total_supply(self: @ContractState) -> u256 {
+            self.total_supply.read()
+        }
+        
+        fn balance_of(self: @ContractState, account: ContractAddress) -> u256 {
+            self.balances.read(account)
+        }
+        
+        fn allowance(self: @ContractState, owner: ContractAddress, spender: ContractAddress) -> u256 {
+            self.allowances.read((owner, spender))
+        }
+        
+        fn transfer(ref self: ContractState, to: ContractAddress, amount: u256) -> bool {
+            let caller = get_caller_address();
+            self._transfer(caller, to, amount);
+            true
+        }
+        
+        fn transfer_from(
+            ref self: ContractState, 
+            from: ContractAddress, 
+            to: ContractAddress, 
+            amount: u256
+        ) -> bool {
+            let caller = get_caller_address();
+            let current_allowance = self.allowances.read((from, caller));
+            
+            if current_allowance != BoundedInt::max() {
+                assert(current_allowance >= amount, 'ERC20: insufficient allowance');
+                self.allowances.write((from, caller), current_allowance - amount);
+            }
+            
+            self._transfer(from, to, amount);
+            true
+        }
+        
+        fn approve(ref self: ContractState, spender: ContractAddress, amount: u256) -> bool {
+            let caller = get_caller_address();
+            self.allowances.write((caller, spender), amount);
+            self.emit(Approval { owner: caller, spender, value: amount });
+            true
+        }
+    }
+    
+    #[abi(embed_v0)]
+    impl LiquidityPoolImpl of ILiquidityPool<ContractState> {
+        fn initialize(
+            ref self: ContractState,
+            token_a: ContractAddress,
+            token_b: ContractAddress,
+            fee_rate: u256,
+            protocol_fee_rate: u256
+        ) {
+            self.ownable.assert_only_owner();
+            assert(token_a != token_b, Errors::IDENTICAL_ADDRESSES);
+            assert(!token_a.is_zero() && !token_b.is_zero(), Errors::ZERO_ADDRESS);
+            
+            self.token_a.write(token_a);
+            self.token_b.write(token_b);
+            self.fee_rate.write(fee_rate);
+            self.protocol_fee_rate.write(protocol_fee_rate);
+        }
+        
+        fn add_liquidity(
+            ref self: ContractState,
+            amount_a_desired: u256,
+            amount_b_desired: u256,
+            amount_a_min: u256,
+            amount_b_min: u256,
+            to: ContractAddress,
+            deadline: u64
+        ) -> (u256, u256, u256) {
+            self.reentrancy_guard.start();
+            assert(get_block_timestamp() <= deadline, Errors::EXPIRED);
+            
+            let (amount_a, amount_b) = self._add_liquidity(
+                amount_a_desired, amount_b_desired, amount_a_min, amount_b_min
+            );
+            
+            let token_a = IERC20Dispatcher { contract_address: self.token_a.read() };
+            let token_b = IERC20Dispatcher { contract_address: self.token_b.read() };
+            
+            token_a.transfer_from(get_caller_address(), get_contract_address(), amount_a);
+            token_b.transfer_from(get_caller_address(), get_contract_address(), amount_b);
+            
+            let liquidity = self._mint_with_position(to, amount_a, amount_b);
+            
+            self.reentrancy_guard.end();
+            (amount_a, amount_b, liquidity)
+        }
+        
+        fn remove_liquidity(
+            ref self: ContractState,
+            liquidity: u256,
+            amount_a_min: u256,
+            amount_b_min: u256,
+            to: ContractAddress,
+            deadline: u64
+        ) -> (u256, u256) {
+            self.reentrancy_guard.start();
+            assert(get_block_timestamp() <= deadline, Errors::EXPIRED);
+            
+            let (amount_a, amount_b) = self._burn(to, liquidity);
+            assert(amount_a >= amount_a_min, Errors::INSUFFICIENT_A_AMOUNT);
+            assert(amount_b >= amount_b_min, Errors::INSUFFICIENT_B_AMOUNT);
+            
+            let token_a = IERC20Dispatcher { contract_address: self.token_a.read() };
+            let token_b = IERC20Dispatcher { contract_address: self.token_b.read() };
+            
+            token_a.transfer(to, amount_a);
+            token_b.transfer(to, amount_b);
+            
+            self.reentrancy_guard.end();
+            (amount_a, amount_b)
+        }
+        
+        fn swap_exact_tokens_for_tokens(
+            ref self: ContractState,
+            amount_in: u256,
+            amount_out_min: u256,
+            token_in: ContractAddress,
+            to: ContractAddress,
+            deadline: u64
+        ) -> u256 {
+            self.reentrancy_guard.start();
+            assert(get_block_timestamp() <= deadline, Errors::EXPIRED);
+            
+            // Enhanced MEV protection checks
+            self._check_circuit_breaker();
+            self._check_suspicious_address(get_caller_address());
+            self._check_advanced_trade_limits(get_caller_address(), amount_in);
+            
+            // Check if batch auction is active
+            if self.batch_auction_enabled.read() && get_block_timestamp() < self.current_batch_end.read() {
+                assert(false, Errors::BATCH_AUCTION_ACTIVE);
+            }
+            
+            let reserve_a = self.reserve_a.read();
+            let reserve_b = self.reserve_b.read();
+            let fee_rate = self._calculate_dynamic_fee();
+            
+            let (reserve_in, reserve_out) = if token_in == self.token_a.read() {
+                (reserve_a, reserve_b)
+            } else {
+                (reserve_b, reserve_a)
+            };
+            
+            // Check price impact
+            let price_impact = AMM::calculate_price_impact(amount_in, reserve_in, reserve_out, fee_rate);
+            let max_price_impact = self.mev_protection.read().max_price_impact;
+            assert(price_impact <= max_price_impact, Errors::PRICE_IMPACT_TOO_HIGH);
+            
+            // Detect potential MEV attacks
+            self._detect_mev_attack(amount_in, reserve_in, reserve_out);
+       
