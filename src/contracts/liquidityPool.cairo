@@ -795,3 +795,205 @@ pub mod LiquidityPool {
             // Calculate current portfolio value
             let current_value = self._calculate_user_portfolio_value(caller, price_a, price_b);
             
+            // Create IL protection position
+            let il_position_id = self.il_position_counter.read() + 1;
+            self.il_position_counter.write(il_position_id);
+            
+            let current_time = get_block_timestamp();
+            let protection_duration = self.il_protection_duration.read();
+            
+            let il_position = ILPosition {
+                id: il_position_id,
+                user: caller,
+                liquidity_amount: self.balances.read(caller),
+                initial_token_a_amount: self._get_user_token_a_amount(caller),
+                initial_token_b_amount: self._get_user_token_b_amount(caller),
+                initial_token_a_price: price_a,
+                initial_token_b_price: price_b,
+                initial_total_value: current_value,
+                deposit_timestamp: current_time,
+                protection_end_timestamp: current_time + protection_duration,
+                is_active: true,
+                compensation_claimed: 0,
+            };
+            
+            self.il_positions.write(il_position_id, il_position);
+            
+            // Update user IL positions
+            let mut user_il_positions = self.user_il_positions.read(caller);
+            user_il_positions.append(il_position);
+            self.user_il_positions.write(caller, user_il_positions);
+            
+            self.il_protection_enabled.write(caller, true);
+            self.initial_deposit_value.write(caller, current_value);
+            self.initial_token_prices.write(caller, (price_a, price_b));
+            
+            self.emit(ILProtectionEnabled { user: caller, initial_value: current_value });
+            self.reentrancy_guard.end();
+        }
+        
+        fn calculate_il_compensation(user: ContractAddress) -> u256 {
+            let self = @ContractState::unsafe_new_contract_state();
+            
+            if !self.il_protection_enabled.read(user) {
+                return 0;
+            }
+            
+            let user_il_positions = self.user_il_positions.read(user);
+            let mut total_compensation = 0;
+            
+            let mut i = 0;
+            while i < user_il_positions.len() {
+                let il_position = *user_il_positions.at(i);
+                
+                if il_position.is_active && get_block_timestamp() <= il_position.protection_end_timestamp {
+                    let compensation = self._calculate_position_il_compensation(il_position);
+                    total_compensation += compensation;
+                }
+                
+                i += 1;
+            }
+            
+            total_compensation
+        }
+        
+        fn claim_il_compensation(ref self: ContractState) -> u256 {
+            self.reentrancy_guard.start();
+            let caller = get_caller_address();
+            
+            assert(self.il_protection_enabled.read(caller), 'IL protection not enabled');
+            
+            let compensation = self.calculate_il_compensation(caller);
+            assert(compensation > 0, 'No compensation available');
+            
+            // Check if protection fund has enough balance
+            let protection_fund = self.il_protection_fund.read();
+            assert(protection_fund >= compensation, 'Insufficient protection fund');
+            
+            // Update protection fund
+            self.il_protection_fund.write(protection_fund - compensation);
+            
+            // Update user IL positions to mark compensation as claimed
+            self._update_il_positions_claimed(caller, compensation);
+            
+            // Transfer compensation (could be in LP tokens, reward tokens, or base tokens)
+            self._transfer_il_compensation(caller, compensation);
+            
+            self.emit(ILCompensationPaid { user: caller, compensation });
+            self.reentrancy_guard.end();
+            
+            compensation
+        }
+    }
+    
+    #[abi(embed_v0)]
+    impl LPTokenManagement<ContractState> {
+        fn get_position(self: @ContractState, position_id: u256) -> LiquidityPosition {
+            self.positions.read(position_id)
+        }
+        
+        fn get_user_positions(self: @ContractState, user: ContractAddress) -> Array<u256> {
+            self.user_positions.read(user)
+        }
+        
+        fn collect_fees(ref self: ContractState, position_id: u256) -> (u256, u256) {
+            let mut position = self.positions.read(position_id);
+            assert(position.owner == get_caller_address(), 'Not position owner');
+            
+            let fees_a = position.unclaimed_fees_a;
+            let fees_b = position.unclaimed_fees_b;
+            
+            if fees_a > 0 || fees_b > 0 {
+                position.unclaimed_fees_a = 0;
+                position.unclaimed_fees_b = 0;
+                self.positions.write(position_id, position);
+                
+                if fees_a > 0 {
+                    let token_a = IERC20Dispatcher { contract_address: self.token_a.read() };
+                    token_a.transfer(position.owner, fees_a);
+                }
+                
+                if fees_b > 0 {
+                    let token_b = IERC20Dispatcher { contract_address: self.token_b.read() };
+                    token_b.transfer(position.owner, fees_b);
+                }
+                
+                self.emit(FeesCollected { 
+                    position_id, 
+                    owner: position.owner, 
+                    fees_a, 
+                    fees_b 
+                });
+            }
+            
+            (fees_a, fees_b)
+        }
+        
+        fn claim_lp_rewards(ref self: ContractState) -> u256 {
+            self._update_lp_rewards(get_caller_address());
+            let reward = self.lp_rewards.read(get_caller_address());
+            
+            if reward > 0 {
+                self.lp_rewards.write(get_caller_address(), 0);
+                
+                // Mint new LP tokens as rewards
+                let current_balance = self.balances.read(get_caller_address());
+                self.balances.write(get_caller_address(), current_balance + reward);
+                self.total_supply.write(self.total_supply.read() + reward);
+                
+                self.emit(Transfer { 
+                    from: contract_address_const::<0>(), 
+                    to: get_caller_address(), 
+                    value: reward 
+                });
+                
+                self.emit(LPRewardPaid { user: get_caller_address(), reward });
+            }
+            
+            reward
+        }
+        
+        fn get_pending_lp_rewards(self: @ContractState, user: ContractAddress) -> u256 {
+            let balance = self.balances.read(user);
+            if balance == 0 {
+                return 0;
+            }
+            
+            let reward_per_token = self._lp_reward_per_token();
+            let user_reward_per_token_paid = self.lp_user_reward_per_token_paid.read(user);
+            let earned = (balance * (reward_per_token - user_reward_per_token_paid)) / 1000000000000000000;
+            
+            self.lp_rewards.read(user) + earned
+        }
+    }
+    
+    #[abi(embed_v0)]
+    impl MEVProtectionImpl<ContractState> {
+        fn commit_trade(ref self: ContractState, commitment: u256) {
+            let caller = get_caller_address();
+            let current_block = get_block_timestamp();
+            
+            self.commitments.write(caller, commitment);
+            self.commitment_blocks.write(caller, current_block);
+            
+            self.emit(CommitmentMade { user: caller, commitment, block_number: current_block });
+        }
+        
+        fn reveal_and_execute_trade(
+            ref self: ContractState,
+            amount_in: u256,
+            amount_out_min: u256,
+            token_in: ContractAddress,
+            to: ContractAddress,
+            nonce: u256,
+            deadline: u64
+        ) -> u256 {
+            let caller = get_caller_address();
+            let current_block = get_block_timestamp();
+            let commitment_block = self.commitment_blocks.read(caller);
+            let reveal_window = self.reveal_window.read();
+            
+            // Check reveal window
+            assert(current_block > commitment_block, 'Too early to reveal');
+            assert(current_block <= commitment_block + reveal_window, Errors::REVEAL_WINDOW_EXPIRED);
+            
