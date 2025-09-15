@@ -199,3 +199,205 @@ pub mod LiquidityPool {
         #[flat]
         ReentrancyGuardEvent: ReentrancyGuardComponent::Event,
     }
+    #[derive(Drop, starknet::Event)]
+    pub struct Transfer {
+        #[key]
+        pub from: ContractAddress,
+        #[key]
+        pub to: ContractAddress,
+        pub value: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct Approval {
+        #[key]
+        pub owner: ContractAddress,
+        #[key]
+        pub spender: ContractAddress,
+        pub value: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct Mint {
+        pub sender: ContractAddress,
+        pub amount_a: u256,
+        pub amount_b: u256,
+        pub liquidity: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct Burn {
+        pub sender: ContractAddress,
+        pub amount_a: u256,
+        pub amount_b: u256,
+        pub liquidity: u256,
+        pub to: ContractAddress,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct Swap {
+        pub sender: ContractAddress,
+        pub amount_in: u256,
+        pub amount_out: u256,
+        pub token_in: ContractAddress,
+        pub token_out: ContractAddress,
+        pub to: ContractAddress,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct Sync {
+        pub reserve_a: u256,
+        pub reserve_b: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct Staked {
+        pub user: ContractAddress,
+        pub amount: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct Unstaked {
+        pub user: ContractAddress,
+        pub amount: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct RewardPaid {
+        pub user: ContractAddress,
+        pub reward: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct ILProtectionEnabled {
+        pub user: ContractAddress,
+        pub initial_value: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct ILCompensationPaid {
+        pub user: ContractAddress,
+        pub compensation: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct PositionCreated {
+        pub position_id: u256,
+        pub owner: ContractAddress,
+        pub liquidity: u256,
+        pub amount_a: u256,
+        pub amount_b: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct PositionUpdated {
+        pub position_id: u256,
+        pub liquidity_delta: u256,
+        pub amount_a_delta: u256,
+        pub amount_b_delta: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct FeesCollected {
+        pub position_id: u256,
+        pub owner: ContractAddress,
+        pub fees_a: u256,
+        pub fees_b: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct LPRewardPaid {
+        pub user: ContractAddress,
+        pub reward: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct MEVDetected {
+        pub user: ContractAddress,
+        pub detection_type: felt252,
+        pub severity: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct SuspiciousActivity {
+        pub user: ContractAddress,
+        pub activity_type: felt252,
+        pub block_number: u64,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct CircuitBreakerTriggered {
+        pub trigger_type: felt252,
+        pub duration: u64,
+        pub trigger_value: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct CommitmentMade {
+        pub user: ContractAddress,
+        pub commitment: u256,
+        pub block_number: u64,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct TradeRevealed {
+        pub user: ContractAddress,
+        pub amount: u256,
+        pub nonce: u256,
+    }
+    
+    #[derive(Drop, starknet::Event)]
+    pub struct BatchAuctionExecuted {
+        pub batch_id: u64,
+        pub clearing_price: u256,
+        pub volume: u256,
+        pub participants: u256,
+    }
+    
+    pub mod Errors {
+        pub const INSUFFICIENT_LIQUIDITY: felt252 = 'Insufficient liquidity';
+        pub const INSUFFICIENT_INPUT_AMOUNT: felt252 = 'Insufficient input amount';
+        pub const INSUFFICIENT_OUTPUT_AMOUNT: felt252 = 'Insufficient output amount';
+        pub const EXPIRED: felt252 = 'Transaction expired';
+        pub const IDENTICAL_ADDRESSES: felt252 = 'Identical addresses';
+        pub const ZERO_ADDRESS: felt252 = 'Zero address';
+        pub const INSUFFICIENT_A_AMOUNT: felt252 = 'Insufficient A amount';
+        pub const INSUFFICIENT_B_AMOUNT: felt252 = 'Insufficient B amount';
+        pub const INSUFFICIENT_LIQUIDITY_MINTED: felt252 = 'Insufficient liquidity minted';
+        pub const INSUFFICIENT_LIQUIDITY_BURNED: felt252 = 'Insufficient liquidity burned';
+        pub const TRADE_COOLDOWN: felt252 = 'Trade in cooldown period';
+        pub const TRADE_SIZE_EXCEEDED: felt252 = 'Trade size exceeded';
+        pub const MEV_DETECTED: felt252 = 'MEV attack detected';
+        pub const PRICE_IMPACT_TOO_HIGH: felt252 = 'Price impact too high';
+        pub const CIRCUIT_BREAKER_ACTIVE: felt252 = 'Circuit breaker active';
+        pub const SUSPICIOUS_ADDRESS: felt252 = 'Suspicious address blocked';
+        pub const INVALID_COMMITMENT: felt252 = 'Invalid commitment';
+        pub const REVEAL_WINDOW_EXPIRED: felt252 = 'Reveal window expired';
+        pub const BATCH_AUCTION_ACTIVE: felt252 = 'Batch auction in progress';
+    }
+    
+    #[constructor]
+    fn constructor(
+        ref self: ContractState, 
+        owner: ContractAddress,
+        name: ByteArray,
+        symbol: ByteArray
+    ) {
+        self.ownable.initializer(owner);
+        self.name.write(name);
+        self.symbol.write(symbol);
+        self.decimals.write(18);
+        self.trade_cooldown.write(1); // 1 second cooldown
+        self.max_trade_size.write(1000000 * 1000000000000000000); // 1M tokens max
+        self.position_counter.write(0);
+        
+        // Initialize MEV protection
+        let mev_protection = MEVProtectionData {
+            max_price_impact: 1000, // 10% max price impact
+            sandwich_protection_window: 3, // 3 blocks
+            volume_threshold: 100000 * 1000000000000000000, // 100k tokens
+            consecutive_trade_limit: 5,
+            flash_loan_protection: true,
+        };
+        self.mev_protection.write(mev_protection);
+    
