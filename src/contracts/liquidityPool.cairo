@@ -596,3 +596,202 @@ pub mod LiquidityPool {
             // Detect potential MEV attacks
             self._detect_mev_attack(amount_in, reserve_in, reserve_out);
        
+       
+            let amount_out = self._swap_with_protection(amount_in, token_in, to, fee_rate);
+            assert(amount_out >= amount_out_min, Errors::INSUFFICIENT_OUTPUT_AMOUNT);
+            
+            // Update TWAP and check for circuit breaker conditions
+            self._update_twap_and_check_circuit_breaker();
+            
+            self.reentrancy_guard.end();
+            amount_out
+        }
+        
+        fn swap_tokens_for_exact_tokens(
+            ref self: ContractState,
+            amount_out: u256,
+            amount_in_max: u256,
+            token_in: ContractAddress,
+            to: ContractAddress,
+            deadline: u64
+        ) -> u256 {
+            self.reentrancy_guard.start();
+            assert(get_block_timestamp() <= deadline, Errors::EXPIRED);
+            
+            let reserve_a = self.reserve_a.read();
+            let reserve_b = self.reserve_b.read();
+            let fee_rate = self.fee_rate.read();
+            
+            let (reserve_in, reserve_out) = if token_in == self.token_a.read() {
+                (reserve_a, reserve_b)
+            } else {
+                (reserve_b, reserve_a)
+            };
+            
+            let amount_in = AMM::get_amount_in(amount_out, reserve_in, reserve_out, fee_rate);
+            assert(amount_in <= amount_in_max, Errors::INSUFFICIENT_INPUT_AMOUNT);
+            
+            self._check_trade_limits(get_caller_address(), amount_in);
+            let actual_amount_out = self._swap(amount_in, token_in, to);
+            
+            self.reentrancy_guard.end();
+            amount_in
+        }
+        
+        // View functions
+        fn get_reserves() -> (u256, u256, u64) {
+            let self = @ContractState::unsafe_new_contract_state();
+            (self.reserve_a.read(), self.reserve_b.read(), self.block_timestamp_last.read())
+        }
+        
+        fn get_amounts_out(amount_in: u256, token_in: ContractAddress) -> u256 {
+            let self = @ContractState::unsafe_new_contract_state();
+            let reserve_a = self.reserve_a.read();
+            let reserve_b = self.reserve_b.read();
+            let fee_rate = self.fee_rate.read();
+            
+            let (reserve_in, reserve_out) = if token_in == self.token_a.read() {
+                (reserve_a, reserve_b)
+            } else {
+                (reserve_b, reserve_a)
+            };
+            
+            AMM::get_amount_out(amount_in, reserve_in, reserve_out, fee_rate)
+        }
+        
+        fn get_amounts_in(amount_out: u256, token_out: ContractAddress) -> u256 {
+            let self = @ContractState::unsafe_new_contract_state();
+            let reserve_a = self.reserve_a.read();
+            let reserve_b = self.reserve_b.read();
+            let fee_rate = self.fee_rate.read();
+            
+            let (reserve_in, reserve_out) = if token_out == self.token_a.read() {
+                (reserve_b, reserve_a)
+            } else {
+                (reserve_a, reserve_b)
+            };
+            
+            AMM::get_amount_in(amount_out, reserve_in, reserve_out, fee_rate)
+        }
+        
+        fn quote(amount_a: u256, reserve_a: u256, reserve_b: u256) -> u256 {
+            AMM::quote(amount_a, reserve_a, reserve_b)
+        }
+        
+        fn token_a() -> ContractAddress {
+            let self = @ContractState::unsafe_new_contract_state();
+            self.token_a.read()
+        }
+        
+        fn token_b() -> ContractAddress {
+            let self = @ContractState::unsafe_new_contract_state();
+            self.token_b.read()
+        }
+        
+        fn total_supply() -> u256 {
+            let self = @ContractState::unsafe_new_contract_state();
+            self.total_supply.read()
+        }
+        
+        fn fee_rate() -> u256 {
+            let self = @ContractState::unsafe_new_contract_state();
+            self.fee_rate.read()
+        }
+        
+        fn protocol_fee_rate() -> u256 {
+            let self = @ContractState::unsafe_new_contract_state();
+            self.protocol_fee_rate.read()
+        }
+        
+        // Yield farming functions
+        fn stake_lp_tokens(ref self: ContractState, amount: u256) {
+            self.reentrancy_guard.start();
+            assert(amount > 0, 'Amount cannot be zero');
+            
+            let caller = get_caller_address();
+            let current_balance = self.balances.read(caller);
+            assert(current_balance >= amount, 'Insufficient LP tokens');
+            
+            self._update_yield_rewards(caller);
+            
+            // Transfer LP tokens to staking
+            self.balances.write(caller, current_balance - amount);
+            let current_staked = self.staked_balances.read(caller);
+            self.staked_balances.write(caller, current_staked + amount);
+            self.total_staked.write(self.total_staked.read() + amount);
+            
+            self.emit(Staked { user: caller, amount });
+            self.reentrancy_guard.end();
+        }
+        
+        fn unstake_lp_tokens(ref self: ContractState, amount: u256) {
+            self.reentrancy_guard.start();
+            assert(amount > 0, 'Amount cannot be zero');
+            
+            let caller = get_caller_address();
+            let staked_balance = self.staked_balances.read(caller);
+            assert(staked_balance >= amount, 'Insufficient staked tokens');
+            
+            self._update_yield_rewards(caller);
+            
+            // Return LP tokens from staking
+            self.staked_balances.write(caller, staked_balance - amount);
+            let current_balance = self.balances.read(caller);
+            self.balances.write(caller, current_balance + amount);
+            self.total_staked.write(self.total_staked.read() - amount);
+            
+            self.emit(Unstaked { user: caller, amount });
+            self.reentrancy_guard.end();
+        }
+        
+        fn claim_rewards(ref self: ContractState) -> u256 {
+            self.reentrancy_guard.start();
+            
+            let caller = get_caller_address();
+            self._update_yield_rewards(caller);
+            
+            let reward = self.rewards.read(caller);
+            if reward > 0 {
+                self.rewards.write(caller, 0);
+                
+                // Transfer reward tokens
+                let reward_token = IERC20Dispatcher { contract_address: self.reward_token.read() };
+                reward_token.transfer(caller, reward);
+                
+                self.emit(RewardPaid { user: caller, reward });
+            }
+            
+            self.reentrancy_guard.end();
+            reward
+        }
+        
+        fn get_pending_rewards(user: ContractAddress) -> u256 {
+            let self = @ContractState::unsafe_new_contract_state();
+            let staked_balance = self.staked_balances.read(user);
+            
+            if staked_balance == 0 {
+                return self.rewards.read(user);
+            }
+            
+            let reward_per_token = self._calculate_reward_per_token();
+            let user_reward_per_token_paid = self.user_reward_per_token_paid.read(user);
+            let earned = (staked_balance * (reward_per_token - user_reward_per_token_paid)) / 1000000000000000000;
+            
+            self.rewards.read(user) + earned
+        }
+        
+        // IL protection functions
+        fn enable_il_protection(ref self: ContractState) {
+            self.reentrancy_guard.start();
+            let caller = get_caller_address();
+            
+            // Check if user has liquidity positions
+            let user_positions = self.user_positions.read(caller);
+            assert(user_positions.len() > 0, 'No liquidity positions found');
+            
+            // Get current token prices from oracle
+            let (price_a, price_b) = self._get_token_prices();
+            
+            // Calculate current portfolio value
+            let current_value = self._calculate_user_portfolio_value(caller, price_a, price_b);
+            
