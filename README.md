@@ -3,7 +3,9 @@ platform. This repository contains Rust smart contracts to support core
 on-chain features such as tokenized learning rewards, proof-of-participation,
 and educator incentives—all deployed on Stellar.
 
-🚀 Project Goals Enable on-chain user rewards and proof of skill acquisition.
+🚀 Project Goals
+
+Enable on-chain user rewards and proof of skill acquisition.
 
 Implement token logic for incentivizing creators and learners.
 
