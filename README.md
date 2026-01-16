@@ -1,17 +1,36 @@
-TeachLink Cairo Smart Contracts TeachLink is a decentralized knowledge-sharing
-platform. This repository contains Rust smart contracts to support core
-on-chain features such as tokenized learning rewards, proof-of-participation,
-and educator incentives—all deployed on Stellar.
+# TeachLink: Decentralized Knowledge-Sharing on Stellar 🌌
 
-🚀 Project Goals
+TeachLink is a decentralized knowledge-sharing platform powered by **Rust smart contracts** and deployed on the **Stellar blockchain**. It enables tokenized learning rewards, proof-of-participation, and educator incentives—creating a transparent, fair, and scalable system for global education.  
 
-Enable on-chain user rewards and proof of skill acquisition.
+Learners earn tokens for completing courses, quizzes, or tutorials, while creators and educators are incentivized for sharing knowledge. By leveraging Stellar’s ecosystem, TeachLink ensures that rewards are fast, affordable, and accessible worldwide.  
 
-Implement token logic for incentivizing creators and learners.
+---
 
-Build a modular, testable Rust-based infrastructure compatible with Stellar.
+## 🚀 Project Goals
 
-🛠️ Getting Started
+- **On-chain user rewards & proof of skill acquisition**  
+- **Token logic for incentivizing creators and learners**  
+- **Modular, testable Rust-based infrastructure**  
+
+---
+
+## 🌌 Why Stellar Matters for TeachLink
+
+- ⚡ **Low-cost transactions** → Micro-rewards are practical and accessible worldwide.  
+- 🚀 **Fast settlement** → Rewards and incentives are distributed instantly.  
+- 🌍 **Global reach & interoperability** → Anchors and cross-border rails integrate TeachLink tokens with fiat and assets.  
+- 📚 **Focus on inclusion** → Stellar’s mission of democratizing finance aligns with TeachLink’s vision of democratizing knowledge.  
+
+---
+
+## 🛠️ Tech Stack
+
+- **Rust** → Smart contract development  
+- **Soroban (Stellar)** → Smart contract platform  
+- **Stellar Network** → Fast, low-cost, global blockchain infrastructure  
+- **Custom Indexer (NestJS + Horizon API + Soroban RPC)** → Real-time contract and transaction monitoring  
+
+---
 
 ## 🏗️ Architecture Overview
 
@@ -43,286 +62,63 @@ Build a modular, testable Rust-based infrastructure compatible with Stellar.
 │  │  - Account Management  - Asset Issuance                       │    │
 │  │  - Trust Lines        - Clawback                              │    │
 │  └──────────────────────────────────────────────────────────────┘ 
-## 🛠️ Technology Stack
-#### **Blockchain Indexer**
-
-{
-  "framework": "Custom NestJS service",
-  "stellar-integration": [
-    "Horizon API (streaming)",
-    "Stellar SDK (transaction parsing)",
-    "Soroban RPC (contract events)"
-  ],
-  "processing": [
-    "Bull queue for async processing",
-    "Worker threads for parallel indexing",
-    "Checkpointing for recovery"
-  ],
-  "data-sync": "Real-time event streaming + batch catchup"
-}
-```
-
-**Indexed Data**:
-- All payment transactions
-- Smart contract invocations
-- Asset transfers and trust lines
-- Account creations and updates
-- DEX trades and liquidity changes
-
-### Prerequisites
-
-Ensure you have the following installed on your system:
-
-```bash
-# Required
-- Stellar CLI (stellar-cli)
-
-# Optional but recommended
-- pnpm >= 8.x (faster than npm)
-- Terraform >= 1.6
-- Helm >= 3.12
-```
 
 ---
 
-## 📦 Installation
+## 📖 Getting Started
 
 ### 1. Clone the Repository
-
 ```bash
-git clone https://github.com/stellartech/agrichain-finance.git
-cd agrichain-finance
-```
+git clone https://github.com/rinafcode/teachLink_contract.git
+cd teachLink_contract
 
-### 2. Install Dependencies
-
-#### Install All Project Dependencies
-```bash
-# Install root dependencies and workspace packages
-pnpm install
-
-# Or using npm
-npm install
-
-# Or using yarn
-yarn install
-```
-
-This will install dependencies for:
-- Smart contracts (Rust/Soroban)
-- Shared libraries
-
-#### Install Rust Toolchain for Smart Contracts
-```bash
-# Install Rust if not already installed
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-
-# Add WebAssembly target
-rustup target add wasm32-unknown-unknown
-
-# Install Stellar CLI
-cargo install --locked stellar-cli --features opt
-
-# Verify installation
-stellar --version
-```
-
-#### Install Additional Tools
-```bash
-# Install Soroban smart contract dependencies
-cd contracts
+### 2. Build and Test Contracts
 cargo build
+cargo test
 
-## ⚙️ Setup
-
-### 1. Environment Configuration
-# Stellar Network
+### 3. Environment Setp
 STELLAR_NETWORK=testnet
 STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
 STELLAR_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
-PLATFORM_STELLAR_SECRET=S[YOUR_SECRET_KEY_HERE]
-
-#### Smart Contract Configuration
-```bash
-cp contracts/.env.example contracts/.env
-nano contracts/.env
-```
-
-**contracts/.env**
-```env
-STELLAR_NETWORK=testnet
-STELLAR_RPC_URL=https://soroban-testnet.stellar.org
 DEPLOYER_SECRET_KEY=S[YOUR_SECRET_KEY]
-```
 
----
-
-### 4. Deploy Smart Contracts
-
-#### Build Contracts
-```bash
-cd contracts
-
-# Build all contracts
-stellar contract build
-
-#### Deploy to Testnet
-```bash
-# Deploy Advanced Subscription  contract
-stellar contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/Advanced_Subscription.wasm \
+### 4. Deploy Contract
+soroban contract deploy \
+  --wasm target/wasm32-unknown-unknown/release/advanced_subscription.wasm \
   --source deployer \
   --network testnet
 
-# Save the contract ID returned (starts with C)
-# Example: CCXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+📦#### Installation
+## Dependencies
+-- Rust Toolchain (with wasm32-unknown-unknown target)
 
-# Deploy other contracts similarly
-./scripts/deploy-all-contracts.sh
+-- Stellar CLI (cargo install --locked stellar-cli --features opt)
 
-#### Initialize Contracts
-```bash
-# Initialize su
-stellar contract invoke \
-  --id C[ADVANCE_SUBSCRIPTION_CONTRACT_ID] \
-  --source admin \
-  --network testnet \
-  -- \
-  initialize \
-  --admin G[ADMIN_PUBLIC_KEY]
+-- pnpm / npm / yarn for JS services
 
-# Follow similar pattern for other contracts
-```
+-- Terraform & Helm for infra setup
 
----
-
-**Blockchain Indexer**
-
-### Smart Contract Tests
-
-```bash
-cd contracts
-
-# Run all contract tests
+### Testing
 cargo test
-
-# Test specific contract
-cargo test --package Advanced Subscription
-
-# Test with coverage
 cargo tarpaulin --out Html
-
-# Integration tests on testnet
 ./scripts/test-contracts-testnet.sh
-```
 
 ### Load Testing
-# Smart contract load test
 k6 run load-tests/contract-invocations.js
 
+🤝 Contributing
+We welcome contributions from developers, educators, and blockchain enthusiasts!
 
-# Smart contracts
-stellar network add \
-  --rpc-url https://soroban-testnet.stellar.org \
-  --network-passphrase "Test SDF Network ; September 2015" \
-  testnet
-```
+Fork the repo
 
-### Account Funding
+Create a feature branch
 
-```bash
-# Testnet: Use Friendbot
-curl "https://friendbot.stellar.org?addr=G[YOUR_PUBLIC_KEY]"
+Submit a pull request
 
-# Or using Stellar CLI
-stellar keys fund alice --network testnet
+📜 License
+This project is licensed under the MIT License. See [Looks like the result wasn't safe to show. Let's switch things up and try something else!] for details.
 
-# Pubnet: Purchase XLM from exchanges
-# Minimum balance: 1 XLM (base reserve) Indexer Database**
-```yaml
-Type: PostgreSQL (separate instance)
-Purpose: Mirror Stellar blockchain data locally
-Tables:
-  - Stellar accounts
-  - Transaction history
-  - Smart contract events
-  - Asset movements
-Sync: Real-time via Horizon streaming
-```
-
----
-
-### Blockchain Layer
-
-#### **Smart Contracts (Rust + Soroban)**
-
-**1. Access Control Contract**
-```rust
-// contracts/access-control/src/lib.rs
-pub struct AccessControl {
-    admin: Address,
-    access_terms: Map<Symbol, LoanTerms>,
-    active_access: Map<Address, LoanDetails>,
-    access_schedule: Map<Symbol, Vec<Repayment>>
-}
+✨ In short, Stellar isn’t just the blockchain TeachLink runs on—it’s the foundation that makes decentralized education rewards scalable, affordable, and globally relevant.
 
 
-**2. Parametric Insurance Contract**
-```rust
-// contracts/insurance-pool/src/lib.rs
-pub struct InsurancePool {
-    premium_pool: Address,
-    oracle_address: Address,
-    policies: Map<Symbol, PolicyDetails>,
-    claims: Map<Symbol, ClaimStatus>
-}
-
-
-**3. Course Contract**
-```rust
-// contracts/supply-chain/src/lib.rs
-pub struct CourseToken {
-    batch_id: Symbol,
-    origin_farm: Address,
-    certifications: Vec<Certification>,
-    custody_chain: Vec<Transfer>,
-    metadata_uri: String // IPFS hash
-}
-
-
-**4. Escrow Contract**
-```rust
-// contracts/escrow/src/lib.rs
-pub struct Escrow {
-    teacher: Address,
-    student: Address,
-    arbiter: Address,
-    amount: i128,
-    conditions: Vec<Condition>,
-    status: EscrowStatus
-}
-
-
-**5. Grade Scoring Contract**
-```rust
-// contracts/grade-score/src/lib.rs
-pub struct GradeScore {
-    student: Address,
-    score: u32,
-    factors: CreditFactors,
-    history: Vec<CreditEvent>,
-    last_updated: u64
-}
-
-
-**Smart Contract Development Tools**
-```bash
-stellar-cli          # Soroban CLI tools
-soroban-sdk         # Rust SDK for contract development
-cargo-make          # Build automation
-wasm-opt            # WASM optimization
-soroban-test        # Contract testing framework
-```
-
----
 
