@@ -2,9 +2,9 @@
 
 ```
                 TTTTT eeeee aaaaa ccccc h   h L     i     n   n k   k
-                  T   e     a   a c     h   h L           nn  n k  k 
-                  T   eeee  aaaaa c     hhhhh L     i     n n n kkk  
-                  T   e     a   a c     h   h L     i     n  nn k  k 
+                  T   e     a   a c     h   h L           nn  n k  k
+                  T   eeee  aaaaa c     hhhhh L     i     n n n kkk
+                  T   e     a   a c     h   h L     i     n  nn k  k
                   T   eeeee a   a ccccc h   h LLLLL i     n   n k   k
 ```
 
@@ -48,6 +48,7 @@ Run the setup script to validate required dependencies and create a local `.env`
 ```
 
 What it checks:
+
 - `rustc`, `cargo`, and `rustup`
 - `wasm32-unknown-unknown` target
 - `stellar` or `soroban` CLI
@@ -109,8 +110,9 @@ Stellar Network
 ```
 
 Key project paths:
+
 - `contracts/teachlink`: Soroban smart contract source
-- `scripts/`: onboarding and deployment scripts
+- `scripts/`: onboarding and deployment script
 
 ## Development Workflow
 
