@@ -71,22 +71,29 @@ Learners earn tokens for completing courses, quizzes, or tutorials, while creato
 ```bash
 git clone https://github.com/rinafcode/teachLink_contract.git
 cd teachLink_contract
+```
 
 ### 2. Build and Test Contracts
+```bash
 cargo build
 cargo test
+```
 
 ### 3. Environment Setp
+```bash
 STELLAR_NETWORK=testnet
 STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
 STELLAR_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
 DEPLOYER_SECRET_KEY=S[YOUR_SECRET_KEY]
+```
 
 ### 4. Deploy Contract
+```bash
 soroban contract deploy \
-  --wasm target/wasm32-unknown-unknown/release/advanced_subscription.wasm \
+  --wasm target/wasm32-unknown-unknown/release/teachlink_contract.wasm \
   --source deployer \
   --network testnet
+```
 
 📦#### Installation
 ## Dependencies
