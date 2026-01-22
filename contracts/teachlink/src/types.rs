@@ -66,3 +66,21 @@ pub enum DisputeOutcome {
     ReleaseToBeneficiary,
     RefundToDepositor,
 }
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UserReputation {
+    pub participation_score: u32,  // Points for general activity
+    pub completion_rate: u32,      // Basis points (0-10000)
+    pub contribution_quality: u32, // Average rating (0-5 stars scaled)
+    pub total_courses_started: u32,
+    pub total_courses_completed: u32,
+    pub total_contributions: u32,
+    pub last_update: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum DataKey {
+    Reputation(Address),
+}
