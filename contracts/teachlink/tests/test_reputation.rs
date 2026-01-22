@@ -13,7 +13,7 @@ fn test_reputation_flow() {
 
     // 1. Test Participation Update
     client.update_participation(&user, &10); // +10 points
-    
+
     let mut rep = client.get_user_reputation(&user);
     assert_eq!(rep.participation_score, 10);
     assert_eq!(rep.total_courses_started, 0);
