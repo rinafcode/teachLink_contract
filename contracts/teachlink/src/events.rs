@@ -1,7 +1,7 @@
 use soroban_sdk::contractevent;
 
 use crate::types::{BridgeTransaction, CrossChainMessage};
-use soroban_sdk::{Address, Bytes};
+use soroban_sdk::{Address, Bytes, String};
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -34,4 +34,30 @@ pub struct BridgeInitiatedEvent {
 pub struct BridgeCompletedEvent {
     pub nonce: u64,
     pub message: CrossChainMessage,
+}
+
+// Rewards Events
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RewardIssuedEvent {
+    pub recipient: Address,
+    pub amount: i128,
+    pub reward_type: String,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RewardClaimedEvent {
+    pub user: Address,
+    pub amount: i128,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RewardPoolFundedEvent {
+    pub funder: Address,
+    pub amount: i128,
+    pub timestamp: u64,
 }
