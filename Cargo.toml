@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["contracts/teachlink", "docs"]
+members = [
+  "contracts/teachlink",
+  "contracts/insurance",
+]
 
 [workspace.package]
 edition = "2021"
