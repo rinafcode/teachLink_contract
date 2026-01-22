@@ -5,13 +5,11 @@ use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Vec};
 mod bridge;
 mod escrow;
 mod events;
+mod reputation;
 mod storage;
 mod types;
-mod reputation;
 
-pub use types::{
-    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus,
-};
+pub use types::{BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus};
 
 #[contract]
 pub struct TeachLinkBridge;

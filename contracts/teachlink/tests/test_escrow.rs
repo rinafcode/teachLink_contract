@@ -10,22 +10,32 @@ pub struct TestToken;
 #[contractimpl]
 impl TestToken {
     pub fn initialize(env: Env, admin: Address) {
-        env.storage().instance().set(&symbol_short!("admin"), &admin);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("admin"), &admin);
         let balances: Map<Address, i128> = Map::new(&env);
-        env.storage().instance().set(&symbol_short!("balances"), &balances);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("balances"), &balances);
     }
 
     pub fn mint(env: Env, to: Address, amount: i128) {
         if amount <= 0 {
             panic!("Amount must be positive");
         }
-        let admin: Address = env.storage().instance().get(&symbol_short!("admin")).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("admin"))
+            .unwrap();
         admin.require_auth();
 
         let mut balances = Self::load_balances(&env);
         let new_balance = balances.get(to.clone()).unwrap_or(0) + amount;
         balances.set(to, new_balance);
-        env.storage().instance().set(&symbol_short!("balances"), &balances);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("balances"), &balances);
     }
 
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
@@ -42,7 +52,9 @@ impl TestToken {
         balances.set(from.clone(), from_balance - amount);
         let to_balance = balances.get(to.clone()).unwrap_or(0);
         balances.set(to, to_balance + amount);
-        env.storage().instance().set(&symbol_short!("balances"), &balances);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("balances"), &balances);
     }
 
     pub fn balance(env: Env, owner: Address) -> i128 {
