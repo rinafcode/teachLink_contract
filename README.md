@@ -94,6 +94,32 @@ Common options:
 ./scripts/first-deploy.sh --dry-run
 ```
 
+### 6) Network-specific deployment scripts
+
+Use the network-aware deployment script with managed config files:
+
+```bash
+./scripts/deploy.sh --network testnet
+./scripts/deploy.sh --network mainnet
+./scripts/deploy.sh --network local
+```
+
+Convenience wrappers:
+
+```bash
+./scripts/deploy-testnet.sh
+./scripts/deploy-mainnet.sh
+./scripts/deploy-local.sh
+```
+
+Configuration files live under `config/networks/` and can be customized per environment:
+
+```bash
+config/networks/testnet.env
+config/networks/mainnet.env
+config/networks/local.env
+```
+
 ## Architecture
 
 ```
