@@ -11,3 +11,5 @@ pub const SUPPORTED_CHAINS: Symbol = symbol_short!("chains");
 pub const ADMIN: Symbol = symbol_short!("admin");
 pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
+pub const ESCROW_COUNT: Symbol = symbol_short!("esc_ct");
+pub const ESCROWS: Symbol = symbol_short!("escrows");
