@@ -6,10 +6,15 @@ use soroban_sdk::{contract, contractimpl, Env, Symbol};
 pub struct TeachLinkContract;
 
 #[contractimpl]
-impl TeachLinkContract {
+pub impl TeachLinkContract {
     #[must_use]
     pub fn hello(_env: Env, to: Symbol) -> Symbol {
         to
+    }
+
+    #[must_use]
+    pub fn add(_env: Env, a: u32, b: u32) -> u32 {
+        a + b
     }
 }
 

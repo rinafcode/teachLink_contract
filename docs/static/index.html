@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeachLink Interactive Documentation</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: auto; }
+        input, button { padding: 10px; margin: 5px; }
+        #result { margin-top: 20px; padding: 10px; background: #f0f0f0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>TeachLink Contract Playground</h1>
+        <p>Select a function and enter parameters:</p>
+        <select id="func">
+            <option value="hello">hello</option>
+            <option value="add">add</option>
+        </select>
+        <input type="text" id="params" placeholder="Parameters" value="world">
+        <button onclick="run()">Run</button>
+        <div id="result"></div>
+
+        <h2>API Documentation</h2>
+        <h3>hello(Symbol) -> Symbol</h3>
+        <p>Echoes the input symbol.</p>
+        <h3>add(u32, u32) -> u32</h3>
+        <p>Adds two numbers.</p>
+
+        <h2>Architecture Visualization</h2>
+        <div class="mermaid">
+            graph TD
+                A[User] --> B[Frontend]
+                B --> C[Backend API]
+                C --> D[TeachLink Contract]
+                D --> E[Soroban Environment]
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+        <script>mermaid.initialize({startOnLoad:true});</script>
+
+        <h2>Step-by-Step Implementation Guide</h2>
+        <ol>
+            <li>Clone the repository and set up Rust.</li>
+            <li>Build the contract: <code>cargo build</code></li>
+            <li>Run tests: <code>cargo test</code></li>
+            <li>Deploy to testnet using Soroban CLI.</li>
+            <li>Interact with the contract via the playground above.</li>
+        </ol>
+    </div>
+
+    <script>
+        async function run() {
+            const func = document.getElementById('func').value;
+            const params = document.getElementById('params').value;
+            const response = await fetch(`/api/run?func=${encodeURIComponent(func)}&params=${encodeURIComponent(params)}`);
+            const text = await response.text();
+            document.getElementById('result').textContent = text;
+        }
+    </script>
+</body>
+</html>
