@@ -1,0 +1,129 @@
+   Compiling insurance-pool v0.1.0 (/home/knights/Documents/Project/Drips/teachLink_contract/contracts/insurance)
+warning: unused import: `Ledger`
+ --> contracts/insurance/src/test.rs:4:45
+  |
+4 | use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
+  |                                             ^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: use of deprecated method `soroban_sdk::Env::register_stellar_asset_contract`: use [Env::register_stellar_asset_contract_v2]
+  --> contracts/insurance/src/test.rs:17:30
+   |
+17 |     let token_contract = env.register_stellar_asset_contract(token_admin);
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(deprecated)]` on by default
+
+warning: use of deprecated method `soroban_sdk::Env::register_contract`: use `register`
+  --> contracts/insurance/src/test.rs:21:27
+   |
+21 |     let contract_id = env.register_contract(None, InsurancePool);
+   |                           ^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `mint` found for struct `Client` in the current scope
+  --> contracts/insurance/src/test.rs:31:11
+   |
+31 |     token.mint(&user, &1000);
+   |           ^^^^ method not found in `Client<'_>`
+
+error[E0599]: no method named `mint` found for struct `Client` in the current scope
+  --> contracts/insurance/src/test.rs:32:11
+   |
+32 |     token.mint(&contract_id, &1000);
+   |           ^^^^ method not found in `Client<'_>`
+
+error[E0277]: `ClaimStatus` doesn't implement `Debug`
+  --> contracts/insurance/src/test.rs:47:5
+   |
+47 |     assert_eq!(claim.status, ClaimStatus::Pending);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Debug` is not implemented for `ClaimStatus`
+   |
+   = note: add `#[derive(Debug)]` to `ClaimStatus` or manually `impl Debug for ClaimStatus`
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `ClaimStatus` with `#[derive(Debug)]`
+  --> contracts/insurance/src/lib.rs:20:1
+   |
+20 + #[derive(Debug)]
+21 | pub enum ClaimStatus {
+   |
+
+error[E0277]: `ClaimStatus` doesn't implement `Debug`
+  --> contracts/insurance/src/test.rs:53:5
+   |
+53 |     assert_eq!(claim.status, ClaimStatus::Verified);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Debug` is not implemented for `ClaimStatus`
+   |
+   = note: add `#[derive(Debug)]` to `ClaimStatus` or manually `impl Debug for ClaimStatus`
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `ClaimStatus` with `#[derive(Debug)]`
+  --> contracts/insurance/src/lib.rs:20:1
+   |
+20 + #[derive(Debug)]
+21 | pub enum ClaimStatus {
+   |
+
+error[E0277]: `ClaimStatus` doesn't implement `Debug`
+  --> contracts/insurance/src/test.rs:59:5
+   |
+59 |     assert_eq!(claim.status, ClaimStatus::Paid);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Debug` is not implemented for `ClaimStatus`
+   |
+   = note: add `#[derive(Debug)]` to `ClaimStatus` or manually `impl Debug for ClaimStatus`
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `ClaimStatus` with `#[derive(Debug)]`
+  --> contracts/insurance/src/lib.rs:20:1
+   |
+20 + #[derive(Debug)]
+21 | pub enum ClaimStatus {
+   |
+
+warning: use of deprecated method `soroban_sdk::Env::register_stellar_asset_contract`: use [Env::register_stellar_asset_contract_v2]
+  --> contracts/insurance/src/test.rs:78:30
+   |
+78 |     let token_contract = env.register_stellar_asset_contract(token_admin);
+   |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `soroban_sdk::Env::register_contract`: use `register`
+  --> contracts/insurance/src/test.rs:81:27
+   |
+81 |     let contract_id = env.register_contract(None, InsurancePool);
+   |                           ^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `mint` found for struct `Client` in the current scope
+  --> contracts/insurance/src/test.rs:85:11
+   |
+85 |     token.mint(&user, &1000);
+   |           ^^^^ method not found in `Client<'_>`
+
+error[E0277]: `ClaimStatus` doesn't implement `Debug`
+  --> contracts/insurance/src/test.rs:94:5
+   |
+94 |     assert_eq!(claim.status, ClaimStatus::Rejected);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `Debug` is not implemented for `ClaimStatus`
+   |
+   = note: add `#[derive(Debug)]` to `ClaimStatus` or manually `impl Debug for ClaimStatus`
+   = note: this error originates in the macro `assert_eq` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider annotating `ClaimStatus` with `#[derive(Debug)]`
+  --> contracts/insurance/src/lib.rs:20:1
+   |
+20 + #[derive(Debug)]
+21 | pub enum ClaimStatus {
+   |
+
+warning: use of deprecated method `soroban_sdk::Env::register_stellar_asset_contract`: use [Env::register_stellar_asset_contract_v2]
+   --> contracts/insurance/src/test.rs:112:30
+    |
+112 |     let token_contract = env.register_stellar_asset_contract(token_admin);
+    |                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: use of deprecated method `soroban_sdk::Env::register_contract`: use `register`
+   --> contracts/insurance/src/test.rs:113:27
+    |
+113 |     let contract_id = env.register_contract(None, InsurancePool);
+    |                           ^^^^^^^^^^^^^^^^^
+
+Some errors have detailed explanations: E0277, E0599.
+For more information about an error, try `rustc --explain E0277`.
+warning: `insurance-pool` (lib test) generated 7 warnings
+error: could not compile `insurance-pool` (lib test) due to 11 previous errors; 7 warnings emitted

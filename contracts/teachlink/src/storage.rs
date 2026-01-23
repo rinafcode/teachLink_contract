@@ -18,3 +18,5 @@ pub const REWARD_POOL: Symbol = symbol_short!("rwd_pool");
 pub const USER_REWARDS: Symbol = symbol_short!("usr_rwds");
 pub const REWARD_RATES: Symbol = symbol_short!("rwd_rates");
 pub const TOTAL_REWARDS_ISSUED: Symbol = symbol_short!("tot_rwds");
+pub const ESCROW_COUNT: Symbol = symbol_short!("esc_ct");
+pub const ESCROWS: Symbol = symbol_short!("escrows");

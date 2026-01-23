@@ -1,0 +1,196 @@
+#![no_std]
+
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
+
+#[contracttype]
+#[derive(Clone)]
+pub enum DataKey {
+    Admin,
+    Token,
+    Oracle,
+    PremiumAmount,
+    PayoutAmount,
+    Claim(u64), // Claim ID -> Claim
+    ClaimCount,
+    IsInsured(Address),
+}
+
+#[contracttype]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ClaimStatus {
+    Pending,
+    Verified,
+    Rejected,
+    Paid,
+}
+
+#[contracttype]
+#[derive(Clone)]
+pub struct Claim {
+    pub user: Address,
+    pub course_id: u64,
+    pub status: ClaimStatus,
+}
+
+#[contract]
+pub struct InsurancePool;
+
+#[contractimpl]
+impl InsurancePool {
+    pub fn initialize(
+        env: Env,
+        admin: Address,
+        token: Address,
+        oracle: Address,
+        premium_amount: i128,
+        payout_amount: i128,
+    ) {
+        if env.storage().instance().has(&DataKey::Admin) {
+            panic!("Already initialized");
+        }
+        env.storage().instance().set(&DataKey::Admin, &admin);
+        env.storage().instance().set(&DataKey::Token, &token);
+        env.storage().instance().set(&DataKey::Oracle, &oracle);
+        env.storage()
+            .instance()
+            .set(&DataKey::PremiumAmount, &premium_amount);
+        env.storage()
+            .instance()
+            .set(&DataKey::PayoutAmount, &payout_amount);
+        env.storage().instance().set(&DataKey::ClaimCount, &0u64);
+    }
+
+    pub fn pay_premium(env: Env, user: Address) {
+        user.require_auth();
+
+        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
+        let premium_amount = env
+            .storage()
+            .instance()
+            .get::<_, i128>(&DataKey::PremiumAmount)
+            .unwrap();
+        let client = token::Client::new(&env, &token_addr);
+
+        client.transfer(&user, &env.current_contract_address(), &premium_amount);
+
+        env.storage()
+            .instance()
+            .set(&DataKey::IsInsured(user.clone()), &true);
+    }
+
+    pub fn file_claim(env: Env, user: Address, course_id: u64) -> u64 {
+        user.require_auth();
+
+        if !env
+            .storage()
+            .instance()
+            .get::<_, bool>(&DataKey::IsInsured(user.clone()))
+            .unwrap_or(false)
+        {
+            panic!("User is not insured");
+        }
+
+        let mut claim_count = env
+            .storage()
+            .instance()
+            .get::<_, u64>(&DataKey::ClaimCount)
+            .unwrap();
+        claim_count += 1;
+
+        let claim = Claim {
+            user: user.clone(),
+            course_id,
+            status: ClaimStatus::Pending,
+        };
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_count), &claim);
+        env.storage()
+            .instance()
+            .set(&DataKey::ClaimCount, &claim_count);
+
+        claim_count
+    }
+
+    pub fn process_claim(env: Env, claim_id: u64, result: bool) {
+        let oracle = env.storage().instance().get::<_, Address>(&DataKey::Oracle).unwrap();
+        oracle.require_auth();
+
+        let mut claim = env
+            .storage()
+            .instance()
+            .get::<_, Claim>(&DataKey::Claim(claim_id))
+            .expect("Claim not found");
+
+        if claim.status != ClaimStatus::Pending {
+            panic!("Claim already processed");
+        }
+
+        if result {
+            claim.status = ClaimStatus::Verified;
+        } else {
+            claim.status = ClaimStatus::Rejected;
+        }
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
+    }
+
+    pub fn payout(env: Env, claim_id: u64) {
+        let mut claim = env
+            .storage()
+            .instance()
+            .get::<_, Claim>(&DataKey::Claim(claim_id))
+            .expect("Claim not found");
+
+        if claim.status != ClaimStatus::Verified {
+            panic!("Claim not verified");
+        }
+
+        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
+        let payout_amount = env
+            .storage()
+            .instance()
+            .get::<_, i128>(&DataKey::PayoutAmount)
+            .unwrap();
+        let client = token::Client::new(&env, &token_addr);
+
+        client.transfer(&env.current_contract_address(), &claim.user, &payout_amount);
+
+        claim.status = ClaimStatus::Paid;
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
+        
+        // Remove insurance after payout? Or keep it? 
+        // Usually insurance is for a specific term or event. 
+        // Here we assume it's one-time use per premium for simplicity, or maybe not.
+        // Let's remove insurance to prevent multiple claims for one premium if that's the model.
+        // But the prompt says "protects against course completion failures". 
+        // Let's assume one premium covers one claim for now.
+        env.storage().instance().remove(&DataKey::IsInsured(claim.user));
+    }
+
+    pub fn withdraw(env: Env, amount: i128) {
+        let admin = env.storage().instance().get::<_, Address>(&DataKey::Admin).unwrap();
+        admin.require_auth();
+
+        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
+        let client = token::Client::new(&env, &token_addr);
+
+        client.transfer(&env.current_contract_address(), &admin, &amount);
+    }
+    
+    // View functions
+    pub fn get_claim(env: Env, claim_id: u64) -> Option<Claim> {
+         env.storage().instance().get(&DataKey::Claim(claim_id))
+    }
+    
+    pub fn is_insured(env: Env, user: Address) -> bool {
+        env.storage().instance().get(&DataKey::IsInsured(user)).unwrap_or(false)
+    }
+}
+
+mod test;

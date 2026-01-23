@@ -1,0 +1,8 @@
+root = "."
+exclude = [
+    'http://localhost:[0-9]+',
+    'http://127.0.0.1:[0-9]+',
+    'https://example.com'
+]
+max_concurrency = 4
+retry_count = 2

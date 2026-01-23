@@ -3,12 +3,15 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 
 mod bridge;
+mod escrow;
 mod events;
 mod rewards;
 mod storage;
 mod types;
 
-pub use types::{BridgeTransaction, CrossChainMessage, RewardRate, UserReward};
+pub use types::{
+    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, RewardRate, UserReward
+};
 
 #[contract]
 pub struct TeachLinkBridge;
@@ -175,5 +178,77 @@ impl TeachLinkBridge {
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Address {
         rewards::Rewards::get_rewards_admin(&env)
+    // ========== Escrow Functions ==========
+
+    /// Create a multi-signature escrow
+    pub fn create_escrow(
+        env: Env,
+        depositor: Address,
+        beneficiary: Address,
+        token: Address,
+        amount: i128,
+        signers: Vec<Address>,
+        threshold: u32,
+        release_time: Option<u64>,
+        refund_time: Option<u64>,
+        arbitrator: Address,
+    ) -> u64 {
+        escrow::EscrowManager::create_escrow(
+            &env,
+            depositor,
+            beneficiary,
+            token,
+            amount,
+            signers,
+            threshold,
+            release_time,
+            refund_time,
+            arbitrator,
+        )
+    }
+
+    /// Approve escrow release (multi-signature)
+    pub fn approve_escrow_release(env: Env, escrow_id: u64, signer: Address) -> u32 {
+        escrow::EscrowManager::approve_release(&env, escrow_id, signer)
+    }
+
+    /// Release funds to the beneficiary once conditions are met
+    pub fn release_escrow(env: Env, escrow_id: u64, caller: Address) {
+        escrow::EscrowManager::release(&env, escrow_id, caller)
+    }
+
+    /// Refund escrow to the depositor after refund time
+    pub fn refund_escrow(env: Env, escrow_id: u64, depositor: Address) {
+        escrow::EscrowManager::refund(&env, escrow_id, depositor)
+    }
+
+    /// Cancel escrow before any approvals
+    pub fn cancel_escrow(env: Env, escrow_id: u64, depositor: Address) {
+        escrow::EscrowManager::cancel(&env, escrow_id, depositor)
+    }
+
+    /// Raise a dispute on the escrow
+    pub fn dispute_escrow(env: Env, escrow_id: u64, disputer: Address, reason: Bytes) {
+        escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
+    }
+
+    /// Resolve a dispute as the arbitrator
+    pub fn resolve_escrow(env: Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) {
+        escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
+    }
+
+    /// Get escrow by id
+    pub fn get_escrow(env: Env, escrow_id: u64) -> Option<Escrow> {
+        escrow::EscrowManager::get_escrow(&env, escrow_id)
+    }
+
+    /// Check if a signer approved
+    pub fn has_escrow_approval(env: Env, escrow_id: u64, signer: Address) -> bool {
+        escrow::EscrowManager::has_approved(&env, escrow_id, signer)
+    }
+
+    /// Get the current escrow count
+    pub fn get_escrow_count(env: Env) -> u64 {
+        escrow::EscrowManager::get_escrow_count(&env)
     }
 }
