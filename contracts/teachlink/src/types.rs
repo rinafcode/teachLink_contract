@@ -66,3 +66,22 @@ pub enum DisputeOutcome {
     ReleaseToBeneficiary,
     RefundToDepositor,
 }
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ContributionType {
+    Content,
+    Code,
+    Community,
+    Governance,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Contribution {
+    pub contributor: Address,
+    pub c_type: ContributionType,
+    pub description: Bytes,
+    pub timestamp: u64,
+    pub points: u64,
+}

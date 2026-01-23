@@ -5,11 +5,13 @@ use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Vec};
 mod bridge;
 mod escrow;
 mod events;
+mod score;
 mod storage;
 mod types;
 
 pub use types::{
-    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus,
+    BridgeTransaction, Contribution, ContributionType, CrossChainMessage, DisputeOutcome, Escrow,
+    EscrowStatus,
 };
 
 #[contract]
@@ -194,5 +196,43 @@ impl TeachLinkBridge {
     /// Get the current escrow count
     pub fn get_escrow_count(env: Env) -> u64 {
         escrow::EscrowManager::get_escrow_count(&env)
+    }
+
+    // ========== Credit Scoring Functions ==========
+
+    /// Record a course completion (admin only for now, or specific authority)
+    pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
+        // require admin
+        let admin = bridge::Bridge::get_admin(&env);
+        admin.require_auth();
+        score::ScoreManager::record_course_completion(&env, user, course_id, points);
+    }
+
+    /// Record a contribution (admin only)
+    pub fn record_contribution(
+        env: Env,
+        user: Address,
+        c_type: types::ContributionType,
+        description: Bytes,
+        points: u64,
+    ) {
+        let admin = bridge::Bridge::get_admin(&env);
+        admin.require_auth();
+        score::ScoreManager::record_contribution(&env, user, c_type, description, points);
+    }
+
+    /// Get user's credit score
+    pub fn get_credit_score(env: Env, user: Address) -> u64 {
+        score::ScoreManager::get_score(&env, user)
+    }
+
+    /// Get user's completed courses
+    pub fn get_user_courses(env: Env, user: Address) -> Vec<u64> {
+        score::ScoreManager::get_courses(&env, user)
+    }
+
+    /// Get user's contributions
+    pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
+        score::ScoreManager::get_contributions(&env, user)
     }
 }
