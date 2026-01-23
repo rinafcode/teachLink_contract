@@ -1,7 +1,9 @@
 use soroban_sdk::contractevent;
 
-use crate::types::{BridgeTransaction, CrossChainMessage};
+
+use crate::types::{BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus};
 use soroban_sdk::{Address, Bytes, String};
+
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -44,6 +46,10 @@ pub struct RewardIssuedEvent {
     pub amount: i128,
     pub reward_type: String,
     pub timestamp: u64,
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct EscrowCreatedEvent {
+    pub escrow: Escrow,
 }
 
 #[contractevent]
@@ -52,6 +58,18 @@ pub struct RewardClaimedEvent {
     pub user: Address,
     pub amount: i128,
     pub timestamp: u64,
+pub struct EscrowApprovedEvent {
+    pub escrow_id: u64,
+    pub signer: Address,
+    pub approval_count: u32,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct EscrowReleasedEvent {
+    pub escrow_id: u64,
+    pub beneficiary: Address,
+    pub amount: i128,
 }
 
 #[contractevent]
@@ -60,4 +78,24 @@ pub struct RewardPoolFundedEvent {
     pub funder: Address,
     pub amount: i128,
     pub timestamp: u64,
+pub struct EscrowRefundedEvent {
+    pub escrow_id: u64,
+    pub depositor: Address,
+    pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct EscrowDisputedEvent {
+    pub escrow_id: u64,
+    pub disputer: Address,
+    pub reason: Bytes,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct EscrowResolvedEvent {
+    pub escrow_id: u64,
+    pub outcome: DisputeOutcome,
+    pub status: EscrowStatus,
 }
