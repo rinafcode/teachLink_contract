@@ -13,3 +13,10 @@ pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
 pub const ESCROW_COUNT: Symbol = symbol_short!("esc_ct");
 pub const ESCROWS: Symbol = symbol_short!("escrows");
+
+// Storage keys for content tokenization
+pub const TOKEN_COUNTER: Symbol = symbol_short!("tok_cnt");
+pub const CONTENT_TOKENS: Symbol = symbol_short!("cnt_tok");
+pub const OWNERSHIP: Symbol = symbol_short!("owner");
+pub const PROVENANCE: Symbol = symbol_short!("prov");
+pub const OWNER_TOKENS: Symbol = symbol_short!("own_tok");

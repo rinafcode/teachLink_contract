@@ -1,6 +1,9 @@
 use soroban_sdk::contractevent;
 
-use crate::types::{BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus};
+use crate::types::{
+    BridgeTransaction, ContentMetadata, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus,
+    ProvenanceRecord,
+};
 use soroban_sdk::{Address, Bytes};
 
 #[contractevent]
@@ -80,4 +83,38 @@ pub struct EscrowResolvedEvent {
     pub escrow_id: u64,
     pub outcome: DisputeOutcome,
     pub status: EscrowStatus,
+}
+
+// ========== Content Tokenization Events ==========
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ContentMintedEvent {
+    pub token_id: u64,
+    pub creator: Address,
+    pub metadata: ContentMetadata,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct OwnershipTransferredEvent {
+    pub token_id: u64,
+    pub from: Address,
+    pub to: Address,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ProvenanceRecordedEvent {
+    pub token_id: u64,
+    pub record: ProvenanceRecord,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct MetadataUpdatedEvent {
+    pub token_id: u64,
+    pub owner: Address,
+    pub timestamp: u64,
 }
