@@ -13,3 +13,8 @@ pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
 pub const ESCROW_COUNT: Symbol = symbol_short!("esc_ct");
 pub const ESCROWS: Symbol = symbol_short!("escrows");
+
+// Storage keys for credit scoring
+pub const CREDIT_SCORE: Symbol = symbol_short!("score");
+pub const COURSE_COMPLETIONS: Symbol = symbol_short!("courses");
+pub const CONTRIBUTIONS: Symbol = symbol_short!("contribs");
