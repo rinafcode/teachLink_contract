@@ -9,6 +9,7 @@ mod events;
 mod rewards;
 mod storage;
 mod types;
+mod validation;
 
 pub use types::{
     BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, RewardRate, UserReward

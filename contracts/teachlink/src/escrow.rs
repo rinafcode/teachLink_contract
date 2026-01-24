@@ -5,6 +5,7 @@ use crate::events::{
 };
 use crate::storage::{ESCROW_COUNT, ESCROWS};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowStatus};
+use crate::validation::EscrowValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 pub struct EscrowManager;
@@ -24,32 +25,19 @@ impl EscrowManager {
     ) -> Result<u64, EscrowError> {
         depositor.require_auth();
 
-        if amount <= 0 {
-            return Err(EscrowError::AmountMustBePositive);
-        }
-
-        if signers.len() == 0 {
-            return Err(EscrowError::AtLeastOneSignerRequired);
-        }
-
-        if threshold == 0 || threshold > signers.len() as u32 {
-            return Err(EscrowError::InvalidSignerThreshold);
-        }
-
-        let now = env.ledger().timestamp();
-        if let Some(refund_time) = refund_time {
-            if refund_time < now {
-                return Err(EscrowError::RefundTimeMustBeInFuture);
-            }
-        }
-
-        if let (Some(release), Some(refund)) = (release_time, refund_time) {
-            if refund < release {
-                return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
-            }
-        }
-
-        Self::ensure_unique_signers(env, &signers)?;
+        // Validate all input parameters using the validation layer
+        EscrowValidator::validate_create_escrow(
+            env,
+            &depositor,
+            &beneficiary,
+            &token,
+            amount,
+            &signers,
+            threshold,
+            release_time,
+            refund_time,
+            &arbitrator,
+        )?;
 
         env.invoke_contract::<()>(
             &token,
@@ -66,6 +54,7 @@ impl EscrowManager {
         escrow_count += 1;
         env.storage().instance().set(&ESCROW_COUNT, &escrow_count);
 
+        let now = env.ledger().timestamp();
         let escrow = Escrow {
             id: escrow_count,
             depositor,
@@ -129,22 +118,9 @@ impl EscrowManager {
         caller.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
-        Self::ensure_pending(&escrow)?;
-
-        if !Self::is_release_caller(&escrow, &caller) {
-            return Err(EscrowError::CallerNotAuthorized);
-        }
-
-        if escrow.approval_count < escrow.threshold {
-            return Err(EscrowError::InsufficientApprovals);
-        }
-
-        if let Some(release_time) = escrow.release_time {
-            let now = env.ledger().timestamp();
-            if now < release_time {
-                return Err(EscrowError::ReleaseTimeNotReached);
-            }
-        }
+        
+        // Validate release conditions using the validation layer
+        EscrowValidator::validate_release_conditions(&escrow, &caller, env.ledger().timestamp())?;
 
         Self::transfer_from_contract(env, &escrow.token, &escrow.beneficiary, escrow.amount);
         escrow.status = EscrowStatus::Released;
