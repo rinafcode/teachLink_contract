@@ -1,5 +1,6 @@
 #![no_std]
 
+use crate::errors::InsuranceError;
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
 
 #[contracttype]
@@ -44,9 +45,9 @@ impl InsurancePool {
         oracle: Address,
         premium_amount: i128,
         payout_amount: i128,
-    ) {
+    ) -> Result<(), InsuranceError> {
         if env.storage().instance().has(&DataKey::Admin) {
-            panic!("Already initialized");
+            return Err(InsuranceError::AlreadyInitialized);
         }
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
@@ -58,6 +59,8 @@ impl InsurancePool {
             .instance()
             .set(&DataKey::PayoutAmount, &payout_amount);
         env.storage().instance().set(&DataKey::ClaimCount, &0u64);
+        
+        Ok(())
     }
 
     pub fn pay_premium(env: Env, user: Address) {
@@ -78,7 +81,7 @@ impl InsurancePool {
             .set(&DataKey::IsInsured(user.clone()), &true);
     }
 
-    pub fn file_claim(env: Env, user: Address, course_id: u64) -> u64 {
+    pub fn file_claim(env: Env, user: Address, course_id: u64) -> Result<u64, InsuranceError> {
         user.require_auth();
 
         if !env
@@ -87,7 +90,7 @@ impl InsurancePool {
             .get::<_, bool>(&DataKey::IsInsured(user.clone()))
             .unwrap_or(false)
         {
-            panic!("User is not insured");
+            return Err(InsuranceError::UserNotInsured);
         }
 
         let mut claim_count = env
@@ -110,10 +113,10 @@ impl InsurancePool {
             .instance()
             .set(&DataKey::ClaimCount, &claim_count);
 
-        claim_count
+        Ok(claim_count)
     }
 
-    pub fn process_claim(env: Env, claim_id: u64, result: bool) {
+    pub fn process_claim(env: Env, claim_id: u64, result: bool) -> Result<(), InsuranceError> {
         let oracle = env.storage().instance().get::<_, Address>(&DataKey::Oracle).unwrap();
         oracle.require_auth();
 
@@ -121,10 +124,10 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Claim>(&DataKey::Claim(claim_id))
-            .expect("Claim not found");
+            .ok_or(InsuranceError::ClaimNotFound)?;
 
         if claim.status != ClaimStatus::Pending {
-            panic!("Claim already processed");
+            return Err(InsuranceError::ClaimAlreadyProcessed);
         }
 
         if result {
@@ -136,17 +139,19 @@ impl InsurancePool {
         env.storage()
             .instance()
             .set(&DataKey::Claim(claim_id), &claim);
+            
+        Ok(())
     }
 
-    pub fn payout(env: Env, claim_id: u64) {
+    pub fn payout(env: Env, claim_id: u64) -> Result<(), InsuranceError> {
         let mut claim = env
             .storage()
             .instance()
             .get::<_, Claim>(&DataKey::Claim(claim_id))
-            .expect("Claim not found");
+            .ok_or(InsuranceError::ClaimNotFound)?;
 
         if claim.status != ClaimStatus::Verified {
-            panic!("Claim not verified");
+            return Err(InsuranceError::ClaimNotVerified);
         }
 
         let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
@@ -164,13 +169,12 @@ impl InsurancePool {
             .instance()
             .set(&DataKey::Claim(claim_id), &claim);
         
-        // Remove insurance after payout? Or keep it? 
-        // Usually insurance is for a specific term or event. 
-        // Here we assume it's one-time use per premium for simplicity, or maybe not.
         // Let's remove insurance to prevent multiple claims for one premium if that's the model.
         // But the prompt says "protects against course completion failures". 
         // Let's assume one premium covers one claim for now.
         env.storage().instance().remove(&DataKey::IsInsured(claim.user));
+        
+        Ok(())
     }
 
     pub fn withdraw(env: Env, amount: i128) {
@@ -193,4 +197,4 @@ impl InsurancePool {
     }
 }
 
-mod test;
+mod errors;
