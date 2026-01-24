@@ -17,6 +17,7 @@ TeachLink is a Soroban smart contract that powers tokenized learning rewards on 
 ## Table of Contents
 
 - Overview
+- Interactive Documentation
 - Onboarding
 - Architecture
 - Development Workflow
@@ -27,6 +28,19 @@ TeachLink is a Soroban smart contract that powers tokenized learning rewards on 
 ## Overview
 
 TeachLink enables tokenized learning rewards, proof-of-participation, and educator incentives. The contract is written in Rust for Soroban, Stellar's smart contract platform.
+
+## Interactive Documentation
+
+Explore the TeachLink contract interactively with live code execution, API exploration, and guided tutorials. The interactive documentation provides an engaging way to understand the contract's architecture and implementation.
+
+To run the interactive docs:
+
+```bash
+cd docs/interactive
+cargo run
+```
+
+Then open http://localhost:3000 in your browser.
 
 ## Onboarding
 

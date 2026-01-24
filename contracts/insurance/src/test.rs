@@ -1,7 +1,10 @@
 #![cfg(test)]
 
 use super::*;
-use soroban_sdk::{testutils::{Address as _, Ledger}, Address, Env};
+use soroban_sdk::{
+    testutils::{Address as _, Ledger},
+    Address, Env,
+};
 
 #[test]
 fn test_insurance_flow() {
@@ -27,7 +30,13 @@ fn test_insurance_flow() {
     let payout_amount = 500;
 
     // Initialize
-    client.initialize(&admin, &token_address, &oracle, &premium_amount, &payout_amount);
+    client.initialize(
+        &admin,
+        &token_address,
+        &oracle,
+        &premium_amount,
+        &payout_amount,
+    );
 
     // Mint tokens to user and contract (for payout liquidity)
     token_admin_client.mint(&user, &1000);
@@ -42,7 +51,7 @@ fn test_insurance_flow() {
     // 2. File Claim
     let course_id = 101;
     let claim_id = client.file_claim(&user, &course_id);
-    
+
     let claim = client.get_claim(&claim_id).unwrap();
     assert_eq!(claim.user, user);
     assert_eq!(claim.course_id, course_id);
@@ -50,19 +59,19 @@ fn test_insurance_flow() {
 
     // 3. Process Claim (Verify)
     client.process_claim(&claim_id, &true);
-    
+
     let claim = client.get_claim(&claim_id).unwrap();
     assert_eq!(claim.status, ClaimStatus::Verified);
 
     // 4. Payout
     client.payout(&claim_id);
-    
+
     let claim = client.get_claim(&claim_id).unwrap();
     assert_eq!(claim.status, ClaimStatus::Paid);
-    
+
     assert_eq!(token.balance(&user), 1400); // 900 + 500
     assert_eq!(token.balance(&contract_id), 600); // 1100 - 500
-    
+
     // User should no longer be insured (consumed)
     assert!(!client.is_insured(&user));
 }

@@ -11,7 +11,8 @@ mod tokenization;
 mod types;
 
 pub use types::{
-    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, RewardRate, UserReward
+    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, RewardRate,
+    UserReward,
 };
 
 #[contract]
@@ -179,6 +180,8 @@ impl TeachLinkBridge {
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Address {
         rewards::Rewards::get_rewards_admin(&env)
+    }
+
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow

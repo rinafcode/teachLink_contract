@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TeachLink Interactive Documentation</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <h1>TeachLink Contract Interactive Documentation</h1>
+        <nav>
+            <a href="#playground">Code Playground</a>
+            <a href="#api">API Explorer</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#tutorials">Tutorials</a>
+        </nav>
+    </header>
+
+    <main>
+        <section id="playground">
+            <h2>Interactive Code Playground</h2>
+            <button id="deploy-btn">Deploy Contract Locally</button>
+            <div id="contract-status"></div>
+            <div id="code-editor">
+                <textarea id="code-input" placeholder="Enter Soroban contract code here..."></textarea>
+                <button id="run-btn">Run Code</button>
+            </div>
+            <div id="output"></div>
+        </section>
+
+        <section id="api">
+            <h2>API Explorer</h2>
+            <div id="functions-list"></div>
+            <div id="function-form">
+                <select id="function-select"></select>
+                <div id="args-container"></div>
+                <button id="invoke-btn">Invoke Function</button>
+            </div>
+            <div id="invoke-result"></div>
+        </section>
+
+        <section id="architecture">
+            <h2>Architecture Visualization</h2>
+            <div id="mermaid-diagram"></div>
+        </section>
+
+        <section id="tutorials">
+            <h2>Guided Tutorials</h2>
+            <div id="tutorial-steps">
+                <h3>Step 1: Deploy the Contract</h3>
+                <p>Click the "Deploy Contract Locally" button to deploy the TeachLink contract to a local Stellar network.</p>
+
+                <h3>Step 2: Initialize the Bridge</h3>
+                <p>Use the API Explorer to call the 'initialize' function with appropriate parameters.</p>
+
+                <h3>Step 3: Bridge Tokens</h3>
+                <p>Call 'bridge_out' to lock tokens for cross-chain transfer.</p>
+
+                <h3>Step 4: Complete Bridge</h3>
+                <p>Simulate validator signatures and call 'complete_bridge' to release tokens.</p>
+
+                <h3>Step 5: Explore Escrow</h3>
+                <p>Create a multi-signature escrow using 'create_escrow'.</p>
+            </div>
+        </section>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
