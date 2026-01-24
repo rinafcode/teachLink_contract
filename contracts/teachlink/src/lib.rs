@@ -1,15 +1,16 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 
 mod bridge;
 mod escrow;
 mod events;
+mod rewards;
 mod storage;
 mod types;
 
 pub use types::{
-    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus,
+    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, RewardRate, UserReward
 };
 
 #[contract]
@@ -122,6 +123,61 @@ impl TeachLinkBridge {
         bridge::Bridge::get_token(&env)
     }
 
+    // ========== Rewards Functions ==========
+
+    /// Initialize the rewards system
+    pub fn initialize_rewards(env: Env, token: Address, rewards_admin: Address) {
+        rewards::Rewards::initialize_rewards(&env, token, rewards_admin);
+    }
+
+    /// Fund the reward pool
+    pub fn fund_reward_pool(env: Env, funder: Address, amount: i128) {
+        rewards::Rewards::fund_reward_pool(&env, funder, amount);
+    }
+
+    /// Issue rewards to a user
+    pub fn issue_reward(env: Env, recipient: Address, amount: i128, reward_type: String) {
+        rewards::Rewards::issue_reward(&env, recipient, amount, reward_type);
+    }
+
+    /// Claim pending rewards
+    pub fn claim_rewards(env: Env, user: Address) {
+        rewards::Rewards::claim_rewards(&env, user);
+    }
+
+    /// Set reward rate for a specific reward type (admin only)
+    pub fn set_reward_rate(env: Env, reward_type: String, rate: i128, enabled: bool) {
+        rewards::Rewards::set_reward_rate(&env, reward_type, rate, enabled);
+    }
+
+    /// Update rewards admin (admin only)
+    pub fn update_rewards_admin(env: Env, new_admin: Address) {
+        rewards::Rewards::update_rewards_admin(&env, new_admin);
+    }
+
+    /// Get user reward information
+    pub fn get_user_rewards(env: Env, user: Address) -> Option<UserReward> {
+        rewards::Rewards::get_user_rewards(&env, user)
+    }
+
+    /// Get reward pool balance
+    pub fn get_reward_pool_balance(env: Env) -> i128 {
+        rewards::Rewards::get_reward_pool_balance(&env)
+    }
+
+    /// Get total rewards issued
+    pub fn get_total_rewards_issued(env: Env) -> i128 {
+        rewards::Rewards::get_total_rewards_issued(&env)
+    }
+
+    /// Get reward rate for a specific type
+    pub fn get_reward_rate(env: Env, reward_type: String) -> Option<RewardRate> {
+        rewards::Rewards::get_reward_rate(&env, reward_type)
+    }
+
+    /// Get rewards admin address
+    pub fn get_rewards_admin(env: Env) -> Address {
+        rewards::Rewards::get_rewards_admin(&env)
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow
