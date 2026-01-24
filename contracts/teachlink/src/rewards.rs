@@ -2,6 +2,7 @@ use crate::errors::RewardsError;
 use crate::events::{RewardClaimedEvent, RewardIssuedEvent, RewardPoolFundedEvent};
 use crate::storage::{REWARD_POOL, REWARD_RATES, REWARDS_ADMIN, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS};
 use crate::types::{RewardRate, UserReward};
+use crate::validation::RewardsValidator;
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, String};
 
 pub struct Rewards;
@@ -31,9 +32,8 @@ impl Rewards {
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
         funder.require_auth();
 
-        if amount <= 0 {
-            return Err(RewardsError::AmountMustBePositive);
-        }
+        // Validate input parameters using the validation layer
+        RewardsValidator::validate_pool_funding(env, &funder, amount)?;
 
         let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
@@ -72,9 +72,8 @@ impl Rewards {
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
-        if amount <= 0 {
-            return Err(RewardsError::AmountMustBePositive);
-        }
+        // Validate input parameters using the validation layer
+        RewardsValidator::validate_reward_issuance(env, &recipient, amount, &reward_type)?;
 
         let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         if pool_balance < amount {
