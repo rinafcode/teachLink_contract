@@ -26,12 +26,6 @@ pub struct CrossChainMessage {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct UserReward {
-    pub user: Address,
-    pub total_earned: i128,
-    pub claimed: i128,
-    pub pending: i128,
-    pub last_claim_timestamp: u64,
 pub enum EscrowStatus {
     Pending,
     Released,
@@ -42,10 +36,24 @@ pub enum EscrowStatus {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UserReward {
+    pub user: Address,
+    pub total_earned: i128,
+    pub claimed: i128,
+    pub pending: i128,
+    pub last_claim_timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct RewardRate {
     pub reward_type: String,
     pub rate: i128,
     pub enabled: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Escrow {
     pub id: u64,
     pub depositor: Address,

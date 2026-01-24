@@ -4,6 +4,7 @@ use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 
 mod bridge;
 mod escrow;
+mod errors;
 mod events;
 mod rewards;
 mod storage;
@@ -12,6 +13,7 @@ mod types;
 pub use types::{
     BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, RewardRate, UserReward
 };
+pub use errors::{BridgeError, EscrowError, RewardsError};
 
 #[contract]
 pub struct TeachLinkBridge;
@@ -25,8 +27,8 @@ impl TeachLinkBridge {
         admin: Address,
         min_validators: u32,
         fee_recipient: Address,
-    ) {
-        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient);
+    ) -> Result<(), BridgeError> {
+        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)
     }
 
     /// Bridge tokens out to another chain (lock/burn tokens on Stellar)
@@ -36,7 +38,7 @@ impl TeachLinkBridge {
         amount: i128,
         destination_chain: u32,
         destination_address: Bytes,
-    ) -> u64 {
+    ) -> Result<u64, BridgeError> {
         bridge::Bridge::bridge_out(&env, from, amount, destination_chain, destination_address)
     }
 
@@ -45,13 +47,13 @@ impl TeachLinkBridge {
         env: Env,
         message: CrossChainMessage,
         validator_signatures: Vec<Address>,
-    ) {
-        bridge::Bridge::complete_bridge(&env, message, validator_signatures);
+    ) -> Result<(), BridgeError> {
+        bridge::Bridge::complete_bridge(&env, message, validator_signatures)
     }
 
     /// Cancel a bridge transaction and refund locked tokens
-    pub fn cancel_bridge(env: Env, nonce: u64) {
-        bridge::Bridge::cancel_bridge(&env, nonce);
+    pub fn cancel_bridge(env: Env, nonce: u64) -> Result<(), BridgeError> {
+        bridge::Bridge::cancel_bridge(&env, nonce)
     }
 
     // ========== Admin Functions ==========
@@ -77,8 +79,8 @@ impl TeachLinkBridge {
     }
 
     /// Set bridge fee (admin only)
-    pub fn set_bridge_fee(env: Env, fee: i128) {
-        bridge::Bridge::set_bridge_fee(&env, fee);
+    pub fn set_bridge_fee(env: Env, fee: i128) -> Result<(), BridgeError> {
+        bridge::Bridge::set_bridge_fee(&env, fee)
     }
 
     /// Set fee recipient (admin only)
@@ -87,8 +89,8 @@ impl TeachLinkBridge {
     }
 
     /// Set minimum validators (admin only)
-    pub fn set_min_validators(env: Env, min_validators: u32) {
-        bridge::Bridge::set_min_validators(&env, min_validators);
+    pub fn set_min_validators(env: Env, min_validators: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::set_min_validators(&env, min_validators)
     }
 
     // ========== View Functions ==========
@@ -126,28 +128,28 @@ impl TeachLinkBridge {
     // ========== Rewards Functions ==========
 
     /// Initialize the rewards system
-    pub fn initialize_rewards(env: Env, token: Address, rewards_admin: Address) {
-        rewards::Rewards::initialize_rewards(&env, token, rewards_admin);
+    pub fn initialize_rewards(env: Env, token: Address, rewards_admin: Address) -> Result<(), RewardsError> {
+        rewards::Rewards::initialize_rewards(&env, token, rewards_admin)
     }
 
     /// Fund the reward pool
-    pub fn fund_reward_pool(env: Env, funder: Address, amount: i128) {
-        rewards::Rewards::fund_reward_pool(&env, funder, amount);
+    pub fn fund_reward_pool(env: Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
+        rewards::Rewards::fund_reward_pool(&env, funder, amount)
     }
 
     /// Issue rewards to a user
-    pub fn issue_reward(env: Env, recipient: Address, amount: i128, reward_type: String) {
-        rewards::Rewards::issue_reward(&env, recipient, amount, reward_type);
+    pub fn issue_reward(env: Env, recipient: Address, amount: i128, reward_type: String) -> Result<(), RewardsError> {
+        rewards::Rewards::issue_reward(&env, recipient, amount, reward_type)
     }
 
     /// Claim pending rewards
-    pub fn claim_rewards(env: Env, user: Address) {
-        rewards::Rewards::claim_rewards(&env, user);
+    pub fn claim_rewards(env: Env, user: Address) -> Result<(), RewardsError> {
+        rewards::Rewards::claim_rewards(&env, user)
     }
 
     /// Set reward rate for a specific reward type (admin only)
-    pub fn set_reward_rate(env: Env, reward_type: String, rate: i128, enabled: bool) {
-        rewards::Rewards::set_reward_rate(&env, reward_type, rate, enabled);
+    pub fn set_reward_rate(env: Env, reward_type: String, rate: i128, enabled: bool) -> Result<(), RewardsError> {
+        rewards::Rewards::set_reward_rate(&env, reward_type, rate, enabled)
     }
 
     /// Update rewards admin (admin only)
@@ -178,6 +180,8 @@ impl TeachLinkBridge {
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Address {
         rewards::Rewards::get_rewards_admin(&env)
+    }
+
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow
@@ -192,7 +196,7 @@ impl TeachLinkBridge {
         release_time: Option<u64>,
         refund_time: Option<u64>,
         arbitrator: Address,
-    ) -> u64 {
+    ) -> Result<u64, EscrowError> {
         escrow::EscrowManager::create_escrow(
             &env,
             depositor,
@@ -208,32 +212,32 @@ impl TeachLinkBridge {
     }
 
     /// Approve escrow release (multi-signature)
-    pub fn approve_escrow_release(env: Env, escrow_id: u64, signer: Address) -> u32 {
+    pub fn approve_escrow_release(env: Env, escrow_id: u64, signer: Address) -> Result<u32, EscrowError> {
         escrow::EscrowManager::approve_release(&env, escrow_id, signer)
     }
 
     /// Release funds to the beneficiary once conditions are met
-    pub fn release_escrow(env: Env, escrow_id: u64, caller: Address) {
+    pub fn release_escrow(env: Env, escrow_id: u64, caller: Address) -> Result<(), EscrowError> {
         escrow::EscrowManager::release(&env, escrow_id, caller)
     }
 
     /// Refund escrow to the depositor after refund time
-    pub fn refund_escrow(env: Env, escrow_id: u64, depositor: Address) {
+    pub fn refund_escrow(env: Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         escrow::EscrowManager::refund(&env, escrow_id, depositor)
     }
 
     /// Cancel escrow before any approvals
-    pub fn cancel_escrow(env: Env, escrow_id: u64, depositor: Address) {
+    pub fn cancel_escrow(env: Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         escrow::EscrowManager::cancel(&env, escrow_id, depositor)
     }
 
     /// Raise a dispute on the escrow
-    pub fn dispute_escrow(env: Env, escrow_id: u64, disputer: Address, reason: Bytes) {
+    pub fn dispute_escrow(env: Env, escrow_id: u64, disputer: Address, reason: Bytes) -> Result<(), EscrowError> {
         escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
     }
 
     /// Resolve a dispute as the arbitrator
-    pub fn resolve_escrow(env: Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) {
+    pub fn resolve_escrow(env: Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) -> Result<(), EscrowError> {
         escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
     }
 
