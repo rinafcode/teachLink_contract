@@ -1,9 +1,7 @@
 use soroban_sdk::contractevent;
 
-
 use crate::types::{BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus};
 use soroban_sdk::{Address, Bytes, String};
-
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -46,6 +44,8 @@ pub struct RewardIssuedEvent {
     pub amount: i128,
     pub reward_type: String,
     pub timestamp: u64,
+}
+
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct EscrowCreatedEvent {
@@ -58,6 +58,10 @@ pub struct RewardClaimedEvent {
     pub user: Address,
     pub amount: i128,
     pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
 pub struct EscrowApprovedEvent {
     pub escrow_id: u64,
     pub signer: Address,
@@ -78,6 +82,10 @@ pub struct RewardPoolFundedEvent {
     pub funder: Address,
     pub amount: i128,
     pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
 pub struct EscrowRefundedEvent {
     pub escrow_id: u64,
     pub depositor: Address,
