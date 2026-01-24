@@ -76,3 +76,61 @@ pub enum DisputeOutcome {
     ReleaseToBeneficiary,
     RefundToDepositor,
 }
+
+// ========== Educational Content Tokenization Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ContentType {
+    Course,
+    Material,
+    Lesson,
+    Assessment,
+    Certificate,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContentMetadata {
+    pub title: Bytes,
+    pub description: Bytes,
+    pub content_type: ContentType,
+    pub creator: Address,
+    pub content_hash: Bytes, // IPFS hash or content identifier
+    pub license_type: Bytes,
+    pub tags: Vec<Bytes>,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContentToken {
+    pub token_id: u64,
+    pub metadata: ContentMetadata,
+    pub owner: Address,
+    pub minted_at: u64,
+    pub is_transferable: bool,
+    pub royalty_percentage: u32, // Basis points (e.g., 500 = 5%)
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProvenanceRecord {
+    pub token_id: u64,
+    pub from: Option<Address>, // None for initial mint
+    pub to: Address,
+    pub timestamp: u64,
+    pub transaction_hash: Bytes,
+    pub transfer_type: TransferType,
+    pub notes: Option<Bytes>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TransferType {
+    Mint,        // Initial creation
+    Transfer,    // Standard ownership transfer
+    License,     // Licensing agreement
+    Revoke,      // Ownership revoked
+}

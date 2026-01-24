@@ -99,3 +99,37 @@ pub struct EscrowResolvedEvent {
     pub outcome: DisputeOutcome,
     pub status: EscrowStatus,
 }
+
+// ========== Content Tokenization Events ==========
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ContentMintedEvent {
+    pub token_id: u64,
+    pub creator: Address,
+    pub metadata: ContentMetadata,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct OwnershipTransferredEvent {
+    pub token_id: u64,
+    pub from: Address,
+    pub to: Address,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ProvenanceRecordedEvent {
+    pub token_id: u64,
+    pub record: ProvenanceRecord,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct MetadataUpdatedEvent {
+    pub token_id: u64,
+    pub owner: Address,
+    pub timestamp: u64,
+}
