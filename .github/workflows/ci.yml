@@ -31,3 +31,7 @@ jobs:
 
       - name: Build WASM (release)
         run: cargo build --target wasm32-unknown-unknown --release
+
+      - name: Docs
+        run: cargo doc --no-deps --document-private-items
+
