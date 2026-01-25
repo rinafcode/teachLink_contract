@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, Bytes, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, String, Vec};
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -26,12 +26,30 @@ pub struct CrossChainMessage {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UserReward {
+    pub user: Address,
+    pub total_earned: i128,
+    pub claimed: i128,
+    pub pending: i128,
+    pub last_claim_timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EscrowStatus {
     Pending,
     Released,
     Refunded,
     Disputed,
     Cancelled,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RewardRate {
+    pub reward_type: String,
+    pub rate: i128,
+    pub enabled: bool,
 }
 
 #[contracttype]
@@ -77,10 +95,62 @@ pub struct UserReputation {
     pub total_courses_completed: u32,
     pub total_contributions: u32,
     pub last_update: u64,
+// ========== Educational Content Tokenization Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ContentType {
+    Course,
+    Material,
+    Lesson,
+    Assessment,
+    Certificate,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContentMetadata {
+    pub title: Bytes,
+    pub description: Bytes,
+    pub content_type: ContentType,
+    pub creator: Address,
+    pub content_hash: Bytes, // IPFS hash or content identifier
+    pub license_type: Bytes,
+    pub tags: Vec<Bytes>,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContentToken {
+    pub token_id: u64,
+    pub metadata: ContentMetadata,
+    pub owner: Address,
+    pub minted_at: u64,
+    pub is_transferable: bool,
+    pub royalty_percentage: u32, // Basis points (e.g., 500 = 5%)
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ProvenanceRecord {
+    pub token_id: u64,
+    pub from: Option<Address>, // None for initial mint
+    pub to: Address,
+    pub timestamp: u64,
+    pub transaction_hash: Bytes,
+    pub transfer_type: TransferType,
+    pub notes: Option<Bytes>,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DataKey {
     Reputation(Address),
+pub enum TransferType {
+    Mint,        // Initial creation
+    Transfer,    // Standard ownership transfer
+    License,     // Licensing agreement
+    Revoke,      // Ownership revoked
 }
