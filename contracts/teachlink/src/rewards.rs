@@ -1,5 +1,7 @@
 use crate::events::{RewardClaimedEvent, RewardIssuedEvent, RewardPoolFundedEvent};
-use crate::storage::{REWARD_POOL, REWARD_RATES, REWARDS_ADMIN, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS};
+use crate::storage::{
+    REWARDS_ADMIN, REWARD_POOL, REWARD_RATES, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS,
+};
 use crate::types::{RewardRate, UserReward};
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, String};
 
@@ -58,12 +60,7 @@ impl Rewards {
     }
 
     /// Issue rewards to a user
-    pub fn issue_reward(
-        env: &Env,
-        recipient: Address,
-        amount: i128,
-        reward_type: String,
-    ) {
+    pub fn issue_reward(env: &Env, recipient: Address, amount: i128, reward_type: String) {
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
@@ -102,7 +99,9 @@ impl Rewards {
             .get(&TOTAL_REWARDS_ISSUED)
             .unwrap_or(0i128);
         total_issued += amount;
-        env.storage().instance().set(&TOTAL_REWARDS_ISSUED, &total_issued);
+        env.storage()
+            .instance()
+            .set(&TOTAL_REWARDS_ISSUED, &total_issued);
 
         RewardIssuedEvent {
             recipient,
