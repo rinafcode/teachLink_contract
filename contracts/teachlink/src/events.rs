@@ -2,9 +2,11 @@ use soroban_sdk::contractevent;
 
 use crate::types::{
     BridgeTransaction, ContributionType, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus,
+    // Added implied types from main branch events to ensure compilation
+    ContentMetadata, ProvenanceRecord,
 };
 
-use soroban_sdk::{Address, Bytes};
+use soroban_sdk::{Address, Bytes, String};
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -47,6 +49,8 @@ pub struct RewardIssuedEvent {
     pub amount: i128,
     pub reward_type: String,
     pub timestamp: u64,
+}
+
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct EscrowCreatedEvent {
@@ -59,6 +63,10 @@ pub struct RewardClaimedEvent {
     pub user: Address,
     pub amount: i128,
     pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
 pub struct EscrowApprovedEvent {
     pub escrow_id: u64,
     pub signer: Address,
@@ -79,6 +87,10 @@ pub struct RewardPoolFundedEvent {
     pub funder: Address,
     pub amount: i128,
     pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
 pub struct EscrowRefundedEvent {
     pub escrow_id: u64,
     pub depositor: Address,
@@ -101,6 +113,8 @@ pub struct EscrowResolvedEvent {
     pub status: EscrowStatus,
 }
 
+// ========== Credit Score Events (feat/credit_score) ==========
+
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct CreditScoreUpdatedEvent {
@@ -122,4 +136,38 @@ pub struct ContributionRecordedEvent {
     pub user: Address,
     pub c_type: ContributionType,
     pub points: u64,
+}
+
+// ========== Content Tokenization Events (main) ==========
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ContentMintedEvent {
+    pub token_id: u64,
+    pub creator: Address,
+    pub metadata: ContentMetadata,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct OwnershipTransferredEvent {
+    pub token_id: u64,
+    pub from: Address,
+    pub to: Address,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ProvenanceRecordedEvent {
+    pub token_id: u64,
+    pub record: ProvenanceRecord,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct MetadataUpdatedEvent {
+    pub token_id: u64,
+    pub owner: Address,
+    pub timestamp: u64,
 }

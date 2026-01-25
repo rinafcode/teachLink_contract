@@ -25,3 +25,10 @@ pub const ESCROWS: Symbol = symbol_short!("escrows");
 pub const CREDIT_SCORE: Symbol = symbol_short!("score");
 pub const COURSE_COMPLETIONS: Symbol = symbol_short!("courses");
 pub const CONTRIBUTIONS: Symbol = symbol_short!("contribs");
+
+// Storage keys for content tokenization
+pub const TOKEN_COUNTER: Symbol = symbol_short!("tok_cnt");
+pub const CONTENT_TOKENS: Symbol = symbol_short!("cnt_tok");
+pub const OWNERSHIP: Symbol = symbol_short!("owner");
+pub const PROVENANCE: Symbol = symbol_short!("prov");
+pub const OWNER_TOKENS: Symbol = symbol_short!("own_tok");

@@ -5,14 +5,17 @@ use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 mod bridge;
 mod escrow;
 mod events;
-mod score;
+mod provenance; // Added to support provenance usage in main
 mod rewards;
+mod score;
 mod storage;
+mod tokenization;
 mod types;
 
 pub use types::{
-    BridgeTransaction, Contribution, ContributionType, CrossChainMessage, DisputeOutcome, Escrow,
-    EscrowStatus, RewardRate, UserReward
+    BridgeTransaction, ContentToken, ContentType, Contribution, ContributionType,
+    CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate,
+    UserReward,
 };
 
 #[contract]
@@ -180,6 +183,8 @@ impl TeachLinkBridge {
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Address {
         rewards::Rewards::get_rewards_admin(&env)
+    }
+
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow
@@ -254,7 +259,7 @@ impl TeachLinkBridge {
         escrow::EscrowManager::get_escrow_count(&env)
     }
 
-    // ========== Credit Scoring Functions ==========
+    // ========== Credit Scoring Functions (feat/credit_score) ==========
 
     /// Record a course completion (admin only for now, or specific authority)
     pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
@@ -290,5 +295,131 @@ impl TeachLinkBridge {
     /// Get user's contributions
     pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
         score::ScoreManager::get_contributions(&env, user)
+    }
+
+    // ========== Content Tokenization Functions (main) ==========
+
+    /// Mint a new educational content token
+    pub fn mint_content_token(
+        env: Env,
+        creator: Address,
+        title: Bytes,
+        description: Bytes,
+        content_type: ContentType,
+        content_hash: Bytes,
+        license_type: Bytes,
+        tags: Vec<Bytes>,
+        is_transferable: bool,
+        royalty_percentage: u32,
+    ) -> u64 {
+        let token_id = tokenization::ContentTokenization::mint(
+            &env,
+            creator.clone(),
+            title,
+            description,
+            content_type,
+            content_hash,
+            license_type,
+            tags,
+            is_transferable,
+            royalty_percentage,
+        );
+
+        // Record mint in provenance
+        provenance::ProvenanceTracker::record_mint(&env, token_id, creator, None);
+
+        token_id
+    }
+
+    /// Transfer ownership of a content token
+    pub fn transfer_content_token(
+        env: Env,
+        from: Address,
+        to: Address,
+        token_id: u64,
+        notes: Option<Bytes>,
+    ) {
+        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes);
+    }
+
+    /// Get a content token by ID
+    pub fn get_content_token(env: Env, token_id: u64) -> Option<ContentToken> {
+        tokenization::ContentTokenization::get_token(&env, token_id)
+    }
+
+    /// Get the owner of a content token
+    pub fn get_content_token_owner(env: Env, token_id: u64) -> Option<Address> {
+        tokenization::ContentTokenization::get_owner(&env, token_id)
+    }
+
+    /// Check if an address owns a content token
+    pub fn is_content_token_owner(env: Env, token_id: u64, address: Address) -> bool {
+        tokenization::ContentTokenization::is_owner(&env, token_id, address)
+    }
+
+    /// Get all tokens owned by an address
+    pub fn get_owner_content_tokens(env: Env, owner: Address) -> Vec<u64> {
+        tokenization::ContentTokenization::get_owner_tokens(&env, owner)
+    }
+
+    /// Get the total number of content tokens minted
+    pub fn get_content_token_count(env: Env) -> u64 {
+        tokenization::ContentTokenization::get_token_count(&env)
+    }
+
+    /// Update content token metadata (only by owner)
+    pub fn update_content_metadata(
+        env: Env,
+        owner: Address,
+        token_id: u64,
+        title: Option<Bytes>,
+        description: Option<Bytes>,
+        tags: Option<Vec<Bytes>>,
+    ) {
+        tokenization::ContentTokenization::update_metadata(
+            &env,
+            owner,
+            token_id,
+            title,
+            description,
+            tags,
+        );
+    }
+
+    /// Set transferability of a content token (only by owner)
+    pub fn set_content_token_transferable(
+        env: Env,
+        owner: Address,
+        token_id: u64,
+        transferable: bool,
+    ) {
+        tokenization::ContentTokenization::set_transferable(&env, owner, token_id, transferable);
+    }
+
+    // ========== Provenance Functions ==========
+
+    /// Get full provenance history for a content token
+    pub fn get_content_provenance(env: Env, token_id: u64) -> Vec<ProvenanceRecord> {
+        provenance::ProvenanceTracker::get_provenance(&env, token_id)
+    }
+
+    /// Get the number of transfers for a content token
+    pub fn get_content_transfer_count(env: Env, token_id: u64) -> u32 {
+        provenance::ProvenanceTracker::get_transfer_count(&env, token_id)
+    }
+
+    /// Verify ownership chain integrity for a content token
+    pub fn verify_content_chain(env: Env, token_id: u64) -> bool {
+        provenance::ProvenanceTracker::verify_chain(&env, token_id)
+    }
+
+    /// Get the original creator of a content token
+    pub fn get_content_creator(env: Env, token_id: u64) -> Option<Address> {
+        provenance::ProvenanceTracker::get_creator(&env, token_id)
+    }
+
+    /// Get all addresses that have owned a content token
+    pub fn get_content_all_owners(env: Env, token_id: u64) -> Vec<Address> {
+        provenance::ProvenanceTracker::get_all_owners(&env, token_id)
     }
 }
