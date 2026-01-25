@@ -1,7 +1,7 @@
 use soroban_sdk::contractevent;
 
 use crate::types::{BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus};
-use soroban_sdk::{Address, Bytes};
+use soroban_sdk::{Address, Bytes, String};
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -36,10 +36,28 @@ pub struct BridgeCompletedEvent {
     pub message: CrossChainMessage,
 }
 
+// Rewards Events
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RewardIssuedEvent {
+    pub recipient: Address,
+    pub amount: i128,
+    pub reward_type: String,
+    pub timestamp: u64,
+}
+
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct EscrowCreatedEvent {
     pub escrow: Escrow,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RewardClaimedEvent {
+    pub user: Address,
+    pub amount: i128,
+    pub timestamp: u64,
 }
 
 #[contractevent]
@@ -56,6 +74,14 @@ pub struct EscrowReleasedEvent {
     pub escrow_id: u64,
     pub beneficiary: Address,
     pub amount: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RewardPoolFundedEvent {
+    pub funder: Address,
+    pub amount: i128,
+    pub timestamp: u64,
 }
 
 #[contractevent]
@@ -80,4 +106,38 @@ pub struct EscrowResolvedEvent {
     pub escrow_id: u64,
     pub outcome: DisputeOutcome,
     pub status: EscrowStatus,
+}
+
+// ========== Content Tokenization Events ==========
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ContentMintedEvent {
+    pub token_id: u64,
+    pub creator: Address,
+    pub metadata: ContentMetadata,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct OwnershipTransferredEvent {
+    pub token_id: u64,
+    pub from: Address,
+    pub to: Address,
+    pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ProvenanceRecordedEvent {
+    pub token_id: u64,
+    pub record: ProvenanceRecord,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct MetadataUpdatedEvent {
+    pub token_id: u64,
+    pub owner: Address,
+    pub timestamp: u64,
 }

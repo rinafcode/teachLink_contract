@@ -63,7 +63,11 @@ impl InsurancePool {
     pub fn pay_premium(env: Env, user: Address) {
         user.require_auth();
 
-        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
+        let token_addr = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Token)
+            .unwrap();
         let premium_amount = env
             .storage()
             .instance()
@@ -114,7 +118,11 @@ impl InsurancePool {
     }
 
     pub fn process_claim(env: Env, claim_id: u64, result: bool) {
-        let oracle = env.storage().instance().get::<_, Address>(&DataKey::Oracle).unwrap();
+        let oracle = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Oracle)
+            .unwrap();
         oracle.require_auth();
 
         let mut claim = env
@@ -149,7 +157,11 @@ impl InsurancePool {
             panic!("Claim not verified");
         }
 
-        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
+        let token_addr = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Token)
+            .unwrap();
         let payout_amount = env
             .storage()
             .instance()
@@ -163,33 +175,46 @@ impl InsurancePool {
         env.storage()
             .instance()
             .set(&DataKey::Claim(claim_id), &claim);
-        
-        // Remove insurance after payout? Or keep it? 
-        // Usually insurance is for a specific term or event. 
+
+        // Remove insurance after payout? Or keep it?
+        // Usually insurance is for a specific term or event.
         // Here we assume it's one-time use per premium for simplicity, or maybe not.
         // Let's remove insurance to prevent multiple claims for one premium if that's the model.
-        // But the prompt says "protects against course completion failures". 
+        // But the prompt says "protects against course completion failures".
         // Let's assume one premium covers one claim for now.
-        env.storage().instance().remove(&DataKey::IsInsured(claim.user));
+        env.storage()
+            .instance()
+            .remove(&DataKey::IsInsured(claim.user));
     }
 
     pub fn withdraw(env: Env, amount: i128) {
-        let admin = env.storage().instance().get::<_, Address>(&DataKey::Admin).unwrap();
+        let admin = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Admin)
+            .unwrap();
         admin.require_auth();
 
-        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
+        let token_addr = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Token)
+            .unwrap();
         let client = token::Client::new(&env, &token_addr);
 
         client.transfer(&env.current_contract_address(), &admin, &amount);
     }
-    
+
     // View functions
     pub fn get_claim(env: Env, claim_id: u64) -> Option<Claim> {
-         env.storage().instance().get(&DataKey::Claim(claim_id))
+        env.storage().instance().get(&DataKey::Claim(claim_id))
     }
-    
+
     pub fn is_insured(env: Env, user: Address) -> bool {
-        env.storage().instance().get(&DataKey::IsInsured(user)).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::IsInsured(user))
+            .unwrap_or(false)
     }
 }
 

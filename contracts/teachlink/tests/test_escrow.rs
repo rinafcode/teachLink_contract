@@ -1,6 +1,4 @@
-use soroban_sdk::{
-    contract, contractclient, contractimpl, symbol_short, Address, Bytes, Env, Map, Vec,
-};
+use soroban_sdk::{contract, contractimpl, symbol_short, testutils, Address, Bytes, Env, Map, Vec};
 
 use teachlink_contract::{DisputeOutcome, EscrowStatus, TeachLinkBridge, TeachLinkBridgeClient};
 
@@ -70,14 +68,6 @@ impl TestToken {
     }
 }
 
-#[contractclient(name = "TestTokenClient")]
-pub trait TestTokenClient {
-    fn initialize(&self, admin: &Address);
-    fn mint(&self, to: &Address, amount: &i128);
-    fn transfer(&self, from: &Address, to: &Address, amount: &i128);
-    fn balance(&self, owner: &Address) -> i128;
-}
-
 #[test]
 fn test_escrow_release_flow() {
     let env = Env::default();
@@ -87,12 +77,12 @@ fn test_escrow_release_flow() {
     let token_contract_id = env.register(TestToken, ());
     let token_client = TestTokenClient::new(&env, &token_contract_id);
 
-    let token_admin = Address::generate(&env);
-    let depositor = Address::generate(&env);
-    let beneficiary = Address::generate(&env);
-    let signer1 = Address::generate(&env);
-    let signer2 = Address::generate(&env);
-    let arbitrator = Address::generate(&env);
+    let token_admin = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let depositor = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let beneficiary = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let signer1 = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let signer2 = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let arbitrator = <soroban_sdk::Address as testutils::Address>::generate(&env);
 
     env.mock_all_auths();
     token_client.initialize(&token_admin);
@@ -137,11 +127,11 @@ fn test_escrow_dispute_refund() {
     let token_contract_id = env.register(TestToken, ());
     let token_client = TestTokenClient::new(&env, &token_contract_id);
 
-    let token_admin = Address::generate(&env);
-    let depositor = Address::generate(&env);
-    let beneficiary = Address::generate(&env);
-    let signer = Address::generate(&env);
-    let arbitrator = Address::generate(&env);
+    let token_admin = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let depositor = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let beneficiary = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let signer = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let arbitrator = <soroban_sdk::Address as testutils::Address>::generate(&env);
 
     env.mock_all_auths();
     token_client.initialize(&token_admin);

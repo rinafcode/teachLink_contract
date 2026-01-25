@@ -11,5 +11,19 @@ pub const SUPPORTED_CHAINS: Symbol = symbol_short!("chains");
 pub const ADMIN: Symbol = symbol_short!("admin");
 pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
+
+// Storage keys for the rewards system
+pub const REWARDS_ADMIN: Symbol = symbol_short!("rwd_admin");
+pub const REWARD_POOL: Symbol = symbol_short!("rwd_pool");
+pub const USER_REWARDS: Symbol = symbol_short!("usr_rwds");
+pub const REWARD_RATES: Symbol = symbol_short!("rwd_rates");
+pub const TOTAL_REWARDS_ISSUED: Symbol = symbol_short!("tot_rwds");
 pub const ESCROW_COUNT: Symbol = symbol_short!("esc_ct");
 pub const ESCROWS: Symbol = symbol_short!("escrows");
+
+// Storage keys for content tokenization
+pub const TOKEN_COUNTER: Symbol = symbol_short!("tok_cnt");
+pub const CONTENT_TOKENS: Symbol = symbol_short!("cnt_tok");
+pub const OWNERSHIP: Symbol = symbol_short!("owner");
+pub const PROVENANCE: Symbol = symbol_short!("prov");
+pub const OWNER_TOKENS: Symbol = symbol_short!("own_tok");
