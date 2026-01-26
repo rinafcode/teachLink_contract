@@ -85,6 +85,29 @@ pub enum DisputeOutcome {
     RefundToDepositor,
 }
 
+// ========== Credit Score / Contribution Types (feat/credit_score) ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ContributionType {
+    Content,
+    Code,
+    Community,
+    Governance,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Contribution {
+    pub contributor: Address,
+    pub c_type: ContributionType,
+    pub description: Bytes,
+    pub timestamp: u64,
+    pub points: u64,
+}
+
+// ========== Reputation Types (main) ==========
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct UserReputation {
@@ -95,6 +118,8 @@ pub struct UserReputation {
     pub total_courses_completed: u32,
     pub total_contributions: u32,
     pub last_update: u64,
+}
+
 // ========== Educational Content Tokenization Types ==========
 
 #[contracttype]
@@ -146,8 +171,6 @@ pub struct ProvenanceRecord {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DataKey {
-    Reputation(Address),
 pub enum TransferType {
     Mint,        // Initial creation
     Transfer,    // Standard ownership transfer
