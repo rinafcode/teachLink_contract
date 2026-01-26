@@ -5,6 +5,7 @@ use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 mod bridge;
 mod escrow;
 mod events;
+mod reputation;
 mod rewards;
 mod storage;
 mod tokenization;
@@ -256,6 +257,22 @@ impl TeachLinkBridge {
         escrow::EscrowManager::get_escrow_count(&env)
     }
 
+    // ========== Reputation Functions ==========
+
+    pub fn update_participation(env: Env, user: Address, points: u32) {
+        reputation::update_participation(&env, user, points);
+    }
+
+    pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
+        reputation::update_course_progress(&env, user, is_completion);
+    }
+
+    pub fn rate_contribution(env: Env, user: Address, rating: u32) {
+        reputation::rate_contribution(&env, user, rating);
+    }
+
+    pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
+        reputation::get_reputation(&env, &user)
     // ========== Content Tokenization Functions ==========
 
     /// Mint a new educational content token
