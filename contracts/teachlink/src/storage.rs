@@ -21,6 +21,11 @@ pub const TOTAL_REWARDS_ISSUED: Symbol = symbol_short!("tot_rwds");
 pub const ESCROW_COUNT: Symbol = symbol_short!("esc_ct");
 pub const ESCROWS: Symbol = symbol_short!("escrows");
 
+// Storage keys for credit scoring
+pub const CREDIT_SCORE: Symbol = symbol_short!("score");
+pub const COURSE_COMPLETIONS: Symbol = symbol_short!("courses");
+pub const CONTRIBUTIONS: Symbol = symbol_short!("contribs");
+
 // Storage keys for content tokenization
 pub const TOKEN_COUNTER: Symbol = symbol_short!("tok_cnt");
 pub const CONTENT_TOKENS: Symbol = symbol_short!("cnt_tok");
