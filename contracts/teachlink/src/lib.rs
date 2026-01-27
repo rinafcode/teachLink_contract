@@ -74,7 +74,7 @@ mod types;
 pub use types::{
     BridgeTransaction, ContentToken, ContentType, Contribution, ContributionType,
     CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate,
-    UserReputation, UserReward,
+    TransferType, UserReputation, UserReward,
 };
 
 /// TeachLink main contract.
