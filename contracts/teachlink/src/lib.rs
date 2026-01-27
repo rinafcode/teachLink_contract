@@ -1,3 +1,61 @@
+//! TeachLink Smart Contract
+//!
+//! A comprehensive Soroban smart contract for the TeachLink decentralized
+//! knowledge-sharing platform on the Stellar network.
+//!
+//! # Overview
+//!
+//! TeachLink provides the following core features:
+//!
+//! - **Cross-Chain Bridge**: Bridge tokens between Stellar and other blockchains
+//! - **Token Rewards**: Incentivize learning and contributions with token rewards
+//! - **Multi-Sig Escrow**: Secure payments with multi-signature escrow and arbitration
+//! - **Content Tokenization**: Mint NFTs representing educational content ownership
+//! - **Provenance Tracking**: Full chain-of-custody for content tokens
+//! - **User Reputation**: Track user participation, completion rates, and contribution quality
+//! - **Credit Scoring**: Calculate user credit scores based on courses and contributions
+//!
+//! # Contract Modules
+//!
+//! | Module | Description |
+//! |--------|-------------|
+//! | [`bridge`] | Cross-chain token bridging with validator consensus |
+//! | [`rewards`] | Reward pool management and distribution |
+//! | [`escrow`] | Multi-signature escrow with dispute resolution |
+//! | [`tokenization`] | Educational content NFT minting and management |
+//! | [`provenance`] | Ownership history tracking for content tokens |
+//! | [`reputation`] | User reputation scoring system |
+//! | [`score`] | Credit score calculation from activities |
+//!
+//! # Quick Start
+//!
+//! ```ignore
+//! // Initialize the contract
+//! TeachLinkBridge::initialize(env, token, admin, min_validators, fee_recipient);
+//!
+//! // Set up rewards
+//! TeachLinkBridge::initialize_rewards(env, token, rewards_admin);
+//!
+//! // Create content token
+//! let token_id = TeachLinkBridge::mint_content_token(
+//!     env, creator, title, description, ContentType::Course,
+//!     content_hash, license, tags, true, 500
+//! );
+//!
+//! // Create escrow for course payment
+//! let escrow_id = TeachLinkBridge::create_escrow(
+//!     env, depositor, beneficiary, token, amount,
+//!     signers, threshold, release_time, refund_time, arbitrator
+//! );
+//! ```
+//!
+//! # Authorization
+//!
+//! Most state-changing functions require authorization:
+//! - Admin functions require the admin address
+//! - User functions require the user's address
+//! - Escrow functions require appropriate party authorization
+
 #![no_std]
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
@@ -6,16 +64,23 @@ mod bridge;
 mod escrow;
 mod events;
 mod provenance;
+mod reputation;
 mod rewards;
+mod score;
 mod storage;
 mod tokenization;
 mod types;
 
 pub use types::{
-    BridgeTransaction, ContentMetadata, ContentToken, ContentType, CrossChainMessage,
-    DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate, TransferType, UserReward,
+    BridgeTransaction, ContentMetadata, ContentToken, ContentType, Contribution, ContributionType,
+    CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate,
+    TransferType, UserReputation, UserReward,
 };
 
+/// TeachLink main contract.
+///
+/// This contract provides entry points for all TeachLink functionality
+/// including bridging, rewards, escrow, tokenization, and reputation.
 #[contract]
 pub struct TeachLinkBridge;
 
@@ -255,6 +320,62 @@ impl TeachLinkBridge {
     /// Get the current escrow count
     pub fn get_escrow_count(env: Env) -> u64 {
         escrow::EscrowManager::get_escrow_count(&env)
+    }
+
+    // ========== Credit Scoring Functions (feat/credit_score) ==========
+
+    /// Record a course completion (admin only for now, or specific authority)
+    pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
+        // require admin
+        let admin = bridge::Bridge::get_admin(&env);
+        admin.require_auth();
+        score::ScoreManager::record_course_completion(&env, user, course_id, points);
+    }
+
+    /// Record a contribution (admin only)
+    pub fn record_contribution(
+        env: Env,
+        user: Address,
+        c_type: types::ContributionType,
+        description: Bytes,
+        points: u64,
+    ) {
+        let admin = bridge::Bridge::get_admin(&env);
+        admin.require_auth();
+        score::ScoreManager::record_contribution(&env, user, c_type, description, points);
+    }
+
+    /// Get user's credit score
+    pub fn get_credit_score(env: Env, user: Address) -> u64 {
+        score::ScoreManager::get_score(&env, user)
+    }
+
+    /// Get user's completed courses
+    pub fn get_user_courses(env: Env, user: Address) -> Vec<u64> {
+        score::ScoreManager::get_courses(&env, user)
+    }
+
+    /// Get user's contributions
+    pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
+        score::ScoreManager::get_contributions(&env, user)
+    }
+
+    // ========== Reputation Functions (main) ==========
+
+    pub fn update_participation(env: Env, user: Address, points: u32) {
+        reputation::update_participation(&env, user, points);
+    }
+
+    pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
+        reputation::update_course_progress(&env, user, is_completion);
+    }
+
+    pub fn rate_contribution(env: Env, user: Address, rating: u32) {
+        reputation::rate_contribution(&env, user, rating);
+    }
+
+    pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
+        reputation::get_reputation(&env, &user)
     }
 
     // ========== Content Tokenization Functions ==========
