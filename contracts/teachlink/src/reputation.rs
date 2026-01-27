@@ -1,7 +1,8 @@
-use crate::types::{DataKey, UserReputation};
-use soroban_sdk::{Address, Env};
+use crate::types::{UserReputation};
+use soroban_sdk::{Address, Env, symbol_short, Symbol};
 
 const BASIS_POINTS: u32 = 10000;
+const REPUTATION: Symbol = symbol_short!("reptn");
 
 pub fn update_participation(env: &Env, user: Address, points: u32) {
     user.require_auth();
@@ -56,10 +57,9 @@ pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
 }
 
 pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
-    let key = DataKey::Reputation(user.clone());
     env.storage()
         .persistent()
-        .get(&key)
+        .get(&(REPUTATION, user.clone()))
         .unwrap_or(UserReputation {
             participation_score: 0,
             completion_rate: 0,
@@ -72,6 +72,5 @@ pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
 }
 
 fn set_reputation(env: &Env, user: &Address, reputation: &UserReputation) {
-    let key = DataKey::Reputation(user.clone());
-    env.storage().persistent().set(&key, reputation);
+    env.storage().persistent().set(&(REPUTATION, user.clone()), reputation);
 }

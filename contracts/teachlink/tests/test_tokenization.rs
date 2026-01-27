@@ -529,7 +529,7 @@ fn test_get_token_count() {
         &0u32,
     );
 
-    TeachLinkBridgeClient::new(&env, &contract).mint_content_token(
+    client.mint_content_token(
         &creator,
         &title,
         &description,
@@ -543,4 +543,339 @@ fn test_get_token_count() {
 
     let count = client.get_content_token_count();
     assert_eq!(count, 2u64);
+}
+
+fn create_user(env: &Env) -> Address {
+    Address::generate(env)
+}
+
+#[test]
+fn test_mint_multiple_content_types() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(TeachLinkBridge, ());
+    let creator = Address::generate(&env);
+    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+    env.ledger().set(LedgerInfo {
+        timestamp: 1000,
+        protocol_version: 20,
+        sequence_number: 10,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    let base_hash = Bytes::from_slice(&env, b"QmHash");
+    let license = Bytes::from_slice(&env, b"CC-BY");
+    let tags = vec![&env];
+
+    // Mint Course
+    let course_id = client.mint_content_token(
+        &creator,
+        &Bytes::from_slice(&env, b"Python 101"),
+        &Bytes::from_slice(&env, b"Learn Python"),
+        &ContentType::Course,
+        &base_hash,
+        &license,
+        &tags,
+        &true,
+        &1000u32,
+    );
+
+    // Mint Material
+    let material_id = client.mint_content_token(
+        &creator,
+        &Bytes::from_slice(&env, b"Study Guide"),
+        &Bytes::from_slice(&env, b"Reference material"),
+        &ContentType::Material,
+        &base_hash,
+        &license,
+        &tags,
+        &true,
+        &500u32,
+    );
+
+    // Mint Assessment
+    let assessment_id = client.mint_content_token(
+        &creator,
+        &Bytes::from_slice(&env, b"Quiz 1"),
+        &Bytes::from_slice(&env, b"Assessment questions"),
+        &ContentType::Assessment,
+        &base_hash,
+        &license,
+        &tags,
+        &false,
+        &0u32,
+    );
+
+    // Verify all minted with correct types
+    let course = client.get_content_token(&course_id).unwrap();
+    assert_eq!(course.metadata.content_type, ContentType::Course);
+    assert_eq!(course.royalty_percentage, 1000u32);
+
+    let material = client.get_content_token(&material_id).unwrap();
+    assert_eq!(material.metadata.content_type, ContentType::Material);
+    assert_eq!(material.royalty_percentage, 500u32);
+
+    let assessment = client.get_content_token(&assessment_id).unwrap();
+    assert_eq!(assessment.metadata.content_type, ContentType::Assessment);
+    assert_eq!(assessment.royalty_percentage, 0u32);
+    assert!(!assessment.is_transferable);
+}
+
+#[test]
+fn test_transfer_updates_owner_lists() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(TeachLinkBridge, ());
+    let creator = Address::generate(&env);
+    let new_owner = Address::generate(&env);
+    let another_owner = Address::generate(&env);
+    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+    env.ledger().set(LedgerInfo {
+        timestamp: 1000,
+        protocol_version: 20,
+        sequence_number: 10,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    let title = Bytes::from_slice(&env, b"Content");
+    let desc = Bytes::from_slice(&env, b"Description");
+    let hash = Bytes::from_slice(&env, b"QmHash");
+    let license = Bytes::from_slice(&env, b"MIT");
+    let tags = vec![&env];
+
+    // Creator mints token
+    let token_id = client.mint_content_token(
+        &creator,
+        &title,
+        &desc,
+        &ContentType::Course,
+        &hash,
+        &license,
+        &tags,
+        &true,
+        &0u32,
+    );
+
+    // Verify creator owns it
+    let creator_tokens = client.get_owner_content_tokens(&creator);
+    assert_eq!(creator_tokens.len(), 1u32);
+    assert_eq!(creator_tokens.get(0).unwrap(), token_id);
+
+    // New owner has no tokens initially
+    let new_owner_tokens = client.get_owner_content_tokens(&new_owner);
+    assert_eq!(new_owner_tokens.len(), 0u32);
+
+    // Transfer to new owner
+    env.ledger().set(LedgerInfo {
+        timestamp: 2000,
+        protocol_version: 20,
+        sequence_number: 11,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    client.transfer_content_token(&creator, &new_owner, &token_id, &None);
+
+    // Creator should have no tokens
+    let creator_tokens = client.get_owner_content_tokens(&creator);
+    assert_eq!(creator_tokens.len(), 0u32);
+
+    // New owner should have the token
+    let new_owner_tokens = client.get_owner_content_tokens(&new_owner);
+    assert_eq!(new_owner_tokens.len(), 1u32);
+    assert_eq!(new_owner_tokens.get(0).unwrap(), token_id);
+
+    // Transfer again
+    env.ledger().set(LedgerInfo {
+        timestamp: 3000,
+        protocol_version: 20,
+        sequence_number: 12,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    client.transfer_content_token(&new_owner, &another_owner, &token_id, &None);
+
+    let new_owner_tokens = client.get_owner_content_tokens(&new_owner);
+    assert_eq!(new_owner_tokens.len(), 0u32);
+
+    let another_owner_tokens = client.get_owner_content_tokens(&another_owner);
+    assert_eq!(another_owner_tokens.len(), 1u32);
+    assert_eq!(another_owner_tokens.get(0).unwrap(), token_id);
+}
+
+#[test]
+#[should_panic(expected = "Token does not exist")]
+fn test_get_nonexistent_token() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(TeachLinkBridge, ());
+    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+    env.ledger().set(LedgerInfo {
+        timestamp: 1000,
+        protocol_version: 20,
+        sequence_number: 10,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    // Try to get non-existent token
+    client.get_content_token(&999u64);
+}
+
+#[test]
+fn test_royalty_percentages() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(TeachLinkBridge, ());
+    let creator = Address::generate(&env);
+    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+    env.ledger().set(LedgerInfo {
+        timestamp: 1000,
+        protocol_version: 20,
+        sequence_number: 10,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    let hash = Bytes::from_slice(&env, b"QmHash");
+    let license = Bytes::from_slice(&env, b"MIT");
+    let tags = vec![&env];
+
+    // Test various royalty percentages
+    let token1 = client.mint_content_token(
+        &creator,
+        &Bytes::from_slice(&env, b"Content 1"),
+        &Bytes::from_slice(&env, b"Desc"),
+        &ContentType::Course,
+        &hash,
+        &license,
+        &tags,
+        &true,
+        &0u32, // 0%
+    );
+
+    let token2 = client.mint_content_token(
+        &creator,
+        &Bytes::from_slice(&env, b"Content 2"),
+        &Bytes::from_slice(&env, b"Desc"),
+        &ContentType::Course,
+        &hash,
+        &license,
+        &tags,
+        &true,
+        &500u32, // 5%
+    );
+
+    let token3 = client.mint_content_token(
+        &creator,
+        &Bytes::from_slice(&env, b"Content 3"),
+        &Bytes::from_slice(&env, b"Desc"),
+        &ContentType::Course,
+        &hash,
+        &license,
+        &tags,
+        &true,
+        &10000u32, // 100%
+    );
+
+    assert_eq!(client.get_content_token(&token1).unwrap().royalty_percentage, 0u32);
+    assert_eq!(client.get_content_token(&token2).unwrap().royalty_percentage, 500u32);
+    assert_eq!(client.get_content_token(&token3).unwrap().royalty_percentage, 10000u32);
+}
+
+#[test]
+fn test_metadata_timestamp_progression() {
+    let env = Env::default();
+    env.mock_all_auths();
+
+    let contract_id = env.register(TeachLinkBridge, ());
+    let creator = Address::generate(&env);
+    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+    let hash = Bytes::from_slice(&env, b"QmHash");
+    let license = Bytes::from_slice(&env, b"MIT");
+    let tags = vec![&env];
+
+    // Mint at time 1000
+    env.ledger().set(LedgerInfo {
+        timestamp: 1000,
+        protocol_version: 20,
+        sequence_number: 10,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    let token_id = client.mint_content_token(
+        &creator,
+        &Bytes::from_slice(&env, b"Original"),
+        &Bytes::from_slice(&env, b"Desc"),
+        &ContentType::Course,
+        &hash,
+        &license,
+        &tags,
+        &true,
+        &0u32,
+    );
+
+    let token = client.get_content_token(&token_id).unwrap();
+    assert_eq!(token.metadata.created_at, 1000u64);
+    assert_eq!(token.metadata.updated_at, 1000u64);
+    assert_eq!(token.minted_at, 1000u64);
+
+    // Update at time 5000
+    env.ledger().set(LedgerInfo {
+        timestamp: 5000,
+        protocol_version: 20,
+        sequence_number: 20,
+        network_id: Default::default(),
+        base_reserve: 10,
+        min_temp_entry_ttl: 10,
+        min_persistent_entry_ttl: 10,
+        max_entry_ttl: 2000000,
+    });
+
+    client.update_content_metadata(
+        &creator,
+        &token_id,
+        &Some(Bytes::from_slice(&env, b"Updated")),
+        &None,
+        &None,
+    );
+
+    let token = client.get_content_token(&token_id).unwrap();
+    assert_eq!(token.metadata.created_at, 1000u64); // created_at never changes
+    assert_eq!(token.metadata.updated_at, 5000u64); // updated_at reflects latest update
+    assert_eq!(token.minted_at, 1000u64); // minted_at never changes
 }
