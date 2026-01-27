@@ -1,3 +1,61 @@
+//! TeachLink Smart Contract
+//!
+//! A comprehensive Soroban smart contract for the TeachLink decentralized
+//! knowledge-sharing platform on the Stellar network.
+//!
+//! # Overview
+//!
+//! TeachLink provides the following core features:
+//!
+//! - **Cross-Chain Bridge**: Bridge tokens between Stellar and other blockchains
+//! - **Token Rewards**: Incentivize learning and contributions with token rewards
+//! - **Multi-Sig Escrow**: Secure payments with multi-signature escrow and arbitration
+//! - **Content Tokenization**: Mint NFTs representing educational content ownership
+//! - **Provenance Tracking**: Full chain-of-custody for content tokens
+//! - **User Reputation**: Track user participation, completion rates, and contribution quality
+//! - **Credit Scoring**: Calculate user credit scores based on courses and contributions
+//!
+//! # Contract Modules
+//!
+//! | Module | Description |
+//! |--------|-------------|
+//! | [`bridge`] | Cross-chain token bridging with validator consensus |
+//! | [`rewards`] | Reward pool management and distribution |
+//! | [`escrow`] | Multi-signature escrow with dispute resolution |
+//! | [`tokenization`] | Educational content NFT minting and management |
+//! | [`provenance`] | Ownership history tracking for content tokens |
+//! | [`reputation`] | User reputation scoring system |
+//! | [`score`] | Credit score calculation from activities |
+//!
+//! # Quick Start
+//!
+//! ```ignore
+//! // Initialize the contract
+//! TeachLinkBridge::initialize(env, token, admin, min_validators, fee_recipient);
+//!
+//! // Set up rewards
+//! TeachLinkBridge::initialize_rewards(env, token, rewards_admin);
+//!
+//! // Create content token
+//! let token_id = TeachLinkBridge::mint_content_token(
+//!     env, creator, title, description, ContentType::Course,
+//!     content_hash, license, tags, true, 500
+//! );
+//!
+//! // Create escrow for course payment
+//! let escrow_id = TeachLinkBridge::create_escrow(
+//!     env, depositor, beneficiary, token, amount,
+//!     signers, threshold, release_time, refund_time, arbitrator
+//! );
+//! ```
+//!
+//! # Authorization
+//!
+//! Most state-changing functions require authorization:
+//! - Admin functions require the admin address
+//! - User functions require the user's address
+//! - Escrow functions require appropriate party authorization
+
 #![no_std]
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
@@ -19,6 +77,10 @@ pub use types::{
     UserReputation, UserReward,
 };
 
+/// TeachLink main contract.
+///
+/// This contract provides entry points for all TeachLink functionality
+/// including bridging, rewards, escrow, tokenization, and reputation.
 #[contract]
 pub struct TeachLinkBridge;
 
