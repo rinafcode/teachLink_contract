@@ -5,14 +5,15 @@ use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 mod bridge;
 mod escrow;
 mod events;
+mod provenance;
 mod rewards;
 mod storage;
 mod tokenization;
 mod types;
 
 pub use types::{
-    BridgeTransaction, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, RewardRate,
-    UserReward,
+    BridgeTransaction, ContentMetadata, ContentToken, ContentType, CrossChainMessage,
+    DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate, TransferType, UserReward,
 };
 
 #[contract]

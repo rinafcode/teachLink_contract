@@ -2,7 +2,7 @@
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Bytes, Env, Vec,
+    vec, Address, Bytes, Env,
 };
 
 use teachlink_contract::{
@@ -20,7 +20,7 @@ fn test_mint_content_token() {
     // Set ledger timestamp
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -89,7 +89,7 @@ fn test_transfer_content_token() {
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -121,7 +121,7 @@ fn test_transfer_content_token() {
     // Transfer token
     env.ledger().set(LedgerInfo {
         timestamp: 2000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 11,
         network_id: Default::default(),
         base_reserve: 10,
@@ -172,7 +172,7 @@ fn test_transfer_not_owner() {
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -223,7 +223,7 @@ fn test_transfer_non_transferable() {
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -272,7 +272,7 @@ fn test_get_owner_tokens() {
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -330,7 +330,7 @@ fn test_update_metadata() {
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -361,7 +361,7 @@ fn test_update_metadata() {
     // Update metadata
     env.ledger().set(LedgerInfo {
         timestamp: 2000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 11,
         network_id: Default::default(),
         base_reserve: 10,
@@ -402,12 +402,12 @@ fn test_verify_provenance_chain() {
     let contract_id = env.register(TeachLinkBridge, ());
     let creator = Address::generate(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let owner1 = create_user(&env);
-    let owner2 = create_user(&env);
+    let owner1 = Address::generate(&env);
+    let owner2 = Address::generate(&env);
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -439,7 +439,7 @@ fn test_verify_provenance_chain() {
     // Transfer multiple times
     env.ledger().set(LedgerInfo {
         timestamp: 2000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 11,
         network_id: Default::default(),
         base_reserve: 10,
@@ -457,7 +457,7 @@ fn test_verify_provenance_chain() {
 
     env.ledger().set(LedgerInfo {
         timestamp: 3000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 12,
         network_id: Default::default(),
         base_reserve: 10,
@@ -497,7 +497,7 @@ fn test_get_token_count() {
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -529,7 +529,7 @@ fn test_get_token_count() {
         &0u32,
     );
 
-    TeachLinkBridgeClient::new(&env, &contract).mint_content_token(
+    TeachLinkBridgeClient::new(&env, &contract_id).mint_content_token(
         &creator,
         &title,
         &description,
