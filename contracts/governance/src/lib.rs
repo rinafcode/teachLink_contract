@@ -15,7 +15,7 @@ mod types;
 
 pub use mock_token::{MockToken, MockTokenClient};
 pub use types::{
-    GovernanceConfig, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection, VoteKey,
+    GovernanceConfig, GovernanceError, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection, VoteKey,
 };
 
 #[contract]

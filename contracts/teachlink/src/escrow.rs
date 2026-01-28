@@ -3,7 +3,7 @@ use crate::events::{
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
 use crate::storage::{ESCROWS, ESCROW_COUNT};
-use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowStatus};
+use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowStatus, TeachLinkError};
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 pub struct EscrowManager;
@@ -20,35 +20,35 @@ impl EscrowManager {
         release_time: Option<u64>,
         refund_time: Option<u64>,
         arbitrator: Address,
-    ) -> u64 {
+    ) -> Result<u64, TeachLinkError> {
         depositor.require_auth();
 
         if amount <= 0 {
-            panic!("Amount must be positive");
+            return Err(TeachLinkError::InvalidEscrowAmount);
         }
 
         if signers.len() == 0 {
-            panic!("At least one signer required");
+            return Err(TeachLinkError::NoSigners);
         }
 
         if threshold == 0 || threshold > signers.len() as u32 {
-            panic!("Invalid signer threshold");
+            return Err(TeachLinkError::InvalidThreshold);
         }
 
         let now = env.ledger().timestamp();
         if let Some(refund_time) = refund_time {
             if refund_time < now {
-                panic!("Refund time must be in the future");
+                return Err(TeachLinkError::InvalidRefundTime);
             }
         }
 
         if let (Some(release), Some(refund)) = (release_time, refund_time) {
             if refund < release {
-                panic!("Refund time must be after release time");
+                return Err(TeachLinkError::InvalidTimeWindow);
             }
         }
 
-        Self::ensure_unique_signers(env, &signers);
+        Self::ensure_unique_signers(env, &signers)?;
 
         env.invoke_contract::<()>(
             &token,
@@ -88,17 +88,17 @@ impl EscrowManager {
 
         EscrowCreatedEvent { escrow }.publish(env);
 
-        escrow_count
+        Ok(escrow_count)
     }
 
-    pub fn approve_release(env: &Env, escrow_id: u64, signer: Address) -> u32 {
+    pub fn approve_release(env: &Env, escrow_id: u64, signer: Address) -> Result<u32, TeachLinkError> {
         signer.require_auth();
 
-        let mut escrow = Self::load_escrow(env, escrow_id);
-        Self::ensure_pending(&escrow);
+        let mut escrow = Self::load_escrow(env, escrow_id)?;
+        Self::ensure_pending(&escrow)?;
 
         if !Self::is_signer(&escrow.signers, &signer) {
-            panic!("Signer not authorized");
+            return Err(TeachLinkError::UnauthorizedSigner);
         }
 
         let approval_key = EscrowApprovalKey {
@@ -106,7 +106,7 @@ impl EscrowManager {
             signer: signer.clone(),
         };
         if env.storage().persistent().has(&approval_key) {
-            panic!("Signer already approved");
+            return Err(TeachLinkError::AlreadyApproved);
         }
 
         env.storage().persistent().set(&approval_key, &true);
@@ -121,27 +121,27 @@ impl EscrowManager {
         }
         .publish(env);
 
-        escrow.approval_count
+        Ok(escrow.approval_count)
     }
 
-    pub fn release(env: &Env, escrow_id: u64, caller: Address) {
+    pub fn release(env: &Env, escrow_id: u64, caller: Address) -> Result<(), TeachLinkError> {
         caller.require_auth();
 
-        let mut escrow = Self::load_escrow(env, escrow_id);
-        Self::ensure_pending(&escrow);
+        let mut escrow = Self::load_escrow(env, escrow_id)?;
+        Self::ensure_pending(&escrow)?;
 
         if !Self::is_release_caller(&escrow, &caller) {
-            panic!("Caller not authorized");
+            return Err(TeachLinkError::UnauthorizedApprover);
         }
 
         if escrow.approval_count < escrow.threshold {
-            panic!("Insufficient approvals");
+            return Err(TeachLinkError::InsufficientApprovals);
         }
 
         if let Some(release_time) = escrow.release_time {
             let now = env.ledger().timestamp();
             if now < release_time {
-                panic!("Release time not reached");
+                return Err(TeachLinkError::ReleaseTimeNotReached);
             }
         }
 
@@ -155,24 +155,26 @@ impl EscrowManager {
             amount: escrow.amount,
         }
         .publish(env);
+
+        Ok(())
     }
 
-    pub fn refund(env: &Env, escrow_id: u64, depositor: Address) {
+    pub fn refund(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), TeachLinkError> {
         depositor.require_auth();
 
-        let mut escrow = Self::load_escrow(env, escrow_id);
-        Self::ensure_pending(&escrow);
+        let mut escrow = Self::load_escrow(env, escrow_id)?;
+        Self::ensure_pending(&escrow)?;
 
         if depositor != escrow.depositor {
-            panic!("Only depositor can refund");
+            return Err(TeachLinkError::NotDepositor);
         }
 
         let refund_time = escrow
             .refund_time
-            .unwrap_or_else(|| panic!("Refund not enabled"));
+            .ok_or(TeachLinkError::InvalidRefundTime)?;
         let now = env.ledger().timestamp();
         if now < refund_time {
-            panic!("Refund time not reached");
+            return Err(TeachLinkError::RefundTimeNotReached);
         }
 
         Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
@@ -185,35 +187,39 @@ impl EscrowManager {
             amount: escrow.amount,
         }
         .publish(env);
+
+        Ok(())
     }
 
-    pub fn cancel(env: &Env, escrow_id: u64, depositor: Address) {
+    pub fn cancel(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), TeachLinkError> {
         depositor.require_auth();
 
-        let mut escrow = Self::load_escrow(env, escrow_id);
-        Self::ensure_pending(&escrow);
+        let mut escrow = Self::load_escrow(env, escrow_id)?;
+        Self::ensure_pending(&escrow)?;
 
         if depositor != escrow.depositor {
-            panic!("Only depositor can cancel");
+            return Err(TeachLinkError::NotDepositor);
         }
 
         if escrow.approval_count > 0 {
-            panic!("Cannot cancel after approvals");
+            return Err(TeachLinkError::InvalidEscrowStatus);
         }
 
         Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
         escrow.status = EscrowStatus::Cancelled;
         Self::save_escrow(env, escrow_id, escrow.clone());
+
+        Ok(())
     }
 
-    pub fn dispute(env: &Env, escrow_id: u64, disputer: Address, reason: Bytes) {
+    pub fn dispute(env: &Env, escrow_id: u64, disputer: Address, reason: Bytes) -> Result<(), TeachLinkError> {
         disputer.require_auth();
 
-        let mut escrow = Self::load_escrow(env, escrow_id);
-        Self::ensure_pending(&escrow);
+        let mut escrow = Self::load_escrow(env, escrow_id)?;
+        Self::ensure_pending(&escrow)?;
 
         if disputer != escrow.depositor && disputer != escrow.beneficiary {
-            panic!("Only depositor or beneficiary can dispute");
+            return Err(TeachLinkError::UnauthorizedApprover);
         }
 
         escrow.status = EscrowStatus::Disputed;
@@ -226,18 +232,20 @@ impl EscrowManager {
             reason,
         }
         .publish(env);
+
+        Ok(())
     }
 
-    pub fn resolve(env: &Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) {
+    pub fn resolve(env: &Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) -> Result<(), TeachLinkError> {
         arbitrator.require_auth();
 
-        let mut escrow = Self::load_escrow(env, escrow_id);
+        let mut escrow = Self::load_escrow(env, escrow_id)?;
         if escrow.status != EscrowStatus::Disputed {
-            panic!("Escrow not in dispute");
+            return Err(TeachLinkError::InvalidEscrowStatus);
         }
 
         if arbitrator != escrow.arbitrator {
-            panic!("Only arbitrator can resolve");
+            return Err(TeachLinkError::UnauthorizedCaller);
         }
 
         let new_status = match outcome {
@@ -265,6 +273,8 @@ impl EscrowManager {
             status: new_status,
         }
         .publish(env);
+
+        Ok(())
     }
 
     pub fn get_escrow(env: &Env, escrow_id: u64) -> Option<Escrow> {
@@ -281,14 +291,15 @@ impl EscrowManager {
         env.storage().persistent().has(&approval_key)
     }
 
-    fn ensure_unique_signers(env: &Env, signers: &Vec<Address>) {
+    fn ensure_unique_signers(env: &Env, signers: &Vec<Address>) -> Result<(), TeachLinkError> {
         let mut seen: Map<Address, bool> = Map::new(env);
         for signer in signers.iter() {
             if seen.get(signer.clone()).unwrap_or(false) {
-                panic!("Duplicate signer");
+                return Err(TeachLinkError::DuplicateSigners);
             }
             seen.set(signer.clone(), true);
         }
+        Ok(())
     }
 
     fn is_signer(signers: &Vec<Address>, signer: &Address) -> bool {
@@ -307,10 +318,11 @@ impl EscrowManager {
         Self::is_signer(&escrow.signers, caller)
     }
 
-    fn ensure_pending(escrow: &Escrow) {
+    fn ensure_pending(escrow: &Escrow) -> Result<(), TeachLinkError> {
         if escrow.status != EscrowStatus::Pending {
-            panic!("Escrow not pending");
+            return Err(TeachLinkError::InvalidEscrowStatus);
         }
+        Ok(())
     }
 
     fn load_escrows(env: &Env) -> Map<u64, Escrow> {
@@ -320,11 +332,11 @@ impl EscrowManager {
             .unwrap_or_else(|| Map::new(env))
     }
 
-    fn load_escrow(env: &Env, escrow_id: u64) -> Escrow {
+    fn load_escrow(env: &Env, escrow_id: u64) -> Result<Escrow, TeachLinkError> {
         let escrows = Self::load_escrows(env);
         escrows
             .get(escrow_id)
-            .unwrap_or_else(|| panic!("Escrow not found"))
+            .ok_or(TeachLinkError::EscrowNotFound)
     }
 
     fn save_escrow(env: &Env, escrow_id: u64, escrow: Escrow) {

@@ -12,6 +12,93 @@
 
 use soroban_sdk::{contracttype, Address, Bytes, String, Vec};
 
+// ========== Error Types ==========
+
+/// Error types for TeachLink contract operations
+#[contracttype]
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
+pub enum TeachLinkError {
+    // Bridge Errors
+    /// Invalid amount (must be positive)
+    InvalidAmount = 1,
+    /// Destination chain not supported
+    UnsupportedChain = 2,
+    /// Insufficient validator signatures
+    InsufficientValidators = 3,
+    /// Invalid validator signature
+    InvalidValidator = 4,
+    /// Nonce already processed (replay attack protection)
+    DuplicateNonce = 5,
+    /// Token mismatch
+    TokenMismatch = 6,
+    /// Bridge transaction not found
+    BridgeTransactionNotFound = 7,
+    /// Bridge timeout not reached
+    TimeoutNotReached = 8,
+    
+    // Escrow Errors
+    /// Amount must be positive
+    InvalidEscrowAmount = 9,
+    /// No signers provided
+    NoSigners = 10,
+    /// Invalid signer threshold
+    InvalidThreshold = 11,
+    /// Refund time must be in the future
+    InvalidRefundTime = 12,
+    /// Refund time must be after release time
+    InvalidTimeWindow = 13,
+    /// Duplicate signers not allowed
+    DuplicateSigners = 14,
+    /// Escrow not found
+    EscrowNotFound = 15,
+    /// Signer not authorized
+    UnauthorizedSigner = 16,
+    /// Signer already approved
+    AlreadyApproved = 17,
+    /// Insufficient approvals
+    InsufficientApprovals = 18,
+    /// Release time not reached
+    ReleaseTimeNotReached = 19,
+    /// Refund time not reached
+    RefundTimeNotReached = 20,
+    /// Only depositor can refund
+    NotDepositor = 21,
+    /// Escrow not in pending status
+    InvalidEscrowStatus = 22,
+    /// Only beneficiary or signer can approve
+    UnauthorizedApprover = 23,
+    
+    // Insurance Errors
+    /// Contract not initialized
+    NotInitialized = 24,
+    /// Already initialized
+    AlreadyInitialized = 25,
+    /// Invalid premium amount
+    InvalidPremiumAmount = 26,
+    /// Insufficient balance for premium
+    InsufficientBalance = 27,
+    /// User not insured
+    NotInsured = 28,
+    /// Claim not found
+    ClaimNotFound = 29,
+    /// Only oracle can process claims
+    NotOracle = 30,
+    
+    // General Errors
+    /// Unauthorized caller
+    UnauthorizedCaller = 31,
+    /// Invalid configuration
+    InvalidConfiguration = 32,
+    /// Minimum validators must be at least 1
+    MinValidatorsRequired = 33,
+}
+
+impl TeachLinkError {
+    pub fn as_u32(&self) -> u32 {
+        *self as u32
+    }
+}
+
 // ========== Bridge Types ==========
 
 /// Represents a cross-chain bridge transaction for token transfers.
