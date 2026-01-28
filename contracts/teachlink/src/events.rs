@@ -1,11 +1,9 @@
 use soroban_sdk::contractevent;
 
 use crate::types::{
-    BridgeTransaction, ContributionType, CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus,
-    // Added implied types from main branch events to ensure compilation
-    ContentMetadata, ProvenanceRecord,
+    BridgeTransaction, ContentMetadata, ContributionType, CrossChainMessage, DisputeOutcome,
+    Escrow, EscrowStatus, ProvenanceRecord,
 };
-
 use soroban_sdk::{Address, Bytes, String};
 
 #[contractevent]

@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # Development environment with all tools
+  dev:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: teachlink-dev
+    volumes:
+      - .:/workspace
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/workspace/target
+    environment:
+      - RUST_BACKTRACE=1
+      - CARGO_TERM_COLOR=always
+    env_file:
+      - .env
+    working_dir: /workspace
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    networks:
+      - teachlink-network
+
+  # Builder service for creating optimized WASM
+  builder:
+    build:
+      context: .
+      target: builder
+      dockerfile: Dockerfile
+    container_name: teachlink-builder
+    volumes:
+      - .:/workspace
+      - cargo-cache:/usr/local/cargo/registry
+    working_dir: /workspace
+    command: cargo build --release --target wasm32-unknown-unknown
+    networks:
+      - teachlink-network
+
+  # Test runner service
+  test:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: teachlink-test
+    volumes:
+      - .:/workspace
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/workspace/target
+    working_dir: /workspace
+    command: cargo test --all-features
+    networks:
+      - teachlink-network
+
+  # Linter/formatter service
+  lint:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: teachlink-lint
+    volumes:
+      - .:/workspace
+      - cargo-cache:/usr/local/cargo/registry
+    working_dir: /workspace
+    command: sh -c "cargo fmt --all -- --check && cargo clippy --all-targets --all-features -- -D warnings"
+    networks:
+      - teachlink-network
+
+volumes:
+  cargo-cache:
+    driver: local
+  target-cache:
+    driver: local
+
+networks:
+  teachlink-network:
+    driver: bridge
+
+# Usage instructions:
+#
+# Start development environment:
+#   docker-compose up dev
+#   docker-compose exec dev bash
+#
+# Build WASM:
+#   docker-compose run --rm builder
+#
+# Run tests:
+#   docker-compose run --rm test
+#
+# Run linter:
+#   docker-compose run --rm lint
+#
+# Build all services:
+#   docker-compose build
+#
+# Clean up:
+#   docker-compose down -v
