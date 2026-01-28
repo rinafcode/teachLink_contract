@@ -40,6 +40,40 @@
 
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
 
+// ========== Error Types ==========
+
+/// Error types for insurance pool contract operations
+#[contracttype]
+#[derive(Clone, Debug, Copy, Eq, PartialEq)]
+pub enum InsuranceError {
+    /// Contract not initialized
+    NotInitialized = 1,
+    /// Contract already initialized
+    AlreadyInitialized = 2,
+    /// User is not insured
+    NotInsured = 3,
+    /// Claim not found
+    ClaimNotFound = 4,
+    /// Claim already processed
+    ClaimAlreadyProcessed = 5,
+    /// Claim status does not allow this operation
+    InvalidClaimStatus = 6,
+    /// Only oracle can process claims
+    NotOracle = 7,
+    /// Unauthorized caller
+    UnauthorizedCaller = 8,
+    /// Invalid premium amount
+    InvalidPremiumAmount = 9,
+    /// Invalid payout amount
+    InvalidPayoutAmount = 10,
+}
+
+impl InsuranceError {
+    pub fn as_u32(&self) -> u32 {
+        *self as u32
+    }
+}
+
 /// Storage keys for the insurance pool contract.
 ///
 /// These keys are used to store and retrieve data from contract storage.
@@ -115,8 +149,8 @@ impl InsurancePool {
     /// * `premium_amount` - Amount users must pay for coverage
     /// * `payout_amount` - Amount paid out for verified claims
     ///
-    /// # Panics
-    /// * If the contract is already initialized
+    /// # Returns
+    /// Ok(()) on success, or InsuranceError if already initialized.
     pub fn initialize(
         env: Env,
         admin: Address,
@@ -126,8 +160,18 @@ impl InsurancePool {
         payout_amount: i128,
     ) {
         if env.storage().instance().has(&DataKey::Admin) {
-            panic!("Already initialized");
+            panic!("ERR_ALREADY_INITIALIZED: Contract already initialized");
         }
+
+        // Validate amounts
+        if premium_amount <= 0 {
+            panic!("ERR_INVALID_PREMIUM_AMOUNT: Premium amount must be positive");
+        }
+
+        if payout_amount <= 0 {
+            panic!("ERR_INVALID_PAYOUT_AMOUNT: Payout amount must be positive");
+        }
+
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Oracle, &oracle);
@@ -150,6 +194,9 @@ impl InsurancePool {
     /// * `env` - The Soroban environment
     /// * `user` - Address paying the premium (must authorize)
     ///
+    /// # Returns
+    /// Ok(()) on success, or InsuranceError if contract not initialized.
+    ///
     /// # Authorization
     /// Requires authorization from `user`.
     pub fn pay_premium(env: Env, user: Address) {
@@ -159,12 +206,12 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
+            .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         let premium_amount = env
             .storage()
             .instance()
             .get::<_, i128>(&DataKey::PremiumAmount)
-            .unwrap();
+            .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         let client = token::Client::new(&env, &token_addr);
 
         client.transfer(&user, &env.current_contract_address(), &premium_amount);
@@ -186,13 +233,10 @@ impl InsurancePool {
     /// * `course_id` - ID of the course that failed
     ///
     /// # Returns
-    /// The unique claim ID for tracking the claim status.
+    /// The unique claim ID for tracking the claim status, or InsuranceError if validation fails.
     ///
     /// # Authorization
     /// Requires authorization from `user`.
-    ///
-    /// # Panics
-    /// * If the user is not currently insured
     pub fn file_claim(env: Env, user: Address, course_id: u64) -> u64 {
         user.require_auth();
 
@@ -202,14 +246,14 @@ impl InsurancePool {
             .get::<_, bool>(&DataKey::IsInsured(user.clone()))
             .unwrap_or(false)
         {
-            panic!("User is not insured");
+            panic!("ERR_NOT_INSURED: User is not insured");
         }
 
         let mut claim_count = env
             .storage()
             .instance()
             .get::<_, u64>(&DataKey::ClaimCount)
-            .unwrap();
+            .unwrap_or(0u64);
         claim_count += 1;
 
         let claim = Claim {
@@ -239,28 +283,27 @@ impl InsurancePool {
     /// * `claim_id` - ID of the claim to process
     /// * `result` - `true` to verify (approve), `false` to reject
     ///
+    /// # Returns
+    /// Ok(()) on success, or InsuranceError if validation fails.
+    ///
     /// # Authorization
     /// Requires authorization from the oracle address.
-    ///
-    /// # Panics
-    /// * If the claim does not exist
-    /// * If the claim has already been processed
     pub fn process_claim(env: Env, claim_id: u64, result: bool) {
         let oracle = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Oracle)
-            .unwrap();
+            .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         oracle.require_auth();
 
         let mut claim = env
             .storage()
             .instance()
             .get::<_, Claim>(&DataKey::Claim(claim_id))
-            .expect("Claim not found");
+            .unwrap_or_else(|| panic!("ERR_CLAIM_NOT_FOUND: Claim not found"));
 
         if claim.status != ClaimStatus::Pending {
-            panic!("Claim already processed");
+            panic!("ERR_CLAIM_ALREADY_PROCESSED: Claim already processed");
         }
 
         if result {
@@ -283,9 +326,8 @@ impl InsurancePool {
     /// * `env` - The Soroban environment
     /// * `claim_id` - ID of the verified claim to pay out
     ///
-    /// # Panics
-    /// * If the claim does not exist
-    /// * If the claim status is not `Verified`
+    /// # Returns
+    /// Ok(()) on success, or InsuranceError if validation fails.
     ///
     /// # Note
     /// Insurance coverage is consumed after payout. The user must pay
@@ -295,22 +337,22 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Claim>(&DataKey::Claim(claim_id))
-            .expect("Claim not found");
+            .unwrap_or_else(|| panic!("ERR_CLAIM_NOT_FOUND: Claim not found"));
 
         if claim.status != ClaimStatus::Verified {
-            panic!("Claim not verified");
+            panic!("ERR_INVALID_CLAIM_STATUS: Claim status does not allow this operation");
         }
 
         let token_addr = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
+            .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         let payout_amount = env
             .storage()
             .instance()
             .get::<_, i128>(&DataKey::PayoutAmount)
-            .unwrap();
+            .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         let client = token::Client::new(&env, &token_addr);
 
         client.transfer(&env.current_contract_address(), &claim.user, &payout_amount);
@@ -335,6 +377,9 @@ impl InsurancePool {
     /// * `env` - The Soroban environment
     /// * `amount` - Amount of tokens to withdraw
     ///
+    /// # Returns
+    /// Ok(()) on success, or InsuranceError if validation fails.
+    ///
     /// # Authorization
     /// Requires authorization from the admin address.
     pub fn withdraw(env: Env, amount: i128) {
@@ -342,14 +387,18 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Admin)
-            .unwrap();
+            .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         admin.require_auth();
+
+        if amount <= 0 {
+            panic!("ERR_INVALID_PREMIUM_AMOUNT: Amount must be positive");
+        }
 
         let token_addr = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
+            .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         let client = token::Client::new(&env, &token_addr);
 
         client.transfer(&env.current_contract_address(), &admin, &amount);

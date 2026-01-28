@@ -104,7 +104,7 @@ impl TeachLinkBridge {
         amount: i128,
         destination_chain: u32,
         destination_address: Bytes,
-    ) -> u64 {
+    ) {
         bridge::Bridge::bridge_out(&env, from, amount, destination_chain, destination_address)
     }
 
@@ -274,37 +274,37 @@ impl TeachLinkBridge {
             release_time,
             refund_time,
             arbitrator,
-        )
+        ).expect("create_escrow failed")
     }
 
     /// Approve escrow release (multi-signature)
     pub fn approve_escrow_release(env: Env, escrow_id: u64, signer: Address) -> u32 {
-        escrow::EscrowManager::approve_release(&env, escrow_id, signer)
+        escrow::EscrowManager::approve_release(&env, escrow_id, signer).expect("approve_release failed")
     }
 
     /// Release funds to the beneficiary once conditions are met
     pub fn release_escrow(env: Env, escrow_id: u64, caller: Address) {
-        escrow::EscrowManager::release(&env, escrow_id, caller)
+        escrow::EscrowManager::release(&env, escrow_id, caller).expect("release failed")
     }
 
     /// Refund escrow to the depositor after refund time
     pub fn refund_escrow(env: Env, escrow_id: u64, depositor: Address) {
-        escrow::EscrowManager::refund(&env, escrow_id, depositor)
+        escrow::EscrowManager::refund(&env, escrow_id, depositor).expect("refund failed")
     }
 
     /// Cancel escrow before any approvals
     pub fn cancel_escrow(env: Env, escrow_id: u64, depositor: Address) {
-        escrow::EscrowManager::cancel(&env, escrow_id, depositor)
+        escrow::EscrowManager::cancel(&env, escrow_id, depositor).expect("cancel failed")
     }
 
     /// Raise a dispute on the escrow
     pub fn dispute_escrow(env: Env, escrow_id: u64, disputer: Address, reason: Bytes) {
-        escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
+        escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason).expect("dispute failed")
     }
 
     /// Resolve a dispute as the arbitrator
     pub fn resolve_escrow(env: Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) {
-        escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
+        escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome).expect("resolve failed")
     }
 
     /// Get escrow by id
