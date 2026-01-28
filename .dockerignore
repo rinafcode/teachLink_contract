@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.github
+
+# Target and build artifacts
+target/
+**/*.rs.bk
+Cargo.lock
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.claude/
+
+# Documentation (except essential docs)
+docs/**/*.md
+!docs/README.md
+*.md
+!README.md
+!CONTRIBUTING.md
+!CODE_OF_CONDUCT.md
+!SECURITY.md
+!LICENSE
+
+# Test snapshots (optional, uncomment if not needed in container)
+# test_snapshots/
+
+# Temporary files
+*.tmp
+*.log
+*.bak
+
+# Node modules (if any frontend tooling exists)
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Docker
+docker-compose.override.yml
+Dockerfile.dev
+
+# CI/CD
+.travis.yml
+.circleci/
+.gitlab-ci.yml
+
+# Other
+*.orig
