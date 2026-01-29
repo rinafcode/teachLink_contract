@@ -19,7 +19,7 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Install Soroban CLI
-        run: cargo install --locked stellar-cli --features opt
+        run: cargo install --locked stellar-cli
 
       - name: Build Contract
         run: cargo build --target wasm32-unknown-unknown --release -p teachlink-contract
