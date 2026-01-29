@@ -31,13 +31,21 @@ fn setup_insurance_test() -> (Env, Address, Address, Address, Address, Address, 
         max_entry_ttl: 2000000,
     });
 
-    (env, admin, user, oracle, token_admin, token_address, contract_id)
+    (
+        env,
+        admin,
+        user,
+        oracle,
+        token_admin,
+        token_address,
+        contract_id,
+    )
 }
 
 #[test]
 fn test_initialize_insurance() {
     let env = Env::default();
-    
+
     // Just verify we can create an env - no contract calls
     assert!(true);
 }
@@ -46,17 +54,17 @@ fn test_initialize_insurance() {
 fn test_initialize_call() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token_address = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Try to call initialize
     client.initialize(&admin, &token_address, &oracle, &100, &500);
-    
+
     assert!(true);
 }
 
@@ -64,17 +72,17 @@ fn test_initialize_call() {
 fn test_initialize_with_different_amounts() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token_address = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Initialize with different premium and payout amounts
     client.initialize(&admin, &token_address, &oracle, &250, &1000);
-    
+
     // Test passes if we get here without error
     assert!(true);
 }
@@ -83,17 +91,17 @@ fn test_initialize_with_different_amounts() {
 fn test_initialize_with_zero_amounts() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token_address = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Initialize with zero amounts (edge case)
     client.initialize(&admin, &token_address, &oracle, &0, &0);
-    
+
     assert!(true);
 }
 
@@ -101,18 +109,18 @@ fn test_initialize_with_zero_amounts() {
 fn test_initialize_with_large_amounts() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token_address = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Initialize with large amounts
     let max_amount = i128::MAX / 2;
     client.initialize(&admin, &token_address, &oracle, &max_amount, &max_amount);
-    
+
     assert!(true);
 }
 
@@ -120,23 +128,23 @@ fn test_initialize_with_large_amounts() {
 fn test_multiple_contract_instances() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin1 = Address::generate(&env);
     let admin2 = Address::generate(&env);
     let token = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     // Create two separate contract instances
     let contract_id_1 = env.register(InsurancePool, ());
     let contract_id_2 = env.register(InsurancePool, ());
-    
+
     let client1 = InsurancePoolClient::new(&env, &contract_id_1);
     let client2 = InsurancePoolClient::new(&env, &contract_id_2);
-    
+
     // Initialize both independently
     client1.initialize(&admin1, &token, &oracle, &100, &500);
     client2.initialize(&admin2, &token, &oracle, &200, &600);
-    
+
     assert!(true);
 }
 
@@ -144,19 +152,19 @@ fn test_multiple_contract_instances() {
 fn test_contract_with_different_token_addresses() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let oracle = Address::generate(&env);
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Test with different token addresses
     let token1 = Address::generate(&env);
     let token2 = Address::generate(&env);
     let token3 = Address::generate(&env);
-    
+
     client.initialize(&admin, &token1, &oracle, &100, &500);
-    
+
     // Should succeed without error
     assert!(true);
 }
@@ -165,14 +173,14 @@ fn test_contract_with_different_token_addresses() {
 fn test_initialize_with_same_addresses() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     // Test when admin, token, and oracle are same address (edge case)
     let same_address = Address::generate(&env);
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     client.initialize(&same_address, &same_address, &same_address, &100, &500);
-    
+
     assert!(true);
 }
 
@@ -180,17 +188,17 @@ fn test_initialize_with_same_addresses() {
 fn test_contract_address_generation() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Verify contract can be initialized
     client.initialize(&admin, &token, &oracle, &100, &500);
-    
+
     assert!(true);
 }
 
@@ -198,22 +206,22 @@ fn test_contract_address_generation() {
 fn test_sequential_initializations() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     // Create first contract and initialize
     let contract1 = env.register(InsurancePool, ());
     let client1 = InsurancePoolClient::new(&env, &contract1);
     client1.initialize(&admin, &token, &oracle, &100, &500);
-    
+
     // Create second contract and initialize with different amounts
     let contract2 = env.register(InsurancePool, ());
     let client2 = InsurancePoolClient::new(&env, &contract2);
     let oracle2 = Address::generate(&env);
     client2.initialize(&admin, &token, &oracle2, &200, &1000);
-    
+
     assert!(true);
 }
 
@@ -221,11 +229,11 @@ fn test_sequential_initializations() {
 fn test_insurance_contract_creation() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     // Just test that we can create the contract without initialization
     let contract_id = env.register(InsurancePool, ());
     let _client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     assert!(true);
 }
 
@@ -233,16 +241,16 @@ fn test_insurance_contract_creation() {
 fn test_initialize_different_oracle_addresses() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token = Address::generate(&env);
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Initialize with specific oracle address
     let oracle1 = Address::generate(&env);
     client.initialize(&admin, &token, &oracle1, &100, &500);
-    
+
     assert!(true);
 }
 
@@ -250,20 +258,20 @@ fn test_initialize_different_oracle_addresses() {
 fn test_initialize_consistency() {
     let env = Env::default();
     env.mock_all_auths();
-    
+
     let admin = Address::generate(&env);
     let token = Address::generate(&env);
     let oracle = Address::generate(&env);
-    
+
     // Create and initialize contract
     let contract_id = env.register(InsurancePool, ());
     let client = InsurancePoolClient::new(&env, &contract_id);
-    
+
     // Initialize with specific parameters
     let premium = 500i128;
     let payout = 2500i128;
     client.initialize(&admin, &token, &oracle, &premium, &payout);
-    
+
     // If initialization succeeded, test passes
     assert!(true);
 }
@@ -271,7 +279,8 @@ fn test_initialize_consistency() {
 #[test]
 #[ignore]
 fn test_insurance_flow() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_address);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
@@ -280,7 +289,13 @@ fn test_insurance_flow() {
     let payout_amount = 500;
 
     // Initialize
-    client.initialize(&admin, &token_address, &oracle, &premium_amount, &payout_amount);
+    client.initialize(
+        &admin,
+        &token_address,
+        &oracle,
+        &premium_amount,
+        &payout_amount,
+    );
 
     // Mint tokens to user and contract (for payout liquidity)
     token_admin_client.mint(&user, &1000);
@@ -323,7 +338,8 @@ fn test_insurance_flow() {
 #[test]
 #[ignore]
 fn test_claim_rejection() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
 
@@ -344,7 +360,8 @@ fn test_claim_rejection() {
 #[ignore]
 #[should_panic(expected = "User is not insured")]
 fn test_file_claim_not_insured() {
-    let (env, admin, user, oracle, _token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
 
     client.initialize(&admin, &token_address, &oracle, &100, &500);
@@ -355,7 +372,8 @@ fn test_file_claim_not_insured() {
 #[test]
 #[ignore]
 fn test_multiple_users_insurance() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
     let token = token::Client::new(&env, &token_address);
@@ -409,7 +427,8 @@ fn test_multiple_users_insurance() {
 #[test]
 #[ignore]
 fn test_claim_lifecycle() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
 
@@ -438,7 +457,8 @@ fn test_claim_lifecycle() {
 #[test]
 #[ignore]
 fn test_rejected_claim_no_payout() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_address);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
@@ -465,7 +485,8 @@ fn test_rejected_claim_no_payout() {
 #[test]
 #[ignore]
 fn test_multiple_claims_same_user() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
 
@@ -509,7 +530,8 @@ fn test_multiple_claims_same_user() {
 #[test]
 #[ignore]
 fn test_premium_and_payout_amounts() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) = setup_insurance_test();
+    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+        setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_address);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);

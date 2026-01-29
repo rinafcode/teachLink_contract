@@ -1,5 +1,5 @@
-use crate::types::{UserReputation};
-use soroban_sdk::{Address, Env, symbol_short, Symbol};
+use crate::types::UserReputation;
+use soroban_sdk::{symbol_short, Address, Env, Symbol};
 
 const BASIS_POINTS: u32 = 10000;
 const REPUTATION: Symbol = symbol_short!("reptn");
@@ -72,5 +72,7 @@ pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
 }
 
 fn set_reputation(env: &Env, user: &Address, reputation: &UserReputation) {
-    env.storage().persistent().set(&(REPUTATION, user.clone()), reputation);
+    env.storage()
+        .persistent()
+        .set(&(REPUTATION, user.clone()), reputation);
 }
