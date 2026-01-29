@@ -592,7 +592,10 @@ export class EventProcessorService {
     ledger: string;
     txHash: string;
   }): Promise<void> {
-    const record = this.provenanceRepo.create(data);
+    const record = this.provenanceRepo.create({
+      ...data,
+      fromAddress: data.fromAddress || undefined,
+    });
     await this.provenanceRepo.save(record);
   }
 

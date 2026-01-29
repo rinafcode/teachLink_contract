@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { AppModule } from '../src/app.module';
 import { IndexerService } from '../src/indexer/indexer.service';
 import configuration from '../src/config/configuration';
@@ -25,7 +24,7 @@ describe('Indexer Integration Tests (e2e)', () => {
       .useValue({
         type: 'postgres',
         host: process.env.TEST_DB_HOST || 'localhost',
-        port: parseInt(process.env.TEST_DB_PORT, 10) || 5433,
+        port: parseInt(process.env.TEST_DB_PORT || '5433', 10),
         username: process.env.TEST_DB_USERNAME || 'test',
         password: process.env.TEST_DB_PASSWORD || 'test',
         database: process.env.TEST_DB_DATABASE || 'teachlink_test',

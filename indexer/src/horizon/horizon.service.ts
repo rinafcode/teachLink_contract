@@ -22,9 +22,9 @@ export class HorizonService implements OnModuleInit {
   constructor(private configService: ConfigService) {}
 
   async onModuleInit() {
-    const horizonUrl = this.configService.get<string>('stellar.horizonUrl');
-    const network = this.configService.get<string>('stellar.network');
-    this.contractId = this.configService.get<string>('contract.teachlinkContractId');
+    const horizonUrl = this.configService.get<string>('stellar.horizonUrl') || 'https://horizon-testnet.stellar.org';
+    const network = this.configService.get<string>('stellar.network') || 'testnet';
+    this.contractId = this.configService.get<string>('contract.teachlinkContractId') || '';
 
     this.server = new StellarSdk.Horizon.Server(horizonUrl);
 
@@ -56,7 +56,7 @@ export class HorizonService implements OnModuleInit {
       .operations()
       .cursor(cursor)
       .stream({
-        onmessage: async (operation: ServerApi.OperationRecord) => {
+        onmessage: async (operation: any) => {
           try {
             // Only process invoke host function operations
             if (operation.type === 'invoke_host_function') {
@@ -71,17 +71,17 @@ export class HorizonService implements OnModuleInit {
                 }
               }
             }
-          } catch (error) {
+          } catch (error: any) {
             this.logger.error(`Error processing operation: ${error.message}`, error.stack);
             if (onError) {
               onError(error);
             }
           }
         },
-        onerror: (error: Error) => {
+        onerror: (error: any) => {
           this.logger.error(`Stream error: ${error.message}`, error.stack);
           if (onError) {
-            onError(error);
+            onError(new Error(error.message || 'Stream error'));
           }
         },
       });
@@ -174,7 +174,7 @@ export class HorizonService implements OnModuleInit {
       const processedEvent: ProcessedEvent = {
         type: 'ContractEvent',
         data: {}, // Would contain decoded event data
-        ledger: operation.ledger_attr?.toString() || '0',
+        ledger: (operation as any).ledger?.toString() || '0',
         txHash: operation.transaction_hash,
         timestamp: operation.created_at,
         contractId: this.contractId,
