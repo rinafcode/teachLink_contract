@@ -1,3 +1,7 @@
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::too_many_lines)]
+
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env};
 
 use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};

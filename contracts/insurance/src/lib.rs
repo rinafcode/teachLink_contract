@@ -1,3 +1,11 @@
+#![no_std]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::panic_in_result_fn)]
+
 //! Insurance Pool Contract
 //!
 //! This contract implements a decentralized insurance pool that protects learners
@@ -35,8 +43,6 @@
 //! // 5. User receives payout
 //! InsurancePool::payout(env, claim_id);
 //! ```
-
-#![no_std]
 
 use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
 
@@ -214,7 +220,7 @@ impl InsurancePool {
             .unwrap_or_else(|| panic!("ERR_NOT_INITIALIZED: Contract not initialized"));
         let client = token::Client::new(&env, &token_addr);
 
-        client.transfer(&user, &env.current_contract_address(), &premium_amount);
+        client.transfer(&user, env.current_contract_address(), &premium_amount);
 
         env.storage()
             .instance()

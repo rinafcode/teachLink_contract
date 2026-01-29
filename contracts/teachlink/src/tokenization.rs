@@ -1,7 +1,7 @@
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
 use crate::events::{ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent};
-use crate::storage::{CONTENT_TOKENS, OWNER_TOKENS, OWNERSHIP, TOKEN_COUNTER};
+use crate::storage::{CONTENT_TOKENS, OWNERSHIP, OWNER_TOKENS, TOKEN_COUNTER};
 use crate::types::{ContentMetadata, ContentToken, ContentType, TransferType};
 
 pub struct ContentTokenization;
@@ -89,13 +89,7 @@ impl ContentTokenization {
     }
 
     /// Transfer ownership of a content token
-    pub fn transfer(
-        env: &Env,
-        from: Address,
-        to: Address,
-        token_id: u64,
-        notes: Option<Bytes>,
-    ) {
+    pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, notes: Option<Bytes>) {
         // Get the token
         let token: ContentToken = env
             .storage()
@@ -114,9 +108,7 @@ impl ContentTokenization {
         }
 
         // Update ownership
-        env.storage()
-            .persistent()
-            .set(&(OWNERSHIP, token_id), &to);
+        env.storage().persistent().set(&(OWNERSHIP, token_id), &to);
 
         // Update token owner
         let mut updated_token = token.clone();
@@ -176,16 +168,12 @@ impl ContentTokenization {
 
     /// Get a content token by ID
     pub fn get_token(env: &Env, token_id: u64) -> Option<ContentToken> {
-        env.storage()
-            .persistent()
-            .get(&(CONTENT_TOKENS, token_id))
+        env.storage().persistent().get(&(CONTENT_TOKENS, token_id))
     }
 
     /// Get the owner of a token
     pub fn get_owner(env: &Env, token_id: u64) -> Option<Address> {
-        env.storage()
-            .persistent()
-            .get(&(OWNERSHIP, token_id))
+        env.storage().persistent().get(&(OWNERSHIP, token_id))
     }
 
     /// Check if an address owns a token

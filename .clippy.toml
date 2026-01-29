@@ -1,0 +1,8 @@
+# Clippy configuration for TeachLink contracts
+# These lints are allowed because they're overly pedantic for Soroban contracts
+
+# Allow functions with many arguments (common in contract interfaces)
+too-many-arguments-threshold = 10
+
+# Allow needless pass by value (Soroban SDK requires owned Env)
+avoid-breaking-exported-api = true

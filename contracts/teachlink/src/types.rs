@@ -35,7 +35,7 @@ pub enum TeachLinkError {
     BridgeTransactionNotFound = 7,
     /// Bridge timeout not reached
     TimeoutNotReached = 8,
-    
+
     // Escrow Errors
     /// Amount must be positive
     InvalidEscrowAmount = 9,
@@ -67,7 +67,7 @@ pub enum TeachLinkError {
     InvalidEscrowStatus = 22,
     /// Only beneficiary or signer can approve
     UnauthorizedApprover = 23,
-    
+
     // Insurance Errors
     /// Contract not initialized
     NotInitialized = 24,
@@ -83,7 +83,7 @@ pub enum TeachLinkError {
     ClaimNotFound = 29,
     /// Only oracle can process claims
     NotOracle = 30,
-    
+
     // General Errors
     /// Unauthorized caller
     UnauthorizedCaller = 31,
