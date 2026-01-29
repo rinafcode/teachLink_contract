@@ -8,7 +8,7 @@ describe('HorizonService', () => {
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
-      const config = {
+      const config: Record<string, any> = {
         'stellar.horizonUrl': 'https://horizon-testnet.stellar.org',
         'stellar.network': 'testnet',
         'contract.teachlinkContractId': 'CDUMMYCONTRACTID',

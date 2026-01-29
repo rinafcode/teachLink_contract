@@ -50,7 +50,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
 
       if (!state) {
         // First run - determine starting point
-        const configStartLedger = this.configService.get<string>('indexer.startLedger');
+        const configStartLedger = this.configService.get<string>('indexer.startLedger') || 'latest';
 
         if (configStartLedger === 'latest') {
           const latestLedger = await this.horizonService.getLatestLedger();

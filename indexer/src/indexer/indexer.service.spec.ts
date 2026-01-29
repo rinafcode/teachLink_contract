@@ -16,7 +16,7 @@ describe('IndexerService', () => {
 
   const mockConfigService = {
     get: jest.fn((key: string) => {
-      const config = {
+      const config: Record<string, any> = {
         'indexer.startLedger': 'latest',
         'indexer.pollInterval': 5000,
         'indexer.batchSize': 100,
@@ -26,9 +26,9 @@ describe('IndexerService', () => {
   };
 
   const mockHorizonService = {
-    getLatestLedger: jest.fn(() => Promise.resolve(1000)),
-    streamContractEvents: jest.fn(() => Promise.resolve(jest.fn())),
-    fetchOperationsInRange: jest.fn(() => Promise.resolve([])),
+    getLatestLedger: jest.fn(),
+    streamContractEvents: jest.fn(),
+    fetchOperationsInRange: jest.fn(),
   };
 
   const mockEventProcessor = {
@@ -71,6 +71,11 @@ describe('IndexerService', () => {
     configService = module.get<ConfigService>(ConfigService);
 
     jest.clearAllMocks();
+
+    // Set default return values
+    mockHorizonService.getLatestLedger.mockResolvedValue(1000);
+    mockHorizonService.streamContractEvents.mockResolvedValue(jest.fn());
+    mockHorizonService.fetchOperationsInRange.mockResolvedValue([]);
   });
 
   it('should be defined', () => {
