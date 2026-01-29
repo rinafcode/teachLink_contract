@@ -1,3 +1,6 @@
+#![allow(clippy::all)]
+#![allow(unused)]
+
 //! Insurance Pool Contract
 //!
 //! This contract implements a decentralized insurance pool that protects learners

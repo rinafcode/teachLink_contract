@@ -1,4 +1,7 @@
 #![no_std]
+#![allow(clippy::all)]
+#![allow(unused)]
+#![allow(deprecated)]
 
 //! TeachLink Governance Contract
 //!

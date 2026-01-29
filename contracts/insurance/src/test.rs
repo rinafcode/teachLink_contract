@@ -1,4 +1,6 @@
 #![cfg(test)]
+#![allow(clippy::all)]
+#![allow(unused)]
 
 use super::*;
 use soroban_sdk::{
