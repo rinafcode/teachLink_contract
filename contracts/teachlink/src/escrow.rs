@@ -91,7 +91,11 @@ impl EscrowManager {
         Ok(escrow_count)
     }
 
-    pub fn approve_release(env: &Env, escrow_id: u64, signer: Address) -> Result<u32, TeachLinkError> {
+    pub fn approve_release(
+        env: &Env,
+        escrow_id: u64,
+        signer: Address,
+    ) -> Result<u32, TeachLinkError> {
         signer.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -212,7 +216,12 @@ impl EscrowManager {
         Ok(())
     }
 
-    pub fn dispute(env: &Env, escrow_id: u64, disputer: Address, reason: Bytes) -> Result<(), TeachLinkError> {
+    pub fn dispute(
+        env: &Env,
+        escrow_id: u64,
+        disputer: Address,
+        reason: Bytes,
+    ) -> Result<(), TeachLinkError> {
         disputer.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -236,7 +245,12 @@ impl EscrowManager {
         Ok(())
     }
 
-    pub fn resolve(env: &Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) -> Result<(), TeachLinkError> {
+    pub fn resolve(
+        env: &Env,
+        escrow_id: u64,
+        arbitrator: Address,
+        outcome: DisputeOutcome,
+    ) -> Result<(), TeachLinkError> {
         arbitrator.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -334,9 +348,7 @@ impl EscrowManager {
 
     fn load_escrow(env: &Env, escrow_id: u64) -> Result<Escrow, TeachLinkError> {
         let escrows = Self::load_escrows(env);
-        escrows
-            .get(escrow_id)
-            .ok_or(TeachLinkError::EscrowNotFound)
+        escrows.get(escrow_id).ok_or(TeachLinkError::EscrowNotFound)
     }
 
     fn save_escrow(env: &Env, escrow_id: u64, escrow: Escrow) {

@@ -1,4 +1,9 @@
 #![no_std]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::doc_markdown)]
 
 //! TeachLink Governance Contract
 //!
@@ -15,7 +20,8 @@ mod types;
 
 pub use mock_token::{MockToken, MockTokenClient};
 pub use types::{
-    GovernanceConfig, GovernanceError, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection, VoteKey,
+    GovernanceConfig, GovernanceError, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection,
+    VoteKey,
 };
 
 #[contract]

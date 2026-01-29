@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use soroban_sdk::{Address, Bytes, Env, Symbol};
 
 use crate::types::{ProposalStatus, ProposalType, VoteDirection};
