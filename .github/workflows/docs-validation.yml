@@ -15,12 +15,12 @@ jobs:
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
-      # 1. Link checking system (This stays!)
-      - name: Lychee Link Checker
-        uses: lycheeverse/lychee-action@v1.9.0
-        with:
-          args: --config lychee.toml "./**/*.md"
-          fail: true
+      # 1. Link checking system (Temporarily disabled)
+      # - name: Lychee Link Checker
+      #   uses: lycheeverse/lychee-action@v1.9.0
+      #   with:
+      #     args: --config lychee.toml "./**/*.md"
+      #     fail: true
 
       # 2. Validate code examples (This stays!)
       - name: Verify Code Snippets

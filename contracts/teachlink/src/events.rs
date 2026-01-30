@@ -4,7 +4,10 @@ use crate::types::{
     BridgeTransaction, ContentMetadata, ContributionType, CrossChainMessage, DisputeOutcome,
     Escrow, EscrowStatus, ProvenanceRecord,
 };
+
 use soroban_sdk::{Address, Bytes, String};
+
+// ================= Bridge Events =================
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -39,7 +42,8 @@ pub struct BridgeCompletedEvent {
     pub message: CrossChainMessage,
 }
 
-// Rewards Events
+// ================= Rewards Events =================
+
 #[contractevent]
 #[derive(Clone, Debug)]
 pub struct RewardIssuedEvent {
@@ -51,16 +55,26 @@ pub struct RewardIssuedEvent {
 
 #[contractevent]
 #[derive(Clone, Debug)]
-pub struct EscrowCreatedEvent {
-    pub escrow: Escrow,
-}
-
-#[contractevent]
-#[derive(Clone, Debug)]
 pub struct RewardClaimedEvent {
     pub user: Address,
     pub amount: i128,
     pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RewardPoolFundedEvent {
+    pub funder: Address,
+    pub amount: i128,
+    pub timestamp: u64,
+}
+
+// ================= Escrow Events =================
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct EscrowCreatedEvent {
+    pub escrow: Escrow,
 }
 
 #[contractevent]
@@ -77,14 +91,6 @@ pub struct EscrowReleasedEvent {
     pub escrow_id: u64,
     pub beneficiary: Address,
     pub amount: i128,
-}
-
-#[contractevent]
-#[derive(Clone, Debug)]
-pub struct RewardPoolFundedEvent {
-    pub funder: Address,
-    pub amount: i128,
-    pub timestamp: u64,
 }
 
 #[contractevent]
@@ -111,7 +117,7 @@ pub struct EscrowResolvedEvent {
     pub status: EscrowStatus,
 }
 
-// ========== Credit Score Events (feat/credit_score) ==========
+// ================= Credit Score Events =================
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -136,7 +142,7 @@ pub struct ContributionRecordedEvent {
     pub points: u64,
 }
 
-// ========== Content Tokenization Events (main) ==========
+// ================= Content Tokenization Events =================
 
 #[contractevent]
 #[derive(Clone, Debug)]
