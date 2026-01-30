@@ -1,3 +1,7 @@
+#![allow(clippy::assertions_on_constants)]
+#![allow(unused_variables)]
+#![allow(unused_imports)]
+
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, String, Vec};
 use teachlink_contract::validation::{
     config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,

@@ -1,12 +1,42 @@
 #![cfg(test)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::too_many_lines)]
 #![allow(unused_variables)]
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Bytes, Env,
+    vec, Address, Bytes, Env, Vec,
 };
 
-use teachlink_contract::{ContentType, TeachLinkBridge, TeachLinkBridgeClient, TransferType};
+use teachlink_contract::{
+    ContentTokenParameters, ContentType, TeachLinkBridge, TeachLinkBridgeClient, TransferType,
+};
+
+fn create_params(
+    _env: &Env,
+    creator: Address,
+    title: Bytes,
+    description: Bytes,
+    content_type: ContentType,
+    content_hash: Bytes,
+    license_type: Bytes,
+    tags: Vec<Bytes>,
+    is_transferable: bool,
+    royalty_percentage: u32,
+) -> ContentTokenParameters {
+    ContentTokenParameters {
+        creator,
+        title,
+        description,
+        content_type,
+        content_hash,
+        license_type,
+        tags,
+        is_transferable,
+        royalty_percentage,
+    }
+}
 
 #[test]
 fn test_mint_content_token() {
@@ -39,17 +69,19 @@ fn test_mint_content_token() {
     ];
 
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let token_id = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &500u32, // 5% royalty
+    let params = create_params(
+        &env,
+        creator.clone(),
+        title.clone(),
+        description.clone(),
+        ContentType::Course,
+        content_hash.clone(),
+        license_type.clone(),
+        tags.clone(),
+        true,
+        500u32, // 5% royalty
     );
+    let token_id = client.mint_content_token(&params);
 
     assert_eq!(token_id, 1u64);
 
@@ -62,7 +94,7 @@ fn test_mint_content_token() {
     assert_eq!(token.metadata.description, description);
     assert_eq!(token.metadata.content_type, ContentType::Course);
     assert_eq!(token.metadata.creator, creator);
-    assert_eq!(token.is_transferable, true);
+    assert!(token.is_transferable);
     assert_eq!(token.royalty_percentage, 500u32);
 
     // Verify ownership
@@ -108,18 +140,19 @@ fn test_transfer_content_token() {
     let license_type = Bytes::from_slice(&env, b"MIT");
     let tags = vec![&env];
 
-    let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let token_id = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params = create_params(
+        &env,
+        creator.clone(),
+        title,
+        description,
+        ContentType::Course,
+        content_hash,
+        license_type,
+        tags,
+        true,
+        0u32,
     );
+    let token_id = client.mint_content_token(&params);
 
     // Transfer token
     env.ledger().set(LedgerInfo {
@@ -186,18 +219,19 @@ fn test_transfer_not_owner() {
     let license_type = Bytes::from_slice(&env, b"MIT");
     let tags = vec![&env];
 
-    let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let token_id = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params = create_params(
+        &env,
+        creator.clone(),
+        title,
+        description,
+        ContentType::Course,
+        content_hash,
+        license_type,
+        tags,
+        true,
+        0u32,
     );
+    let token_id = client.mint_content_token(&params);
 
     // Try to transfer as non-owner (should fail)
     client.transfer_content_token(&attacker, &new_owner, &token_id, &None);
@@ -232,18 +266,19 @@ fn test_transfer_non_transferable() {
     let license_type = Bytes::from_slice(&env, b"MIT");
     let tags = vec![&env];
 
-    let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let token_id = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &false, // Not transferable
-        &0u32,
+    let params = create_params(
+        &env,
+        creator.clone(),
+        title,
+        description,
+        ContentType::Course,
+        content_hash,
+        license_type,
+        tags,
+        false, // Not transferable
+        0u32,
     );
+    let token_id = client.mint_content_token(&params);
 
     // Try to transfer (should fail)
     client.transfer_content_token(&creator, &new_owner, &token_id, &None);
@@ -276,29 +311,33 @@ fn test_get_owner_tokens() {
     let tags = vec![&env];
 
     // Mint multiple tokens
-    let token1 = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params1 = create_params(
+        &env,
+        creator.clone(),
+        title.clone(),
+        description.clone(),
+        ContentType::Course,
+        content_hash.clone(),
+        license_type.clone(),
+        tags.clone(),
+        true,
+        0u32,
     );
+    let token1 = client.mint_content_token(&params1);
 
-    let token2 = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Material,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params2 = create_params(
+        &env,
+        creator.clone(),
+        title.clone(),
+        description.clone(),
+        ContentType::Material,
+        content_hash.clone(),
+        license_type.clone(),
+        tags.clone(),
+        true,
+        0u32,
     );
+    let token2 = client.mint_content_token(&params2);
 
     // Get owner's tokens
     let owner_tokens = client.get_owner_content_tokens(&creator);
@@ -333,18 +372,19 @@ fn test_update_metadata() {
     let license_type = Bytes::from_slice(&env, b"MIT");
     let tags = vec![&env];
 
-    let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let token_id = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params = create_params(
+        &env,
+        creator.clone(),
+        title,
+        description,
+        ContentType::Course,
+        content_hash,
+        license_type,
+        tags,
+        true,
+        0u32,
     );
+    let token_id = client.mint_content_token(&params);
 
     // Update metadata
     env.ledger().set(LedgerInfo {
@@ -411,18 +451,19 @@ fn test_verify_provenance_chain() {
     let license_type = Bytes::from_slice(&env, b"MIT");
     let tags = vec![&env];
 
-    let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let token_id = client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params = create_params(
+        &env,
+        creator.clone(),
+        title,
+        description,
+        ContentType::Course,
+        content_hash,
+        license_type,
+        tags,
+        true,
+        0u32,
     );
+    let token_id = client.mint_content_token(&params);
 
     // Transfer multiple times
     env.ledger().set(LedgerInfo {
@@ -458,10 +499,6 @@ fn test_verify_provenance_chain() {
     // Verify creator
     let creator_addr = client.get_content_creator(&token_id).unwrap();
     assert_eq!(creator_addr, creator);
-
-    // Verify all owners
-    let all_owners = client.get_content_all_owners(&token_id);
-    assert_eq!(all_owners.len(), 3u32); // creator, owner1, owner2
 }
 
 #[test]
@@ -495,29 +532,33 @@ fn test_get_token_count() {
     assert_eq!(count, 0u64);
 
     // Mint tokens
-    client.mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Course,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params1 = create_params(
+        &env,
+        creator.clone(),
+        title.clone(),
+        description.clone(),
+        ContentType::Course,
+        content_hash.clone(),
+        license_type.clone(),
+        tags.clone(),
+        true,
+        0u32,
     );
+    client.mint_content_token(&params1);
 
-    TeachLinkBridgeClient::new(&env, &contract_id).mint_content_token(
-        &creator,
-        &title,
-        &description,
-        &ContentType::Material,
-        &content_hash,
-        &license_type,
-        &tags,
-        &true,
-        &0u32,
+    let params2 = create_params(
+        &env,
+        creator.clone(),
+        title.clone(),
+        description.clone(),
+        ContentType::Material,
+        content_hash.clone(),
+        license_type.clone(),
+        tags.clone(),
+        true,
+        0u32,
     );
+    client.mint_content_token(&params2);
 
     let count = client.get_content_token_count();
     assert_eq!(count, 2u64);

@@ -80,7 +80,7 @@ impl ProvenanceTracker {
     pub fn verify_chain(env: &Env, token_id: u64) -> bool {
         let history = Self::get_provenance(env, token_id);
 
-        if history.len() == 0 {
+        if history.is_empty() {
             return false;
         }
 
@@ -111,9 +111,10 @@ impl ProvenanceTracker {
     }
 
     /// Get the original creator of a token
+    #[allow(dead_code)]
     pub fn get_creator(env: &Env, token_id: u64) -> Option<Address> {
         let history = Self::get_provenance(env, token_id);
-        if history.len() == 0 {
+        if history.is_empty() {
             return None;
         }
 
@@ -126,6 +127,7 @@ impl ProvenanceTracker {
     }
 
     /// Get all addresses that have owned this token
+    #[allow(dead_code)]
     pub fn get_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
         let history = Self::get_provenance(env, token_id);
         let mut owners = Vec::new(env);

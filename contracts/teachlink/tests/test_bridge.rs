@@ -1,6 +1,10 @@
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::too_many_lines)]
+
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env};
 
-use teachlink_contract::{BridgeError, TeachLinkBridge, TeachLinkBridgeClient};
+use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
 
 #[test]
 fn test_initialize() {
@@ -58,6 +62,7 @@ fn test_add_supported_chain() {
 }
 
 #[test]
+#[should_panic(expected = "HostError")]
 fn test_bridge_out_unsupported_chain() {
     let env = Env::default();
     let contract_id = env.register(TeachLinkBridge, ());
@@ -73,15 +78,12 @@ fn test_bridge_out_unsupported_chain() {
     env.mock_all_auths();
     // Try to bridge to unsupported chain
     let dest_addr = Bytes::from_array(&env, &[0; 20]);
-    let result = client.bridge_out(&user, &1000, &999, &dest_addr);
-    // Check if the result is an error (should be for unsupported chain)
-    match result {
-        Ok(_) => panic!("Expected error but got success"),
-        Err(_) => (), // Expected error
-    }
+    let _result = client.bridge_out(&user, &1000, &999, &dest_addr);
+    // The call should panic or return an error (checked via should_panic or try_)
 }
 
 #[test]
+#[should_panic(expected = "HostError")]
 fn test_bridge_out_invalid_amount() {
     let env = Env::default();
     let contract_id = env.register(TeachLinkBridge, ());
@@ -97,12 +99,8 @@ fn test_bridge_out_invalid_amount() {
     env.mock_all_auths();
     client.add_supported_chain(&1);
     let dest_addr = Bytes::from_array(&env, &[0; 20]);
-    let result = client.bridge_out(&user, &0, &1, &dest_addr);
-    // Check if the result is an error (should be for invalid amount)
-    match result {
-        Ok(_) => panic!("Expected error but got success"),
-        Err(_) => (), // Expected error
-    }
+    let _result = client.bridge_out(&user, &0, &1, &dest_addr);
+    // The call should panic or return an error (checked via should_panic or try_)
 }
 
 #[test]

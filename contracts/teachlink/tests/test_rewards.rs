@@ -1,4 +1,7 @@
 #![cfg(test)]
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::unreadable_literal)]
 #![allow(unused_variables)]
 
 use soroban_sdk::{testutils::Address as _, Address, Env};

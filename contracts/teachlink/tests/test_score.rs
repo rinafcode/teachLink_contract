@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![allow(clippy::needless_pass_by_value)]
 
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env};
 use teachlink_contract::{ContributionType, TeachLinkBridge, TeachLinkBridgeClient};

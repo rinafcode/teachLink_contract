@@ -1,6 +1,11 @@
 #![cfg(test)]
-#![allow(clippy::all)]
-#![allow(unused)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::ignore_without_reason)]
+#![allow(clippy::unused_unit)]
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::too_many_lines)]
+#![allow(unused_variables)]
 
 use super::*;
 use soroban_sdk::{
@@ -90,6 +95,7 @@ fn test_initialize_with_different_amounts() {
 }
 
 #[test]
+#[should_panic(expected = "Premium amount must be positive")]
 fn test_initialize_with_zero_amounts() {
     let env = Env::default();
     env.mock_all_auths();
@@ -162,8 +168,8 @@ fn test_contract_with_different_token_addresses() {
 
     // Test with different token addresses
     let token1 = Address::generate(&env);
-    let token2 = Address::generate(&env);
-    let token3 = Address::generate(&env);
+    let _token2 = Address::generate(&env);
+    let _token3 = Address::generate(&env);
 
     client.initialize(&admin, &token1, &oracle, &100, &500);
 
@@ -281,7 +287,7 @@ fn test_initialize_consistency() {
 #[test]
 #[ignore]
 fn test_insurance_flow() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
         setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_address);
@@ -340,7 +346,7 @@ fn test_insurance_flow() {
 #[test]
 #[ignore]
 fn test_claim_rejection() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
         setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
@@ -374,7 +380,7 @@ fn test_file_claim_not_insured() {
 #[test]
 #[ignore]
 fn test_multiple_users_insurance() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
         setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
@@ -429,7 +435,7 @@ fn test_multiple_users_insurance() {
 #[test]
 #[ignore]
 fn test_claim_lifecycle() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
         setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
@@ -459,7 +465,7 @@ fn test_claim_lifecycle() {
 #[test]
 #[ignore]
 fn test_rejected_claim_no_payout() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
         setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_address);
@@ -487,7 +493,7 @@ fn test_rejected_claim_no_payout() {
 #[test]
 #[ignore]
 fn test_multiple_claims_same_user() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
         setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token_admin_client = token::StellarAssetClient::new(&env, &token_address);
@@ -532,7 +538,7 @@ fn test_multiple_claims_same_user() {
 #[test]
 #[ignore]
 fn test_premium_and_payout_amounts() {
-    let (env, admin, user, oracle, token_admin, token_address, contract_id) =
+    let (env, admin, user, oracle, _token_admin, token_address, contract_id) =
         setup_insurance_test();
     let client = InsurancePoolClient::new(&env, &contract_id);
     let token = token::Client::new(&env, &token_address);
