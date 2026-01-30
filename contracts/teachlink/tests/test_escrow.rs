@@ -46,7 +46,7 @@ impl TestToken {
             .get(&symbol_short!("balances"))
             .unwrap_or_else(|| Map::new(&env));
 
-                let current_balance = balances.get(to.clone()).unwrap_or(0);
+        let current_balance = balances.get(to.clone()).unwrap_or(0);
         balances.set(to.clone(), current_balance + amount);
         env.storage()
             .instance()
