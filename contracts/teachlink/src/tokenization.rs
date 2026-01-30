@@ -98,14 +98,10 @@ impl ContentTokenization {
             .expect("Token does not exist");
 
         // Verify ownership
-        if token.owner != from {
-            panic!("Caller is not the owner");
-        }
+        assert!(token.owner == from, "Caller is not the owner");
 
         // Check if transferable
-        if !token.is_transferable {
-            panic!("Token is not transferable");
-        }
+        assert!(token.is_transferable, "Token is not transferable");
 
         // Update ownership
         env.storage().persistent().set(&(OWNERSHIP, token_id), &to);
@@ -193,9 +189,7 @@ impl ContentTokenization {
 
     /// Check if an address owns a token
     pub fn is_owner(env: &Env, token_id: u64, address: Address) -> bool {
-        Self::get_owner(env, token_id)
-            .map(|owner| owner == address)
-            .unwrap_or(false)
+        Self::get_owner(env, token_id).is_some_and(|owner| owner == address)
     }
 
     /// Get all tokens owned by an address
@@ -229,9 +223,7 @@ impl ContentTokenization {
             .get(&(CONTENT_TOKENS, token_id))
             .expect("Token does not exist");
 
-        if token.owner != owner {
-            panic!("Only owner can update metadata");
-        }
+        assert!(token.owner == owner, "Only owner can update metadata");
 
         if let Some(new_title) = title {
             token.metadata.title = new_title;
@@ -268,9 +260,7 @@ impl ContentTokenization {
             .get(&(CONTENT_TOKENS, token_id))
             .expect("Token does not exist");
 
-        if token.owner != owner {
-            panic!("Only owner can set transferability");
-        }
+        assert!(token.owner == owner, "Only owner can set transferability");
 
         token.is_transferable = transferable;
         token.metadata.updated_at = env.ledger().timestamp();

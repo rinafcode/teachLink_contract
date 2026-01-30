@@ -89,6 +89,7 @@ impl NumberValidator {
     }
 
     /// Validates signer count
+    #[allow(clippy::cast_possible_truncation)]
     pub fn validate_signer_count(count: usize) -> ValidationResult<()> {
         if count == 0 {
             return Err(ValidationError::EmptySignersList);
@@ -115,7 +116,7 @@ impl NumberValidator {
 
     /// Validates chain ID
     pub fn validate_chain_id(chain_id: u32) -> ValidationResult<()> {
-        if chain_id < config::MIN_CHAIN_ID || chain_id > config::MAX_CHAIN_ID {
+        if !(config::MIN_CHAIN_ID..=config::MAX_CHAIN_ID).contains(&chain_id) {
             return Err(ValidationError::InvalidChainId);
         }
         Ok(())
@@ -139,7 +140,7 @@ pub struct StringValidator;
 impl StringValidator {
     /// Validates string length
     pub fn validate_length(string: &String, max_length: u32) -> ValidationResult<()> {
-        if string.len() == 0 {
+        if string.is_empty() {
             return Err(ValidationError::InvalidStringLength);
         }
         if string.len() > max_length {
@@ -230,7 +231,7 @@ impl CrossChainValidator {
 
     /// Validates cross-chain message structure
     pub fn validate_cross_chain_message(
-        _env: &Env,
+        env: &Env,
         source_chain: u32,
         destination_chain: u32,
         amount: i128,
@@ -239,7 +240,7 @@ impl CrossChainValidator {
         NumberValidator::validate_chain_id(source_chain)?;
         NumberValidator::validate_chain_id(destination_chain)?;
         NumberValidator::validate_amount(amount)?;
-        AddressValidator::validate(_env, recipient)?;
+        AddressValidator::validate(env, recipient)?;
         Ok(())
     }
 }
@@ -276,7 +277,7 @@ impl EscrowValidator {
         // Validate signers
         NumberValidator::validate_signer_count(signers.len() as usize)
             .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
-        NumberValidator::validate_threshold(threshold, signers.len() as u32)
+        NumberValidator::validate_threshold(threshold, signers.len())
             .map_err(|_| EscrowError::InvalidSignerThreshold)?;
 
         // Validate time constraints
@@ -383,7 +384,7 @@ impl BridgeValidator {
         min_validators: u32,
     ) -> Result<(), crate::errors::BridgeError> {
         // Validate validator signatures count
-        if (validator_signatures.len() as u32) < min_validators {
+        if validator_signatures.len() < min_validators {
             return Err(crate::errors::BridgeError::InsufficientValidatorSignatures);
         }
 

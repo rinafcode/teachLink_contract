@@ -240,6 +240,9 @@ impl Bridge {
     /// Only callable after a timeout period
     /// - nonce: The nonce of the bridge transaction to cancel
     pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
+        // Timeout constant (7 days = 604800 seconds)
+        const TIMEOUT: u64 = 604_800;
+
         // Get bridge transaction
         let bridge_txs: Map<u64, BridgeTransaction> = env
             .storage()
@@ -250,8 +253,7 @@ impl Bridge {
             .get(nonce)
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
-        // Check timeout (7 days = 604800 seconds)
-        const TIMEOUT: u64 = 604_800;
+        // Check timeout
         let elapsed = env.ledger().timestamp() - bridge_tx.timestamp;
         if elapsed < TIMEOUT {
             return Err(BridgeError::TimeoutNotReached);
@@ -283,6 +285,7 @@ impl Bridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
+    #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -295,6 +298,7 @@ impl Bridge {
     }
 
     /// Remove a validator (admin only)
+    #[allow(clippy::unnecessary_wraps)]
     pub fn remove_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -307,6 +311,7 @@ impl Bridge {
     }
 
     /// Add a supported destination chain (admin only)
+    #[allow(clippy::unnecessary_wraps)]
     pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -319,6 +324,7 @@ impl Bridge {
     }
 
     /// Remove a supported destination chain (admin only)
+    #[allow(clippy::unnecessary_wraps)]
     pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -345,6 +351,7 @@ impl Bridge {
     }
 
     /// Set fee recipient (admin only)
+    #[allow(clippy::unnecessary_wraps)]
     pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();

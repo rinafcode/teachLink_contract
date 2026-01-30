@@ -39,9 +39,7 @@ pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
 pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
     // Rating should be 0-5 scaled (e.g. 0-100 or 0-500)
     // Here assuming 0-5
-    if rating > 5 {
-        panic!("Rating must be between 0 and 5");
-    }
+    assert!(rating <= 5, "Rating must be between 0 and 5");
 
     let mut reputation = get_reputation(env, &user);
 

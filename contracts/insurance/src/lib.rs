@@ -156,7 +156,7 @@ impl InsurancePool {
             .unwrap();
 
         let client = token::Client::new(&env, &token_addr);
-        client.transfer(&user, &env.current_contract_address(), &premium_amount);
+        client.transfer(&user, env.current_contract_address(), &premium_amount);
 
         env.storage()
             .instance()
@@ -341,9 +341,7 @@ impl InsurancePool {
 
         admin.require_auth();
 
-        if amount <= 0 {
-            panic!("ERR_INVALID_PREMIUM_AMOUNT: Amount must be positive");
-        }
+        assert!(amount > 0, "ERR_INVALID_PREMIUM_AMOUNT: Amount must be positive");
 
         let token_addr = env
             .storage()

@@ -1,12 +1,13 @@
+#![allow(clippy::similar_names)]
+
 use soroban_sdk::{
-    contract, contractclient, contractimpl, symbol_short, testutils::Address as _, Address, Bytes,
+    contract, contractimpl, symbol_short, testutils::Address as _, Address, Bytes,
     Env, Map, Vec,
 };
 
-use teachlink_contract::{DisputeOutcome, EscrowStatus, TeachLinkBridge, TeachLinkBridgeClient};
+use teachlink_contract::{DisputeOutcome, EscrowParameters, EscrowStatus, TeachLinkBridge, TeachLinkBridgeClient};
 
 #[contract]
-#[contractclient(name = "TestTokenClient")]
 pub struct TestToken;
 
 #[contractimpl]
@@ -65,9 +66,7 @@ impl TestToken {
         let from_balance = balances.get(from.clone()).unwrap_or(0);
         let to_balance = balances.get(to.clone()).unwrap_or(0);
 
-        if from_balance < amount {
-            panic!("Insufficient balance");
-        }
+        assert!(from_balance >= amount, "Insufficient balance");
 
         balances.set(from, from_balance - amount);
         balances.set(to, to_balance + amount);
@@ -75,13 +74,6 @@ impl TestToken {
         env.storage()
             .instance()
             .set(&symbol_short!("balances"), &balances);
-    }
-
-    fn load_balances(env: &Env) -> Map<Address, i128> {
-        env.storage()
-            .instance()
-            .get(&symbol_short!("balances"))
-            .unwrap_or_else(|| Map::new(env))
     }
 }
 
@@ -117,17 +109,18 @@ fn test_escrow_release_flow() {
     signers.push_back(signer1.clone());
     signers.push_back(signer2.clone());
 
-    let escrow_id = escrow_client.create_escrow(
-        &depositor,
-        &beneficiary,
-        &token_contract_id,
-        &500,
-        &signers,
-        &2,
-        &None,
-        &None,
-        &arbitrator,
-    );
+    let params = EscrowParameters {
+        depositor: depositor.clone(),
+        beneficiary: beneficiary.clone(),
+        token: token_contract_id.clone(),
+        amount: 500,
+        signers: signers.clone(),
+        threshold: 2,
+        release_time: None,
+        refund_time: None,
+        arbitrator: arbitrator.clone(),
+    };
+    let escrow_id = escrow_client.create_escrow(&params);
 
     assert_eq!(token_client.balance(&depositor), 500);
     assert_eq!(token_client.balance(&escrow_contract_id), 500);
@@ -167,17 +160,18 @@ fn test_escrow_dispute_refund() {
     let mut signers = Vec::new(&env);
     signers.push_back(signer.clone());
 
-    let escrow_id = escrow_client.create_escrow(
-        &depositor,
-        &beneficiary,
-        &token_contract_id,
-        &600,
-        &signers,
-        &1,
-        &None,
-        &None,
-        &arbitrator,
-    );
+    let params = EscrowParameters {
+        depositor: depositor.clone(),
+        beneficiary: beneficiary.clone(),
+        token: token_contract_id.clone(),
+        amount: 600,
+        signers: signers.clone(),
+        threshold: 1,
+        release_time: None,
+        refund_time: None,
+        arbitrator: arbitrator.clone(),
+    };
+    let escrow_id = escrow_client.create_escrow(&params);
 
     let reason = Bytes::from_slice(&env, b"delay");
 
