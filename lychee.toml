@@ -2,7 +2,17 @@ root = "."
 exclude = [
     'http://localhost:[0-9]+',
     'http://127.0.0.1:[0-9]+',
-    'https://example.com'
+    'https://example.com',
+    'https://discord.gg/teachlink',
+    'https://docs.teachlink.io',
+    'https://blog.teachlink.io',
+    'https://github.com/.*/discussions'
 ]
 max_concurrency = 4
 retry_count = 2
+# Skip checking these file patterns
+exclude_path = [
+    "node_modules",
+    "target",
+    ".git"
+]

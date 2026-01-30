@@ -1,7 +1,7 @@
 name: PR Labeler
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, synchronize, reopened]
 
 permissions:
@@ -20,6 +20,7 @@ jobs:
 
       - name: Label PR based on changed files
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const { data: files } = await github.rest.pulls.listFiles({
@@ -130,6 +131,7 @@ jobs:
     steps:
       - name: Check PR title
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const title = context.payload.pull_request.title;
@@ -189,6 +191,7 @@ jobs:
       - name: Check if first-time contributor
         id: check
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const creator = context.payload.pull_request.user.login;
@@ -208,6 +211,7 @@ jobs:
       - name: Welcome message
         if: steps.check.outputs.result == 'true'
         uses: actions/github-script@v7
+        continue-on-error: true
         with:
           script: |
             const message = `
