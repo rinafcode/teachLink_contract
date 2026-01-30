@@ -39,10 +39,10 @@ pub struct InsurancePool;
 #[contractimpl]
 impl InsurancePool {
     pub fn initialize(
-        env: Env,
-        admin: Address,
-        token: Address,
-        oracle: Address,
+        env: &Env,
+        admin: &Address,
+        token: &Address,
+        oracle: &Address,
         premium_amount: i128,
         payout_amount: i128,
     ) -> Result<(), InsuranceError> {

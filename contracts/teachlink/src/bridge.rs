@@ -239,7 +239,7 @@ impl Bridge {
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
         // Check timeout (7 days = 604800 seconds)
-        const TIMEOUT: u64 = 604800;
+        const TIMEOUT: u64 = 604_800;
         let elapsed = env.ledger().timestamp() - bridge_tx.timestamp;
         if elapsed < TIMEOUT {
             return Err(BridgeError::TimeoutNotReached);
