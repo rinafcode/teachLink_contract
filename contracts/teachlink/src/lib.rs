@@ -74,9 +74,9 @@ mod types;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
-    BridgeTransaction, ContentMetadata, ContentTokenParameters, ContentToken, ContentType, Contribution, ContributionType,
-    CrossChainMessage, DisputeOutcome, Escrow, EscrowParameters, EscrowStatus, ProvenanceRecord, RewardRate,
-    TransferType, UserReputation, UserReward,
+    BridgeTransaction, ContentMetadata, ContentToken, ContentTokenParameters, ContentType,
+    Contribution, ContributionType, CrossChainMessage, DisputeOutcome, Escrow, EscrowParameters,
+    EscrowStatus, ProvenanceRecord, RewardRate, TransferType, UserReputation, UserReward,
 };
 
 /// TeachLink main contract.
