@@ -17,7 +17,9 @@ TeachLink is a Soroban smart contract that powers tokenized learning rewards on 
 ## Table of Contents
 
 - Overview
+- Interactive Documentation
 - Onboarding
+- Developer Experience Toolkit
 - Architecture
 - Development Workflow
 - Contribution Guidelines
@@ -27,6 +29,19 @@ TeachLink is a Soroban smart contract that powers tokenized learning rewards on 
 ## Overview
 
 TeachLink enables tokenized learning rewards, proof-of-participation, and educator incentives. The contract is written in Rust for Soroban, Stellar's smart contract platform.
+
+## Interactive Documentation
+
+Explore the TeachLink contract interactively with live code execution, API exploration, and guided tutorials. The interactive documentation provides an engaging way to understand the contract's architecture and implementation.
+
+To run the interactive docs:
+
+```bash
+cd docs/interactive
+cargo run
+```
+
+Then open http://localhost:3000 in your browser.
 
 ## Onboarding
 
@@ -120,6 +135,141 @@ config/networks/mainnet.env
 config/networks/local.env
 ```
 
+## Developer Experience Toolkit
+
+TeachLink provides a comprehensive set of tools to streamline your development workflow, from environment setup to deployment.
+
+### Environment Validation
+
+Validate your development environment with version checks and system requirements:
+
+```bash
+./scripts/validate-env.sh
+```
+
+This enhanced validation script checks:
+- Core dependencies (Rust, Cargo, Rustup) with minimum version requirements
+- WASM target installation
+- Stellar/Soroban CLI availability
+- System resources (disk space)
+- Optional tools (Docker, Git)
+- Environment configuration (.env file)
+
+### Automated Dependency Installation
+
+Install all required dependencies automatically:
+
+```bash
+./scripts/install-deps.sh
+```
+
+This interactive script will:
+- Install Rust toolchain via rustup (if missing)
+- Add wasm32-unknown-unknown target
+- Install Stellar CLI
+- Update Rust components (rustfmt, clippy)
+- Provide Docker installation instructions
+- Check for additional development tools
+
+### Quick-Start Development Scripts
+
+#### Build Contracts
+
+Build all contracts or a specific contract:
+
+```bash
+./scripts/build.sh                    # Build all contracts (debug mode)
+./scripts/build.sh --release          # Build with optimizations
+./scripts/build.sh --contract teachlink  # Build specific contract
+./scripts/build.sh --verbose          # Verbose output
+```
+
+#### Run Tests
+
+Execute unit tests with various options:
+
+```bash
+./scripts/test.sh                     # Run all tests
+./scripts/test.sh --contract teachlink   # Test specific contract
+./scripts/test.sh --verbose           # Verbose test output
+./scripts/test.sh --nocapture         # Show println! output
+```
+
+#### Lint and Format
+
+Check and fix code style issues:
+
+```bash
+./scripts/lint.sh                     # Format code and run clippy
+./scripts/lint.sh --check             # Check formatting only
+./scripts/lint.sh --fix               # Auto-fix clippy suggestions
+```
+
+#### Clean Build Artifacts
+
+Remove build artifacts to free disk space:
+
+```bash
+./scripts/clean.sh                    # Standard clean (target dir)
+./scripts/clean.sh --deep             # Deep clean (includes cargo cache)
+```
+
+#### Complete Development Cycle
+
+Run a full development workflow (validate, build, test, lint):
+
+```bash
+./scripts/dev.sh                      # Full development cycle
+./scripts/dev.sh --release            # Full cycle with release build
+./scripts/dev.sh --skip-test          # Skip tests
+./scripts/dev.sh --watch              # Watch mode (requires cargo-watch)
+```
+
+### Docker Development Environment
+
+Work in a fully containerized environment with all dependencies pre-installed:
+
+#### Using Docker Compose (Recommended)
+
+```bash
+# Start development environment
+docker-compose up dev
+docker-compose exec dev bash
+
+# Build WASM in container
+docker-compose run --rm builder
+
+# Run tests in container
+docker-compose run --rm test
+
+# Run linter in container
+docker-compose run --rm lint
+
+# Clean up
+docker-compose down -v
+```
+
+#### Using Docker Directly
+
+```bash
+# Build development image
+docker build --target development -t teachlink-dev .
+
+# Run interactive container
+docker run -it --rm -v $(pwd):/workspace teachlink-dev
+
+# Build contracts in container
+docker run --rm -v $(pwd):/workspace teachlink-dev cargo build --release --target wasm32-unknown-unknown
+```
+
+### Developer Workflow Best Practices
+
+1. **Initial Setup**: Run `./scripts/install-deps.sh` and `./scripts/validate-env.sh`
+2. **Before Coding**: Pull latest changes and run `./scripts/dev.sh` to ensure environment works
+3. **During Development**: Use `./scripts/dev.sh --watch` for continuous feedback
+4. **Before Committing**: Run `./scripts/dev.sh --release` to catch all issues
+5. **CI/CD Integration**: Use Docker containers for consistent builds across environments
+
 ## Architecture
 
 ```
@@ -142,6 +292,20 @@ Key project paths:
 
 ## Development Workflow
 
+### Using Quick-Start Scripts (Recommended)
+
+```bash
+# Complete development cycle
+./scripts/dev.sh
+
+# Individual steps
+./scripts/build.sh --release    # Build WASM
+./scripts/test.sh               # Run tests
+./scripts/lint.sh               # Format and lint
+```
+
+### Using Cargo Directly
+
 Build the WASM:
 
 ```bash
@@ -159,6 +323,14 @@ Lint and format:
 ```bash
 cargo fmt
 cargo clippy --all-targets --all-features
+```
+
+### Using Docker
+
+```bash
+docker-compose run --rm builder  # Build WASM
+docker-compose run --rm test     # Run tests
+docker-compose run --rm lint     # Lint code
 ```
 
 ## Contribution Guidelines
@@ -202,9 +374,24 @@ fn hello_returns_input() {
 
 ## Troubleshooting
 
-Use `./scripts/setup-env.sh` as your first diagnostic. It prints missing dependencies and how to fix them.
+### First Steps
 
-Common issues:
+1. Run enhanced environment validation:
+   ```bash
+   ./scripts/validate-env.sh
+   ```
+
+2. If validation fails, try automated installation:
+   ```bash
+   ./scripts/install-deps.sh
+   ```
+
+3. For legacy validation (minimal checks):
+   ```bash
+   ./scripts/setup-env.sh
+   ```
+
+### Common Issues
 
 - `Missing command: stellar or soroban`
   - Install the CLI: `cargo install --locked stellar-cli --features opt`
