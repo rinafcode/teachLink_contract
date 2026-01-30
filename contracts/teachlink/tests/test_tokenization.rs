@@ -5,9 +5,7 @@ use soroban_sdk::{
     vec, Address, Bytes, Env,
 };
 
-use teachlink_contract::{
-    ContentType, TeachLinkBridge, TeachLinkBridgeClient, TransferType,
-};
+use teachlink_contract::{ContentType, TeachLinkBridge, TeachLinkBridgeClient, TransferType};
 
 #[test]
 fn test_mint_content_token() {
@@ -33,7 +31,11 @@ fn test_mint_content_token() {
     let description = Bytes::from_slice(&env, b"A comprehensive course on Rust programming");
     let content_hash = Bytes::from_slice(&env, b"QmHash123456789");
     let license_type = Bytes::from_slice(&env, b"MIT");
-    let tags = vec![&env, Bytes::from_slice(&env, b"rust"), Bytes::from_slice(&env, b"programming")];
+    let tags = vec![
+        &env,
+        Bytes::from_slice(&env, b"rust"),
+        Bytes::from_slice(&env, b"programming"),
+    ];
 
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
     let token_id = client.mint_content_token(
@@ -131,12 +133,7 @@ fn test_transfer_content_token() {
     });
 
     let notes = Bytes::from_slice(&env, b"Transfer to new owner");
-    client.transfer_content_token(
-        &creator,
-        &new_owner,
-        &token_id,
-        &Some(notes.clone()),
-    );
+    client.transfer_content_token(&creator, &new_owner, &token_id, &Some(notes.clone()));
 
     // Verify new ownership
     let owner = client.get_content_token_owner(&token_id).unwrap();
@@ -202,12 +199,7 @@ fn test_transfer_not_owner() {
     );
 
     // Try to transfer as non-owner (should fail)
-    client.transfer_content_token(
-        &attacker,
-        &new_owner,
-        &token_id,
-        &None,
-    );
+    client.transfer_content_token(&attacker, &new_owner, &token_id, &None);
 }
 
 #[test]
@@ -253,12 +245,7 @@ fn test_transfer_non_transferable() {
     );
 
     // Try to transfer (should fail)
-    client.transfer_content_token(
-        &creator,
-        &new_owner,
-        &token_id,
-        &None,
-    );
+    client.transfer_content_token(&creator, &new_owner, &token_id, &None);
 }
 
 #[test]
@@ -448,12 +435,7 @@ fn test_verify_provenance_chain() {
         max_entry_ttl: 2000000,
     });
 
-    client.transfer_content_token(
-        &creator,
-        &owner1,
-        &token_id,
-        &None,
-    );
+    client.transfer_content_token(&creator, &owner1, &token_id, &None);
 
     env.ledger().set(LedgerInfo {
         timestamp: 3000,
@@ -466,12 +448,7 @@ fn test_verify_provenance_chain() {
         max_entry_ttl: 2000000,
     });
 
-    client.transfer_content_token(
-        &owner1,
-        &owner2,
-        &token_id,
-        &None,
-    );
+    client.transfer_content_token(&owner1, &owner2, &token_id, &None);
 
     // Verify chain integrity
     let is_valid = client.verify_content_chain(&token_id);

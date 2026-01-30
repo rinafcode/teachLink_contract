@@ -1,8 +1,12 @@
-use soroban_sdk::{contract, contractimpl, symbol_short, testutils, Address, Bytes, Env, Map, Vec};
+use soroban_sdk::{
+    contract, contractclient, contractimpl, symbol_short, testutils::Address as _, Address, Bytes,
+    Env, Map, Vec,
+};
 
 use teachlink_contract::{DisputeOutcome, EscrowStatus, TeachLinkBridge, TeachLinkBridgeClient};
 
 #[contract]
+#[contractclient(name = "TestTokenClient")]
 pub struct TestToken;
 
 #[contractimpl]
@@ -11,53 +15,65 @@ impl TestToken {
         env.storage()
             .instance()
             .set(&symbol_short!("admin"), &admin);
+
         let balances: Map<Address, i128> = Map::new(&env);
         env.storage()
             .instance()
             .set(&symbol_short!("balances"), &balances);
     }
 
+    pub fn balance(env: Env, address: Address) -> i128 {
+        let balances: Map<Address, i128> = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("balances"))
+            .unwrap_or_else(|| Map::new(&env));
+        balances.get(address).unwrap_or(0)
+    }
+
     pub fn mint(env: Env, to: Address, amount: i128) {
-        if amount <= 0 {
-            panic!("Amount must be positive");
-        }
         let admin: Address = env
             .storage()
             .instance()
             .get(&symbol_short!("admin"))
             .unwrap();
+
         admin.require_auth();
 
-        let mut balances = Self::load_balances(&env);
-        let new_balance = balances.get(to.clone()).unwrap_or(0) + amount;
-        balances.set(to, new_balance);
+        let mut balances: Map<Address, i128> = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("balances"))
+            .unwrap_or_else(|| Map::new(&env));
+
+        let current_balance = balances.get(to.clone()).unwrap_or(0);
+        balances.set(to.clone(), current_balance + amount);
         env.storage()
             .instance()
             .set(&symbol_short!("balances"), &balances);
     }
 
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
-        if amount <= 0 {
-            panic!("Amount must be positive");
-        }
         from.require_auth();
 
-        let mut balances = Self::load_balances(&env);
+        let mut balances: Map<Address, i128> = env
+            .storage()
+            .instance()
+            .get(&symbol_short!("balances"))
+            .unwrap_or_else(|| Map::new(&env));
+
         let from_balance = balances.get(from.clone()).unwrap_or(0);
+        let to_balance = balances.get(to.clone()).unwrap_or(0);
+
         if from_balance < amount {
             panic!("Insufficient balance");
         }
-        balances.set(from.clone(), from_balance - amount);
-        let to_balance = balances.get(to.clone()).unwrap_or(0);
+
+        balances.set(from, from_balance - amount);
         balances.set(to, to_balance + amount);
         env.storage()
             .instance()
             .set(&symbol_short!("balances"), &balances);
-    }
-
-    pub fn balance(env: Env, owner: Address) -> i128 {
-        let balances = Self::load_balances(&env);
-        balances.get(owner).unwrap_or(0)
     }
 
     fn load_balances(env: &Env) -> Map<Address, i128> {
@@ -71,20 +87,22 @@ impl TestToken {
 #[test]
 fn test_escrow_release_flow() {
     let env = Env::default();
+
     let escrow_contract_id = env.register(TeachLinkBridge, ());
     let escrow_client = TeachLinkBridgeClient::new(&env, &escrow_contract_id);
 
     let token_contract_id = env.register(TestToken, ());
     let token_client = TestTokenClient::new(&env, &token_contract_id);
 
-    let token_admin = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let depositor = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let beneficiary = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let signer1 = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let signer2 = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let arbitrator = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let token_admin = Address::generate(&env);
+    let depositor = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let signer1 = Address::generate(&env);
+    let signer2 = Address::generate(&env);
+    let arbitrator = Address::generate(&env);
 
     env.mock_all_auths();
+
     token_client.initialize(&token_admin);
     token_client.mint(&depositor, &1_000);
 
@@ -121,19 +139,21 @@ fn test_escrow_release_flow() {
 #[test]
 fn test_escrow_dispute_refund() {
     let env = Env::default();
+
     let escrow_contract_id = env.register(TeachLinkBridge, ());
     let escrow_client = TeachLinkBridgeClient::new(&env, &escrow_contract_id);
 
     let token_contract_id = env.register(TestToken, ());
     let token_client = TestTokenClient::new(&env, &token_contract_id);
 
-    let token_admin = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let depositor = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let beneficiary = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let signer = <soroban_sdk::Address as testutils::Address>::generate(&env);
-    let arbitrator = <soroban_sdk::Address as testutils::Address>::generate(&env);
+    let token_admin = Address::generate(&env);
+    let depositor = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let signer = Address::generate(&env);
+    let arbitrator = Address::generate(&env);
 
     env.mock_all_auths();
+
     token_client.initialize(&token_admin);
     token_client.mint(&depositor, &800);
 
@@ -153,10 +173,13 @@ fn test_escrow_dispute_refund() {
     );
 
     let reason = Bytes::from_slice(&env, b"delay");
+
     escrow_client.dispute_escrow(&escrow_id, &beneficiary, &reason);
+
     escrow_client.resolve_escrow(&escrow_id, &arbitrator, &DisputeOutcome::RefundToDepositor);
 
     assert_eq!(token_client.balance(&depositor), 800);
+
     let escrow = escrow_client.get_escrow(&escrow_id).unwrap();
     assert_eq!(escrow.status, EscrowStatus::Refunded);
 }
