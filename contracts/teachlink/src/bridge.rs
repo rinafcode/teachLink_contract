@@ -1,5 +1,5 @@
-use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
 use crate::errors::BridgeError;
+use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
 use crate::storage::{
     ADMIN, BRIDGE_FEE, BRIDGE_TXS, FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN,
     VALIDATORS,
@@ -43,7 +43,7 @@ impl Bridge {
         // Initialize empty supported chains map
         let chains: Map<u32, bool> = Map::new(env);
         env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
-        
+
         Ok(())
     }
 
@@ -217,7 +217,7 @@ impl Bridge {
             source_chain: message.source_chain,
         }
         .publish(env);
-        
+
         Ok(())
     }
 
@@ -236,7 +236,7 @@ impl Bridge {
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
         // Check timeout (7 days = 604800 seconds)
-        const TIMEOUT: u64 = 604800;
+        const TIMEOUT: u64 = 604_800;
         let elapsed = env.ledger().timestamp() - bridge_tx.timestamp;
         if elapsed < TIMEOUT {
             return Err(BridgeError::TimeoutNotReached);
@@ -261,7 +261,7 @@ impl Bridge {
         let mut updated_txs = bridge_txs;
         updated_txs.remove(nonce);
         env.storage().instance().set(&BRIDGE_TXS, &updated_txs);
-        
+
         Ok(())
     }
 
@@ -317,7 +317,7 @@ impl Bridge {
         }
 
         env.storage().instance().set(&BRIDGE_FEE, &fee);
-        
+
         Ok(())
     }
 
@@ -341,7 +341,7 @@ impl Bridge {
         env.storage()
             .instance()
             .set(&MIN_VALIDATORS, &min_validators);
-            
+
         Ok(())
     }
 

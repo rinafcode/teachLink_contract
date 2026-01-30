@@ -28,10 +28,7 @@ use soroban_sdk::{
 pub struct Rewards;
 
 impl Rewards {
-    // ==========================
-    // Initialization
-    // ==========================
-
+    /// Initialize the rewards system
     pub fn initialize_rewards(
         env: &Env,
         token: Address,
@@ -96,18 +93,14 @@ impl Rewards {
         Ok(())
     }
 
-    // ==========================
-    // Reward Issuance
-    // ==========================
-
+    /// Issue rewards to a user
     pub fn issue_reward(
         env: &Env,
         recipient: Address,
         amount: i128,
         reward_type: String,
     ) -> Result<(), RewardsError> {
-        let rewards_admin: Address =
-            env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
         RewardsValidator::validate_reward_issuance(
@@ -235,14 +228,14 @@ impl Rewards {
     // Admin Functions
     // ==========================
 
+    /// Set reward rate for a specific reward type
     pub fn set_reward_rate(
         env: &Env,
         reward_type: String,
         rate: i128,
         enabled: bool,
     ) -> Result<(), RewardsError> {
-        let rewards_admin: Address =
-            env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
         if rate < 0 {
@@ -265,6 +258,7 @@ impl Rewards {
         );
 
         env.storage().instance().set(&REWARD_RATES, &reward_rates);
+
         Ok(())
     }
 

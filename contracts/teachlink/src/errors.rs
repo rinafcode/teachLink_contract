@@ -68,13 +68,17 @@ pub enum CommonError {
 }
 
 /// Result type alias for bridge operations
+#[allow(dead_code)]
 pub type BridgeResult<T> = core::result::Result<T, BridgeError>;
 
 /// Result type alias for escrow operations
+#[allow(dead_code)]
 pub type EscrowResult<T> = core::result::Result<T, EscrowError>;
 
 /// Result type alias for rewards operations
+#[allow(dead_code)]
 pub type RewardsResult<T> = core::result::Result<T, RewardsError>;
 
 /// Result type alias for common operations
+#[allow(dead_code)]
 pub type CommonResult<T> = core::result::Result<T, CommonError>;

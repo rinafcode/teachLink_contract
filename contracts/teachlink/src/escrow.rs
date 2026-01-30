@@ -169,6 +169,7 @@ impl EscrowManager {
         }
 
         let refund_time = escrow.refund_time.ok_or(EscrowError::RefundNotEnabled)?;
+
         let now = env.ledger().timestamp();
 
         if now < refund_time {
@@ -221,7 +222,7 @@ impl EscrowManager {
         );
 
         escrow.status = EscrowStatus::Cancelled;
-        Self::save_escrow(env, escrow_id, escrow);
+        Self::save_escrow(env, escrow_id, escrow.clone());
 
         Ok(())
     }
@@ -348,9 +349,8 @@ impl EscrowManager {
     }
 
     fn load_escrow(env: &Env, escrow_id: u64) -> Result<Escrow, EscrowError> {
-        Self::load_escrows(env)
-            .get(escrow_id)
-            .ok_or(EscrowError::EscrowNotFound)
+        let escrows = Self::load_escrows(env);
+        escrows.get(escrow_id).ok_or(EscrowError::EscrowNotFound)
     }
 
     fn save_escrow(env: &Env, escrow_id: u64, escrow: Escrow) {
