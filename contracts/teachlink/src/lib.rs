@@ -71,6 +71,7 @@ mod score;
 mod storage;
 mod tokenization;
 mod types;
+mod validation;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{

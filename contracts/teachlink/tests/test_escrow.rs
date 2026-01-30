@@ -71,6 +71,7 @@ impl TestToken {
 
         balances.set(from, from_balance - amount);
         balances.set(to, to_balance + amount);
+
         env.storage()
             .instance()
             .set(&symbol_short!("balances"), &balances);
@@ -83,6 +84,12 @@ impl TestToken {
             .unwrap_or_else(|| Map::new(env))
     }
 }
+
+//
+// ==========================
+// Escrow Tests
+// ==========================
+//
 
 #[test]
 fn test_escrow_release_flow() {

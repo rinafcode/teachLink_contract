@@ -1,10 +1,29 @@
 use crate::errors::RewardsError;
-use crate::events::{RewardClaimedEvent, RewardIssuedEvent, RewardPoolFundedEvent};
+use crate::events::{
+    RewardClaimedEvent,
+    RewardIssuedEvent,
+    RewardPoolFundedEvent,
+};
 use crate::storage::{
-    REWARDS_ADMIN, REWARD_POOL, REWARD_RATES, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS,
+    REWARDS_ADMIN,
+    REWARD_POOL,
+    REWARD_RATES,
+    TOKEN,
+    TOTAL_REWARDS_ISSUED,
+    USER_REWARDS,
 };
 use crate::types::{RewardRate, UserReward};
-use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, String};
+use crate::validation::RewardsValidator;
+
+use soroban_sdk::{
+    symbol_short,
+    vec,
+    Address,
+    Env,
+    IntoVal,
+    Map,
+    String,
+};
 
 pub struct Rewards;
 
@@ -33,13 +52,18 @@ impl Rewards {
         Ok(())
     }
 
-    /// Fund the reward pool
-    pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
+    // ==========================
+    // Pool Management
+    // ==========================
+
+    pub fn fund_reward_pool(
+        env: &Env,
+        funder: Address,
+        amount: i128,
+    ) -> Result<(), RewardsError> {
         funder.require_auth();
 
-        if amount <= 0 {
-            return Err(RewardsError::AmountMustBePositive);
-        }
+        RewardsValidator::validate_pool_funding(env, &funder, amount)?;
 
         let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
@@ -54,7 +78,8 @@ impl Rewards {
             ],
         );
 
-        let mut pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
+        let mut pool_balance: i128 =
+            env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
         pool_balance += amount;
         env.storage().instance().set(&REWARD_POOL, &pool_balance);
 
@@ -78,11 +103,15 @@ impl Rewards {
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
-        if amount <= 0 {
-            return Err(RewardsError::AmountMustBePositive);
-        }
+        RewardsValidator::validate_reward_issuance(
+            env,
+            &recipient,
+            amount,
+            &reward_type,
+        )?;
 
-        let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
+        let pool_balance: i128 =
+            env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
         if pool_balance < amount {
             return Err(RewardsError::InsufficientRewardPoolBalance);
         }
@@ -93,13 +122,15 @@ impl Rewards {
             .get(&USER_REWARDS)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut user_reward = user_rewards.get(recipient.clone()).unwrap_or(UserReward {
-            user: recipient.clone(),
-            total_earned: 0,
-            claimed: 0,
-            pending: 0,
-            last_claim_timestamp: 0,
-        });
+        let mut user_reward = user_rewards.get(recipient.clone()).unwrap_or(
+            UserReward {
+                user: recipient.clone(),
+                total_earned: 0,
+                claimed: 0,
+                pending: 0,
+                last_claim_timestamp: 0,
+            },
+        );
 
         user_reward.total_earned += amount;
         user_reward.pending += amount;
@@ -111,7 +142,7 @@ impl Rewards {
             .storage()
             .instance()
             .get(&TOTAL_REWARDS_ISSUED)
-            .unwrap_or(0i128);
+            .unwrap_or(0);
         total_issued += amount;
         env.storage()
             .instance()
@@ -128,8 +159,14 @@ impl Rewards {
         Ok(())
     }
 
-    /// Claim pending rewards
-    pub fn claim_rewards(env: &Env, user: Address) -> Result<(), RewardsError> {
+    // ==========================
+    // Claiming
+    // ==========================
+
+    pub fn claim_rewards(
+        env: &Env,
+        user: Address,
+    ) -> Result<(), RewardsError> {
         user.require_auth();
 
         let mut user_rewards: Map<Address, UserReward> = env
@@ -148,7 +185,8 @@ impl Rewards {
 
         let amount_to_claim = user_reward.pending;
 
-        let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
+        let pool_balance: i128 =
+            env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
         if pool_balance < amount_to_claim {
             return Err(RewardsError::InsufficientRewardPoolBalance);
         }
@@ -173,9 +211,8 @@ impl Rewards {
         user_rewards.set(user.clone(), user_reward);
         env.storage().instance().set(&USER_REWARDS, &user_rewards);
 
-        let mut pool_balance = pool_balance;
-        pool_balance -= amount_to_claim;
-        env.storage().instance().set(&REWARD_POOL, &pool_balance);
+        let new_pool_balance = pool_balance - amount_to_claim;
+        env.storage().instance().set(&REWARD_POOL, &new_pool_balance);
 
         RewardClaimedEvent {
             user,
@@ -187,7 +224,9 @@ impl Rewards {
         Ok(())
     }
 
-    // ========== Admin Functions ==========
+    // ==========================
+    // Admin Functions
+    // ==========================
 
     /// Set reward rate for a specific reward type
     pub fn set_reward_rate(
@@ -209,30 +248,36 @@ impl Rewards {
             .get(&REWARD_RATES)
             .unwrap_or_else(|| Map::new(env));
 
-        let reward_rate = RewardRate {
-            reward_type: reward_type.clone(),
-            rate,
-            enabled,
-        };
+        reward_rates.set(
+            reward_type.clone(),
+            RewardRate {
+                reward_type,
+                rate,
+                enabled,
+            },
+        );
 
-        reward_rates.set(reward_type, reward_rate);
         env.storage().instance().set(&REWARD_RATES, &reward_rates);
 
         Ok(())
     }
 
-    /// Update rewards admin
     pub fn update_rewards_admin(env: &Env, new_admin: Address) {
-        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+        let rewards_admin: Address =
+            env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
         env.storage().instance().set(&REWARDS_ADMIN, &new_admin);
     }
 
-    // ========== View Functions ==========
+    // ==========================
+    // View Functions
+    // ==========================
 
-    /// Get user reward information
-    pub fn get_user_rewards(env: &Env, user: Address) -> Option<UserReward> {
+    pub fn get_user_rewards(
+        env: &Env,
+        user: Address,
+    ) -> Option<UserReward> {
         let user_rewards: Map<Address, UserReward> = env
             .storage()
             .instance()
@@ -241,21 +286,21 @@ impl Rewards {
         user_rewards.get(user)
     }
 
-    /// Get reward pool balance
     pub fn get_reward_pool_balance(env: &Env) -> i128 {
-        env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128)
+        env.storage().instance().get(&REWARD_POOL).unwrap_or(0)
     }
 
-    /// Get total rewards issued
     pub fn get_total_rewards_issued(env: &Env) -> i128 {
         env.storage()
             .instance()
             .get(&TOTAL_REWARDS_ISSUED)
-            .unwrap_or(0i128)
+            .unwrap_or(0)
     }
 
-    /// Get reward rate for a specific type
-    pub fn get_reward_rate(env: &Env, reward_type: String) -> Option<RewardRate> {
+    pub fn get_reward_rate(
+        env: &Env,
+        reward_type: String,
+    ) -> Option<RewardRate> {
         let reward_rates: Map<String, RewardRate> = env
             .storage()
             .instance()
@@ -264,7 +309,6 @@ impl Rewards {
         reward_rates.get(reward_type)
     }
 
-    /// Get rewards admin address
     pub fn get_rewards_admin(env: &Env) -> Address {
         env.storage().instance().get(&REWARDS_ADMIN).unwrap()
     }
