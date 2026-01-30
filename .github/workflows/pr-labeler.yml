@@ -7,10 +7,13 @@ on:
 permissions:
   contents: read
   pull-requests: write
+  issues: write
+  actions: read  # Add this for better token access
 
 jobs:
   label:
     runs-on: ubuntu-latest
+    # if: false  # Temporarily disabled to fix CI
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -78,19 +81,52 @@ jobs:
               labels.add('size: xl');
             }
             
-            // Apply labels
+            // Apply labels with error handling
             if (labels.size > 0) {
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                labels: Array.from(labels)
-              });
+              try {
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  labels: Array.from(labels)
+                });
+              } catch (error) {
+                console.log('Failed to add labels:', error.message);
+                // Try to create labels that don't exist
+                for (const label of labels) {
+                  try {
+                    await github.rest.issues.createLabel({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      name: label,
+                      color: '0366d6'
+                    });
+                  } catch (labelError) {
+                    console.log(`Label ${label} already exists or failed to create:`, labelError.message);
+                  }
+                }
+                
+                // Try adding labels again
+                try {
+                  await github.rest.issues.addLabels({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: context.issue.number,
+                    labels: Array.from(labels)
+                  });
+                } catch (retryError) {
+                  console.log('Failed to add labels after creation:', retryError.message);
+                }
+              }
             }
 
   # Check PR title format
   title-check:
     runs-on: ubuntu-latest
+    # if: false  # Temporarily disabled to fix CI
+    permissions:
+      pull-requests: write
+      issues: write
     steps:
       - name: Check PR title
         uses: actions/github-script@v7
@@ -123,21 +159,25 @@ jobs:
               `;
               
               // Check if we already commented about this
-              const { data: comments } = await github.rest.issues.listComments({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number
-              });
-              
-              const hasWarning = comments.some(c => c.body.includes('PR Title Format'));
-              
-              if (!hasWarning) {
-                await github.rest.issues.createComment({
+              try {
+                const { data: comments } = await github.rest.issues.listComments({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
-                  issue_number: context.issue.number,
-                  body: body
+                  issue_number: context.issue.number
                 });
+                
+                const hasWarning = comments.some(c => c.body.includes('PR Title Format'));
+                
+                if (!hasWarning) {
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: context.issue.number,
+                    body: body
+                  });
+                }
+              } catch (error) {
+                console.log('Failed to check/create title format comment:', error.message);
               }
             }
 

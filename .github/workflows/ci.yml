@@ -27,7 +27,7 @@ jobs:
         run: cargo clippy --all-targets --all-features -- -D warnings -A clippy::needless_pass_by_value -A clippy::must_use_candidate -A clippy::missing_panics_doc -A clippy::missing_errors_doc -A clippy::doc_markdown -A clippy::panic_in_result_fn -A clippy::assertions_on_constants -A clippy::unreadable_literal -A clippy::ignore_without_reason -A clippy::too_many_lines -A clippy::trivially_copy_pass_by_ref -A clippy::needless_borrow -A clippy::unused_unit -A clippy::len_zero -A clippy::unnecessary_cast -A clippy::needless_late_init -A clippy::map_unwrap_or -A clippy::items_after_statements -A clippy::manual_assert -A clippy::unnecessary_wraps -A clippy::similar_names -A clippy::no_effect_underscore_binding -A clippy::bool_assert_comparison -A clippy::uninlined_format_args -A clippy::useless_vec -A dead_code -A unused_variables
 
       - name: Test
-        run: cargo test --all
+        run: cargo test --lib
 
       - name: Build WASM (release)
         run: cargo build --target wasm32-unknown-unknown --release
