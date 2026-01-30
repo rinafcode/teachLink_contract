@@ -10,7 +10,11 @@ pub struct Rewards;
 
 impl Rewards {
     /// Initialize the rewards system
-    pub fn initialize_rewards(env: &Env, token: Address, rewards_admin: Address) -> Result<(), RewardsError> {
+    pub fn initialize_rewards(
+        env: &Env,
+        token: Address,
+        rewards_admin: Address,
+    ) -> Result<(), RewardsError> {
         if env.storage().instance().has(&REWARDS_ADMIN) {
             return Err(RewardsError::AlreadyInitialized);
         }
@@ -25,7 +29,7 @@ impl Rewards {
 
         let user_rewards: Map<Address, UserReward> = Map::new(env);
         env.storage().instance().set(&USER_REWARDS, &user_rewards);
-        
+
         Ok(())
     }
 
@@ -60,11 +64,11 @@ impl Rewards {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
-        
+
         Ok(())
     }
 
-        /// Issue rewards to a user
+    /// Issue rewards to a user
     pub fn issue_reward(
         env: &Env,
         recipient: Address,
@@ -124,7 +128,6 @@ impl Rewards {
         Ok(())
     }
 
-
     /// Claim pending rewards
     pub fn claim_rewards(env: &Env, user: Address) -> Result<(), RewardsError> {
         user.require_auth();
@@ -180,14 +183,19 @@ impl Rewards {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
-        
+
         Ok(())
     }
 
     // ========== Admin Functions ==========
 
     /// Set reward rate for a specific reward type
-    pub fn set_reward_rate(env: &Env, reward_type: String, rate: i128, enabled: bool) -> Result<(), RewardsError> {
+    pub fn set_reward_rate(
+        env: &Env,
+        reward_type: String,
+        rate: i128,
+        enabled: bool,
+    ) -> Result<(), RewardsError> {
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
@@ -209,7 +217,7 @@ impl Rewards {
 
         reward_rates.set(reward_type, reward_rate);
         env.storage().instance().set(&REWARD_RATES, &reward_rates);
-        
+
         Ok(())
     }
 

@@ -1,14 +1,8 @@
 use soroban_sdk::contractevent;
 
 use crate::types::{
-    BridgeTransaction,
-    ContentMetadata,
-    ContributionType,
-    CrossChainMessage,
-    DisputeOutcome,
-    Escrow,
-    EscrowStatus,
-    ProvenanceRecord,
+    BridgeTransaction, ContentMetadata, ContributionType, CrossChainMessage, DisputeOutcome,
+    Escrow, EscrowStatus, ProvenanceRecord,
 };
 
 use soroban_sdk::{Address, Bytes, String};

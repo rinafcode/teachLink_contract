@@ -53,8 +53,12 @@ impl InsurancePool {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Oracle, &oracle);
-        env.storage().instance().set(&DataKey::PremiumAmount, &premium_amount);
-        env.storage().instance().set(&DataKey::PayoutAmount, &payout_amount);
+        env.storage()
+            .instance()
+            .set(&DataKey::PremiumAmount, &premium_amount);
+        env.storage()
+            .instance()
+            .set(&DataKey::PayoutAmount, &payout_amount);
         env.storage().instance().set(&DataKey::ClaimCount, &0u64);
 
         Ok(())
@@ -63,8 +67,16 @@ impl InsurancePool {
     pub fn pay_premium(env: Env, user: Address) {
         user.require_auth();
 
-        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
-        let premium_amount = env.storage().instance().get::<_, i128>(&DataKey::PremiumAmount).unwrap();
+        let token_addr = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Token)
+            .unwrap();
+        let premium_amount = env
+            .storage()
+            .instance()
+            .get::<_, i128>(&DataKey::PremiumAmount)
+            .unwrap();
 
         let client = token::Client::new(&env, &token_addr);
         client.transfer(&user, &env.current_contract_address(), &premium_amount);
@@ -74,11 +86,7 @@ impl InsurancePool {
             .set(&DataKey::IsInsured(user), &true);
     }
 
-    pub fn file_claim(
-        env: Env,
-        user: Address,
-        course_id: u64,
-    ) -> Result<u64, InsuranceError> {
+    pub fn file_claim(env: Env, user: Address, course_id: u64) -> Result<u64, InsuranceError> {
         user.require_auth();
 
         let insured = env
@@ -91,7 +99,11 @@ impl InsurancePool {
             return Err(InsuranceError::UserNotInsured);
         }
 
-        let mut claim_count = env.storage().instance().get::<_, u64>(&DataKey::ClaimCount).unwrap();
+        let mut claim_count = env
+            .storage()
+            .instance()
+            .get::<_, u64>(&DataKey::ClaimCount)
+            .unwrap();
         claim_count += 1;
 
         let claim = Claim {
@@ -100,18 +112,22 @@ impl InsurancePool {
             status: ClaimStatus::Pending,
         };
 
-        env.storage().instance().set(&DataKey::Claim(claim_count), &claim);
-        env.storage().instance().set(&DataKey::ClaimCount, &claim_count);
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_count), &claim);
+        env.storage()
+            .instance()
+            .set(&DataKey::ClaimCount, &claim_count);
 
         Ok(claim_count)
     }
 
-    pub fn process_claim(
-        env: Env,
-        claim_id: u64,
-        result: bool,
-    ) -> Result<(), InsuranceError> {
-        let oracle = env.storage().instance().get::<_, Address>(&DataKey::Oracle).unwrap();
+    pub fn process_claim(env: Env, claim_id: u64, result: bool) -> Result<(), InsuranceError> {
+        let oracle = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Oracle)
+            .unwrap();
         oracle.require_auth();
 
         let mut claim = env
@@ -130,7 +146,9 @@ impl InsurancePool {
             ClaimStatus::Rejected
         };
 
-        env.storage().instance().set(&DataKey::Claim(claim_id), &claim);
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
         Ok(())
     }
 
@@ -145,26 +163,46 @@ impl InsurancePool {
             return Err(InsuranceError::ClaimNotVerified);
         }
 
-        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
-        let payout_amount = env.storage().instance().get::<_, i128>(&DataKey::PayoutAmount).unwrap();
+        let token_addr = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Token)
+            .unwrap();
+        let payout_amount = env
+            .storage()
+            .instance()
+            .get::<_, i128>(&DataKey::PayoutAmount)
+            .unwrap();
 
         let client = token::Client::new(&env, &token_addr);
         client.transfer(&env.current_contract_address(), &claim.user, &payout_amount);
 
         claim.status = ClaimStatus::Paid;
-        env.storage().instance().set(&DataKey::Claim(claim_id), &claim);
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_id), &claim);
 
         // One premium = one claim
-        env.storage().instance().remove(&DataKey::IsInsured(claim.user));
+        env.storage()
+            .instance()
+            .remove(&DataKey::IsInsured(claim.user));
 
         Ok(())
     }
 
     pub fn withdraw(env: Env, amount: i128) {
-        let admin = env.storage().instance().get::<_, Address>(&DataKey::Admin).unwrap();
+        let admin = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Admin)
+            .unwrap();
         admin.require_auth();
 
-        let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
+        let token_addr = env
+            .storage()
+            .instance()
+            .get::<_, Address>(&DataKey::Token)
+            .unwrap();
         let client = token::Client::new(&env, &token_addr);
 
         client.transfer(&env.current_contract_address(), &admin, &amount);

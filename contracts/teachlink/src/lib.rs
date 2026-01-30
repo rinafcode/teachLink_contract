@@ -61,8 +61,8 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 
 mod bridge;
-mod escrow;
 mod errors;
+mod escrow;
 mod events;
 mod provenance;
 mod reputation;
@@ -72,12 +72,12 @@ mod storage;
 mod tokenization;
 mod types;
 
+pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
     BridgeTransaction, ContentMetadata, ContentToken, ContentType, Contribution, ContributionType,
     CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate,
     TransferType, UserReputation, UserReward,
 };
-pub use errors::{BridgeError, EscrowError, RewardsError};
 
 /// TeachLink main contract.
 ///
@@ -196,7 +196,11 @@ impl TeachLinkBridge {
     // ========== Rewards Functions ==========
 
     /// Initialize the rewards system
-    pub fn initialize_rewards(env: Env, token: Address, rewards_admin: Address) -> Result<(), RewardsError> {
+    pub fn initialize_rewards(
+        env: Env,
+        token: Address,
+        rewards_admin: Address,
+    ) -> Result<(), RewardsError> {
         rewards::Rewards::initialize_rewards(&env, token, rewards_admin)
     }
 
@@ -206,7 +210,12 @@ impl TeachLinkBridge {
     }
 
     /// Issue rewards to a user
-    pub fn issue_reward(env: Env, recipient: Address, amount: i128, reward_type: String) -> Result<(), RewardsError> {
+    pub fn issue_reward(
+        env: Env,
+        recipient: Address,
+        amount: i128,
+        reward_type: String,
+    ) -> Result<(), RewardsError> {
         rewards::Rewards::issue_reward(&env, recipient, amount, reward_type)
     }
 
@@ -216,7 +225,12 @@ impl TeachLinkBridge {
     }
 
     /// Set reward rate for a specific reward type (admin only)
-    pub fn set_reward_rate(env: Env, reward_type: String, rate: i128, enabled: bool) -> Result<(), RewardsError> {
+    pub fn set_reward_rate(
+        env: Env,
+        reward_type: String,
+        rate: i128,
+        enabled: bool,
+    ) -> Result<(), RewardsError> {
         rewards::Rewards::set_reward_rate(&env, reward_type, rate, enabled)
     }
 
@@ -280,7 +294,11 @@ impl TeachLinkBridge {
     }
 
     /// Approve escrow release (multi-signature)
-    pub fn approve_escrow_release(env: Env, escrow_id: u64, signer: Address) -> Result<u32, EscrowError> {
+    pub fn approve_escrow_release(
+        env: Env,
+        escrow_id: u64,
+        signer: Address,
+    ) -> Result<u32, EscrowError> {
         escrow::EscrowManager::approve_release(&env, escrow_id, signer)
     }
 
@@ -300,12 +318,22 @@ impl TeachLinkBridge {
     }
 
     /// Raise a dispute on the escrow
-    pub fn dispute_escrow(env: Env, escrow_id: u64, disputer: Address, reason: Bytes) -> Result<(), EscrowError> {
+    pub fn dispute_escrow(
+        env: Env,
+        escrow_id: u64,
+        disputer: Address,
+        reason: Bytes,
+    ) -> Result<(), EscrowError> {
         escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
     }
 
     /// Resolve a dispute as the arbitrator
-    pub fn resolve_escrow(env: Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) -> Result<(), EscrowError> {
+    pub fn resolve_escrow(
+        env: Env,
+        escrow_id: u64,
+        arbitrator: Address,
+        outcome: DisputeOutcome,
+    ) -> Result<(), EscrowError> {
         escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
     }
 

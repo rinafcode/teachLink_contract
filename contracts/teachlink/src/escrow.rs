@@ -156,7 +156,7 @@ impl EscrowManager {
             amount: escrow.amount,
         }
         .publish(env);
-        
+
         Ok(())
     }
 
@@ -191,7 +191,6 @@ impl EscrowManager {
         Ok(())
     }
 
-
     pub fn cancel(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
 
@@ -209,11 +208,16 @@ impl EscrowManager {
         Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
         escrow.status = EscrowStatus::Cancelled;
         Self::save_escrow(env, escrow_id, escrow.clone());
-        
+
         Ok(())
     }
 
-    pub fn dispute(env: &Env, escrow_id: u64, disputer: Address, reason: Bytes) -> Result<(), EscrowError> {
+    pub fn dispute(
+        env: &Env,
+        escrow_id: u64,
+        disputer: Address,
+        reason: Bytes,
+    ) -> Result<(), EscrowError> {
         disputer.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -233,11 +237,16 @@ impl EscrowManager {
             reason,
         }
         .publish(env);
-        
+
         Ok(())
     }
 
-    pub fn resolve(env: &Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) -> Result<(), EscrowError> {
+    pub fn resolve(
+        env: &Env,
+        escrow_id: u64,
+        arbitrator: Address,
+        outcome: DisputeOutcome,
+    ) -> Result<(), EscrowError> {
         arbitrator.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -274,7 +283,7 @@ impl EscrowManager {
             status: new_status,
         }
         .publish(env);
-        
+
         Ok(())
     }
 
@@ -335,9 +344,7 @@ impl EscrowManager {
 
     fn load_escrow(env: &Env, escrow_id: u64) -> Result<Escrow, EscrowError> {
         let escrows = Self::load_escrows(env);
-        escrows
-            .get(escrow_id)
-            .ok_or(EscrowError::EscrowNotFound)
+        escrows.get(escrow_id).ok_or(EscrowError::EscrowNotFound)
     }
 
     fn save_escrow(env: &Env, escrow_id: u64, escrow: Escrow) {
