@@ -1,8 +1,3 @@
-//! Insurance Pool Contract
-//!
-//! This contract implements a decentralized insurance pool that protects learners
-//! against course completion failures on the TeachLink platform.
-
 #![no_std]
 
 use crate::errors::InsuranceError;
@@ -10,7 +5,6 @@ use soroban_sdk::{
     contract, contractimpl, contracttype, token, Address, Env,
 };
 
-/// Storage keys for the insurance pool contract.
 #[contracttype]
 #[derive(Clone)]
 pub enum DataKey {
@@ -24,7 +18,6 @@ pub enum DataKey {
     IsInsured(Address),
 }
 
-/// Status of an insurance claim.
 #[contracttype]
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ClaimStatus {
@@ -34,7 +27,6 @@ pub enum ClaimStatus {
     Paid,
 }
 
-/// Insurance claim record.
 #[contracttype]
 #[derive(Clone)]
 pub struct Claim {
@@ -48,12 +40,11 @@ pub struct InsurancePool;
 
 #[contractimpl]
 impl InsurancePool {
-    /// Initialize the insurance pool.
     pub fn initialize(
-        env: Env,
-        admin: Address,
-        token: Address,
-        oracle: Address,
+        env: &Env,
+        admin: &Address,
+        token: &Address,
+        oracle: &Address,
         premium_amount: i128,
         payout_amount: i128,
     ) -> Result<(), InsuranceError> {
@@ -71,8 +62,7 @@ impl InsurancePool {
         Ok(())
     }
 
-    /// Pay premium to become insured.
-    pub fn pay_premium(env: Env, user: Address) -> Result<(), InsuranceError> {
+    pub fn pay_premium(env: Env, user: Address) {
         user.require_auth();
 
         let token_addr = env
@@ -85,7 +75,7 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, i128>(&DataKey::PremiumAmount)
-            .ok_or(InsuranceError::NotInitialized)?;
+            .unwrap();
 
         let client = token::Client::new(&env, &token_addr);
         client.transfer(&user, &env.current_contract_address(), &premium_amount);
@@ -93,16 +83,9 @@ impl InsurancePool {
         env.storage()
             .instance()
             .set(&DataKey::IsInsured(user), &true);
-
-        Ok(())
     }
 
-    /// File an insurance claim.
-    pub fn file_claim(
-        env: Env,
-        user: Address,
-        course_id: u64,
-    ) -> Result<u64, InsuranceError> {
+    pub fn file_claim(env: Env, user: Address, course_id: u64) -> Result<u64, InsuranceError> {
         user.require_auth();
 
         let insured = env
@@ -139,18 +122,12 @@ impl InsurancePool {
         Ok(claim_count)
     }
 
-    /// Oracle verifies or rejects a claim.
-    pub fn process_claim(
-        env: Env,
-        claim_id: u64,
-        approved: bool,
-    ) -> Result<(), InsuranceError> {
+    pub fn process_claim(env: Env, claim_id: u64, result: bool) -> Result<(), InsuranceError> {
         let oracle = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Oracle)
-            .ok_or(InsuranceError::NotInitialized)?;
-
+            .unwrap();
         oracle.require_auth();
 
         let mut claim = env
@@ -163,7 +140,7 @@ impl InsurancePool {
             return Err(InsuranceError::ClaimAlreadyProcessed);
         }
 
-        claim.status = if approved {
+        claim.status = if result {
             ClaimStatus::Verified
         } else {
             ClaimStatus::Rejected
@@ -172,11 +149,9 @@ impl InsurancePool {
         env.storage()
             .instance()
             .set(&DataKey::Claim(claim_id), &claim);
-
         Ok(())
     }
 
-    /// Pay out a verified claim.
     pub fn payout(env: Env, claim_id: u64) -> Result<(), InsuranceError> {
         let mut claim = env
             .storage()
@@ -198,14 +173,10 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, i128>(&DataKey::PayoutAmount)
-            .ok_or(InsuranceError::NotInitialized)?;
+            .unwrap();
 
         let client = token::Client::new(&env, &token_addr);
-        client.transfer(
-            &env.current_contract_address(),
-            &claim.user,
-            &payout_amount,
-        );
+        client.transfer(&env.current_contract_address(), &claim.user, &payout_amount);
 
         claim.status = ClaimStatus::Paid;
 
@@ -221,8 +192,7 @@ impl InsurancePool {
         Ok(())
     }
 
-    /// Admin withdraws pool funds.
-    pub fn withdraw(env: Env, amount: i128) -> Result<(), InsuranceError> {
+    pub fn withdraw(env: Env, amount: i128) {
         let admin = env
             .storage()
             .instance()
@@ -243,7 +213,7 @@ impl InsurancePool {
         Ok(())
     }
 
-    // -------- View Functions --------
+    // ===== View Functions =====
 
     pub fn get_claim(env: Env, claim_id: u64) -> Option<Claim> {
         env.storage().instance().get(&DataKey::Claim(claim_id))

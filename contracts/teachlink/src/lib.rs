@@ -61,8 +61,8 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 
 mod bridge;
-mod escrow;
 mod errors;
+mod escrow;
 mod events;
 mod provenance;
 mod reputation;
@@ -73,12 +73,12 @@ mod tokenization;
 mod types;
 mod validation;
 
-pub use types::{
-    BridgeTransaction, ContentMetadata, ContentToken, ContentType, Contribution, ContributionType,
-    CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate,
-    TransferType, UserReputation, UserReward,
-};
 pub use errors::{BridgeError, EscrowError, RewardsError};
+pub use types::{
+    BridgeTransaction, ContentMetadata, ContentToken, ContentTokenParameters, ContentType,
+    Contribution, ContributionType, CrossChainMessage, DisputeOutcome, Escrow, EscrowParameters,
+    EscrowStatus, ProvenanceRecord, RewardRate, TransferType, UserReputation, UserReward,
+};
 
 /// TeachLink main contract.
 ///
@@ -197,7 +197,11 @@ impl TeachLinkBridge {
     // ========== Rewards Functions ==========
 
     /// Initialize the rewards system
-    pub fn initialize_rewards(env: Env, token: Address, rewards_admin: Address) -> Result<(), RewardsError> {
+    pub fn initialize_rewards(
+        env: Env,
+        token: Address,
+        rewards_admin: Address,
+    ) -> Result<(), RewardsError> {
         rewards::Rewards::initialize_rewards(&env, token, rewards_admin)
     }
 
@@ -207,7 +211,12 @@ impl TeachLinkBridge {
     }
 
     /// Issue rewards to a user
-    pub fn issue_reward(env: Env, recipient: Address, amount: i128, reward_type: String) -> Result<(), RewardsError> {
+    pub fn issue_reward(
+        env: Env,
+        recipient: Address,
+        amount: i128,
+        reward_type: String,
+    ) -> Result<(), RewardsError> {
         rewards::Rewards::issue_reward(&env, recipient, amount, reward_type)
     }
 
@@ -217,7 +226,12 @@ impl TeachLinkBridge {
     }
 
     /// Set reward rate for a specific reward type (admin only)
-    pub fn set_reward_rate(env: Env, reward_type: String, rate: i128, enabled: bool) -> Result<(), RewardsError> {
+    pub fn set_reward_rate(
+        env: Env,
+        reward_type: String,
+        rate: i128,
+        enabled: bool,
+    ) -> Result<(), RewardsError> {
         rewards::Rewards::set_reward_rate(&env, reward_type, rate, enabled)
     }
 
@@ -254,34 +268,27 @@ impl TeachLinkBridge {
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow
-    pub fn create_escrow(
-        env: Env,
-        depositor: Address,
-        beneficiary: Address,
-        token: Address,
-        amount: i128,
-        signers: Vec<Address>,
-        threshold: u32,
-        release_time: Option<u64>,
-        refund_time: Option<u64>,
-        arbitrator: Address,
-    ) -> Result<u64, EscrowError> {
+    pub fn create_escrow(env: Env, params: EscrowParameters) -> Result<u64, EscrowError> {
         escrow::EscrowManager::create_escrow(
             &env,
-            depositor,
-            beneficiary,
-            token,
-            amount,
-            signers,
-            threshold,
-            release_time,
-            refund_time,
-            arbitrator,
+            params.depositor,
+            params.beneficiary,
+            params.token,
+            params.amount,
+            params.signers,
+            params.threshold,
+            params.release_time,
+            params.refund_time,
+            params.arbitrator,
         )
     }
 
     /// Approve escrow release (multi-signature)
-    pub fn approve_escrow_release(env: Env, escrow_id: u64, signer: Address) -> Result<u32, EscrowError> {
+    pub fn approve_escrow_release(
+        env: Env,
+        escrow_id: u64,
+        signer: Address,
+    ) -> Result<u32, EscrowError> {
         escrow::EscrowManager::approve_release(&env, escrow_id, signer)
     }
 
@@ -301,12 +308,22 @@ impl TeachLinkBridge {
     }
 
     /// Raise a dispute on the escrow
-    pub fn dispute_escrow(env: Env, escrow_id: u64, disputer: Address, reason: Bytes) -> Result<(), EscrowError> {
+    pub fn dispute_escrow(
+        env: Env,
+        escrow_id: u64,
+        disputer: Address,
+        reason: Bytes,
+    ) -> Result<(), EscrowError> {
         escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
     }
 
     /// Resolve a dispute as the arbitrator
-    pub fn resolve_escrow(env: Env, escrow_id: u64, arbitrator: Address, outcome: DisputeOutcome) -> Result<(), EscrowError> {
+    pub fn resolve_escrow(
+        env: Env,
+        escrow_id: u64,
+        arbitrator: Address,
+        outcome: DisputeOutcome,
+    ) -> Result<(), EscrowError> {
         escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
     }
 
@@ -384,34 +401,20 @@ impl TeachLinkBridge {
     // ========== Content Tokenization Functions ==========
 
     /// Mint a new educational content token
-    pub fn mint_content_token(
-        env: Env,
-        creator: Address,
-        title: Bytes,
-        description: Bytes,
-        content_type: ContentType,
-        content_hash: Bytes,
-        license_type: Bytes,
-        tags: Vec<Bytes>,
-        is_transferable: bool,
-        royalty_percentage: u32,
-    ) -> u64 {
+    pub fn mint_content_token(env: Env, params: ContentTokenParameters) -> u64 {
         let token_id = tokenization::ContentTokenization::mint(
             &env,
-            creator.clone(),
-            title,
-            description,
-            content_type,
-            content_hash,
-            license_type,
-            tags,
-            is_transferable,
-            royalty_percentage,
+            params.creator.clone(),
+            params.title,
+            params.description,
+            params.content_type,
+            params.content_hash,
+            params.license_type,
+            params.tags,
+            params.is_transferable,
+            params.royalty_percentage,
         );
-
-        // Record mint in provenance
-        provenance::ProvenanceTracker::record_mint(&env, token_id, creator, None);
-
+        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
         token_id
     }
 
@@ -488,22 +491,26 @@ impl TeachLinkBridge {
     }
 
     /// Get the number of transfers for a content token
-    pub fn get_content_transfer_count(env: Env, token_id: u64) -> u32 {
-        provenance::ProvenanceTracker::get_transfer_count(&env, token_id)
+    #[must_use]
+    pub fn get_content_transfer_count(env: &Env, token_id: u64) -> u32 {
+        provenance::ProvenanceTracker::get_transfer_count(env, token_id)
     }
 
     /// Verify ownership chain integrity for a content token
-    pub fn verify_content_chain(env: Env, token_id: u64) -> bool {
-        provenance::ProvenanceTracker::verify_chain(&env, token_id)
+    #[must_use]
+    pub fn verify_content_chain(env: &Env, token_id: u64) -> bool {
+        provenance::ProvenanceTracker::verify_chain(env, token_id)
     }
 
-    /// Get the original creator of a content token
-    pub fn get_content_creator(env: Env, token_id: u64) -> Option<Address> {
-        provenance::ProvenanceTracker::get_creator(&env, token_id)
+    /// Get the creator of a content token
+    #[must_use]
+    pub fn get_content_creator(env: &Env, token_id: u64) -> Option<Address> {
+        tokenization::ContentTokenization::get_creator(env, token_id)
     }
 
-    /// Get all addresses that have owned a content token
-    pub fn get_content_all_owners(env: Env, token_id: u64) -> Vec<Address> {
-        provenance::ProvenanceTracker::get_all_owners(&env, token_id)
+    /// Get all owners of a content token
+    #[must_use]
+    pub fn get_content_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
+        tokenization::ContentTokenization::get_all_owners(env, token_id)
     }
 }

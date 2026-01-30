@@ -1,22 +1,42 @@
 //! TeachLink Contract Types
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
-//!
-//! Categories:
-//! - Bridge
-//! - Rewards
-//! - Escrow
-//! - Credit Score / Contributions
-//! - Reputation
-//! - Content Tokenization
 
 use soroban_sdk::{contracttype, Address, Bytes, String, Vec};
 
-//
-// ==========================
-// Bridge Types
-// ==========================
-//
+// ========== Content Tokenization Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContentTokenParameters {
+    pub creator: Address,
+    pub title: Bytes,
+    pub description: Bytes,
+    pub content_type: ContentType,
+    pub content_hash: Bytes,
+    pub license_type: Bytes,
+    pub tags: Vec<Bytes>,
+    pub is_transferable: bool,
+    pub royalty_percentage: u32,
+}
+
+// ========== Escrow Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EscrowParameters {
+    pub depositor: Address,
+    pub beneficiary: Address,
+    pub token: Address,
+    pub amount: i128,
+    pub signers: Vec<Address>,
+    pub threshold: u32,
+    pub release_time: Option<u64>,
+    pub refund_time: Option<u64>,
+    pub arbitrator: Address,
+}
+
+// ========== Bridge Types ==========
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -66,11 +86,7 @@ pub struct RewardRate {
     pub enabled: bool,
 }
 
-//
-// ==========================
-// Escrow Types
-// ==========================
-//
+// ========== Escrow Types ==========
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]

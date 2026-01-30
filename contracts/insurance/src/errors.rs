@@ -12,4 +12,5 @@ pub enum InsuranceError {
 }
 
 /// Result type alias for insurance operations
+#[allow(dead_code)]
 pub type InsuranceResult<T> = core::result::Result<T, InsuranceError>;
