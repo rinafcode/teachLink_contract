@@ -154,8 +154,29 @@ impl StringValidator {
         let string_bytes = string.to_bytes();
         for byte in string_bytes.iter() {
             let char = byte as char;
-            if !char.is_alphanumeric() && !char.is_whitespace() && 
-               !matches!(char, '-' | '_' | '.' | ',' | '!' | '?' | '@' | '#' | '$' | '%' | '&' | '*' | '+' | '=' | ':' | ';' | '/' | '\\') {
+            if !char.is_alphanumeric()
+                && !char.is_whitespace()
+                && !matches!(
+                    char,
+                    '-' | '_'
+                        | '.'
+                        | ','
+                        | '!'
+                        | '?'
+                        | '@'
+                        | '#'
+                        | '$'
+                        | '%'
+                        | '&'
+                        | '*'
+                        | '+'
+                        | '='
+                        | ':'
+                        | ';'
+                        | '/'
+                        | '\\'
+                )
+            {
                 return Err(ValidationError::InvalidStringLength);
             }
         }
@@ -245,14 +266,12 @@ impl EscrowValidator {
             .map_err(|_| EscrowError::AmountMustBePositive)?;
         AddressValidator::validate(env, beneficiary)
             .map_err(|_| EscrowError::AmountMustBePositive)?;
-        AddressValidator::validate(env, token)
-            .map_err(|_| EscrowError::AmountMustBePositive)?;
+        AddressValidator::validate(env, token).map_err(|_| EscrowError::AmountMustBePositive)?;
         AddressValidator::validate(env, arbitrator)
             .map_err(|_| EscrowError::AmountMustBePositive)?;
 
         // Validate amount
-        NumberValidator::validate_amount(amount)
-            .map_err(|_| EscrowError::AmountMustBePositive)?;
+        NumberValidator::validate_amount(amount).map_err(|_| EscrowError::AmountMustBePositive)?;
 
         // Validate signers
         NumberValidator::validate_signer_count(signers.len() as usize)
@@ -317,14 +336,14 @@ impl EscrowValidator {
         if caller.clone() == escrow.depositor || caller.clone() == escrow.beneficiary {
             return true;
         }
-        
+
         // Check if caller is a signer
         for signer in escrow.signers.iter() {
             if signer.clone() == caller.clone() {
                 return true;
             }
         }
-        
+
         false
     }
 }
@@ -375,7 +394,8 @@ impl BridgeValidator {
             message.destination_chain,
             message.amount,
             &message.recipient,
-        ).map_err(|_| crate::errors::BridgeError::TokenMismatch)?;
+        )
+        .map_err(|_| crate::errors::BridgeError::TokenMismatch)?;
 
         Ok(())
     }
@@ -415,7 +435,7 @@ impl RewardsValidator {
     ) -> Result<(), crate::errors::RewardsError> {
         AddressValidator::validate(env, funder)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
-        
+
         NumberValidator::validate_amount(amount)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 

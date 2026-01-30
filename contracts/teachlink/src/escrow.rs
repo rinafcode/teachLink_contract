@@ -49,8 +49,7 @@ impl EscrowManager {
             ],
         );
 
-        let mut escrow_count: u64 =
-            env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0);
+        let mut escrow_count: u64 = env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0);
         escrow_count += 1;
         env.storage().instance().set(&ESCROW_COUNT, &escrow_count);
 
@@ -81,11 +80,7 @@ impl EscrowManager {
         Ok(escrow_count)
     }
 
-    pub fn approve_release(
-        env: &Env,
-        escrow_id: u64,
-        signer: Address,
-    ) -> Result<u32, EscrowError> {
+    pub fn approve_release(env: &Env, escrow_id: u64, signer: Address) -> Result<u32, EscrowError> {
         signer.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -119,27 +114,14 @@ impl EscrowManager {
         Ok(escrow.approval_count)
     }
 
-    pub fn release(
-        env: &Env,
-        escrow_id: u64,
-        caller: Address,
-    ) -> Result<(), EscrowError> {
+    pub fn release(env: &Env, escrow_id: u64, caller: Address) -> Result<(), EscrowError> {
         caller.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
 
-        EscrowValidator::validate_release_conditions(
-            &escrow,
-            &caller,
-            env.ledger().timestamp(),
-        )?;
+        EscrowValidator::validate_release_conditions(&escrow, &caller, env.ledger().timestamp())?;
 
-        Self::transfer_from_contract(
-            env,
-            &escrow.token,
-            &escrow.beneficiary,
-            escrow.amount,
-        );
+        Self::transfer_from_contract(env, &escrow.token, &escrow.beneficiary, escrow.amount);
 
         escrow.status = EscrowStatus::Released;
         Self::save_escrow(env, escrow_id, escrow.clone());
@@ -154,11 +136,7 @@ impl EscrowManager {
         Ok(())
     }
 
-    pub fn refund(
-        env: &Env,
-        escrow_id: u64,
-        depositor: Address,
-    ) -> Result<(), EscrowError> {
+    pub fn refund(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -176,12 +154,7 @@ impl EscrowManager {
             return Err(EscrowError::RefundTimeNotReached);
         }
 
-        Self::transfer_from_contract(
-            env,
-            &escrow.token,
-            &escrow.depositor,
-            escrow.amount,
-        );
+        Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
 
         escrow.status = EscrowStatus::Refunded;
         Self::save_escrow(env, escrow_id, escrow.clone());
@@ -196,11 +169,7 @@ impl EscrowManager {
         Ok(())
     }
 
-    pub fn cancel(
-        env: &Env,
-        escrow_id: u64,
-        depositor: Address,
-    ) -> Result<(), EscrowError> {
+    pub fn cancel(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -214,12 +183,7 @@ impl EscrowManager {
             return Err(EscrowError::CannotCancelAfterApprovals);
         }
 
-        Self::transfer_from_contract(
-            env,
-            &escrow.token,
-            &escrow.depositor,
-            escrow.amount,
-        );
+        Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
 
         escrow.status = EscrowStatus::Cancelled;
         Self::save_escrow(env, escrow_id, escrow.clone());
@@ -285,12 +249,7 @@ impl EscrowManager {
                 EscrowStatus::Released
             }
             DisputeOutcome::RefundToDepositor => {
-                Self::transfer_from_contract(
-                    env,
-                    &escrow.token,
-                    &escrow.depositor,
-                    escrow.amount,
-                );
+                Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
                 EscrowStatus::Refunded
             }
         };
@@ -359,12 +318,7 @@ impl EscrowManager {
         env.storage().instance().set(&ESCROWS, &escrows);
     }
 
-    fn transfer_from_contract(
-        env: &Env,
-        token: &Address,
-        to: &Address,
-        amount: i128,
-    ) {
+    fn transfer_from_contract(env: &Env, token: &Address, to: &Address, amount: i128) {
         env.invoke_contract::<()>(
             token,
             &symbol_short!("transfer"),
