@@ -5,6 +5,7 @@ use crate::storage::{
     VALIDATORS,
 };
 use crate::types::{BridgeTransaction, CrossChainMessage};
+use crate::validation::BridgeValidator;
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, Vec};
 
 pub struct Bridge;
@@ -59,10 +60,14 @@ impl Bridge {
     ) -> Result<u64, BridgeError> {
         from.require_auth();
 
-        // Validate inputs
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        // Validate all input parameters
+        BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            amount,
+            destination_chain,
+            &destination_address,
+        )?;
 
         // Check if destination chain is supported
         let supported_chains: Map<u32, bool> = env
@@ -161,11 +166,14 @@ impl Bridge {
         message: CrossChainMessage,
         validator_signatures: Vec<Address>,
     ) -> Result<(), BridgeError> {
-        // Validate that we have enough validator signatures
+        // Validate all input parameters
         let min_validators: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
-        if (validator_signatures.len() as u32) < min_validators {
-            return Err(BridgeError::InsufficientValidatorSignatures);
-        }
+        BridgeValidator::validate_bridge_completion(
+            &env,
+            &message,
+            &validator_signatures,
+            min_validators,
+        )?;
 
         // Verify all signatures are from valid validators
         let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();

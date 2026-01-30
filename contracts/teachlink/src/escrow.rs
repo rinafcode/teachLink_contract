@@ -5,6 +5,7 @@ use crate::events::{
 };
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowStatus};
+use crate::validation::EscrowValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 pub struct EscrowManager;
@@ -24,32 +25,18 @@ impl EscrowManager {
     ) -> Result<u64, EscrowError> {
         depositor.require_auth();
 
-        if amount <= 0 {
-            return Err(EscrowError::AmountMustBePositive);
-        }
-
-        if signers.len() == 0 {
-            return Err(EscrowError::AtLeastOneSignerRequired);
-        }
-
-        if threshold == 0 || threshold > signers.len() as u32 {
-            return Err(EscrowError::InvalidSignerThreshold);
-        }
-
-        let now = env.ledger().timestamp();
-        if let Some(refund_time) = refund_time {
-            if refund_time < now {
-                return Err(EscrowError::RefundTimeMustBeInFuture);
-            }
-        }
-
-        if let (Some(release), Some(refund)) = (release_time, refund_time) {
-            if refund < release {
-                return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
-            }
-        }
-
-        Self::ensure_unique_signers(env, &signers)?;
+        EscrowValidator::validate_create_escrow(
+            env,
+            &depositor,
+            &beneficiary,
+            &token,
+            amount,
+            &signers,
+            threshold,
+            release_time,
+            refund_time,
+            &arbitrator,
+        )?;
 
         env.invoke_contract::<()>(
             &token,
@@ -62,10 +49,11 @@ impl EscrowManager {
             ],
         );
 
-        let mut escrow_count: u64 = env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0u64);
+        let mut escrow_count: u64 = env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0);
         escrow_count += 1;
         env.storage().instance().set(&ESCROW_COUNT, &escrow_count);
 
+        let now = env.ledger().timestamp();
         let escrow = Escrow {
             id: escrow_count,
             depositor,
@@ -106,6 +94,7 @@ impl EscrowManager {
             escrow_id,
             signer: signer.clone(),
         };
+
         if env.storage().persistent().has(&approval_key) {
             return Err(EscrowError::SignerAlreadyApproved);
         }
@@ -129,24 +118,11 @@ impl EscrowManager {
         caller.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
-        Self::ensure_pending(&escrow)?;
 
-        if !Self::is_release_caller(&escrow, &caller) {
-            return Err(EscrowError::CallerNotAuthorized);
-        }
-
-        if escrow.approval_count < escrow.threshold {
-            return Err(EscrowError::InsufficientApprovals);
-        }
-
-        if let Some(release_time) = escrow.release_time {
-            let now = env.ledger().timestamp();
-            if now < release_time {
-                return Err(EscrowError::ReleaseTimeNotReached);
-            }
-        }
+        EscrowValidator::validate_release_conditions(&escrow, &caller, env.ledger().timestamp())?;
 
         Self::transfer_from_contract(env, &escrow.token, &escrow.beneficiary, escrow.amount);
+
         escrow.status = EscrowStatus::Released;
         Self::save_escrow(env, escrow_id, escrow.clone());
 
@@ -173,11 +149,13 @@ impl EscrowManager {
         let refund_time = escrow.refund_time.ok_or(EscrowError::RefundNotEnabled)?;
 
         let now = env.ledger().timestamp();
+
         if now < refund_time {
             return Err(EscrowError::RefundTimeNotReached);
         }
 
         Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
+
         escrow.status = EscrowStatus::Refunded;
         Self::save_escrow(env, escrow_id, escrow.clone());
 
@@ -206,6 +184,7 @@ impl EscrowManager {
         }
 
         Self::transfer_from_contract(env, &escrow.token, &escrow.depositor, escrow.amount);
+
         escrow.status = EscrowStatus::Cancelled;
         Self::save_escrow(env, escrow_id, escrow.clone());
 
@@ -250,6 +229,7 @@ impl EscrowManager {
         arbitrator.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
+
         if escrow.status != EscrowStatus::Disputed {
             return Err(EscrowError::EscrowNotInDispute);
         }
@@ -287,45 +267,30 @@ impl EscrowManager {
         Ok(())
     }
 
+    // ---------- Views ----------
+
     pub fn get_escrow(env: &Env, escrow_id: u64) -> Option<Escrow> {
-        let escrows = Self::load_escrows(env);
-        escrows.get(escrow_id)
+        Self::load_escrows(env).get(escrow_id)
     }
 
     pub fn get_escrow_count(env: &Env) -> u64 {
-        env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0u64)
+        env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0)
     }
 
     pub fn has_approved(env: &Env, escrow_id: u64, signer: Address) -> bool {
-        let approval_key = EscrowApprovalKey { escrow_id, signer };
-        env.storage().persistent().has(&approval_key)
+        let key = EscrowApprovalKey { escrow_id, signer };
+        env.storage().persistent().has(&key)
     }
 
-    fn ensure_unique_signers(env: &Env, signers: &Vec<Address>) -> Result<(), EscrowError> {
-        let mut seen: Map<Address, bool> = Map::new(env);
-        for signer in signers.iter() {
-            if seen.get(signer.clone()).unwrap_or(false) {
-                return Err(EscrowError::DuplicateSigner);
-            }
-            seen.set(signer.clone(), true);
-        }
-        Ok(())
-    }
+    // ---------- Internal Helpers ----------
 
     fn is_signer(signers: &Vec<Address>, signer: &Address) -> bool {
-        for candidate in signers.iter() {
-            if candidate == *signer {
+        for s in signers.iter() {
+            if s == *signer {
                 return true;
             }
         }
         false
-    }
-
-    fn is_release_caller(escrow: &Escrow, caller: &Address) -> bool {
-        if *caller == escrow.depositor || *caller == escrow.beneficiary {
-            return true;
-        }
-        Self::is_signer(&escrow.signers, caller)
     }
 
     fn ensure_pending(escrow: &Escrow) -> Result<(), EscrowError> {
