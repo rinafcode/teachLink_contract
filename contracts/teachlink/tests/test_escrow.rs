@@ -32,7 +32,7 @@ impl TestToken {
     }
 
     pub fn mint(env: Env, to: Address, amount: i128) {
-        let admin = env
+        let admin: Address = env
             .storage()
             .instance()
             .get(&symbol_short!("admin"))
@@ -46,8 +46,8 @@ impl TestToken {
             .get(&symbol_short!("balances"))
             .unwrap_or_else(|| Map::new(&env));
 
-        let current_balance = balances.get(to).unwrap_or(0);
-        balances.set(to, current_balance + amount);
+                let current_balance = balances.get(to.clone()).unwrap_or(0);
+        balances.set(to.clone(), current_balance + amount);
         env.storage()
             .instance()
             .set(&symbol_short!("balances"), &balances);
@@ -62,8 +62,8 @@ impl TestToken {
             .get(&symbol_short!("balances"))
             .unwrap_or_else(|| Map::new(&env));
 
-        let from_balance = balances.get(from).unwrap_or(0);
-        let to_balance = balances.get(to).unwrap_or(0);
+        let from_balance = balances.get(from.clone()).unwrap_or(0);
+        let to_balance = balances.get(to.clone()).unwrap_or(0);
 
         if from_balance < amount {
             panic!("Insufficient balance");
