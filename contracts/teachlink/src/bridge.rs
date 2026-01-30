@@ -391,4 +391,9 @@ impl Bridge {
     pub fn get_token(env: &Env) -> Address {
         env.storage().instance().get(&TOKEN).unwrap()
     }
+
+    /// Get the admin address
+    pub fn get_admin(env: &Env) -> Address {
+        env.storage().instance().get(&ADMIN).unwrap()
+    }
 }
