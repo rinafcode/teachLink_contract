@@ -1,3 +1,4 @@
+use crate::errors::RewardsError;
 use crate::events::{RewardClaimedEvent, RewardIssuedEvent, RewardPoolFundedEvent};
 use crate::storage::{
     REWARDS_ADMIN, REWARD_POOL, REWARD_RATES, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS,
@@ -9,9 +10,13 @@ pub struct Rewards;
 
 impl Rewards {
     /// Initialize the rewards system
-    pub fn initialize_rewards(env: &Env, token: Address, rewards_admin: Address) {
+    pub fn initialize_rewards(
+        env: &Env,
+        token: Address,
+        rewards_admin: Address,
+    ) -> Result<(), RewardsError> {
         if env.storage().instance().has(&REWARDS_ADMIN) {
-            panic!("Rewards already initialized");
+            return Err(RewardsError::AlreadyInitialized);
         }
 
         env.storage().instance().set(&TOKEN, &token);
@@ -24,14 +29,16 @@ impl Rewards {
 
         let user_rewards: Map<Address, UserReward> = Map::new(env);
         env.storage().instance().set(&USER_REWARDS, &user_rewards);
+
+        Ok(())
     }
 
     /// Fund the reward pool
-    pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) {
+    pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
         funder.require_auth();
 
         if amount <= 0 {
-            panic!("Amount must be positive");
+            return Err(RewardsError::AmountMustBePositive);
         }
 
         let token: Address = env.storage().instance().get(&TOKEN).unwrap();
@@ -57,20 +64,27 @@ impl Rewards {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
+
+        Ok(())
     }
 
     /// Issue rewards to a user
-    pub fn issue_reward(env: &Env, recipient: Address, amount: i128, reward_type: String) {
+    pub fn issue_reward(
+        env: &Env,
+        recipient: Address,
+        amount: i128,
+        reward_type: String,
+    ) -> Result<(), RewardsError> {
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
         if amount <= 0 {
-            panic!("Amount must be positive");
+            return Err(RewardsError::AmountMustBePositive);
         }
 
         let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         if pool_balance < amount {
-            panic!("Insufficient reward pool balance");
+            return Err(RewardsError::InsufficientRewardPoolBalance);
         }
 
         let mut user_rewards: Map<Address, UserReward> = env
@@ -110,10 +124,12 @@ impl Rewards {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
+
+        Ok(())
     }
 
     /// Claim pending rewards
-    pub fn claim_rewards(env: &Env, user: Address) {
+    pub fn claim_rewards(env: &Env, user: Address) -> Result<(), RewardsError> {
         user.require_auth();
 
         let mut user_rewards: Map<Address, UserReward> = env
@@ -124,17 +140,17 @@ impl Rewards {
 
         let mut user_reward = user_rewards
             .get(user.clone())
-            .unwrap_or_else(|| panic!("No rewards available"));
+            .ok_or(RewardsError::NoRewardsAvailable)?;
 
         if user_reward.pending <= 0 {
-            panic!("No pending rewards");
+            return Err(RewardsError::NoPendingRewards);
         }
 
         let amount_to_claim = user_reward.pending;
 
         let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         if pool_balance < amount_to_claim {
-            panic!("Insufficient reward pool balance");
+            return Err(RewardsError::InsufficientRewardPoolBalance);
         }
 
         let token: Address = env.storage().instance().get(&TOKEN).unwrap();
@@ -167,17 +183,24 @@ impl Rewards {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
+
+        Ok(())
     }
 
     // ========== Admin Functions ==========
 
     /// Set reward rate for a specific reward type
-    pub fn set_reward_rate(env: &Env, reward_type: String, rate: i128, enabled: bool) {
+    pub fn set_reward_rate(
+        env: &Env,
+        reward_type: String,
+        rate: i128,
+        enabled: bool,
+    ) -> Result<(), RewardsError> {
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
         if rate < 0 {
-            panic!("Rate cannot be negative");
+            return Err(RewardsError::RateCannotBeNegative);
         }
 
         let mut reward_rates: Map<String, RewardRate> = env
@@ -194,6 +217,8 @@ impl Rewards {
 
         reward_rates.set(reward_type, reward_rate);
         env.storage().instance().set(&REWARD_RATES, &reward_rates);
+
+        Ok(())
     }
 
     /// Update rewards admin

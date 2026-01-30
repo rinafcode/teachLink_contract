@@ -17,12 +17,9 @@ impl ProvenanceTracker {
         notes: Option<Bytes>,
     ) {
         let timestamp = env.ledger().timestamp();
-        
+
         // Get transaction hash (using ledger sequence as a proxy)
-        let tx_hash = Bytes::from_slice(
-            env,
-            &env.ledger().sequence().to_be_bytes(),
-        );
+        let tx_hash = Bytes::from_slice(env, &env.ledger().sequence().to_be_bytes());
 
         let record = ProvenanceRecord {
             token_id,
@@ -50,20 +47,11 @@ impl ProvenanceTracker {
             .set(&(PROVENANCE, token_id), &history);
 
         // Emit event
-        ProvenanceRecordedEvent {
-            token_id,
-            record,
-        }
-        .publish(env);
+        ProvenanceRecordedEvent { token_id, record }.publish(env);
     }
 
     /// Record initial mint in provenance
-    pub fn record_mint(
-        env: &Env,
-        token_id: u64,
-        creator: Address,
-        notes: Option<Bytes>,
-    ) {
+    pub fn record_mint(env: &Env, token_id: u64, creator: Address, notes: Option<Bytes>) {
         Self::record_transfer(
             env,
             token_id,
@@ -91,7 +79,7 @@ impl ProvenanceTracker {
     /// Verify ownership chain integrity
     pub fn verify_chain(env: &Env, token_id: u64) -> bool {
         let history = Self::get_provenance(env, token_id);
-        
+
         if history.len() == 0 {
             return false;
         }
