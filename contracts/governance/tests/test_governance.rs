@@ -39,7 +39,7 @@ fn setup_governance() -> (
     // Initialize token
     let name = String::from_str(&env, "Governance Token");
     let symbol = String::from_str(&env, "GOV");
-    token_client.initialize(&admin, &name, &symbol, &18);
+    token_client.initialize_token(&admin, &name, &symbol, &18);
 
     // Mint tokens
     token_client.mint(&voter1, &1000);
@@ -119,6 +119,7 @@ fn test_governance_setup_flow() {
     let name = String::from_str(&env, "Test Token");
     let symbol = String::from_str(&env, "TST");
     token_client.initialize(&admin, &name, &symbol, &18);
+    token_client.initialize_token(&admin, &name, &symbol, &18);
 
     // Initialize governance with token
     governance_client.initialize(&token_id, &admin, &100, &500, &3600, &60);
