@@ -1,7 +1,9 @@
 #![no_std]
 
 use crate::errors::InsuranceError;
-use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, token, Address, Env,
+};
 
 #[contracttype]
 #[derive(Clone)]
@@ -53,12 +55,8 @@ impl InsurancePool {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Oracle, &oracle);
-        env.storage()
-            .instance()
-            .set(&DataKey::PremiumAmount, &premium_amount);
-        env.storage()
-            .instance()
-            .set(&DataKey::PayoutAmount, &payout_amount);
+        env.storage().instance().set(&DataKey::PremiumAmount, &premium_amount);
+        env.storage().instance().set(&DataKey::PayoutAmount, &payout_amount);
         env.storage().instance().set(&DataKey::ClaimCount, &0u64);
 
         Ok(())
@@ -71,7 +69,8 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
+            .ok_or(InsuranceError::NotInitialized)?;
+
         let premium_amount = env
             .storage()
             .instance()
@@ -103,11 +102,12 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, u64>(&DataKey::ClaimCount)
-            .unwrap();
+            .unwrap_or(0);
+
         claim_count += 1;
 
         let claim = Claim {
-            user: user.clone(),
+            user,
             course_id,
             status: ClaimStatus::Pending,
         };
@@ -167,7 +167,8 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
+            .ok_or(InsuranceError::NotInitialized)?;
+
         let payout_amount = env
             .storage()
             .instance()
@@ -178,6 +179,7 @@ impl InsurancePool {
         client.transfer(&env.current_contract_address(), &claim.user, &payout_amount);
 
         claim.status = ClaimStatus::Paid;
+
         env.storage()
             .instance()
             .set(&DataKey::Claim(claim_id), &claim);
@@ -195,17 +197,20 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Admin)
-            .unwrap();
+            .ok_or(InsuranceError::NotInitialized)?;
+
         admin.require_auth();
 
         let token_addr = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
-        let client = token::Client::new(&env, &token_addr);
+            .ok_or(InsuranceError::NotInitialized)?;
 
+        let client = token::Client::new(&env, &token_addr);
         client.transfer(&env.current_contract_address(), &admin, &amount);
+
+        Ok(())
     }
 
     // ===== View Functions =====
