@@ -23,9 +23,10 @@ pub struct MockToken;
 impl MockToken {
     /// Initialize the mock token
     pub fn init_token(env: Env, admin: Address, name: String, symbol: String, decimals: u32) {
-        if env.storage().instance().has(&TokenDataKey::Admin) {
-            panic!("Already initialized");
-        }
+        assert!(
+            !env.storage().instance().has(&TokenDataKey::Admin),
+            "Already initialized"
+        );
 
         env.storage().instance().set(&TokenDataKey::Admin, &admin);
         env.storage().instance().set(&TokenDataKey::Name, &name);
@@ -45,9 +46,7 @@ impl MockToken {
 
     /// Mint tokens to an address (admin only)
     pub fn mint(env: Env, to: Address, amount: i128) {
-        if amount <= 0 {
-            panic!("Amount must be positive");
-        }
+        assert!(amount > 0, "Amount must be positive");
 
         let admin: Address = env
             .storage()
@@ -75,16 +74,12 @@ impl MockToken {
 
     /// Burn tokens from an address
     pub fn burn(env: Env, from: Address, amount: i128) {
-        if amount <= 0 {
-            panic!("Amount must be positive");
-        }
+        assert!(amount > 0, "Amount must be positive");
         from.require_auth();
 
         let mut balances = Self::load_balances(&env);
         let from_balance = balances.get(from.clone()).unwrap_or(0);
-        if from_balance < amount {
-            panic!("Insufficient balance");
-        }
+        assert!(from_balance >= amount, "Insufficient balance");
 
         balances.set(from, from_balance - amount);
         env.storage()
@@ -103,16 +98,12 @@ impl MockToken {
 
     /// Transfer tokens from one address to another
     pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
-        if amount <= 0 {
-            panic!("Amount must be positive");
-        }
+        assert!(amount > 0, "Amount must be positive");
         from.require_auth();
 
         let mut balances = Self::load_balances(&env);
         let from_balance = balances.get(from.clone()).unwrap_or(0);
-        if from_balance < amount {
-            panic!("Insufficient balance");
-        }
+        assert!(from_balance >= amount, "Insufficient balance");
 
         balances.set(from.clone(), from_balance - amount);
         let to_balance = balances.get(to.clone()).unwrap_or(0);

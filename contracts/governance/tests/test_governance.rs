@@ -3,6 +3,10 @@
 #![allow(clippy::unreadable_literal)]
 #![allow(clippy::too_many_lines)]
 #![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(clippy::no_effect_underscore_binding)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::uninlined_format_args)]
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _, LedgerInfo},
@@ -188,7 +192,7 @@ fn test_bytes_creation() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "ledger setup is tested implicitly in other tests"]
 fn test_ledger_info_setup() {
     let env = Env::default();
 

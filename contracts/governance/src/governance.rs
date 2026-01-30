@@ -78,18 +78,21 @@ impl Governance {
         voting_period: u64,
         execution_delay: u64,
     ) {
-        if env.storage().instance().has(&CONFIG) {
-            panic!("ERR_ALREADY_INITIALIZED: Contract is already initialized");
-        }
+        assert!(
+            !env.storage().instance().has(&CONFIG),
+            "ERR_ALREADY_INITIALIZED: Contract is already initialized"
+        );
 
         // Validate configuration parameters
-        if proposal_threshold < 0 || quorum < 0 {
-            panic!("ERR_INVALID_CONFIG: Governance parameters must not be negative");
-        }
+        assert!(
+            proposal_threshold >= 0 && quorum >= 0,
+            "ERR_INVALID_CONFIG: Governance parameters must not be negative"
+        );
 
-        if voting_period == 0 {
-            panic!("ERR_INVALID_CONFIG: Voting period must be greater than 0");
-        }
+        assert!(
+            voting_period != 0,
+            "ERR_INVALID_CONFIG: Voting period must be greater than 0"
+        );
 
         let config = GovernanceConfig {
             token,
@@ -179,22 +182,25 @@ impl Governance {
         proposer.require_auth();
 
         // Validate input parameters
-        if title.len() == 0 {
-            panic!("ERR_EMPTY_TITLE: Proposal title cannot be empty");
-        }
+        assert!(
+            !title.is_empty(),
+            "ERR_EMPTY_TITLE: Proposal title cannot be empty"
+        );
 
-        if description.len() == 0 {
-            panic!("ERR_EMPTY_DESCRIPTION: Proposal description cannot be empty");
-        }
+        assert!(
+            !description.is_empty(),
+            "ERR_EMPTY_DESCRIPTION: Proposal description cannot be empty"
+        );
 
         let config = Self::get_config(env);
 
         // Check proposer has enough tokens
         let token_client = token::Client::new(env, &config.token);
         let balance = token_client.balance(&proposer);
-        if balance < config.proposal_threshold {
-            panic!("ERR_INSUFFICIENT_BALANCE: Proposer balance below threshold");
-        }
+        assert!(
+            balance >= config.proposal_threshold,
+            "ERR_INSUFFICIENT_BALANCE: Proposer balance below threshold"
+        );
 
         // Generate proposal ID
         let mut proposal_count: u64 = env.storage().instance().get(&PROPOSAL_COUNT).unwrap_or(0);
@@ -278,31 +284,32 @@ impl Governance {
             .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
         // Check proposal is active
-        if proposal.status != ProposalStatus::Active {
-            panic!("ERR_INVALID_STATUS: Proposal is not in active status");
-        }
+        assert!(
+            proposal.status == ProposalStatus::Active,
+            "ERR_INVALID_STATUS: Proposal is not in active status"
+        );
 
         // Check voting period
         let now = env.ledger().timestamp();
-        if now < proposal.voting_start || now > proposal.voting_end {
-            panic!("ERR_VOTING_PERIOD_INACTIVE: Voting period is not active");
-        }
+        assert!(
+            now >= proposal.voting_start && now <= proposal.voting_end,
+            "ERR_VOTING_PERIOD_INACTIVE: Voting period is not active"
+        );
 
         // Check if already voted
         let vote_key = VoteKey {
             proposal_id,
             voter: voter.clone(),
         };
-        if env.storage().persistent().has(&(VOTES, vote_key.clone())) {
-            panic!("ERR_ALREADY_VOTED: Address has already voted on this proposal");
-        }
+        assert!(
+            !env.storage().persistent().has(&(VOTES, vote_key.clone())),
+            "ERR_ALREADY_VOTED: Address has already voted on this proposal"
+        );
 
         // Get voting power (token balance)
         let token_client = token::Client::new(env, &config.token);
         let power = token_client.balance(&voter);
-        if power <= 0 {
-            panic!("ERR_NO_VOTING_POWER: Address has no voting power");
-        }
+        assert!(power > 0, "ERR_NO_VOTING_POWER: Address has no voting power");
 
         // Record vote
         let vote = Vote {
@@ -357,15 +364,17 @@ impl Governance {
             .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
         // Check proposal is still active
-        if proposal.status != ProposalStatus::Active {
-            panic!("ERR_INVALID_STATUS: Proposal is not in active status");
-        }
+        assert!(
+            proposal.status == ProposalStatus::Active,
+            "ERR_INVALID_STATUS: Proposal is not in active status"
+        );
 
         // Check voting period has ended
         let now = env.ledger().timestamp();
-        if now <= proposal.voting_end {
-            panic!("ERR_VOTING_PERIOD_ACTIVE: Voting period has not ended yet");
-        }
+        assert!(
+            now > proposal.voting_end,
+            "ERR_VOTING_PERIOD_ACTIVE: Voting period has not ended yet"
+        );
 
         let old_status = proposal.status.clone();
 
@@ -418,15 +427,17 @@ impl Governance {
             .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
         // Check proposal has passed
-        if proposal.status != ProposalStatus::Passed {
-            panic!("ERR_INVALID_STATUS: Proposal has not passed");
-        }
+        assert!(
+            proposal.status == ProposalStatus::Passed,
+            "ERR_INVALID_STATUS: Proposal has not passed"
+        );
 
         // Check execution delay has passed
         let now = env.ledger().timestamp();
-        if now < proposal.voting_end + config.execution_delay {
-            panic!("ERR_EXECUTION_DELAY_NOT_MET: Execution delay period has not passed");
-        }
+        assert!(
+            now >= proposal.voting_end + config.execution_delay,
+            "ERR_EXECUTION_DELAY_NOT_MET: Execution delay period has not passed"
+        );
 
         let old_status = proposal.status.clone();
         proposal.status = ProposalStatus::Executed;
@@ -477,18 +488,21 @@ impl Governance {
         let now = env.ledger().timestamp();
         let voting_ended = now > proposal.voting_end;
 
-        if !is_admin && !is_proposer {
-            panic!("ERR_UNAUTHORIZED: Only proposer or admin can cancel");
-        }
+        assert!(
+            is_admin || is_proposer,
+            "ERR_UNAUTHORIZED: Only proposer or admin can cancel"
+        );
 
-        if !is_admin && voting_ended {
-            panic!("ERR_VOTING_ENDED: Proposer can only cancel during voting period");
-        }
+        assert!(
+            is_admin || !voting_ended,
+            "ERR_VOTING_ENDED: Proposer can only cancel during voting period"
+        );
 
         // Cannot cancel executed proposals
-        if proposal.status == ProposalStatus::Executed {
-            panic!("ERR_INVALID_STATUS: Cannot cancel executed proposal");
-        }
+        assert!(
+            proposal.status != ProposalStatus::Executed,
+            "ERR_INVALID_STATUS: Cannot cancel executed proposal"
+        );
 
         let old_status = proposal.status.clone();
         proposal.status = ProposalStatus::Cancelled;
@@ -533,23 +547,23 @@ impl Governance {
 
         // Validate parameters if provided
         if let Some(threshold) = new_proposal_threshold {
-            if threshold < 0 {
-                panic!("ERR_INVALID_CONFIG: Proposal threshold must not be negative");
-            }
+            assert!(
+                threshold >= 0,
+                "ERR_INVALID_CONFIG: Proposal threshold must not be negative"
+            );
             config.proposal_threshold = threshold;
         }
 
         if let Some(quorum) = new_quorum {
-            if quorum < 0 {
-                panic!("ERR_INVALID_CONFIG: Quorum must not be negative");
-            }
+            assert!(quorum >= 0, "ERR_INVALID_CONFIG: Quorum must not be negative");
             config.quorum = quorum;
         }
 
         if let Some(period) = new_voting_period {
-            if period == 0 {
-                panic!("ERR_INVALID_CONFIG: Voting period must be greater than 0");
-            }
+            assert!(
+                period != 0,
+                "ERR_INVALID_CONFIG: Voting period must be greater than 0"
+            );
             config.voting_period = period;
         }
 
