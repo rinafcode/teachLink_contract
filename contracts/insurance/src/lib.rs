@@ -341,7 +341,10 @@ impl InsurancePool {
 
         admin.require_auth();
 
-        assert!(amount > 0, "ERR_INVALID_PREMIUM_AMOUNT: Amount must be positive");
+        assert!(
+            amount > 0,
+            "ERR_INVALID_PREMIUM_AMOUNT: Amount must be positive"
+        );
 
         let token_addr = env
             .storage()
