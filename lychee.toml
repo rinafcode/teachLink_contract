@@ -5,6 +5,7 @@ exclude = [
     'https://example.com',
     'https://discord.gg/teachlink',
     'https://docs.teachlink.io',
+    'https://blog.teachlink.io',
     'https://github.com/.*/discussions'
 ]
 max_concurrency = 4
