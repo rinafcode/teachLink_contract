@@ -21,7 +21,7 @@ pub struct MockToken;
 
 #[contractimpl]
 impl MockToken {
-        /// Initialize the mock token
+    /// Initialize the mock token
     pub fn initialize_token(env: Env, admin: Address, name: String, symbol: String, decimals: u32) {
         if env.storage().instance().has(&TokenDataKey::Admin) {
             panic!("Already initialized");
