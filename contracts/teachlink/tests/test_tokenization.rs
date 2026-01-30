@@ -8,7 +8,9 @@ use soroban_sdk::{
     vec, Address, Bytes, Env, Vec,
 };
 
-use teachlink_contract::{ContentTokenParameters, ContentType, TeachLinkBridge, TeachLinkBridgeClient, TransferType};
+use teachlink_contract::{
+    ContentTokenParameters, ContentType, TeachLinkBridge, TeachLinkBridgeClient, TransferType,
+};
 
 fn create_params(
     _env: &Env,

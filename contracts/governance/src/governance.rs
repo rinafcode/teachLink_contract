@@ -309,7 +309,10 @@ impl Governance {
         // Get voting power (token balance)
         let token_client = token::Client::new(env, &config.token);
         let power = token_client.balance(&voter);
-        assert!(power > 0, "ERR_NO_VOTING_POWER: Address has no voting power");
+        assert!(
+            power > 0,
+            "ERR_NO_VOTING_POWER: Address has no voting power"
+        );
 
         // Record vote
         let vote = Vote {
@@ -555,7 +558,10 @@ impl Governance {
         }
 
         if let Some(quorum) = new_quorum {
-            assert!(quorum >= 0, "ERR_INVALID_CONFIG: Quorum must not be negative");
+            assert!(
+                quorum >= 0,
+                "ERR_INVALID_CONFIG: Quorum must not be negative"
+            );
             config.quorum = quorum;
         }
 

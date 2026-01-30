@@ -1,11 +1,12 @@
 #![allow(clippy::similar_names)]
 
 use soroban_sdk::{
-    contract, contractimpl, symbol_short, testutils::Address as _, Address, Bytes,
-    Env, Map, Vec,
+    contract, contractimpl, symbol_short, testutils::Address as _, Address, Bytes, Env, Map, Vec,
 };
 
-use teachlink_contract::{DisputeOutcome, EscrowParameters, EscrowStatus, TeachLinkBridge, TeachLinkBridgeClient};
+use teachlink_contract::{
+    DisputeOutcome, EscrowParameters, EscrowStatus, TeachLinkBridge, TeachLinkBridgeClient,
+};
 
 #[contract]
 pub struct TestToken;
