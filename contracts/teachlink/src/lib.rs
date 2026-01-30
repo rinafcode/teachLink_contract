@@ -74,8 +74,8 @@ mod types;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
-    BridgeTransaction, ContentMetadata, ContentToken, ContentType, Contribution, ContributionType,
-    CrossChainMessage, DisputeOutcome, Escrow, EscrowStatus, ProvenanceRecord, RewardRate,
+    BridgeTransaction, ContentMetadata, ContentTokenParameters, ContentToken, ContentType, Contribution, ContributionType,
+    CrossChainMessage, DisputeOutcome, Escrow, EscrowParameters, EscrowStatus, ProvenanceRecord, RewardRate,
     TransferType, UserReputation, UserReward,
 };
 
@@ -267,29 +267,18 @@ impl TeachLinkBridge {
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow
-    pub fn create_escrow(
-        env: Env,
-        depositor: Address,
-        beneficiary: Address,
-        token: Address,
-        amount: i128,
-        signers: Vec<Address>,
-        threshold: u32,
-        release_time: Option<u64>,
-        refund_time: Option<u64>,
-        arbitrator: Address,
-    ) -> Result<u64, EscrowError> {
+    pub fn create_escrow(env: Env, params: EscrowParameters) -> Result<u64, EscrowError> {
         escrow::EscrowManager::create_escrow(
             &env,
-            depositor,
-            beneficiary,
-            token,
-            amount,
-            signers,
-            threshold,
-            release_time,
-            refund_time,
-            arbitrator,
+            params.depositor,
+            params.beneficiary,
+            params.token,
+            params.amount,
+            params.signers,
+            params.threshold,
+            params.release_time,
+            params.refund_time,
+            params.arbitrator,
         )
     }
 
@@ -411,34 +400,20 @@ impl TeachLinkBridge {
     // ========== Content Tokenization Functions ==========
 
     /// Mint a new educational content token
-    pub fn mint_content_token(
-        env: Env,
-        creator: Address,
-        title: Bytes,
-        description: Bytes,
-        content_type: ContentType,
-        content_hash: Bytes,
-        license_type: Bytes,
-        tags: Vec<Bytes>,
-        is_transferable: bool,
-        royalty_percentage: u32,
-    ) -> u64 {
+    pub fn mint_content_token(env: Env, params: ContentTokenParameters) -> u64 {
         let token_id = tokenization::ContentTokenization::mint(
             &env,
-            creator.clone(),
-            title,
-            description,
-            content_type,
-            content_hash,
-            license_type,
-            tags,
-            is_transferable,
-            royalty_percentage,
+            params.creator.clone(),
+            params.title,
+            params.description,
+            params.content_type,
+            params.content_hash,
+            params.license_type,
+            params.tags,
+            params.is_transferable,
+            params.royalty_percentage,
         );
-
-        // Record mint in provenance
-        provenance::ProvenanceTracker::record_mint(&env, token_id, creator, None);
-
+        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
         token_id
     }
 
@@ -515,22 +490,26 @@ impl TeachLinkBridge {
     }
 
     /// Get the number of transfers for a content token
-    pub fn get_content_transfer_count(env: Env, token_id: u64) -> u32 {
-        provenance::ProvenanceTracker::get_transfer_count(&env, token_id)
+    #[must_use]
+    pub fn get_content_transfer_count(env: &Env, token_id: u64) -> u32 {
+        provenance::ProvenanceTracker::get_transfer_count(env, token_id)
     }
 
     /// Verify ownership chain integrity for a content token
-    pub fn verify_content_chain(env: Env, token_id: u64) -> bool {
-        provenance::ProvenanceTracker::verify_chain(&env, token_id)
+    #[must_use]
+    pub fn verify_content_chain(env: &Env, token_id: u64) -> bool {
+        provenance::ProvenanceTracker::verify_chain(env, token_id)
     }
 
-    /// Get the original creator of a content token
-    pub fn get_content_creator(env: Env, token_id: u64) -> Option<Address> {
-        provenance::ProvenanceTracker::get_creator(&env, token_id)
+    /// Get the creator of a content token
+    #[must_use]
+    pub fn get_content_creator(env: &Env, token_id: u64) -> Option<Address> {
+        tokenization::ContentTokenization::get_creator(env, token_id)
     }
 
-    /// Get all addresses that have owned a content token
-    pub fn get_content_all_owners(env: Env, token_id: u64) -> Vec<Address> {
-        provenance::ProvenanceTracker::get_all_owners(&env, token_id)
+    /// Get all owners of a content token
+    #[must_use]
+    pub fn get_content_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
+        tokenization::ContentTokenization::get_all_owners(env, token_id)
     }
 }
