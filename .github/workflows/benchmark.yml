@@ -18,6 +18,12 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libdbus-1-dev libudev-dev pkg-config
+
+      - name: Install Soroban CLI
+        run: cargo install --locked stellar-cli
+
       - name: Build Contract
         run: cargo build --target wasm32-unknown-unknown --release -p teachlink-contract
 

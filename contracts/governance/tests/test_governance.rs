@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _, LedgerInfo},
     Address, Bytes, Env, String,
@@ -36,7 +39,7 @@ fn setup_governance() -> (
     // Initialize token
     let name = String::from_str(&env, "Governance Token");
     let symbol = String::from_str(&env, "GOV");
-    token_client.initialize_token(&admin, &name, &symbol, &18);
+    token_client.initialize_token(&admin, &name, &symbol, &18u32);
 
     // Mint tokens
     token_client.mint(&voter1, &1000);
@@ -115,6 +118,7 @@ fn test_governance_setup_flow() {
     // Initialize token
     let name = String::from_str(&env, "Test Token");
     let symbol = String::from_str(&env, "TST");
+    token_client.initialize(&admin, &name, &symbol, &18u32);
     token_client.initialize_token(&admin, &name, &symbol, &18);
 
     // Initialize governance with token
