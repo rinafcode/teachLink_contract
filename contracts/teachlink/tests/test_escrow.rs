@@ -1,13 +1,9 @@
 use soroban_sdk::{
-    contract, contractclient, contractimpl, symbol_short, testutils::Address as _, Address, Bytes, Env, Map, Vec,
+    contract, contractclient, contractimpl, symbol_short, testutils::Address as _, Address, Bytes,
+    Env, Map, Vec,
 };
 
-use teachlink_contract::{
-    DisputeOutcome,
-    EscrowStatus,
-    TeachLinkBridge,
-    TeachLinkBridgeClient,
-};
+use teachlink_contract::{DisputeOutcome, EscrowStatus, TeachLinkBridge, TeachLinkBridgeClient};
 
 #[contract]
 #[contractclient(name = "TestTokenClient")]
@@ -114,29 +110,24 @@ fn test_escrow_release_flow() {
     signers.push_back(signer1.clone());
     signers.push_back(signer2.clone());
 
-    let escrow_id = escrow_client
-        .create_escrow(
-            &depositor,
-            &beneficiary,
-            &token_contract_id,
-            &500,
-            &signers,
-            &2,
-            &None,
-            &None,
-            &arbitrator,
-        )
-        ;
+    let escrow_id = escrow_client.create_escrow(
+        &depositor,
+        &beneficiary,
+        &token_contract_id,
+        &500,
+        &signers,
+        &2,
+        &None,
+        &None,
+        &arbitrator,
+    );
 
     assert_eq!(token_client.balance(&depositor), 500);
     assert_eq!(token_client.balance(&escrow_contract_id), 500);
 
-    escrow_client
-        .approve_escrow_release(&escrow_id, &signer1);
-    escrow_client
-        .approve_escrow_release(&escrow_id, &signer2);
-    escrow_client
-        .release_escrow(&escrow_id, &signer1);
+    escrow_client.approve_escrow_release(&escrow_id, &signer1);
+    escrow_client.approve_escrow_release(&escrow_id, &signer2);
+    escrow_client.release_escrow(&escrow_id, &signer1);
 
     assert_eq!(token_client.balance(&beneficiary), 500);
     assert_eq!(token_client.balance(&escrow_contract_id), 0);
@@ -169,30 +160,23 @@ fn test_escrow_dispute_refund() {
     let mut signers = Vec::new(&env);
     signers.push_back(signer.clone());
 
-    let escrow_id = escrow_client
-        .create_escrow(
-            &depositor,
-            &beneficiary,
-            &token_contract_id,
-            &600,
-            &signers,
-            &1,
-            &None,
-            &None,
-            &arbitrator,
-        );
+    let escrow_id = escrow_client.create_escrow(
+        &depositor,
+        &beneficiary,
+        &token_contract_id,
+        &600,
+        &signers,
+        &1,
+        &None,
+        &None,
+        &arbitrator,
+    );
 
     let reason = Bytes::from_slice(&env, b"delay");
 
-    escrow_client
-        .dispute_escrow(&escrow_id, &beneficiary, &reason);
+    escrow_client.dispute_escrow(&escrow_id, &beneficiary, &reason);
 
-    escrow_client
-        .resolve_escrow(
-            &escrow_id,
-            &arbitrator,
-            &DisputeOutcome::RefundToDepositor,
-        );
+    escrow_client.resolve_escrow(&escrow_id, &arbitrator, &DisputeOutcome::RefundToDepositor);
 
     assert_eq!(token_client.balance(&depositor), 800);
 
