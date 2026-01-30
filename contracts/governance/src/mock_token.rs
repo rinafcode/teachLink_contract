@@ -19,6 +19,7 @@ pub enum TokenDataKey {
 #[contract]
 pub struct MockToken;
 
+#[cfg(not(target_family = "wasm"))]
 #[contractimpl]
 impl MockToken {
     /// Initialize the mock token

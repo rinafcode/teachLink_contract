@@ -1,3 +1,44 @@
+#![allow(clippy::all)]
+#![allow(unused)]
+
+//! Insurance Pool Contract
+//!
+//! This contract implements a decentralized insurance pool that protects learners
+//! against course completion failures on the TeachLink platform.
+//!
+//! # Overview
+//!
+//! The insurance pool operates as follows:
+//! 1. Users pay a premium to become insured
+//! 2. If a course completion fails, the user can file a claim
+//! 3. An oracle verifies the claim validity
+//! 4. Verified claims are paid out from the pool
+//!
+//! # Roles
+//!
+//! - **Admin**: Can withdraw funds from the pool
+//! - **Oracle**: Authorized to verify and process claims
+//! - **Users**: Can pay premiums, file claims, and receive payouts
+//!
+//! # Example Workflow
+//!
+//! ```ignore
+//! // 1. Admin initializes the pool
+//! InsurancePool::initialize(env, admin, token, oracle, premium, payout);
+//!
+//! // 2. User pays premium to get insured
+//! InsurancePool::pay_premium(env, user);
+//!
+//! // 3. User files a claim if course fails
+//! let claim_id = InsurancePool::file_claim(env, user, course_id);
+//!
+//! // 4. Oracle verifies the claim
+//! InsurancePool::process_claim(env, claim_id, true);
+//!
+//! // 5. User receives payout
+//! InsurancePool::payout(env, claim_id);
+//! ```
+
 #![no_std]
 
 use crate::errors::InsuranceError;
