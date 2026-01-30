@@ -176,6 +176,21 @@ impl ContentTokenization {
         env.storage().persistent().get(&(OWNERSHIP, token_id))
     }
 
+    /// Get the creator of a token
+    pub fn get_creator(env: &Env, token_id: u64) -> Option<Address> {
+        Self::get_token(env, token_id).map(|token| token.metadata.creator)
+    }
+
+    /// Get all owners of a token (current and historical)
+    pub fn get_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
+        let mut owners = Vec::new(env);
+        if let Some(current_owner) = Self::get_owner(env, token_id) {
+            owners.push_back(current_owner);
+        }
+        // TODO: Add historical owners from provenance if needed
+        owners
+    }
+
     /// Check if an address owns a token
     pub fn is_owner(env: &Env, token_id: u64, address: Address) -> bool {
         Self::get_owner(env, token_id)
