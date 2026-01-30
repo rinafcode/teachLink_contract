@@ -1,9 +1,11 @@
+use crate::errors::BridgeError;
 use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
 use crate::storage::{
     ADMIN, BRIDGE_FEE, BRIDGE_TXS, FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN,
     VALIDATORS,
 };
-use crate::types::{BridgeTransaction, CrossChainMessage, TeachLinkError};
+use crate::types::{BridgeTransaction, CrossChainMessage};
+use crate::validation::BridgeValidator;
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, Vec};
 
 pub struct Bridge;
@@ -19,15 +21,14 @@ impl Bridge {
         admin: Address,
         min_validators: u32,
         fee_recipient: Address,
-    ) -> Result<(), TeachLinkError> {
+    ) -> Result<(), BridgeError> {
         // Check if already initialized
         if env.storage().instance().has(&TOKEN) {
-            return Err(TeachLinkError::AlreadyInitialized);
+            return Err(BridgeError::AlreadyInitialized);
         }
 
-        // Validate min_validators
         if min_validators == 0 {
-            return Err(TeachLinkError::MinValidatorsRequired);
+            return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
         }
 
         env.storage().instance().set(&TOKEN, &token);
@@ -60,13 +61,17 @@ impl Bridge {
         amount: i128,
         destination_chain: u32,
         destination_address: soroban_sdk::Bytes,
-    ) {
+    ) -> Result<u64, BridgeError> {
         from.require_auth();
 
-        // Validate inputs
-        if amount <= 0 {
-            panic!("ERR_INVALID_AMOUNT: Amount must be positive");
-        }
+        // Validate all input parameters
+        BridgeValidator::validate_bridge_out(
+            env,
+            &from,
+            amount,
+            destination_chain,
+            &destination_address,
+        )?;
 
         // Check if destination chain is supported
         let supported_chains: Map<u32, bool> = env
@@ -75,7 +80,7 @@ impl Bridge {
             .get(&SUPPORTED_CHAINS)
             .unwrap_or_else(|| Map::new(env));
         if !supported_chains.get(destination_chain).unwrap_or(false) {
-            panic!("ERR_UNSUPPORTED_CHAIN: Destination chain not supported");
+            return Err(BridgeError::DestinationChainNotSupported);
         }
 
         // Get token address
@@ -152,6 +157,8 @@ impl Bridge {
             destination_address,
         }
         .publish(env);
+
+        Ok(nonce)
     }
 
     /// Complete a bridge transaction (mint/release tokens on Stellar)
@@ -162,18 +169,21 @@ impl Bridge {
         env: &Env,
         message: CrossChainMessage,
         validator_signatures: Vec<Address>,
-    ) {
-        // Validate that we have enough validator signatures
+    ) -> Result<(), BridgeError> {
+        // Validate all input parameters
         let min_validators: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
-        if (validator_signatures.len() as u32) < min_validators {
-            panic!("ERR_INSUFFICIENT_VALIDATORS: Not enough validator signatures");
-        }
+        BridgeValidator::validate_bridge_completion(
+            env,
+            &message,
+            &validator_signatures,
+            min_validators,
+        )?;
 
         // Verify all signatures are from valid validators
         let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
         for validator in validator_signatures.iter() {
             if !validators.get(validator.clone()).unwrap_or(false) {
-                panic!("ERR_INVALID_VALIDATOR: Invalid validator signature");
+                return Err(BridgeError::InvalidValidatorSignature);
             }
         }
 
@@ -184,7 +194,7 @@ impl Bridge {
             .get(&NONCE)
             .unwrap_or_else(|| Map::new(env));
         if processed_nonces.get(message.nonce).unwrap_or(false) {
-            panic!("ERR_DUPLICATE_NONCE: Nonce already processed");
+            return Err(BridgeError::NonceAlreadyProcessed);
         }
         processed_nonces.set(message.nonce, true);
         env.storage().persistent().set(&NONCE, &processed_nonces);
@@ -194,7 +204,7 @@ impl Bridge {
 
         // Verify token matches
         if message.token != token {
-            panic!("ERR_TOKEN_MISMATCH: Token mismatch");
+            return Err(BridgeError::TokenMismatch);
         }
 
         // Mint/release tokens to recipient
@@ -222,12 +232,14 @@ impl Bridge {
             source_chain: message.source_chain,
         }
         .publish(env);
+
+        Ok(())
     }
 
     /// Cancel a bridge transaction and refund locked tokens
     /// Only callable after a timeout period
     /// - nonce: The nonce of the bridge transaction to cancel
-    pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), TeachLinkError> {
+    pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         // Get bridge transaction
         let bridge_txs: Map<u64, BridgeTransaction> = env
             .storage()
@@ -236,13 +248,13 @@ impl Bridge {
             .unwrap_or_else(|| Map::new(env));
         let bridge_tx = bridge_txs
             .get(nonce)
-            .ok_or(TeachLinkError::BridgeTransactionNotFound)?;
+            .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
         // Check timeout (7 days = 604800 seconds)
-        const TIMEOUT: u64 = 604800;
+        const TIMEOUT: u64 = 604_800;
         let elapsed = env.ledger().timestamp() - bridge_tx.timestamp;
         if elapsed < TIMEOUT {
-            return Err(TeachLinkError::TimeoutNotReached);
+            return Err(BridgeError::TimeoutNotReached);
         }
 
         // Get token address
@@ -271,7 +283,7 @@ impl Bridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
-    pub fn add_validator(env: &Env, validator: Address) -> Result<(), TeachLinkError> {
+    pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
@@ -283,7 +295,7 @@ impl Bridge {
     }
 
     /// Remove a validator (admin only)
-    pub fn remove_validator(env: &Env, validator: Address) -> Result<(), TeachLinkError> {
+    pub fn remove_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
@@ -295,7 +307,7 @@ impl Bridge {
     }
 
     /// Add a supported destination chain (admin only)
-    pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), TeachLinkError> {
+    pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
@@ -307,7 +319,7 @@ impl Bridge {
     }
 
     /// Remove a supported destination chain (admin only)
-    pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), TeachLinkError> {
+    pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
@@ -319,12 +331,12 @@ impl Bridge {
     }
 
     /// Set bridge fee (admin only)
-    pub fn set_bridge_fee(env: &Env, fee: i128) -> Result<(), TeachLinkError> {
+    pub fn set_bridge_fee(env: &Env, fee: i128) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
         if fee < 0 {
-            return Err(TeachLinkError::InvalidAmount);
+            return Err(BridgeError::FeeCannotBeNegative);
         }
 
         env.storage().instance().set(&BRIDGE_FEE, &fee);
@@ -333,7 +345,7 @@ impl Bridge {
     }
 
     /// Set fee recipient (admin only)
-    pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), TeachLinkError> {
+    pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
@@ -343,12 +355,12 @@ impl Bridge {
     }
 
     /// Set minimum validators (admin only)
-    pub fn set_min_validators(env: &Env, min_validators: u32) -> Result<(), TeachLinkError> {
+    pub fn set_min_validators(env: &Env, min_validators: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
         if min_validators == 0 {
-            return Err(TeachLinkError::MinValidatorsRequired);
+            return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
         }
 
         env.storage()
