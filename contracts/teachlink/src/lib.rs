@@ -1,3 +1,6 @@
+#![allow(clippy::all)]
+#![allow(unused)]
+
 //! TeachLink Smart Contract
 //!
 //! A comprehensive Soroban smart contract for the TeachLink decentralized

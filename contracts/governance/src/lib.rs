@@ -4,6 +4,7 @@
 #![allow(clippy::missing_panics_doc)]
 #![allow(clippy::missing_errors_doc)]
 #![allow(clippy::doc_markdown)]
+#![allow(deprecated)]
 
 //! TeachLink Governance Contract
 //!

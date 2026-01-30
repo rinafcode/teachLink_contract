@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: teachlink-indexer-db
+    environment:
+      POSTGRES_USER: ${DB_USERNAME:-teachlink}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-teachlink123}
+      POSTGRES_DB: ${DB_DATABASE:-teachlink_indexer}
+    ports:
+      - '${DB_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-db:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USERNAME:-teachlink}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  indexer:
+    build:
+      context: .
+      target: development
+    container_name: teachlink-indexer
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Stellar Network
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      HORIZON_URL: ${HORIZON_URL:-https://horizon-testnet.stellar.org}
+      SOROBAN_RPC_URL: ${SOROBAN_RPC_URL:-https://soroban-testnet.stellar.org}
+
+      # Contract
+      TEACHLINK_CONTRACT_ID: ${TEACHLINK_CONTRACT_ID}
+
+      # Database
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-teachlink}
+      DB_PASSWORD: ${DB_PASSWORD:-teachlink123}
+      DB_DATABASE: ${DB_DATABASE:-teachlink_indexer}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-true}
+      DB_LOGGING: ${DB_LOGGING:-true}
+
+      # Indexer
+      INDEXER_POLL_INTERVAL: ${INDEXER_POLL_INTERVAL:-5000}
+      INDEXER_START_LEDGER: ${INDEXER_START_LEDGER:-latest}
+      INDEXER_BATCH_SIZE: ${INDEXER_BATCH_SIZE:-100}
+
+      # Application
+      NODE_ENV: ${NODE_ENV:-development}
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-debug}
+    ports:
+      - '${PORT:-3000}:3000'
+    volumes:
+      - ./src:/app/src
+      - ./node_modules:/app/node_modules
+    command: npm run start:dev
+
+  # Production service
+  indexer-prod:
+    build:
+      context: .
+      target: production
+    container_name: teachlink-indexer-prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      STELLAR_NETWORK: ${STELLAR_NETWORK:-testnet}
+      HORIZON_URL: ${HORIZON_URL:-https://horizon-testnet.stellar.org}
+      SOROBAN_RPC_URL: ${SOROBAN_RPC_URL:-https://soroban-testnet.stellar.org}
+      TEACHLINK_CONTRACT_ID: ${TEACHLINK_CONTRACT_ID}
+      DB_TYPE: postgres
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:-teachlink}
+      DB_PASSWORD: ${DB_PASSWORD:-teachlink123}
+      DB_DATABASE: ${DB_DATABASE:-teachlink_indexer}
+      DB_SYNCHRONIZE: ${DB_SYNCHRONIZE:-false}
+      DB_LOGGING: ${DB_LOGGING:-false}
+      INDEXER_POLL_INTERVAL: ${INDEXER_POLL_INTERVAL:-5000}
+      INDEXER_START_LEDGER: ${INDEXER_START_LEDGER:-latest}
+      INDEXER_BATCH_SIZE: ${INDEXER_BATCH_SIZE:-100}
+      NODE_ENV: production
+      PORT: 3000
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+    profiles:
+      - production
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  default:
+    name: teachlink-indexer-network
