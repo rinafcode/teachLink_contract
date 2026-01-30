@@ -61,7 +61,13 @@ impl Bridge {
         from.require_auth();
 
         // Validate all input parameters
-        BridgeValidator::validate_bridge_out(&env, &from, amount, destination_chain, &destination_address)?;
+        BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            amount,
+            destination_chain,
+            &destination_address,
+        )?;
 
         // Check if destination chain is supported
         let supported_chains: Map<u32, bool> = env
@@ -162,7 +168,12 @@ impl Bridge {
     ) -> Result<(), BridgeError> {
         // Validate all input parameters
         let min_validators: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
-        BridgeValidator::validate_bridge_completion(&env, &message, &validator_signatures, min_validators)?;
+        BridgeValidator::validate_bridge_completion(
+            &env,
+            &message,
+            &validator_signatures,
+            min_validators,
+        )?;
 
         // Verify all signatures are from valid validators
         let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();

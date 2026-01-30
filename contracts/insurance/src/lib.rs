@@ -1,9 +1,7 @@
 #![no_std]
 
 use crate::errors::InsuranceError;
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token, Address, Env,
-};
+use soroban_sdk::{contract, contractimpl, contracttype, token, Address, Env};
 
 #[contracttype]
 #[derive(Clone)]
@@ -55,8 +53,12 @@ impl InsurancePool {
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Oracle, &oracle);
-        env.storage().instance().set(&DataKey::PremiumAmount, &premium_amount);
-        env.storage().instance().set(&DataKey::PayoutAmount, &payout_amount);
+        env.storage()
+            .instance()
+            .set(&DataKey::PremiumAmount, &premium_amount);
+        env.storage()
+            .instance()
+            .set(&DataKey::PayoutAmount, &payout_amount);
         env.storage().instance().set(&DataKey::ClaimCount, &0u64);
 
         Ok(())
