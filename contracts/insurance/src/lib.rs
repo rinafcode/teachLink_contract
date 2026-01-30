@@ -11,7 +11,7 @@ pub enum DataKey {
     Oracle,
     PremiumAmount,
     PayoutAmount,
-    Claim(u64), // Claim ID -> Claim
+    Claim(u64),
     ClaimCount,
     IsInsured(Address),
 }
@@ -49,17 +49,14 @@ impl InsurancePool {
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(InsuranceError::AlreadyInitialized);
         }
+
         env.storage().instance().set(&DataKey::Admin, &admin);
         env.storage().instance().set(&DataKey::Token, &token);
         env.storage().instance().set(&DataKey::Oracle, &oracle);
-        env.storage()
-            .instance()
-            .set(&DataKey::PremiumAmount, &premium_amount);
-        env.storage()
-            .instance()
-            .set(&DataKey::PayoutAmount, &payout_amount);
+        env.storage().instance().set(&DataKey::PremiumAmount, &premium_amount);
+        env.storage().instance().set(&DataKey::PayoutAmount, &payout_amount);
         env.storage().instance().set(&DataKey::ClaimCount, &0u64);
-        
+
         Ok(())
     }
 
@@ -67,37 +64,34 @@ impl InsurancePool {
         user.require_auth();
 
         let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
-        let premium_amount = env
-            .storage()
-            .instance()
-            .get::<_, i128>(&DataKey::PremiumAmount)
-            .unwrap();
-        let client = token::Client::new(&env, &token_addr);
+        let premium_amount = env.storage().instance().get::<_, i128>(&DataKey::PremiumAmount).unwrap();
 
+        let client = token::Client::new(&env, &token_addr);
         client.transfer(&user, &env.current_contract_address(), &premium_amount);
 
         env.storage()
             .instance()
-            .set(&DataKey::IsInsured(user.clone()), &true);
+            .set(&DataKey::IsInsured(user), &true);
     }
 
-    pub fn file_claim(env: Env, user: Address, course_id: u64) -> Result<u64, InsuranceError> {
+    pub fn file_claim(
+        env: Env,
+        user: Address,
+        course_id: u64,
+    ) -> Result<u64, InsuranceError> {
         user.require_auth();
 
-        if !env
+        let insured = env
             .storage()
             .instance()
             .get::<_, bool>(&DataKey::IsInsured(user.clone()))
-            .unwrap_or(false)
-        {
+            .unwrap_or(false);
+
+        if !insured {
             return Err(InsuranceError::UserNotInsured);
         }
 
-        let mut claim_count = env
-            .storage()
-            .instance()
-            .get::<_, u64>(&DataKey::ClaimCount)
-            .unwrap();
+        let mut claim_count = env.storage().instance().get::<_, u64>(&DataKey::ClaimCount).unwrap();
         claim_count += 1;
 
         let claim = Claim {
@@ -106,17 +100,17 @@ impl InsurancePool {
             status: ClaimStatus::Pending,
         };
 
-        env.storage()
-            .instance()
-            .set(&DataKey::Claim(claim_count), &claim);
-        env.storage()
-            .instance()
-            .set(&DataKey::ClaimCount, &claim_count);
+        env.storage().instance().set(&DataKey::Claim(claim_count), &claim);
+        env.storage().instance().set(&DataKey::ClaimCount, &claim_count);
 
         Ok(claim_count)
     }
 
-    pub fn process_claim(env: Env, claim_id: u64, result: bool) -> Result<(), InsuranceError> {
+    pub fn process_claim(
+        env: Env,
+        claim_id: u64,
+        result: bool,
+    ) -> Result<(), InsuranceError> {
         let oracle = env.storage().instance().get::<_, Address>(&DataKey::Oracle).unwrap();
         oracle.require_auth();
 
@@ -130,16 +124,13 @@ impl InsurancePool {
             return Err(InsuranceError::ClaimAlreadyProcessed);
         }
 
-        if result {
-            claim.status = ClaimStatus::Verified;
+        claim.status = if result {
+            ClaimStatus::Verified
         } else {
-            claim.status = ClaimStatus::Rejected;
-        }
+            ClaimStatus::Rejected
+        };
 
-        env.storage()
-            .instance()
-            .set(&DataKey::Claim(claim_id), &claim);
-            
+        env.storage().instance().set(&DataKey::Claim(claim_id), &claim);
         Ok(())
     }
 
@@ -155,25 +146,17 @@ impl InsurancePool {
         }
 
         let token_addr = env.storage().instance().get::<_, Address>(&DataKey::Token).unwrap();
-        let payout_amount = env
-            .storage()
-            .instance()
-            .get::<_, i128>(&DataKey::PayoutAmount)
-            .unwrap();
-        let client = token::Client::new(&env, &token_addr);
+        let payout_amount = env.storage().instance().get::<_, i128>(&DataKey::PayoutAmount).unwrap();
 
+        let client = token::Client::new(&env, &token_addr);
         client.transfer(&env.current_contract_address(), &claim.user, &payout_amount);
 
         claim.status = ClaimStatus::Paid;
-        env.storage()
-            .instance()
-            .set(&DataKey::Claim(claim_id), &claim);
-        
-        // Let's remove insurance to prevent multiple claims for one premium if that's the model.
-        // But the prompt says "protects against course completion failures". 
-        // Let's assume one premium covers one claim for now.
+        env.storage().instance().set(&DataKey::Claim(claim_id), &claim);
+
+        // One premium = one claim
         env.storage().instance().remove(&DataKey::IsInsured(claim.user));
-        
+
         Ok(())
     }
 
@@ -186,14 +169,18 @@ impl InsurancePool {
 
         client.transfer(&env.current_contract_address(), &admin, &amount);
     }
-    
-    // View functions
+
+    // ===== View Functions =====
+
     pub fn get_claim(env: Env, claim_id: u64) -> Option<Claim> {
-         env.storage().instance().get(&DataKey::Claim(claim_id))
+        env.storage().instance().get(&DataKey::Claim(claim_id))
     }
-    
+
     pub fn is_insured(env: Env, user: Address) -> bool {
-        env.storage().instance().get(&DataKey::IsInsured(user)).unwrap_or(false)
+        env.storage()
+            .instance()
+            .get(&DataKey::IsInsured(user))
+            .unwrap_or(false)
     }
 }
 

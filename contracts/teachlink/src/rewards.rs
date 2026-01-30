@@ -1,6 +1,8 @@
 use crate::errors::RewardsError;
 use crate::events::{RewardClaimedEvent, RewardIssuedEvent, RewardPoolFundedEvent};
-use crate::storage::{REWARD_POOL, REWARD_RATES, REWARDS_ADMIN, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS};
+use crate::storage::{
+    REWARDS_ADMIN, REWARD_POOL, REWARD_RATES, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS,
+};
 use crate::types::{RewardRate, UserReward};
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, String};
 
@@ -62,7 +64,7 @@ impl Rewards {
         Ok(())
     }
 
-    /// Issue rewards to a user
+        /// Issue rewards to a user
     pub fn issue_reward(
         env: &Env,
         recipient: Address,
@@ -107,7 +109,9 @@ impl Rewards {
             .get(&TOTAL_REWARDS_ISSUED)
             .unwrap_or(0i128);
         total_issued += amount;
-        env.storage().instance().set(&TOTAL_REWARDS_ISSUED, &total_issued);
+        env.storage()
+            .instance()
+            .set(&TOTAL_REWARDS_ISSUED, &total_issued);
 
         RewardIssuedEvent {
             recipient,
@@ -116,9 +120,10 @@ impl Rewards {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
-        
+
         Ok(())
     }
+
 
     /// Claim pending rewards
     pub fn claim_rewards(env: &Env, user: Address) -> Result<(), RewardsError> {
