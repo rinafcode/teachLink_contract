@@ -9,8 +9,6 @@ exclude = [
 ]
 max_concurrency = 4
 retry_count = 2
-# Accept status codes 200-299 and ignore 403 (rate limited) and 429 (too many requests)
-accept = [200, 201, 202, 203, 204, 206, 301, 302, 303, 307, 308]
 # Skip checking these file patterns
 exclude_path = [
     "node_modules",
