@@ -64,14 +64,15 @@ impl InsurancePool {
         Ok(())
     }
 
-    pub fn pay_premium(env: Env, user: Address) {
+    pub fn pay_premium(env: Env, user: Address) -> Result<(), InsuranceError> {
         user.require_auth();
 
         let token_addr = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
+            .ok_or(InsuranceError::NotInitialized)?;
+
         let premium_amount = env
             .storage()
             .instance()
@@ -84,6 +85,8 @@ impl InsurancePool {
         env.storage()
             .instance()
             .set(&DataKey::IsInsured(user), &true);
+
+        Ok(())
     }
 
     pub fn file_claim(env: Env, user: Address, course_id: u64) -> Result<u64, InsuranceError> {
@@ -103,11 +106,12 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, u64>(&DataKey::ClaimCount)
-            .unwrap();
+            .unwrap_or(0);
+
         claim_count += 1;
 
         let claim = Claim {
-            user: user.clone(),
+            user,
             course_id,
             status: ClaimStatus::Pending,
         };
@@ -167,7 +171,8 @@ impl InsurancePool {
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
+            .ok_or(InsuranceError::NotInitialized)?;
+
         let payout_amount = env
             .storage()
             .instance()
@@ -178,6 +183,7 @@ impl InsurancePool {
         client.transfer(&env.current_contract_address(), &claim.user, &payout_amount);
 
         claim.status = ClaimStatus::Paid;
+
         env.storage()
             .instance()
             .set(&DataKey::Claim(claim_id), &claim);
@@ -190,22 +196,25 @@ impl InsurancePool {
         Ok(())
     }
 
-    pub fn withdraw(env: Env, amount: i128) {
+    pub fn withdraw(env: Env, amount: i128) -> Result<(), InsuranceError> {
         let admin = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Admin)
-            .unwrap();
+            .ok_or(InsuranceError::NotInitialized)?;
+
         admin.require_auth();
 
         let token_addr = env
             .storage()
             .instance()
             .get::<_, Address>(&DataKey::Token)
-            .unwrap();
-        let client = token::Client::new(&env, &token_addr);
+            .ok_or(InsuranceError::NotInitialized)?;
 
+        let client = token::Client::new(&env, &token_addr);
         client.transfer(&env.current_contract_address(), &admin, &amount);
+
+        Ok(())
     }
 
     // ===== View Functions =====

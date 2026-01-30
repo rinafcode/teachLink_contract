@@ -62,7 +62,11 @@ pub struct CrossChainMessage {
     pub destination_chain: u32,
 }
 
-// ========== Rewards Types ==========
+//
+// ==========================
+// Rewards Types
+// ==========================
+//
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -127,7 +131,11 @@ pub enum DisputeOutcome {
     RefundToDepositor,
 }
 
-// ========== Credit Score / Contribution Types ==========
+//
+// ==========================
+// Credit Score / Contribution Types
+// ==========================
+//
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -148,7 +156,11 @@ pub struct Contribution {
     pub points: u64,
 }
 
-// ========== Reputation Types ==========
+//
+// ==========================
+// Reputation Types
+// ==========================
+//
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -162,7 +174,11 @@ pub struct UserReputation {
     pub last_update: u64,
 }
 
-// ========== Educational Content Tokenization Types ==========
+//
+// ==========================
+// Content Tokenization Types
+// ==========================
+//
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
