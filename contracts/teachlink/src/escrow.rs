@@ -3,7 +3,7 @@ use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
-use crate::storage::{ESCROW_COUNT, ESCROWS};
+use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowStatus};
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
@@ -171,6 +171,7 @@ impl EscrowManager {
         }
 
         let refund_time = escrow.refund_time.ok_or(EscrowError::RefundNotEnabled)?;
+
         let now = env.ledger().timestamp();
         if now < refund_time {
             return Err(EscrowError::RefundTimeNotReached);
@@ -186,9 +187,10 @@ impl EscrowManager {
             amount: escrow.amount,
         }
         .publish(env);
-        
+
         Ok(())
     }
+
 
     pub fn cancel(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
@@ -249,7 +251,12 @@ impl EscrowManager {
 
         let new_status = match outcome {
             DisputeOutcome::ReleaseToBeneficiary => {
-                Self::transfer_from_contract(env, &escrow.token, &escrow.beneficiary, escrow.amount);
+                Self::transfer_from_contract(
+                    env,
+                    &escrow.token,
+                    &escrow.beneficiary,
+                    escrow.amount,
+                );
                 EscrowStatus::Released
             }
             DisputeOutcome::RefundToDepositor => {
