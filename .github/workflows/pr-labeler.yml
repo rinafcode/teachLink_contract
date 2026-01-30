@@ -8,11 +8,12 @@ permissions:
   contents: read
   pull-requests: write
   issues: write
+  actions: read  # Add this for better token access
 
 jobs:
   label:
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled to fix CI
+    # if: false  # Temporarily disabled to fix CI
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -93,7 +94,7 @@ jobs:
   # Check PR title format
   title-check:
     runs-on: ubuntu-latest
-    if: false  # Temporarily disabled to fix CI
+    # if: false  # Temporarily disabled to fix CI
     permissions:
       pull-requests: write
       issues: write
