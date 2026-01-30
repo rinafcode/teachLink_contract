@@ -4,6 +4,7 @@ use soroban_sdk::contracterror;
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum InsuranceError {
+    NotInitialized = 499,
     AlreadyInitialized = 500,
     UserNotInsured = 501,
     ClaimNotFound = 502,

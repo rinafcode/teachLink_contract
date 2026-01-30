@@ -62,7 +62,7 @@ impl InsurancePool {
         Ok(())
     }
 
-    pub fn pay_premium(env: Env, user: Address) {
+    pub fn pay_premium(env: Env, user: Address) -> Result<(), InsuranceError> {
         user.require_auth();
 
         let token_addr = env
@@ -83,6 +83,8 @@ impl InsurancePool {
         env.storage()
             .instance()
             .set(&DataKey::IsInsured(user), &true);
+
+        Ok(())
     }
 
     pub fn file_claim(env: Env, user: Address, course_id: u64) -> Result<u64, InsuranceError> {
@@ -192,7 +194,7 @@ impl InsurancePool {
         Ok(())
     }
 
-    pub fn withdraw(env: Env, amount: i128) {
+    pub fn withdraw(env: Env, amount: i128) -> Result<(), InsuranceError> {
         let admin = env
             .storage()
             .instance()
