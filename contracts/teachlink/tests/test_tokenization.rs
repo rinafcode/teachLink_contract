@@ -1,4 +1,5 @@
 #![cfg(test)]
+#![allow(unused_variables)]
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},

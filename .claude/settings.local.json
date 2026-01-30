@@ -8,7 +8,8 @@
       "Bash(cargo clippy:*)",
       "Bash(cargo test:*)",
       "Bash(cargo build:*)",
-      "Bash(cargo clean:*)"
+      "Bash(cargo clean:*)",
+      "Bash(cargo doc:*)"
     ]
   }
 }

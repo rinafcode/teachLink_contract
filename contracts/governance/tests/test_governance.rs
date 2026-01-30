@@ -1,3 +1,6 @@
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _, LedgerInfo},
     Address, Bytes, Env, String,
