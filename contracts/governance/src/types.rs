@@ -1,5 +1,43 @@
 use soroban_sdk::{contracttype, Address, Bytes};
 
+/// Error types for governance contract operations
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum GovernanceError {
+    /// Contract already initialized
+    AlreadyInitialized = 1,
+    /// Contract not yet initialized
+    NotInitialized = 2,
+    /// Proposal not found
+    ProposalNotFound = 3,
+    /// Proposal is not in the expected status
+    InvalidProposalStatus = 4,
+    /// Voting period is not active
+    VotingPeriodNotActive = 5,
+    /// Address has already voted on this proposal
+    AlreadyVoted = 6,
+    /// Address has no voting power (zero token balance)
+    NoVotingPower = 7,
+    /// Insufficient token balance to create proposal
+    InsufficientBalance = 8,
+    /// Voting period has not ended yet
+    VotingPeriodNotEnded = 9,
+    /// Execution delay period has not passed
+    ExecutionDelayNotMet = 10,
+    /// Only proposer or admin can perform this action
+    UnauthorizedCaller = 11,
+    /// Proposer can only cancel during voting period
+    ProposerCannotCancelAfterVoting = 12,
+    /// Cannot cancel executed proposal
+    CannotCancelExecutedProposal = 13,
+    /// Invalid governance parameters
+    InvalidGovernanceConfig = 14,
+    /// Title cannot be empty
+    EmptyTitle = 15,
+    /// Description cannot be empty
+    EmptyDescription = 16,
+}
+
 /// Types of proposals that can be created in the governance system
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -60,6 +60,15 @@
 //! - Escrow functions require appropriate party authorization
 
 #![no_std]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::trivially_copy_pass_by_ref)]
+#![allow(clippy::needless_borrow)]
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
 
@@ -74,7 +83,7 @@ mod score;
 mod storage;
 mod tokenization;
 mod types;
-mod validation;
+pub mod validation;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
@@ -132,22 +141,22 @@ impl TeachLinkBridge {
 
     /// Add a validator (admin only)
     pub fn add_validator(env: Env, validator: Address) {
-        bridge::Bridge::add_validator(&env, validator);
+        let _ = bridge::Bridge::add_validator(&env, validator);
     }
 
     /// Remove a validator (admin only)
     pub fn remove_validator(env: Env, validator: Address) {
-        bridge::Bridge::remove_validator(&env, validator);
+        let _ = bridge::Bridge::remove_validator(&env, validator);
     }
 
     /// Add a supported destination chain (admin only)
     pub fn add_supported_chain(env: Env, chain_id: u32) {
-        bridge::Bridge::add_supported_chain(&env, chain_id);
+        let _ = bridge::Bridge::add_supported_chain(&env, chain_id);
     }
 
     /// Remove a supported destination chain (admin only)
     pub fn remove_supported_chain(env: Env, chain_id: u32) {
-        bridge::Bridge::remove_supported_chain(&env, chain_id);
+        let _ = bridge::Bridge::remove_supported_chain(&env, chain_id);
     }
 
     /// Set bridge fee (admin only)
@@ -157,7 +166,7 @@ impl TeachLinkBridge {
 
     /// Set fee recipient (admin only)
     pub fn set_fee_recipient(env: Env, fee_recipient: Address) {
-        bridge::Bridge::set_fee_recipient(&env, fee_recipient);
+        let _ = bridge::Bridge::set_fee_recipient(&env, fee_recipient);
     }
 
     /// Set minimum validators (admin only)

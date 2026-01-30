@@ -60,13 +60,15 @@ impl Governance {
     /// * `env` - The Soroban environment
     /// * `token` - Address of the governance token (used for voting power)
     /// * `admin` - Address with administrative privileges
-    /// * `proposal_threshold` - Minimum token balance to create proposals
-    /// * `quorum` - Minimum total votes required for valid decisions
-    /// * `voting_period` - Duration of voting in seconds
+    /// * `proposal_threshold` - Minimum token balance to create proposals (must be >= 0)
+    /// * `quorum` - Minimum total votes required for valid decisions (must be >= 0)
+    /// * `voting_period` - Duration of voting in seconds (must be > 0)
     /// * `execution_delay` - Delay before executing passed proposals in seconds
     ///
     /// # Panics
     /// * If the contract is already initialized
+    /// * If voting_period is 0
+    /// * If proposal_threshold or quorum are negative
     pub fn initialize(
         env: &Env,
         token: Address,
@@ -76,9 +78,21 @@ impl Governance {
         voting_period: u64,
         execution_delay: u64,
     ) {
-        if env.storage().instance().has(&CONFIG) {
-            panic!("Already initialized");
-        }
+        assert!(
+            !env.storage().instance().has(&CONFIG),
+            "ERR_ALREADY_INITIALIZED: Contract is already initialized"
+        );
+
+        // Validate configuration parameters
+        assert!(
+            proposal_threshold >= 0 && quorum >= 0,
+            "ERR_INVALID_CONFIG: Governance parameters must not be negative"
+        );
+
+        assert!(
+            voting_period != 0,
+            "ERR_INVALID_CONFIG: Voting period must be greater than 0"
+        );
 
         let config = GovernanceConfig {
             token,
@@ -107,7 +121,7 @@ impl Governance {
         env.storage()
             .instance()
             .get(&CONFIG)
-            .expect("Not initialized")
+            .expect("ERR_NOT_INITIALIZED: Contract not initialized")
     }
 
     /// Get the admin address.
@@ -140,8 +154,8 @@ impl Governance {
     /// # Arguments
     /// * `env` - The Soroban environment
     /// * `proposer` - Address creating the proposal (must authorize)
-    /// * `title` - Short descriptive title for the proposal
-    /// * `description` - Detailed description of the proposal
+    /// * `title` - Short descriptive title for the proposal (must not be empty)
+    /// * `description` - Detailed description of the proposal (must not be empty)
     /// * `proposal_type` - Category of the proposal
     /// * `execution_data` - Optional data for proposal execution
     ///
@@ -152,7 +166,8 @@ impl Governance {
     /// Requires authorization from `proposer`.
     ///
     /// # Panics
-    /// * If proposer's token balance is below `proposal_threshold`
+    /// * If proposer has insufficient token balance
+    /// * If title or description is empty
     ///
     /// # Events
     /// Emits a `proposal_created` event.
@@ -166,14 +181,26 @@ impl Governance {
     ) -> u64 {
         proposer.require_auth();
 
+        // Validate input parameters
+        assert!(
+            !title.is_empty(),
+            "ERR_EMPTY_TITLE: Proposal title cannot be empty"
+        );
+
+        assert!(
+            !description.is_empty(),
+            "ERR_EMPTY_DESCRIPTION: Proposal description cannot be empty"
+        );
+
         let config = Self::get_config(env);
 
         // Check proposer has enough tokens
         let token_client = token::Client::new(env, &config.token);
         let balance = token_client.balance(&proposer);
-        if balance < config.proposal_threshold {
-            panic!("Insufficient token balance to create proposal");
-        }
+        assert!(
+            balance >= config.proposal_threshold,
+            "ERR_INSUFFICIENT_BALANCE: Proposer balance below threshold"
+        );
 
         // Generate proposal ID
         let mut proposal_count: u64 = env.storage().instance().get(&PROPOSAL_COUNT).unwrap_or(0);
@@ -254,34 +281,38 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("Proposal not found");
+            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
         // Check proposal is active
-        if proposal.status != ProposalStatus::Active {
-            panic!("Proposal is not active");
-        }
+        assert!(
+            proposal.status == ProposalStatus::Active,
+            "ERR_INVALID_STATUS: Proposal is not in active status"
+        );
 
         // Check voting period
         let now = env.ledger().timestamp();
-        if now < proposal.voting_start || now > proposal.voting_end {
-            panic!("Voting period not active");
-        }
+        assert!(
+            now >= proposal.voting_start && now <= proposal.voting_end,
+            "ERR_VOTING_PERIOD_INACTIVE: Voting period is not active"
+        );
 
         // Check if already voted
         let vote_key = VoteKey {
             proposal_id,
             voter: voter.clone(),
         };
-        if env.storage().persistent().has(&(VOTES, vote_key.clone())) {
-            panic!("Already voted on this proposal");
-        }
+        assert!(
+            !env.storage().persistent().has(&(VOTES, vote_key.clone())),
+            "ERR_ALREADY_VOTED: Address has already voted on this proposal"
+        );
 
         // Get voting power (token balance)
         let token_client = token::Client::new(env, &config.token);
         let power = token_client.balance(&voter);
-        if power <= 0 {
-            panic!("No voting power");
-        }
+        assert!(
+            power > 0,
+            "ERR_NO_VOTING_POWER: Address has no voting power"
+        );
 
         // Record vote
         let vote = Vote {
@@ -333,18 +364,20 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("Proposal not found");
+            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
         // Check proposal is still active
-        if proposal.status != ProposalStatus::Active {
-            panic!("Proposal is not active");
-        }
+        assert!(
+            proposal.status == ProposalStatus::Active,
+            "ERR_INVALID_STATUS: Proposal is not in active status"
+        );
 
         // Check voting period has ended
         let now = env.ledger().timestamp();
-        if now <= proposal.voting_end {
-            panic!("Voting period not ended");
-        }
+        assert!(
+            now > proposal.voting_end,
+            "ERR_VOTING_PERIOD_ACTIVE: Voting period has not ended yet"
+        );
 
         let old_status = proposal.status.clone();
 
@@ -394,18 +427,20 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("Proposal not found");
+            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
         // Check proposal has passed
-        if proposal.status != ProposalStatus::Passed {
-            panic!("Proposal has not passed");
-        }
+        assert!(
+            proposal.status == ProposalStatus::Passed,
+            "ERR_INVALID_STATUS: Proposal has not passed"
+        );
 
         // Check execution delay has passed
         let now = env.ledger().timestamp();
-        if now < proposal.voting_end + config.execution_delay {
-            panic!("Execution delay not met");
-        }
+        assert!(
+            now >= proposal.voting_end + config.execution_delay,
+            "ERR_EXECUTION_DELAY_NOT_MET: Execution delay period has not passed"
+        );
 
         let old_status = proposal.status.clone();
         proposal.status = ProposalStatus::Executed;
@@ -448,7 +483,7 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("Proposal not found");
+            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
         // Check if cancellable
         let is_admin = caller == config.admin;
@@ -456,18 +491,21 @@ impl Governance {
         let now = env.ledger().timestamp();
         let voting_ended = now > proposal.voting_end;
 
-        if !is_admin && !is_proposer {
-            panic!("Only proposer or admin can cancel");
-        }
+        assert!(
+            is_admin || is_proposer,
+            "ERR_UNAUTHORIZED: Only proposer or admin can cancel"
+        );
 
-        if !is_admin && voting_ended {
-            panic!("Proposer can only cancel during voting period");
-        }
+        assert!(
+            is_admin || !voting_ended,
+            "ERR_VOTING_ENDED: Proposer can only cancel during voting period"
+        );
 
         // Cannot cancel executed proposals
-        if proposal.status == ProposalStatus::Executed {
-            panic!("Cannot cancel executed proposal");
-        }
+        assert!(
+            proposal.status != ProposalStatus::Executed,
+            "ERR_INVALID_STATUS: Cannot cancel executed proposal"
+        );
 
         let old_status = proposal.status.clone();
         proposal.status = ProposalStatus::Cancelled;
@@ -487,13 +525,16 @@ impl Governance {
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
-    /// * `new_proposal_threshold` - New minimum tokens for proposals (optional)
-    /// * `new_quorum` - New quorum requirement (optional)
-    /// * `new_voting_period` - New voting duration in seconds (optional)
+    /// * `new_proposal_threshold` - New minimum tokens for proposals (optional, must be >= 0)
+    /// * `new_quorum` - New quorum requirement (optional, must be >= 0)
+    /// * `new_voting_period` - New voting duration in seconds (optional, must be > 0)
     /// * `new_execution_delay` - New execution delay in seconds (optional)
     ///
     /// # Authorization
     /// Requires authorization from the admin address.
+    ///
+    /// # Panics
+    /// * If invalid configuration parameters are provided
     ///
     /// # Events
     /// Emits a `config_updated` event.
@@ -507,15 +548,31 @@ impl Governance {
         let mut config = Self::get_config(env);
         config.admin.require_auth();
 
+        // Validate parameters if provided
         if let Some(threshold) = new_proposal_threshold {
+            assert!(
+                threshold >= 0,
+                "ERR_INVALID_CONFIG: Proposal threshold must not be negative"
+            );
             config.proposal_threshold = threshold;
         }
+
         if let Some(quorum) = new_quorum {
+            assert!(
+                quorum >= 0,
+                "ERR_INVALID_CONFIG: Quorum must not be negative"
+            );
             config.quorum = quorum;
         }
+
         if let Some(period) = new_voting_period {
+            assert!(
+                period != 0,
+                "ERR_INVALID_CONFIG: Voting period must be greater than 0"
+            );
             config.voting_period = period;
         }
+
         if let Some(delay) = new_execution_delay {
             config.execution_delay = delay;
         }

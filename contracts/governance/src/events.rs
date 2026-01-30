@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use soroban_sdk::{contractevent, Address, Bytes, Env};
 
 use crate::types::{ProposalStatus, ProposalType, VoteDirection};

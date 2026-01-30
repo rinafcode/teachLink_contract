@@ -1,5 +1,12 @@
-#![allow(dead_code)]
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::too_many_lines)]
 #![allow(unused_variables)]
+#![allow(dead_code)]
+#![allow(clippy::no_effect_underscore_binding)]
+#![allow(clippy::useless_vec)]
+#![allow(clippy::uninlined_format_args)]
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _, LedgerInfo},
@@ -39,7 +46,7 @@ fn setup_governance() -> (
     // Initialize token
     let name = String::from_str(&env, "Governance Token");
     let symbol = String::from_str(&env, "GOV");
-    token_client.initialize_token(&admin, &name, &symbol, &18u32);
+    token_client.init_token(&admin, &name, &symbol, &18);
 
     // Mint tokens
     token_client.mint(&voter1, &1000);
@@ -118,8 +125,7 @@ fn test_governance_setup_flow() {
     // Initialize token
     let name = String::from_str(&env, "Test Token");
     let symbol = String::from_str(&env, "TST");
-    token_client.initialize(&admin, &name, &symbol, &18u32);
-    token_client.initialize_token(&admin, &name, &symbol, &18);
+    token_client.init_token(&admin, &name, &symbol, &18);
 
     // Initialize governance with token
     governance_client.initialize(&token_id, &admin, &100, &500, &3600, &60);
@@ -186,7 +192,7 @@ fn test_bytes_creation() {
 }
 
 #[test]
-#[ignore]
+#[ignore = "ledger setup is tested implicitly in other tests"]
 fn test_ledger_info_setup() {
     let env = Env::default();
 

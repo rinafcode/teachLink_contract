@@ -15,7 +15,9 @@ pub const PROPOSALS: Symbol = symbol_short!("proposal");
 pub const VOTES: Symbol = symbol_short!("votes");
 
 /// Admin address
+#[allow(dead_code)]
 pub const ADMIN: Symbol = symbol_short!("admin");
 
 /// Governance token address
+#[allow(dead_code)]
 pub const TOKEN: Symbol = symbol_short!("token");
