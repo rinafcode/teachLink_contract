@@ -4,9 +4,7 @@
 //! to protect the bridge during critical situations.
 
 use crate::errors::BridgeError;
-use crate::events::{
-    BridgePausedEvent, BridgeResumedEvent, CircuitBreakerTriggeredEvent,
-};
+use crate::events::{BridgePausedEvent, BridgeResumedEvent, CircuitBreakerTriggeredEvent};
 use crate::storage::{CIRCUIT_BREAKERS, EMERGENCY_STATE, PAUSED_CHAINS};
 use crate::types::{CircuitBreaker, EmergencyState};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
@@ -22,11 +20,7 @@ pub struct EmergencyManager;
 
 impl EmergencyManager {
     /// Pause the entire bridge
-    pub fn pause_bridge(
-        env: &Env,
-        pauser: Address,
-        reason: Bytes,
-    ) -> Result<(), BridgeError> {
+    pub fn pause_bridge(env: &Env, pauser: Address, reason: Bytes) -> Result<(), BridgeError> {
         pauser.require_auth();
 
         // Check if already paused
@@ -92,7 +86,9 @@ impl EmergencyManager {
 
         // Resume bridge
         emergency_state.is_paused = false;
-        env.storage().instance().set(&EMERGENCY_STATE, &emergency_state);
+        env.storage()
+            .instance()
+            .set(&EMERGENCY_STATE, &emergency_state);
 
         // Emit event
         BridgeResumedEvent {
@@ -191,7 +187,9 @@ impl EmergencyManager {
             .get(&CIRCUIT_BREAKERS)
             .unwrap_or_else(|| Map::new(env));
         circuit_breakers.set(chain_id, circuit_breaker);
-        env.storage().instance().set(&CIRCUIT_BREAKERS, &circuit_breakers);
+        env.storage()
+            .instance()
+            .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
         Ok(())
     }
@@ -207,7 +205,7 @@ impl EmergencyManager {
             .instance()
             .get(&CIRCUIT_BREAKERS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut breaker = circuit_breakers
             .get(chain_id)
             .ok_or(BridgeError::DestinationChainNotSupported)?;
@@ -229,7 +227,9 @@ impl EmergencyManager {
             // Trigger circuit breaker
             breaker.is_triggered = true;
             circuit_breakers.set(chain_id, breaker.clone());
-            env.storage().instance().set(&CIRCUIT_BREAKERS, &circuit_breakers);
+            env.storage()
+                .instance()
+                .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
             // Emit event
             CircuitBreakerTriggeredEvent {
@@ -247,7 +247,9 @@ impl EmergencyManager {
             // Trigger circuit breaker
             breaker.is_triggered = true;
             circuit_breakers.set(chain_id, breaker.clone());
-            env.storage().instance().set(&CIRCUIT_BREAKERS, &circuit_breakers);
+            env.storage()
+                .instance()
+                .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
             // Emit event
             CircuitBreakerTriggeredEvent {
@@ -263,7 +265,9 @@ impl EmergencyManager {
         // Update volume
         breaker.current_daily_volume += amount;
         circuit_breakers.set(chain_id, breaker);
-        env.storage().instance().set(&CIRCUIT_BREAKERS, &circuit_breakers);
+        env.storage()
+            .instance()
+            .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
         Ok(())
     }
@@ -281,7 +285,7 @@ impl EmergencyManager {
             .instance()
             .get(&CIRCUIT_BREAKERS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut breaker = circuit_breakers
             .get(chain_id)
             .ok_or(BridgeError::DestinationChainNotSupported)?;
@@ -291,7 +295,9 @@ impl EmergencyManager {
         breaker.last_reset = env.ledger().timestamp();
 
         circuit_breakers.set(chain_id, breaker);
-        env.storage().instance().set(&CIRCUIT_BREAKERS, &circuit_breakers);
+        env.storage()
+            .instance()
+            .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
         Ok(())
     }
@@ -353,7 +359,7 @@ impl EmergencyManager {
             .instance()
             .get(&PAUSED_CHAINS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (chain_id, is_paused) in paused_chains.iter() {
             if is_paused {
@@ -378,7 +384,7 @@ impl EmergencyManager {
             .instance()
             .get(&CIRCUIT_BREAKERS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut breaker = circuit_breakers
             .get(chain_id)
             .ok_or(BridgeError::DestinationChainNotSupported)?;
@@ -387,7 +393,9 @@ impl EmergencyManager {
         breaker.max_transaction_amount = max_transaction_amount;
 
         circuit_breakers.set(chain_id, breaker);
-        env.storage().instance().set(&CIRCUIT_BREAKERS, &circuit_breakers);
+        env.storage()
+            .instance()
+            .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
         Ok(())
     }

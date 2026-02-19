@@ -11,9 +11,7 @@ use crate::storage::{
     REWARD_POOL, SLASHING_COUNTER, SLASHING_RECORDS, VALIDATOR_INFO, VALIDATOR_REWARDS,
     VALIDATOR_STAKES,
 };
-use crate::types::{
-    RewardType, SlashingReason, SlashingRecord, ValidatorInfo, ValidatorReward,
-};
+use crate::types::{RewardType, SlashingReason, SlashingRecord, ValidatorInfo, ValidatorReward};
 use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Slashing percentages (in basis points, 10000 = 100%)
@@ -34,11 +32,7 @@ pub struct SlashingManager;
 
 impl SlashingManager {
     /// Deposit stake for a validator
-    pub fn deposit_stake(
-        env: &Env,
-        validator: Address,
-        amount: i128,
-    ) -> Result<(), BridgeError> {
+    pub fn deposit_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
         if amount <= 0 {
@@ -67,7 +61,9 @@ impl SlashingManager {
         if let Some(mut info) = validator_infos.get(validator.clone()) {
             info.stake = new_stake;
             validator_infos.set(validator.clone(), info);
-            env.storage().instance().set(&VALIDATOR_INFO, &validator_infos);
+            env.storage()
+                .instance()
+                .set(&VALIDATOR_INFO, &validator_infos);
         }
 
         // Emit event
@@ -82,11 +78,7 @@ impl SlashingManager {
     }
 
     /// Withdraw stake (with restrictions)
-    pub fn withdraw_stake(
-        env: &Env,
-        validator: Address,
-        amount: i128,
-    ) -> Result<(), BridgeError> {
+    pub fn withdraw_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
         if amount <= 0 {
@@ -120,7 +112,9 @@ impl SlashingManager {
         if let Some(mut info) = validator_infos.get(validator.clone()) {
             info.stake = new_stake;
             validator_infos.set(validator.clone(), info);
-            env.storage().instance().set(&VALIDATOR_INFO, &validator_infos);
+            env.storage()
+                .instance()
+                .set(&VALIDATOR_INFO, &validator_infos);
         }
 
         // Emit event
@@ -179,7 +173,9 @@ impl SlashingManager {
         info.slashed_amount += slash_amount;
         info.reputation_score = Self::calculate_new_reputation(info.reputation_score, &reason);
         validator_infos.set(validator.clone(), info.clone());
-        env.storage().instance().set(&VALIDATOR_INFO, &validator_infos);
+        env.storage()
+            .instance()
+            .set(&VALIDATOR_INFO, &validator_infos);
 
         // Update stakes
         let mut stakes: Map<Address, i128> = env
@@ -220,11 +216,7 @@ impl SlashingManager {
             .set(&SLASHING_COUNTER, &slashing_counter);
 
         // Add slashed amount to reward pool
-        let reward_pool: i128 = env
-            .storage()
-            .instance()
-            .get(&REWARD_POOL)
-            .unwrap_or(0i128);
+        let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         env.storage()
             .instance()
             .set(&REWARD_POOL, &(reward_pool + slash_amount));
@@ -253,11 +245,7 @@ impl SlashingManager {
         }
 
         // Check reward pool
-        let reward_pool: i128 = env
-            .storage()
-            .instance()
-            .get(&REWARD_POOL)
-            .unwrap_or(0i128);
+        let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         if amount > reward_pool {
             return Err(BridgeError::InsufficientBalance);
         }
@@ -280,7 +268,9 @@ impl SlashingManager {
             .instance()
             .get(&VALIDATOR_REWARDS)
             .unwrap_or_else(|| Map::new(env));
-        let mut validator_rewards = rewards.get(validator.clone()).unwrap_or_else(|| Vec::new(env));
+        let mut validator_rewards = rewards
+            .get(validator.clone())
+            .unwrap_or_else(|| Vec::new(env));
         validator_rewards.push_back(validator_reward.clone());
         rewards.set(validator.clone(), validator_rewards);
         env.storage().instance().set(&VALIDATOR_REWARDS, &rewards);
@@ -294,7 +284,9 @@ impl SlashingManager {
         if let Some(mut info) = validator_infos.get(validator.clone()) {
             info.stake += amount; // Add reward to stake
             validator_infos.set(validator.clone(), info);
-            env.storage().instance().set(&VALIDATOR_INFO, &validator_infos);
+            env.storage()
+                .instance()
+                .set(&VALIDATOR_INFO, &validator_infos);
         }
 
         // Emit event
@@ -343,11 +335,7 @@ impl SlashingManager {
             return Err(BridgeError::AmountMustBePositive);
         }
 
-        let reward_pool: i128 = env
-            .storage()
-            .instance()
-            .get(&REWARD_POOL)
-            .unwrap_or(0i128);
+        let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         env.storage()
             .instance()
             .set(&REWARD_POOL, &(reward_pool + amount));
@@ -380,10 +368,7 @@ impl SlashingManager {
 
     /// Get reward pool balance
     pub fn get_reward_pool(env: &Env) -> i128 {
-        env.storage()
-            .instance()
-            .get(&REWARD_POOL)
-            .unwrap_or(0i128)
+        env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128)
     }
 
     /// Get slashing record

@@ -31,11 +31,7 @@ pub struct LiquidityManager;
 
 impl LiquidityManager {
     /// Initialize liquidity pool for a chain
-    pub fn initialize_pool(
-        env: &Env,
-        chain_id: u32,
-        token: Address,
-    ) -> Result<(), BridgeError> {
+    pub fn initialize_pool(env: &Env, chain_id: u32, token: Address) -> Result<(), BridgeError> {
         let pool = LiquidityPool {
             chain_id,
             token: token.clone(),
@@ -194,11 +190,7 @@ impl LiquidityManager {
     }
 
     /// Lock liquidity for a bridge transaction
-    pub fn lock_liquidity(
-        env: &Env,
-        chain_id: u32,
-        amount: i128,
-    ) -> Result<(), BridgeError> {
+    pub fn lock_liquidity(env: &Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
         if amount <= 0 {
             return Err(BridgeError::AmountMustBePositive);
         }
@@ -230,11 +222,7 @@ impl LiquidityManager {
     }
 
     /// Unlock liquidity after bridge completion
-    pub fn unlock_liquidity(
-        env: &Env,
-        chain_id: u32,
-        amount: i128,
-    ) -> Result<(), BridgeError> {
+    pub fn unlock_liquidity(env: &Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
         if amount <= 0 {
             return Err(BridgeError::AmountMustBePositive);
         }
@@ -274,7 +262,7 @@ impl LiquidityManager {
             .get(&FEE_STRUCTURE)
             .unwrap_or(BridgeFeeStructure {
                 base_fee: BASE_FEE_BPS,
-                dynamic_multiplier: 100, // 1x
+                dynamic_multiplier: 100,    // 1x
                 congestion_multiplier: 100, // 1x
                 volume_discount_tiers: Self::default_volume_tiers(env),
                 last_updated: env.ledger().timestamp(),
@@ -286,7 +274,7 @@ impl LiquidityManager {
             .instance()
             .get(&LIQUIDITY_POOLS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let congestion_multiplier = if let Some(pool) = pools.get(chain_id) {
             Self::calculate_congestion_multiplier(&pool)
         } else {
@@ -294,10 +282,8 @@ impl LiquidityManager {
         };
 
         // Calculate volume discount
-        let volume_discount = Self::calculate_volume_discount(
-            &fee_structure.volume_discount_tiers,
-            user_volume_24h,
-        );
+        let volume_discount =
+            Self::calculate_volume_discount(&fee_structure.volume_discount_tiers, user_volume_24h);
 
         // Calculate final fee
         let base_fee_amount = (amount * fee_structure.base_fee) / 10000;
@@ -398,15 +384,15 @@ impl LiquidityManager {
         // Simple reward calculation based on share and time
         let time_factor = 1i128; // Could be based on time in pool
         let share_factor = (position.amount * 10000) / total_liquidity;
-        
+
         (position.amount * share_factor * time_factor) / 1000000
     }
 
     /// Default volume discount tiers
     fn default_volume_tiers(env: &Env) -> Map<u32, u32> {
         let mut tiers = Map::new(env);
-        tiers.set(10000u32, 0u32);    // $0-10k: 0% discount
-        tiers.set(100000u32, 500u32);  // $10k-100k: 5% discount
+        tiers.set(10000u32, 0u32); // $0-10k: 0% discount
+        tiers.set(100000u32, 500u32); // $10k-100k: 5% discount
         tiers.set(500000u32, 1000u32); // $100k-500k: 10% discount
         tiers.set(1000000u32, 2000u32); // $500k+: 20% discount
         tiers

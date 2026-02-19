@@ -5,9 +5,7 @@
 
 use crate::errors::BridgeError;
 use crate::events::{AssetRegisteredEvent, ChainAddedEvent, ChainUpdatedEvent};
-use crate::storage::{
-    ASSET_COUNTER, CHAIN_CONFIGS, MULTI_CHAIN_ASSETS, SUPPORTED_CHAINS,
-};
+use crate::storage::{ASSET_COUNTER, CHAIN_CONFIGS, MULTI_CHAIN_ASSETS, SUPPORTED_CHAINS};
 use crate::types::{ChainAssetInfo, ChainConfig, MultiChainAsset};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
@@ -36,7 +34,7 @@ impl MultiChainManager {
             .instance()
             .get(&SUPPORTED_CHAINS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let chain_count = chains.len();
         if chain_count >= MAX_SUPPORTED_CHAINS {
             return Err(BridgeError::InvalidChainConfiguration);
@@ -103,7 +101,7 @@ impl MultiChainManager {
             .instance()
             .get(&CHAIN_CONFIGS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut chain_config = chain_configs
             .get(chain_id)
             .ok_or(BridgeError::DestinationChainNotSupported)?;
@@ -155,11 +153,7 @@ impl MultiChainManager {
         }
 
         // Check asset limit
-        let asset_counter: u64 = env
-            .storage()
-            .instance()
-            .get(&ASSET_COUNTER)
-            .unwrap_or(0u64);
+        let asset_counter: u64 = env.storage().instance().get(&ASSET_COUNTER).unwrap_or(0u64);
         if asset_counter >= MAX_MULTI_CHAIN_ASSETS as u64 {
             return Err(BridgeError::InvalidInput);
         }
@@ -201,7 +195,9 @@ impl MultiChainManager {
             .unwrap_or_else(|| Map::new(env));
         assets.set(new_asset_counter, asset);
         env.storage().instance().set(&MULTI_CHAIN_ASSETS, &assets);
-        env.storage().instance().set(&ASSET_COUNTER, &new_asset_counter);
+        env.storage()
+            .instance()
+            .set(&ASSET_COUNTER, &new_asset_counter);
 
         // Emit event
         AssetRegisteredEvent {
@@ -225,11 +221,9 @@ impl MultiChainManager {
             .instance()
             .get(&MULTI_CHAIN_ASSETS)
             .unwrap_or_else(|| Map::new(env));
-        
-        let mut asset = assets
-            .get(asset_id)
-            .ok_or(BridgeError::AssetNotSupported)?;
-        
+
+        let mut asset = assets.get(asset_id).ok_or(BridgeError::AssetNotSupported)?;
+
         asset.is_active = is_active;
         assets.set(asset_id, asset);
         env.storage().instance().set(&MULTI_CHAIN_ASSETS, &assets);
@@ -249,10 +243,8 @@ impl MultiChainManager {
             .instance()
             .get(&MULTI_CHAIN_ASSETS)
             .unwrap_or_else(|| Map::new(env));
-        
-        let mut asset = assets
-            .get(asset_id)
-            .ok_or(BridgeError::AssetNotSupported)?;
+
+        let mut asset = assets.get(asset_id).ok_or(BridgeError::AssetNotSupported)?;
 
         if is_outgoing {
             asset.total_bridged += amount;
@@ -273,7 +265,7 @@ impl MultiChainManager {
             .instance()
             .get(&SUPPORTED_CHAINS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         if !chains.get(chain_id).unwrap_or(false) {
             return false;
         }
@@ -284,7 +276,7 @@ impl MultiChainManager {
             .instance()
             .get(&CHAIN_CONFIGS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         if let Some(config) = chain_configs.get(chain_id) {
             config.is_active
         } else {
@@ -313,11 +305,7 @@ impl MultiChainManager {
     }
 
     /// Get chain asset info for a specific chain
-    pub fn get_chain_asset_info(
-        env: &Env,
-        asset_id: u64,
-        chain_id: u32,
-    ) -> Option<ChainAssetInfo> {
+    pub fn get_chain_asset_info(env: &Env, asset_id: u64, chain_id: u32) -> Option<ChainAssetInfo> {
         if let Some(asset) = Self::get_asset(env, asset_id) {
             asset.chain_configs.get(chain_id)
         } else {
@@ -332,7 +320,7 @@ impl MultiChainManager {
             .instance()
             .get(&SUPPORTED_CHAINS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (chain_id, is_supported) in chains.iter() {
             if is_supported {
@@ -349,7 +337,7 @@ impl MultiChainManager {
             .instance()
             .get(&MULTI_CHAIN_ASSETS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (asset_id, asset) in assets.iter() {
             if asset.is_active {
@@ -382,10 +370,8 @@ impl MultiChainManager {
             .instance()
             .get(&MULTI_CHAIN_ASSETS)
             .unwrap_or_else(|| Map::new(env));
-        
-        let asset = assets
-            .get(asset_id)
-            .ok_or(BridgeError::AssetNotSupported)?;
+
+        let asset = assets.get(asset_id).ok_or(BridgeError::AssetNotSupported)?;
 
         if !asset.is_active {
             return Err(BridgeError::AssetNotSupported);

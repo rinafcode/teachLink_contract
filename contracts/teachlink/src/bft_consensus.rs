@@ -9,8 +9,8 @@ use crate::events::{
     ValidatorUnregisteredEvent,
 };
 use crate::storage::{
-    BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, VALIDATOR_INFO, VALIDATOR_STAKES,
-    VALIDATORS,
+    BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, VALIDATORS, VALIDATOR_INFO,
+    VALIDATOR_STAKES,
 };
 use crate::types::{
     BridgeProposal, ConsensusState, CrossChainMessage, ProposalStatus, ValidatorInfo,
@@ -40,7 +40,11 @@ impl BFTConsensus {
         }
 
         // Check if already registered
-        let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap_or_else(|| Map::new(env));
+        let validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         if validators.get(validator.clone()).unwrap_or(false) {
             return Err(BridgeError::AlreadyInitialized);
         }
@@ -65,7 +69,9 @@ impl BFTConsensus {
             .get(&VALIDATOR_INFO)
             .unwrap_or_else(|| Map::new(env));
         validator_infos.set(validator.clone(), validator_info);
-        env.storage().instance().set(&VALIDATOR_INFO, &validator_infos);
+        env.storage()
+            .instance()
+            .set(&VALIDATOR_INFO, &validator_infos);
 
         // Store stake
         let mut stakes: Map<Address, i128> = env
@@ -100,7 +106,11 @@ impl BFTConsensus {
         validator.require_auth();
 
         // Check if validator exists
-        let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap_or_else(|| Map::new(env));
+        let validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         if !validators.get(validator.clone()).unwrap_or(false) {
             return Err(BridgeError::InvalidValidatorSignature);
         }
@@ -125,7 +135,9 @@ impl BFTConsensus {
             .get(&VALIDATOR_INFO)
             .unwrap_or_else(|| Map::new(env));
         validator_infos.remove(validator.clone());
-        env.storage().instance().set(&VALIDATOR_INFO, &validator_infos);
+        env.storage()
+            .instance()
+            .set(&VALIDATOR_INFO, &validator_infos);
 
         // Remove stake
         let mut stakes = stakes;
@@ -147,10 +159,7 @@ impl BFTConsensus {
     }
 
     /// Create a new bridge proposal
-    pub fn create_proposal(
-        env: &Env,
-        message: CrossChainMessage,
-    ) -> Result<u64, BridgeError> {
+    pub fn create_proposal(env: &Env, message: CrossChainMessage) -> Result<u64, BridgeError> {
         // Get proposal counter
         let mut proposal_counter: u64 = env
             .storage()
@@ -193,7 +202,9 @@ impl BFTConsensus {
             .unwrap_or_else(|| Map::new(env));
         proposals.set(proposal_counter, proposal);
         env.storage().instance().set(&BRIDGE_PROPOSALS, &proposals);
-        env.storage().instance().set(&PROPOSAL_COUNTER, &proposal_counter);
+        env.storage()
+            .instance()
+            .set(&PROPOSAL_COUNTER, &proposal_counter);
 
         // Emit event
         ProposalCreatedEvent {
@@ -304,7 +315,9 @@ impl BFTConsensus {
                 last_consensus_round: 0,
             });
         consensus_state.last_consensus_round = env.ledger().timestamp();
-        env.storage().instance().set(&CONSENSUS_STATE, &consensus_state);
+        env.storage()
+            .instance()
+            .set(&CONSENSUS_STATE, &consensus_state);
 
         // Emit event
         ProposalExecutedEvent {
@@ -319,7 +332,11 @@ impl BFTConsensus {
 
     /// Update the consensus state based on current validators
     fn update_consensus_state(env: &Env) -> Result<(), BridgeError> {
-        let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap_or_else(|| Map::new(env));
+        let validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         let stakes: Map<Address, i128> = env
             .storage()
             .instance()
@@ -372,7 +389,9 @@ impl BFTConsensus {
             info.last_activity = env.ledger().timestamp();
             info.total_validations += 1;
             validator_infos.set(validator.clone(), info);
-            env.storage().instance().set(&VALIDATOR_INFO, &validator_infos);
+            env.storage()
+                .instance()
+                .set(&VALIDATOR_INFO, &validator_infos);
         }
 
         Ok(())
@@ -380,7 +399,11 @@ impl BFTConsensus {
 
     /// Check if an address is an active validator
     pub fn is_active_validator(env: &Env, address: &Address) -> bool {
-        let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap_or_else(|| Map::new(env));
+        let validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         validators.get(address.clone()).unwrap_or(false)
     }
 
@@ -419,7 +442,11 @@ impl BFTConsensus {
 
     /// Get all active validators
     pub fn get_active_validators(env: &Env) -> Vec<Address> {
-        let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap_or_else(|| Map::new(env));
+        let validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         let mut active = Vec::new(env);
         for (validator, is_active) in validators.iter() {
             if is_active {
