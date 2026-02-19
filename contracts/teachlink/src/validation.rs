@@ -1,4 +1,5 @@
 use crate::errors::EscrowError;
+use crate::types::EscrowSigner;
 use soroban_sdk::{Address, Bytes, Env, String, Vec};
 
 /// Validation configuration constants
@@ -173,9 +174,6 @@ impl StringValidator {
                         | '+'
                         | '='
                         | ':'
-                        | ';'
-                        | '/'
-                        | '\\'
                 )
             {
                 return Err(ValidationError::InvalidStringLength);
@@ -256,7 +254,7 @@ impl EscrowValidator {
         beneficiary: &Address,
         token: &Address,
         amount: i128,
-        signers: &Vec<Address>,
+        signers: &Vec<EscrowSigner>,
         threshold: u32,
         release_time: Option<u64>,
         refund_time: Option<u64>,
@@ -277,8 +275,15 @@ impl EscrowValidator {
         // Validate signers
         NumberValidator::validate_signer_count(signers.len() as usize)
             .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
-        NumberValidator::validate_threshold(threshold, signers.len())
-            .map_err(|_| EscrowError::InvalidSignerThreshold)?;
+
+        let mut total_weight: u32 = 0;
+        for signer in signers.iter() {
+            total_weight += signer.weight;
+        }
+
+        if threshold < 1 || threshold > total_weight {
+            return Err(EscrowError::InvalidSignerThreshold);
+        }
 
         // Validate time constraints
         if let (Some(release), Some(refund)) = (release_time, refund_time) {
@@ -294,13 +299,13 @@ impl EscrowValidator {
     }
 
     /// Checks for duplicate signers in the list
-    pub fn check_duplicate_signers(signers: &Vec<Address>) -> Result<(), EscrowError> {
+    pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
         let mut seen = soroban_sdk::Map::new(&signers.env());
         for signer in signers.iter() {
-            if seen.get(signer.clone()).unwrap_or(false) {
+            if seen.get(signer.address.clone()).unwrap_or(false) {
                 return Err(EscrowError::DuplicateSigner);
             }
-            seen.set(signer.clone(), true);
+            seen.set(signer.address.clone(), true);
         }
         Ok(())
     }
@@ -340,7 +345,7 @@ impl EscrowValidator {
 
         // Check if caller is a signer
         for signer in escrow.signers.iter() {
-            if signer.clone() == caller.clone() {
+            if signer.address == caller.clone() {
                 return true;
             }
         }
