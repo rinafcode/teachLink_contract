@@ -1,0 +1,74 @@
+# Branch Protection Configuration for main branch
+# This file defines the required branch protection rules
+
+protection_rules:
+  main:
+    # Require PR reviews before merging
+    required_approving_review_count: 1
+    
+    # Require status checks to pass before merging
+    required_status_checks:
+      strict: true  # Require status checks to pass on latest commit
+      contexts:
+        # Required checks that must pass
+        - "pr-validation"  # Our comprehensive PR validation workflow
+        - "Format"          # Code formatting check
+        - "Clippy"          # Linting check  
+        - "Test"             # Unit tests
+        - "Build"            # Build verification
+        
+        # Optional but recommended checks
+        - "Docs"             # Documentation generation
+        - "Security Audit"    # Security vulnerability scan
+        
+    # Enforce restrictions
+    enforce_admins: true
+    required_linear_history: true
+    
+    # Restrict who can push to main branch
+    restrictions:
+      users: []
+      teams: ["core-maintainers", "admins"]
+
+# PR Requirements
+pr_requirements:
+  # All required checks must pass
+  required_checks:
+    - name: "pr-validation"
+      description: "Comprehensive PR validation including formatting, linting, tests, and builds"
+      required: true
+    - name: "Format" 
+      description: "Code must be properly formatted with cargo fmt"
+      required: true
+    - name: "Clippy"
+      description: "Code must pass all clippy lints"
+      required: true
+    - name: "Test"
+      description: "All unit tests must pass"
+      required: true
+    - name: "Build"
+      description: "Code must compile successfully"
+      required: true
+      
+  # Optional but recommended checks
+  optional_checks:
+    - name: "Docs"
+      description: "Documentation must build without errors"
+      required: false
+    - name: "Security Audit"
+      description: "No critical security vulnerabilities"
+      required: false
+
+# Merge Requirements
+merge_requirements:
+  # PR must be up to date with main branch
+  up_to_date: true
+  
+  # No merge conflicts
+  no_conflicts: true
+  
+  # PR must be approved by at least one maintainer
+  approval_required: true
+  
+  # All required status checks must pass
+  status_checks_passed: true
