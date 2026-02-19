@@ -1,4 +1,4 @@
-blank_issues_enabled: false
+blank_issues_enabled: true
 contact_links:
   - name: 🔐 Security Vulnerability (Private)
     url: https://github.com/rinafcode/teachLink_contract/security/advisories/new
