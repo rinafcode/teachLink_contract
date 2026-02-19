@@ -21,24 +21,29 @@ impl EscrowAnalyticsManager {
     pub fn update_resolution(env: &Env, resolution_time: u64) {
         let mut metrics = Self::get_metrics(env);
         metrics.total_resolved += 1;
-        
+
         // Update average resolution time
         if metrics.total_resolved == 1 {
             metrics.average_resolution_time = resolution_time;
         } else {
-            metrics.average_resolution_time = (metrics.average_resolution_time * (metrics.total_resolved - 1) + resolution_time) / metrics.total_resolved;
+            metrics.average_resolution_time =
+                (metrics.average_resolution_time * (metrics.total_resolved - 1) + resolution_time)
+                    / metrics.total_resolved;
         }
-        
+
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
     }
 
     pub fn get_metrics(env: &Env) -> EscrowMetrics {
-        env.storage().instance().get(&ESCROW_ANALYTICS).unwrap_or(EscrowMetrics {
-            total_escrows: 0,
-            total_volume: 0,
-            total_disputes: 0,
-            total_resolved: 0,
-            average_resolution_time: 0,
-        })
+        env.storage()
+            .instance()
+            .get(&ESCROW_ANALYTICS)
+            .unwrap_or(EscrowMetrics {
+                total_escrows: 0,
+                total_volume: 0,
+                total_disputes: 0,
+                total_resolved: 0,
+                average_resolution_time: 0,
+            })
     }
 }

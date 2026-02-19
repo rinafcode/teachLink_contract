@@ -9,7 +9,11 @@ pub struct InsuranceManager;
 
 impl InsuranceManager {
     /// Initialize the insurance pool
-    pub fn initialize_pool(env: &Env, token: Address, premium_rate: u32) -> Result<(), EscrowError> {
+    pub fn initialize_pool(
+        env: &Env,
+        token: Address,
+        premium_rate: u32,
+    ) -> Result<(), EscrowError> {
         let pool = InsurancePool {
             token,
             balance: 0,
@@ -24,7 +28,11 @@ impl InsuranceManager {
     /// Fund the insurance pool
     pub fn fund_pool(env: &Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
         funder.require_auth();
-        let mut pool: InsurancePool = env.storage().instance().get(&INSURANCE_POOL).ok_or(EscrowError::AmountMustBePositive)?;
+        let mut pool: InsurancePool = env
+            .storage()
+            .instance()
+            .get(&INSURANCE_POOL)
+            .ok_or(EscrowError::AmountMustBePositive)?;
 
         env.invoke_contract::<()>(
             &pool.token,
@@ -44,13 +52,17 @@ impl InsuranceManager {
 
     /// Calculate insurance premium for an escrow amount
     pub fn calculate_premium(env: &Env, amount: i128) -> i128 {
-        let pool: InsurancePool = env.storage().instance().get(&INSURANCE_POOL).unwrap_or(InsurancePool {
-            token: env.current_contract_address(), // Use current contract as dummy if not initialized
-            balance: 0,
-            premium_rate: 100, // 1%
-            total_claims_paid: 0,
-            max_payout_percentage: 8000,
-        });
+        let pool: InsurancePool =
+            env.storage()
+                .instance()
+                .get(&INSURANCE_POOL)
+                .unwrap_or(InsurancePool {
+                    token: env.current_contract_address(), // Use current contract as dummy if not initialized
+                    balance: 0,
+                    premium_rate: 100, // 1%
+                    total_claims_paid: 0,
+                    max_payout_percentage: 8000,
+                });
 
         (amount * pool.premium_rate as i128) / 10000
     }
@@ -63,7 +75,11 @@ impl InsuranceManager {
 
     /// Internal: Pay premium and add to pool (no auth check)
     pub fn pay_premium_internal(env: &Env, user: Address, amount: i128) -> Result<(), EscrowError> {
-        let mut pool: InsurancePool = env.storage().instance().get(&INSURANCE_POOL).ok_or(EscrowError::AmountMustBePositive)?;
+        let mut pool: InsurancePool = env
+            .storage()
+            .instance()
+            .get(&INSURANCE_POOL)
+            .ok_or(EscrowError::AmountMustBePositive)?;
 
         env.invoke_contract::<()>(
             &pool.token,
@@ -82,8 +98,16 @@ impl InsuranceManager {
     }
 
     /// Process an insurance claim
-    pub fn process_claim(env: &Env, recipient: Address, requested_amount: i128) -> Result<(), EscrowError> {
-        let mut pool: InsurancePool = env.storage().instance().get(&INSURANCE_POOL).ok_or(EscrowError::AmountMustBePositive)?;
+    pub fn process_claim(
+        env: &Env,
+        recipient: Address,
+        requested_amount: i128,
+    ) -> Result<(), EscrowError> {
+        let mut pool: InsurancePool = env
+            .storage()
+            .instance()
+            .get(&INSURANCE_POOL)
+            .ok_or(EscrowError::AmountMustBePositive)?;
 
         let max_payout = (pool.balance * pool.max_payout_percentage as i128) / 10000;
         let final_payout = requested_amount.min(max_payout);

@@ -91,7 +91,11 @@ impl EscrowManager {
         Ok(escrow_count)
     }
 
-    pub fn approve_release(env: &Env, escrow_id: u64, signer_addr: Address) -> Result<u32, EscrowError> {
+    pub fn approve_release(
+        env: &Env,
+        escrow_id: u64,
+        signer_addr: Address,
+    ) -> Result<u32, EscrowError> {
         signer_addr.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
@@ -297,12 +301,13 @@ impl EscrowManager {
             escrow.dispute_reason = Some(Bytes::from_slice(env, b"Automated stall detection"));
             escrow.arbitrator = ArbitrationManager::pick_arbitrator(env)?;
             Self::save_escrow(env, escrow_id, escrow);
-            
+
             EscrowDisputedEvent {
                 escrow_id,
                 disputer: env.current_contract_address(),
                 reason: Bytes::from_slice(env, b"Automated stall detection"),
-            }.publish(env);
+            }
+            .publish(env);
         }
         Ok(())
     }

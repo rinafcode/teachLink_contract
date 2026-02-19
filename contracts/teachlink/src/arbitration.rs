@@ -23,7 +23,11 @@ impl ArbitrationManager {
     }
 
     /// Update arbitrator profile
-    pub fn update_profile(env: &Env, address: Address, profile: ArbitratorProfile) -> Result<(), EscrowError> {
+    pub fn update_profile(
+        env: &Env,
+        address: Address,
+        profile: ArbitratorProfile,
+    ) -> Result<(), EscrowError> {
         address.require_auth();
         if address != profile.address {
             return Err(EscrowError::SignerNotAuthorized);
@@ -89,7 +93,11 @@ impl ArbitrationManager {
     }
 
     /// Update reputation after a resolution
-    pub fn update_reputation(env: &Env, arbitrator_addr: Address, success: bool) -> Result<(), EscrowError> {
+    pub fn update_reputation(
+        env: &Env,
+        arbitrator_addr: Address,
+        success: bool,
+    ) -> Result<(), EscrowError> {
         let mut arbitrators: Map<Address, ArbitratorProfile> = env
             .storage()
             .instance()
