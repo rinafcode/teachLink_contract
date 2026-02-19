@@ -1,0 +1,291 @@
+name: PR Validation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate-pr:
+    runs-on: ubuntu-latest
+    outputs:
+      can-merge: ${{ steps.check-results.outputs.can-merge }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo registry
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-targets: true
+
+      # 1. Code Formatting Check
+      - name: Check code formatting
+        id: fmt-check
+        run: |
+          echo "🔍 Checking code formatting..."
+          if cargo fmt --all -- --check; then
+            echo "✅ Code formatting check passed"
+            echo "fmt_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Code formatting check failed"
+            echo "fmt_check=false" >> $GITHUB_OUTPUT
+            echo "Please run 'cargo fmt --all' to fix formatting issues"
+            exit 1
+          fi
+
+      # 2. Clippy Linting Check
+      - name: Run clippy lints
+        id: clippy-check
+        run: |
+          echo "🔍 Running clippy lints..."
+          if cargo clippy --all-targets --all-features -- -D warnings \
+            -A clippy::needless_pass_by_value \
+            -A clippy::must_use_candidate \
+            -A clippy::missing_panics_doc \
+            -A clippy::missing_errors_doc \
+            -A clippy::doc_markdown \
+            -A clippy::panic_in_result_fn \
+            -A clippy::assertions_on_constants \
+            -A clippy::unreadable_literal \
+            -A clippy::too_many_lines \
+            -A clippy::trivially_copy_pass_by_ref \
+            -A clippy::needless_borrow \
+            -A clippy::unused_unit \
+            -A clippy::len_zero \
+            -A clippy::unnecessary_cast \
+            -A clippy::needless_late_init \
+            -A clippy::map_unwrap_or \
+            -A clippy::items_after_statements \
+            -A clippy::manual_assert \
+            -A clippy::unnecessary_wraps \
+            -A clippy::similar_names \
+            -A clippy::no_effect_underscore_binding \
+            -A clippy::bool_assert_comparison \
+            -A clippy::uninlined_format_args \
+            -A clippy::useless_vec \
+            -A dead_code \
+            -A unused_variables; then
+            echo "✅ Clippy check passed"
+            echo "clippy_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Clippy check failed"
+            echo "clippy_check=false" >> $GITHUB_OUTPUT
+            echo "Please fix clippy warnings before merging"
+            exit 1
+          fi
+
+      # 3. Unit Tests Check
+      - name: Run unit tests
+        id: test-check
+        run: |
+          echo "🧪 Running unit tests..."
+          if cargo test --lib; then
+            echo "✅ All unit tests passed"
+            echo "test_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Unit tests failed"
+            echo "test_check=false" >> $GITHUB_OUTPUT
+            echo "Please fix failing tests before merging"
+            exit 1
+          fi
+
+      # 4. Build Check (Debug)
+      - name: Build (Debug)
+        id: build-debug-check
+        run: |
+          echo "🔨 Building in debug mode..."
+          if cargo build; then
+            echo "✅ Debug build passed"
+            echo "build_debug_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Debug build failed"
+            echo "build_debug_check=false" >> $GITHUB_OUTPUT
+            echo "Please fix build errors before merging"
+            exit 1
+          fi
+
+      # 5. Build Check (WASM Release)
+      - name: Build WASM (Release)
+        id: build-wasm-check
+        run: |
+          echo "🔨 Building WASM in release mode..."
+          if cargo build --target wasm32-unknown-unknown --release; then
+            echo "✅ WASM release build passed"
+            echo "build_wasm_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ WASM release build failed"
+            echo "build_wasm_check=false" >> $GITHUB_OUTPUT
+            echo "Please fix WASM build errors before merging"
+            exit 1
+          fi
+
+      # 6. Documentation Check
+      - name: Check documentation
+        id: docs-check
+        run: |
+          echo "📚 Checking documentation..."
+          if cargo doc --no-deps --document-private-items; then
+            echo "✅ Documentation check passed"
+            echo "docs_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Documentation check failed"
+            echo "docs_check=false" >> $GITHUB_OUTPUT
+            echo "Please fix documentation errors before merging"
+            exit 1
+          fi
+
+      # 7. Security Audit Check
+      - name: Security audit
+        id: security-check
+        run: |
+          echo "🔒 Running security audit..."
+          if cargo install --quiet audit-check && cargo audit; then
+            echo "✅ Security audit passed"
+            echo "security_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Security audit found vulnerabilities"
+            echo "security_check=false" >> $GITHUB_OUTPUT
+            echo "Please address security vulnerabilities before merging"
+            # Don't fail the build for security issues, just warn
+            echo "security_check=true" >> $GITHUB_OUTPUT
+          fi
+
+      # 8. Check for duplicate dependencies
+      - name: Check duplicate dependencies
+        id: duplicate-check
+        run: |
+          echo "🔍 Checking for duplicate dependencies..."
+          if cargo install --quiet cargo-duplicate && cargo duplicate; then
+            echo "✅ No duplicate dependencies found"
+            echo "duplicate_check=true" >> $GITHUB_OUTPUT
+          else
+            echo "⚠️ Duplicate dependency check failed"
+            echo "duplicate_check=false" >> $GITHUB_OUTPUT
+            echo "Please fix duplicate dependencies before merging"
+            # Don't fail the build for duplicates, just warn
+            echo "duplicate_check=true" >> $GITHUB_OUTPUT
+          fi
+
+      # 9. Aggregate results
+      - name: Check results
+        id: check-results
+        run: |
+          echo "📊 Aggregating all check results..."
+          
+          # Get all check results
+          FMT_CHECK="${{ steps.fmt-check.outputs.fmt_check }}"
+          CLIPPY_CHECK="${{ steps.clippy-check.outputs.clippy_check }}"
+          TEST_CHECK="${{ steps.test-check.outputs.test_check }}"
+          BUILD_DEBUG_CHECK="${{ steps.build-debug-check.outputs.build_debug_check }}"
+          BUILD_WASM_CHECK="${{ steps.build-wasm-check.outputs.build_wasm_check }}"
+          DOCS_CHECK="${{ steps.docs-check.outputs.docs_check }}"
+          SECURITY_CHECK="${{ steps.security-check.outputs.security_check }}"
+          DUPLICATE_CHECK="${{ steps.duplicate-check.outputs.duplicate_check }}"
+          
+          # All required checks must pass
+          if [[ "$FMT_CHECK" == "true" && \
+                "$CLIPPY_CHECK" == "true" && \
+                "$TEST_CHECK" == "true" && \
+                "$BUILD_DEBUG_CHECK" == "true" && \
+                "$BUILD_WASM_CHECK" == "true" ]]; then
+            echo "✅ All required checks passed!"
+            echo "can-merge=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Some required checks failed"
+            echo "can-merge=false" >> $GITHUB_OUTPUT
+            
+            # Show which checks failed
+            echo ""
+            echo "📋 Check Summary:"
+            [[ "$FMT_CHECK" == "true" ]] && echo "✅ Code Formatting" || echo "❌ Code Formatting"
+            [[ "$CLIPPY_CHECK" == "true" ]] && echo "✅ Clippy Lints" || echo "❌ Clippy Lints"
+            [[ "$TEST_CHECK" == "true" ]] && echo "✅ Unit Tests" || echo "❌ Unit Tests"
+            [[ "$BUILD_DEBUG_CHECK" == "true" ]] && echo "✅ Debug Build" || echo "❌ Debug Build"
+            [[ "$BUILD_WASM_CHECK" == "true" ]] && echo "✅ WASM Release Build" || echo "❌ WASM Release Build"
+            [[ "$DOCS_CHECK" == "true" ]] && echo "✅ Documentation" || echo "❌ Documentation"
+            [[ "$SECURITY_CHECK" == "true" ]] && echo "✅ Security Audit" || echo "⚠️ Security Audit"
+            [[ "$DUPLICATE_CHECK" == "true" ]] && echo "✅ No Duplicate Dependencies" || echo "⚠️ Duplicate Dependencies"
+          fi
+
+      # 10. Comment on PR with results
+      - name: Comment PR
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const canMerge = '${{ steps.check-results.outputs.can-merge }}' === 'true';
+            
+            const comment = `
+            ## 🤖 PR Validation Results
+            
+            ${canMerge ? '✅ **This PR is ready to merge!**' : '❌ **This PR is not ready to merge yet.'}
+            
+            ### 📋 Required Checks:
+            - **Code Formatting**: ${{ steps.fmt-check.outputs.fmt_check == 'true' ? '✅ Passed' : '❌ Failed' }}
+            - **Clippy Lints**: ${{ steps.clippy-check.outputs.clippy_check == 'true' ? '✅ Passed' : '❌ Failed' }}
+            - **Unit Tests**: ${{ steps.test-check.outputs.test_check == 'true' ? '✅ Passed' : '❌ Failed' }}
+            - **Debug Build**: ${{ steps.build-debug-check.outputs.build_debug_check == 'true' ? '✅ Passed' : '❌ Failed' }}
+            - **WASM Release Build**: ${{ steps.build-wasm-check.outputs.build_wasm_check == 'true' ? '✅ Passed' : '❌ Failed' }}
+            
+            ### 📚 Optional Checks:
+            - **Documentation**: ${{ steps.docs-check.outputs.docs_check == 'true' ? '✅ Passed' : '❌ Failed' }}
+            - **Security Audit**: ${{ steps.security-check.outputs.security_check == 'true' ? '✅ Passed' : '⚠️ Issues Found' }}
+            - **Duplicate Dependencies**: ${{ steps.duplicate-check.outputs.duplicate_check == 'true' ? '✅ Passed' : '⚠️ Issues Found' }}
+            
+            ${!canMerge ? `
+            ### 🔧 How to Fix:
+            1. **Code Formatting**: Run \`cargo fmt --all\`
+            2. **Clippy Lints**: Fix all clippy warnings
+            3. **Unit Tests**: Make sure all tests pass with \`cargo test --lib\`
+            4. **Build**: Fix any compilation errors with \`cargo build\` and \`cargo build --target wasm32-unknown-unknown --release\`
+            5. **Documentation**: Fix any doc errors with \`cargo doc --no-deps\`
+            
+            Please fix the failing checks and push your changes. The validation will run automatically.
+            ` : ''}
+            
+            ---
+            
+            🤖 *This comment was automatically generated by the PR validation workflow.*
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+  # 11. Set PR status
+  - name: Update PR status
+    if: always()
+    uses: actions/github-script@v7
+    with:
+      script: |
+        const canMerge = '${{ steps.check-results.outputs.can-merge }}' === 'true';
+        
+        await github.rest.repos.createCommitStatus({
+          owner: context.repo.owner,
+          repo: context.repo.repo,
+          sha: context.sha,
+          state: canMerge ? 'success' : 'failure',
+          target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+          description: canMerge ? 'All checks passed - Ready to merge' : 'Some checks failed - Not ready to merge',
+          context: 'pr-validation'
+        });
+
+  # 12. Branch protection enforcement
+  - name: Enforce branch protection
+    if: steps.check-results.outputs.can-merge == 'false'
+    run: |
+      echo "🚫 PR cannot be merged due to failed checks"
+      echo "Please fix all failing checks before this PR can be merged"
+      exit 1

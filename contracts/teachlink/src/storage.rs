@@ -12,6 +12,54 @@ pub const ADMIN: Symbol = symbol_short!("admin");
 pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
 
+// ========== Advanced Bridge Storage Keys ==========
+
+// BFT Consensus Storage
+pub const VALIDATOR_INFO: Symbol = symbol_short!("val_info");
+pub const BRIDGE_PROPOSALS: Symbol = symbol_short!("proposals");
+pub const PROPOSAL_COUNTER: Symbol = symbol_short!("prop_cnt");
+pub const CONSENSUS_STATE: Symbol = symbol_short!("cons_st");
+pub const VALIDATOR_STAKES: Symbol = symbol_short!("val_stake");
+
+// Slashing and Rewards Storage
+pub const SLASHING_RECORDS: Symbol = symbol_short!("slash_rec");
+pub const VALIDATOR_REWARDS: Symbol = symbol_short!("val_rwds");
+pub const SLASHING_COUNTER: Symbol = symbol_short!("slash_cnt");
+
+// Multi-Chain Support Storage
+pub const CHAIN_CONFIGS: Symbol = symbol_short!("chain_cfg");
+pub const MULTI_CHAIN_ASSETS: Symbol = symbol_short!("mc_assets");
+pub const ASSET_COUNTER: Symbol = symbol_short!("asset_cnt");
+
+// Liquidity and AMM Storage
+pub const LIQUIDITY_POOLS: Symbol = symbol_short!("liq_pools");
+pub const LP_POSITIONS: Symbol = symbol_short!("lp_pos");
+pub const FEE_STRUCTURE: Symbol = symbol_short!("fee_struc");
+
+// Message Passing Storage
+pub const CROSS_CHAIN_PACKETS: Symbol = symbol_short!("packets");
+pub const PACKET_COUNTER: Symbol = symbol_short!("pkt_cnt");
+pub const MESSAGE_RECEIPTS: Symbol = symbol_short!("receipts");
+
+// Emergency and Security Storage
+pub const EMERGENCY_STATE: Symbol = symbol_short!("emergency");
+pub const CIRCUIT_BREAKERS: Symbol = symbol_short!("circ_brk");
+pub const PAUSED_CHAINS: Symbol = symbol_short!("paused_ch");
+
+// Audit and Compliance Storage
+pub const AUDIT_RECORDS: Symbol = symbol_short!("audit_rec");
+pub const AUDIT_COUNTER: Symbol = symbol_short!("audit_cnt");
+pub const COMPLIANCE_REPORTS: Symbol = symbol_short!("compl_rep");
+
+// Atomic Swap Storage
+pub const ATOMIC_SWAPS: Symbol = symbol_short!("swaps");
+pub const SWAP_COUNTER: Symbol = symbol_short!("swap_cnt");
+
+// Analytics Storage
+pub const BRIDGE_METRICS: Symbol = symbol_short!("metrics");
+pub const CHAIN_METRICS: Symbol = symbol_short!("ch_mets");
+pub const DAILY_VOLUMES: Symbol = symbol_short!("daily_vol");
+
 // Storage keys for the rewards system
 pub const REWARDS_ADMIN: Symbol = symbol_short!("rwd_admin");
 pub const REWARD_POOL: Symbol = symbol_short!("rwd_pool");

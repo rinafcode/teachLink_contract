@@ -1,19 +1,14 @@
-# Pull Request
+# 🚀 Pull Request
 
-## Description
-
+## 📋 Description
 <!-- Provide a clear and concise description of what this PR does -->
 
-## Related Issue(s)
-
+## 🔗 Related Issue(s)
 <!-- Link to related issue(s). Use "Closes #123" to auto-close issues when merged -->
-
 - Closes #
 
-## Type of Change
-
+## 🎯 Type of Change
 <!-- Mark the appropriate option with an [x] -->
-
 - [ ] 🐛 Bug fix (non-breaking change that fixes an issue)
 - [ ] ✨ New feature (non-breaking change that adds functionality)
 - [ ] 💥 Breaking change (fix or feature that would cause existing functionality to change)
@@ -22,109 +17,131 @@
 - [ ] 🧪 Test improvements
 - [ ] 🔒 Security fix
 - [ ] ♻️ Refactoring (no functional changes)
+- [ ] ⚡ Performance improvements
 
-## Changes Made
-
+## 📝 Changes Made
 <!-- List the main changes in this PR -->
-
 - 
 - 
 - 
 
-## Testing
+## 🧪 Testing
 
-### Test Coverage
+### ✅ Pre-Merge Checklist (Required)
+- [ ] 🧪 **Unit Tests**: I have run `cargo test --lib` and all tests pass
+- [ ] 🔨 **Debug Build**: I have run `cargo build` and the project builds successfully  
+- [ ] 🎯 **WASM Build**: I have run `cargo build --target wasm32-unknown-unknown --release` and WASM builds successfully
+- [ ] 📝 **Code Formatting**: I have run `cargo fmt --all -- --check` and code is properly formatted
+- [ ] 🔍 **Clippy Lints**: I have run `cargo clippy` and there are no new warnings
 
-<!-- Describe the tests you ran or added -->
+### 🧪 Additional Testing (Recommended)
+- [ ] 📚 **Documentation**: I have run `cargo doc --no-deps` and documentation builds without errors
+- [ ] 🔒 **Security Audit**: I have run `cargo audit` and no critical vulnerabilities found
+- [ ] 🖱️ **Manual Testing**: I have tested this change manually (if applicable)
+- [ ] 📊 **Performance**: I have verified performance impact (if applicable)
 
-- [ ] Unit tests added/updated
-- [ ] Integration tests added/updated
-- [ ] Manual testing performed
-
-### Testing Steps
-
-<!-- Steps for reviewers to verify the changes -->
-
-1. 
-2. 
-3. 
-
-### Test Results
-
+### 📋 Test Results
+<!-- Paste relevant test output here -->
 ```
-# Paste relevant test output here
-cargo test
+cargo test --lib
+# Paste output here
 ```
 
-## Checklist
+```
+cargo build --target wasm32-unknown-unknown --release  
+# Paste build output here
+```
 
-### Code Quality
+## 🔍 Review Checklist
 
+### 📝 Code Quality
 - [ ] My code follows the project's style guidelines
-- [ ] I have run `cargo fmt` and code is properly formatted
-- [ ] I have run `cargo clippy` and addressed all warnings
-- [ ] I have performed a self-review of my code
-- [ ] My changes generate no new warnings
+- [ ] I have performed a self-review of my own code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] My changes generate no new warnings or errors
 
-### Testing
+### 🧪 Testing Requirements
+- [ ] I have added/updated tests that prove my fix is effective or that my feature works
+- [ ] New and existing unit tests pass locally with my changes
+- [ ] Integration tests have been updated (if applicable)
 
-- [ ] All existing tests pass (`cargo test`)
-- [ ] I have added tests that prove my fix/feature works
-- [ ] New and existing unit tests pass locally
-
-### Documentation
-
-- [ ] I have commented my code, particularly in complex areas
+### 📚 Documentation
 - [ ] I have updated the documentation accordingly
 - [ ] I have updated the CHANGELOG (if applicable)
 
-### Security
-
+### 🔒 Security
 - [ ] I have not committed any secrets, keys, or sensitive data
 - [ ] I have considered security implications of my changes
 - [ ] My changes do not introduce known vulnerabilities
 
-### Contract-Specific (if applicable)
-
+### 🏗️ Contract-Specific (if applicable)
 - [ ] Storage changes are backward compatible (or migration plan provided)
 - [ ] Event emissions are appropriate and documented
 - [ ] Error handling is comprehensive
 - [ ] Gas/resource usage has been considered
 
-## Screenshots/Recordings
-
+## 📸 Screenshots/Recordings
 <!-- If applicable, add screenshots or recordings to help explain your changes -->
 
-## Breaking Changes
-
+## 💥 Breaking Changes
 <!-- If this PR introduces breaking changes, describe them here -->
-
 - [ ] This PR introduces breaking changes
 
 <!-- If yes, describe: -->
-<!-- - What breaks -->
-<!-- - Migration path for users -->
+- **What breaks**: 
+- **Migration path**: 
 
-## Additional Notes
+## 📊 Performance Impact
+<!-- Describe any performance implications of your changes -->
+- **CPU/Memory**: 
+- **Gas costs**: 
+- **Network**: 
 
-<!-- Any additional information that reviewers should know -->
+## 🔒 Security Considerations
+<!-- Describe any security implications of your changes -->
+- **Risks**: 
+- **Mitigations**: 
 
-## Deployment Notes
+## 📖 Additional Context
+<!-- Add any other context about the problem here -->
+- **Links**: 
+- **Discussions**: 
+- **Examples**: 
 
+## 🚀 Deployment Notes
 <!-- Any special deployment considerations -->
-
 - [ ] Requires contract redeployment
 - [ ] Requires data migration
+- [ ] Requires configuration changes
 - [ ] No deployment changes needed
+
+## 📋 Reviewer Checklist
+<!-- For reviewers to fill out -->
+- [ ] 📝 Code review completed
+- [ ] 🧪 Tests verified
+- [ ] 📚 Documentation reviewed
+- [ ] 🔒 Security considerations reviewed
+- [ ] 🏗️ Architecture/design reviewed
+- [ ] ✅ Approved for merge
 
 ---
 
-## Reviewer Checklist
+## 🤖 CI Status
+<!-- This section will be automatically filled by the CI system. Do not modify. -->
+- [ ] 📝 Code Formatting: ✅/❌
+- [ ] 🔍 Clippy Lints: ✅/❌  
+- [ ] 🧪 Unit Tests: ✅/❌
+- [ ] 🔨 Debug Build: ✅/❌
+- [ ] 🎯 WASM Release Build: ✅/❌
+- [ ] 📚 Documentation: ✅/❌
+- [ ] 🔒 Security Audit: ✅/⚠️
 
-<!-- For reviewers to fill out -->
+---
 
-- [ ] Code review completed
-- [ ] Tests verified
-- [ ] Documentation reviewed
-- [ ] Security considerations reviewed
-- [ ] Approved for merge
+**🎯 Ready for Review**: 
+- [ ] Yes, all required checks pass and I'm ready for review
+- [ ] No, I need to fix some issues first
+
+---
+
+*Thank you for contributing to TeachLink! 🚀*
