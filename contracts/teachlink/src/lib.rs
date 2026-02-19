@@ -118,10 +118,10 @@ pub use types::{
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
     ContentTokenParameters, ContentType, Contribution, ContributionType, CrossChainMessage,
     CrossChainPacket, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters,
-    EscrowRole, EscrowSigner, EscrowStatus, InsurancePool, LPPosition, LiquidityPool, MessageReceipt,
-    MultiChainAsset, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RewardRate,
-    RewardType, SlashingReason, SlashingRecord, SwapStatus, TransferType, UserReputation,
-    UserReward, ValidatorInfo, ValidatorReward, ValidatorSignature,
+    EscrowRole, EscrowSigner, EscrowStatus, InsurancePool, LPPosition, LiquidityPool,
+    MessageReceipt, MultiChainAsset, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
+    RewardRate, RewardType, SlashingReason, SlashingRecord, SwapStatus, TransferType,
+    UserReputation, UserReward, ValidatorInfo, ValidatorReward, ValidatorSignature,
 };
 
 /// TeachLink main contract.

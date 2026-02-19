@@ -252,17 +252,17 @@ fn test_professional_arbitration_picking() {
         refund_time: None,
         arbitrator: escrow_contract_id.clone(), // Use contract address as "no arbitrator set" signal
     };
-    
+
     // In Soroban, Address doesn't have a reliable "zero" constant easily accessible like this
     // So I'll just use a random one and check if my logic handles "empty" or I'll fix the logic to pick if zero.
     // Actually, I'll just use the depositor's address as "none" for this test or similar.
     // Wait, I'll just test the `dispute` logic picks the registered arb.
-    
+
     let escrow_id = escrow_client.create_escrow(&params);
     let reason = Bytes::from_slice(&env, b"help");
-    
+
     escrow_client.dispute_escrow(&escrow_id, &depositor, &reason);
-    
+
     let escrow = escrow_client.get_escrow(&escrow_id).unwrap();
     assert_eq!(escrow.arbitrator, arb_addr);
 }

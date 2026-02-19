@@ -336,8 +336,8 @@ pub struct ContentTokenParameters {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EscrowRole {
-    Primary,   // Full control, high weight
-    Secondary, // Partial control, low weight
+    Primary,    // Full control, high weight
+    Secondary,  // Partial control, low weight
     Arbitrator, // Can resolve disputes
     Auditor,    // Read-only, can only flag issues
 }

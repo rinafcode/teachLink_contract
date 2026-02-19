@@ -15,7 +15,7 @@ fn test_address_validation() {
 
     // Test valid address
     let valid_address = Address::generate(&env);
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         assert!(AddressValidator::validate(&env, &valid_address).is_ok());
     });
@@ -128,15 +128,17 @@ fn test_cross_chain_validation() {
     let valid_amount = 1000i128;
     let valid_recipient = Address::generate(&env);
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
-        assert!(
-            CrossChainValidator::validate_destination_data(&env, valid_chain_id, &valid_address)
-                .is_ok()
-        );
+        assert!(CrossChainValidator::validate_destination_data(
+            &env,
+            valid_chain_id,
+            &valid_address
+        )
+        .is_ok());
     });
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         assert!(CrossChainValidator::validate_destination_data(
             &env,
@@ -153,7 +155,7 @@ fn test_cross_chain_validation() {
         .is_err());
     });
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // Test valid cross-chain message
         assert!(CrossChainValidator::validate_cross_chain_message(
@@ -240,7 +242,7 @@ fn test_escrow_validation_edge_cases() {
     let future_release = current_time + 1000;
     let future_refund = future_release + 1000;
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // This should pass - refund time after release time
         let result = EscrowValidator::validate_create_escrow(
@@ -258,7 +260,7 @@ fn test_escrow_validation_edge_cases() {
         assert!(result.is_ok());
     });
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // This should fail - refund time before release time
         let result = EscrowValidator::validate_create_escrow(
@@ -375,7 +377,7 @@ fn test_bridge_validation_edge_cases() {
     let valid_chain_id = 1;
     let valid_address = Bytes::from_array(&env, &[1u8; 20]);
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // Test valid bridge out parameters
         assert!(BridgeValidator::validate_bridge_out(
@@ -388,7 +390,7 @@ fn test_bridge_validation_edge_cases() {
         .is_ok());
     });
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // Test edge cases for amounts
         assert!(BridgeValidator::validate_bridge_out(
@@ -502,10 +504,12 @@ fn test_bridge_completion_validation() {
     let mut validators = Vec::new(&env);
     validators.push_back(validator.clone());
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // Test valid completion
-        assert!(BridgeValidator::validate_bridge_completion(&env, &message, &validators, 1).is_ok());
+        assert!(
+            BridgeValidator::validate_bridge_completion(&env, &message, &validators, 1).is_ok()
+        );
     });
 
     // Test insufficient validators
@@ -536,7 +540,7 @@ fn test_rewards_validation_edge_cases() {
     let valid_amount = 1000i128;
     let valid_reward_type = String::from_str(&env, "course_completion");
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // Test valid reward issuance
         assert!(RewardsValidator::validate_reward_issuance(
@@ -548,7 +552,7 @@ fn test_rewards_validation_edge_cases() {
         .is_ok());
     });
 
-    let contract_id = env.register_contract(None, teachlink_contract::TeachLinkBridge);
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
     env.as_contract(&contract_id, || {
         // Test edge cases for amounts
         assert!(RewardsValidator::validate_reward_issuance(
