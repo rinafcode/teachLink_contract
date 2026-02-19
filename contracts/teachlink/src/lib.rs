@@ -88,6 +88,7 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Vec};
 
 mod analytics;
+mod arbitration;
 mod atomic_swap;
 mod audit;
 mod bft_consensus;
@@ -95,7 +96,9 @@ mod bridge;
 mod emergency;
 mod errors;
 mod escrow;
+mod escrow_analytics;
 mod events;
+mod insurance;
 mod liquidity;
 mod message_passing;
 mod multichain;
@@ -111,14 +114,14 @@ pub mod validation;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
-    AtomicSwap, AuditRecord, BridgeMetrics, BridgeProposal, BridgeTransaction, ChainConfig,
-    ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
+    ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics, BridgeProposal, BridgeTransaction,
+    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
     ContentTokenParameters, ContentType, Contribution, ContributionType, CrossChainMessage,
-    CrossChainPacket, DisputeOutcome, EmergencyState, Escrow, EscrowParameters, EscrowStatus,
-    LPPosition, LiquidityPool, MessageReceipt, MultiChainAsset, OperationType, PacketStatus,
-    ProposalStatus, ProvenanceRecord, RewardRate, RewardType, SlashingReason, SlashingRecord,
-    SwapStatus, TransferType, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature,
+    CrossChainPacket, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters,
+    EscrowRole, EscrowSigner, EscrowStatus, InsurancePool, LPPosition, LiquidityPool, MessageReceipt,
+    MultiChainAsset, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RewardRate,
+    RewardType, SlashingReason, SlashingRecord, SwapStatus, TransferType, UserReputation,
+    UserReward, ValidatorInfo, ValidatorReward, ValidatorSignature,
 };
 
 /// TeachLink main contract.
@@ -802,6 +805,11 @@ impl TeachLinkBridge {
         escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
     }
 
+    /// Automatically check if an escrow has stalled and trigger a dispute
+    pub fn auto_check_escrow_dispute(env: Env, escrow_id: u64) -> Result<(), EscrowError> {
+        escrow::EscrowManager::auto_check_dispute(&env, escrow_id)
+    }
+
     /// Resolve a dispute as the arbitrator
     pub fn resolve_escrow(
         env: Env,
@@ -810,6 +818,50 @@ impl TeachLinkBridge {
         outcome: DisputeOutcome,
     ) -> Result<(), EscrowError> {
         escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
+    }
+
+    // ========== Arbitration Management Functions ==========
+
+    /// Register a new professional arbitrator
+    pub fn register_arbitrator(env: Env, profile: ArbitratorProfile) -> Result<(), EscrowError> {
+        arbitration::ArbitrationManager::register_arbitrator(&env, profile)
+    }
+
+    /// Update arbitrator profile
+    pub fn update_arbitrator_profile(
+        env: Env,
+        address: Address,
+        profile: ArbitratorProfile,
+    ) -> Result<(), EscrowError> {
+        arbitration::ArbitrationManager::update_profile(&env, address, profile)
+    }
+
+    /// Get arbitrator profile
+    pub fn get_arbitrator_profile(env: Env, address: Address) -> Option<ArbitratorProfile> {
+        arbitration::ArbitrationManager::get_arbitrator(&env, address)
+    }
+
+    // ========== Insurance Pool Functions ==========
+
+    /// Initialize the escrow insurance pool
+    pub fn initialize_insurance_pool(
+        env: Env,
+        token: Address,
+        premium_rate: u32,
+    ) -> Result<(), EscrowError> {
+        insurance::InsuranceManager::initialize_pool(&env, token, premium_rate)
+    }
+
+    /// Fund the insurance pool
+    pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
+        insurance::InsuranceManager::fund_pool(&env, funder, amount)
+    }
+
+    // ========== Escrow Analytics Functions ==========
+
+    /// Get aggregate escrow metrics
+    pub fn get_escrow_metrics(env: Env) -> EscrowMetrics {
+        escrow_analytics::EscrowAnalyticsManager::get_metrics(&env)
     }
 
     /// Get escrow by id

@@ -79,6 +79,7 @@ pub enum EscrowError {
     OnlyArbitratorCanResolve = 218,
     EscrowNotPending = 219,
     EscrowNotFound = 220,
+    ArbitratorNotAuthorized = 221,
 }
 
 /// Rewards module errors
