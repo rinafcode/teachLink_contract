@@ -28,11 +28,7 @@ impl AuditManager {
         tx_hash: Bytes,
     ) -> Result<u64, BridgeError> {
         // Get audit counter
-        let mut audit_counter: u64 = env
-            .storage()
-            .instance()
-            .get(&AUDIT_COUNTER)
-            .unwrap_or(0u64);
+        let mut audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
 
         // Check if we've reached the maximum
         if audit_counter >= MAX_AUDIT_RECORDS {
@@ -95,7 +91,7 @@ impl AuditManager {
             .instance()
             .get(&AUDIT_RECORDS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (_record_id, record) in audit_records.iter() {
             if record.timestamp >= start_time && record.timestamp <= end_time {
@@ -106,16 +102,13 @@ impl AuditManager {
     }
 
     /// Get audit records by operation type
-    pub fn get_audit_records_by_type(
-        env: &Env,
-        operation_type: OperationType,
-    ) -> Vec<AuditRecord> {
+    pub fn get_audit_records_by_type(env: &Env, operation_type: OperationType) -> Vec<AuditRecord> {
         let audit_records: Map<u64, AuditRecord> = env
             .storage()
             .instance()
             .get(&AUDIT_RECORDS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (_record_id, record) in audit_records.iter() {
             if record.operation_type == operation_type {
@@ -126,16 +119,13 @@ impl AuditManager {
     }
 
     /// Get audit records by operator
-    pub fn get_audit_records_by_operator(
-        env: &Env,
-        operator: Address,
-    ) -> Vec<AuditRecord> {
+    pub fn get_audit_records_by_operator(env: &Env, operator: Address) -> Vec<AuditRecord> {
         let audit_records: Map<u64, AuditRecord> = env
             .storage()
             .instance()
             .get(&AUDIT_RECORDS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (_record_id, record) in audit_records.iter() {
             if record.operator == operator {
@@ -164,13 +154,15 @@ impl AuditManager {
                 OperationType::BridgeIn | OperationType::BridgeOut => {
                     total_transactions += 1;
                     unique_users.set(record.operator.clone(), true);
-                    
+
                     // Extract volume from details (simplified)
                     // In a real implementation, you'd parse the details bytes
                     total_volume += 0; // Placeholder
                 }
                 OperationType::ValidatorAdded | OperationType::ValidatorRemoved => {
-                    let current_count = validator_performance.get(record.operator.clone()).unwrap_or(0);
+                    let current_count = validator_performance
+                        .get(record.operator.clone())
+                        .unwrap_or(0);
                     validator_performance.set(record.operator.clone(), current_count + 1);
                 }
                 _ => {}
@@ -212,26 +204,19 @@ impl AuditManager {
 
     /// Get total audit record count
     pub fn get_audit_count(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&AUDIT_COUNTER)
-            .unwrap_or(0u64)
+        env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64)
     }
 
     /// Get recent audit records (last N records)
     pub fn get_recent_audit_records(env: &Env, count: u32) -> Vec<AuditRecord> {
-        let audit_counter: u64 = env
-            .storage()
-            .instance()
-            .get(&AUDIT_COUNTER)
-            .unwrap_or(0u64);
-        
+        let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
+
         let audit_records: Map<u64, AuditRecord> = env
             .storage()
             .instance()
             .get(&AUDIT_RECORDS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         let start = if audit_counter > count as u64 {
             audit_counter - count as u64
@@ -264,13 +249,7 @@ impl AuditManager {
 
         let details = Bytes::from_slice(env, &amount.to_be_bytes());
 
-        Self::create_audit_record(
-            env,
-            operation_type,
-            operator,
-            details,
-            tx_hash,
-        )
+        Self::create_audit_record(env, operation_type, operator, details, tx_hash)
     }
 
     /// Log validator operation
@@ -287,13 +266,7 @@ impl AuditManager {
             OperationType::ValidatorRemoved
         };
 
-        Self::create_audit_record(
-            env,
-            operation_type,
-            admin,
-            Bytes::new(env),
-            tx_hash,
-        )
+        Self::create_audit_record(env, operation_type, admin, Bytes::new(env), tx_hash)
     }
 
     /// Log emergency operation
@@ -310,13 +283,7 @@ impl AuditManager {
             OperationType::EmergencyResume
         };
 
-        Self::create_audit_record(
-            env,
-            operation_type,
-            operator,
-            reason,
-            tx_hash,
-        )
+        Self::create_audit_record(env, operation_type, operator, reason, tx_hash)
     }
 
     /// Clear old audit records (maintenance)
@@ -332,7 +299,7 @@ impl AuditManager {
             .instance()
             .get(&AUDIT_RECORDS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut cleared_count: u32 = 0;
         let mut new_records: Map<u64, AuditRecord> = Map::new(env);
 

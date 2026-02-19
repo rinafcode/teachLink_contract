@@ -5,7 +5,7 @@
 
 use crate::errors::BridgeError;
 use crate::events::{PacketDeliveredEvent, PacketFailedEvent, PacketSentEvent};
-use crate::storage::{MESSAGE_RECEIPTS, PACKET_COUNTER, CROSS_CHAIN_PACKETS};
+use crate::storage::{CROSS_CHAIN_PACKETS, MESSAGE_RECEIPTS, PACKET_COUNTER};
 use crate::types::{CrossChainPacket, MessageReceipt, PacketStatus};
 use soroban_sdk::{Bytes, Env, Map, Vec};
 
@@ -74,7 +74,9 @@ impl MessagePassing {
             .unwrap_or_else(|| Map::new(env));
         packets.set(packet_counter, packet);
         env.storage().instance().set(&CROSS_CHAIN_PACKETS, &packets);
-        env.storage().instance().set(&PACKET_COUNTER, &packet_counter);
+        env.storage()
+            .instance()
+            .set(&PACKET_COUNTER, &packet_counter);
 
         // Emit event
         PacketSentEvent {
@@ -102,9 +104,7 @@ impl MessagePassing {
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        let mut packet = packets
-            .get(packet_id)
-            .ok_or(BridgeError::PacketNotFound)?;
+        let mut packet = packets.get(packet_id).ok_or(BridgeError::PacketNotFound)?;
 
         // Check if already delivered or failed
         match packet.status {
@@ -155,20 +155,14 @@ impl MessagePassing {
     }
 
     /// Mark a packet as failed
-    pub fn fail_packet(
-        env: &Env,
-        packet_id: u64,
-        reason: Bytes,
-    ) -> Result<(), BridgeError> {
+    pub fn fail_packet(env: &Env, packet_id: u64, reason: Bytes) -> Result<(), BridgeError> {
         // Get packet
         let mut packets: Map<u64, CrossChainPacket> = env
             .storage()
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        let mut packet = packets
-            .get(packet_id)
-            .ok_or(BridgeError::PacketNotFound)?;
+        let mut packet = packets.get(packet_id).ok_or(BridgeError::PacketNotFound)?;
 
         // Mark as failed
         packet.status = PacketStatus::Failed;
@@ -194,9 +188,7 @@ impl MessagePassing {
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        let mut packet = packets
-            .get(packet_id)
-            .ok_or(BridgeError::PacketNotFound)?;
+        let mut packet = packets.get(packet_id).ok_or(BridgeError::PacketNotFound)?;
 
         // Only retry failed or timed out packets
         match packet.status {
@@ -219,13 +211,12 @@ impl MessagePassing {
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut timed_out_packets = Vec::new(env);
         let current_time = env.ledger().timestamp();
 
         for (packet_id, mut packet) in packets.iter() {
-            if packet.status == PacketStatus::Pending 
-                || packet.status == PacketStatus::Retrying {
+            if packet.status == PacketStatus::Pending || packet.status == PacketStatus::Retrying {
                 if current_time > packet.timeout {
                     packet.status = PacketStatus::TimedOut;
                     timed_out_packets.push_back(packet_id);
@@ -275,7 +266,7 @@ impl MessagePassing {
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (packet_id, packet) in packets.iter() {
             if packet.status == status {
@@ -292,11 +283,13 @@ impl MessagePassing {
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (packet_id, packet) in packets.iter() {
-            if packet.destination_chain == destination_chain 
-                && (packet.status == PacketStatus::Pending || packet.status == PacketStatus::Retrying) {
+            if packet.destination_chain == destination_chain
+                && (packet.status == PacketStatus::Pending
+                    || packet.status == PacketStatus::Retrying)
+            {
                 result.push_back(packet_id);
             }
         }
@@ -327,7 +320,7 @@ impl MessagePassing {
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (packet_id, packet) in packets.iter() {
             if packet.sender == sender {
@@ -344,7 +337,7 @@ impl MessagePassing {
             .instance()
             .get(&CROSS_CHAIN_PACKETS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (packet_id, packet) in packets.iter() {
             if packet.recipient == recipient {

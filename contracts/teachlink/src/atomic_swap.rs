@@ -54,11 +54,7 @@ impl AtomicSwapManager {
         }
 
         // Get swap counter
-        let mut swap_counter: u64 = env
-            .storage()
-            .instance()
-            .get(&SWAP_COUNTER)
-            .unwrap_or(0u64);
+        let mut swap_counter: u64 = env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64);
         swap_counter += 1;
 
         // Transfer initiator tokens to contract
@@ -127,9 +123,7 @@ impl AtomicSwapManager {
             .instance()
             .get(&ATOMIC_SWAPS)
             .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        let mut swap = swaps
-            .get(swap_id)
-            .ok_or(BridgeError::SwapNotFound)?;
+        let mut swap = swaps.get(swap_id).ok_or(BridgeError::SwapNotFound)?;
 
         // Validate swap state
         if swap.status != SwapStatus::Initiated {
@@ -207,11 +201,7 @@ impl AtomicSwapManager {
     }
 
     /// Refund a swap after timelock expires (initiator only)
-    pub fn refund_swap(
-        env: &Env,
-        swap_id: u64,
-        initiator: Address,
-    ) -> Result<(), BridgeError> {
+    pub fn refund_swap(env: &Env, swap_id: u64, initiator: Address) -> Result<(), BridgeError> {
         initiator.require_auth();
 
         // Get swap
@@ -220,9 +210,7 @@ impl AtomicSwapManager {
             .instance()
             .get(&ATOMIC_SWAPS)
             .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        let mut swap = swaps
-            .get(swap_id)
-            .ok_or(BridgeError::SwapNotFound)?;
+        let mut swap = swaps.get(swap_id).ok_or(BridgeError::SwapNotFound)?;
 
         // Verify initiator
         if swap.initiator != initiator {
@@ -287,7 +275,7 @@ impl AtomicSwapManager {
             .instance()
             .get(&ATOMIC_SWAPS)
             .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (swap_id, swap) in swaps.iter() {
             if swap.initiator == initiator {
@@ -304,7 +292,7 @@ impl AtomicSwapManager {
             .instance()
             .get(&ATOMIC_SWAPS)
             .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (swap_id, swap) in swaps.iter() {
             if swap.counterparty == counterparty {
@@ -321,7 +309,7 @@ impl AtomicSwapManager {
             .instance()
             .get(&ATOMIC_SWAPS)
             .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (swap_id, swap) in swaps.iter() {
             if swap.status == SwapStatus::Initiated {
@@ -338,10 +326,10 @@ impl AtomicSwapManager {
             .instance()
             .get(&ATOMIC_SWAPS)
             .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        
+
         let current_time = env.ledger().timestamp();
         let mut result = Vec::new(env);
-        
+
         for (swap_id, swap) in swaps.iter() {
             if swap.status == SwapStatus::Initiated && current_time > swap.timelock {
                 result.push_back(swap_id);
@@ -355,7 +343,7 @@ impl AtomicSwapManager {
         // In a real implementation, this would hash the preimage and compare
         // For Soroban, we'd use the SDK's crypto functions
         // This is a simplified placeholder
-        
+
         if preimage.len() == 0 {
             return false;
         }
@@ -367,10 +355,7 @@ impl AtomicSwapManager {
 
     /// Get swap count
     pub fn get_swap_count(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&SWAP_COUNTER)
-            .unwrap_or(0u64)
+        env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64)
     }
 
     /// Check if swap is expired

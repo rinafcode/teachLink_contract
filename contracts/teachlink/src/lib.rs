@@ -88,8 +88,8 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Vec};
 
 mod analytics;
-mod audit;
 mod atomic_swap;
+mod audit;
 mod bft_consensus;
 mod bridge;
 mod emergency;
@@ -243,7 +243,11 @@ impl TeachLinkBridge {
     // ========== BFT Consensus Functions ==========
 
     /// Register a validator with stake for BFT consensus
-    pub fn register_validator(env: Env, validator: Address, stake: i128) -> Result<(), BridgeError> {
+    pub fn register_validator(
+        env: Env,
+        validator: Address,
+        stake: i128,
+    ) -> Result<(), BridgeError> {
         bft_consensus::BFTConsensus::register_validator(&env, validator, stake)
     }
 
@@ -324,7 +328,11 @@ impl TeachLinkBridge {
     }
 
     /// Fund the reward pool
-    pub fn fund_validator_reward_pool(env: Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
+    pub fn fund_validator_reward_pool(
+        env: Env,
+        funder: Address,
+        amount: i128,
+    ) -> Result<(), BridgeError> {
         slashing::SlashingManager::fund_reward_pool(&env, funder, amount)
     }
 
@@ -362,7 +370,13 @@ impl TeachLinkBridge {
         confirmation_blocks: Option<u32>,
         gas_price: Option<u64>,
     ) -> Result<(), BridgeError> {
-        multichain::MultiChainManager::update_chain(&env, chain_id, is_active, confirmation_blocks, gas_price)
+        multichain::MultiChainManager::update_chain(
+            &env,
+            chain_id,
+            is_active,
+            confirmation_blocks,
+            gas_price,
+        )
     }
 
     /// Register a multi-chain asset
@@ -393,7 +407,11 @@ impl TeachLinkBridge {
     // ========== Liquidity and AMM Functions ==========
 
     /// Initialize liquidity pool for a chain
-    pub fn initialize_liquidity_pool(env: Env, chain_id: u32, token: Address) -> Result<(), BridgeError> {
+    pub fn initialize_liquidity_pool(
+        env: Env,
+        chain_id: u32,
+        token: Address,
+    ) -> Result<(), BridgeError> {
         liquidity::LiquidityManager::initialize_pool(&env, chain_id, token)
     }
 
@@ -434,7 +452,12 @@ impl TeachLinkBridge {
         dynamic_multiplier: u32,
         volume_discount_tiers: Map<u32, u32>,
     ) -> Result<(), BridgeError> {
-        liquidity::LiquidityManager::update_fee_structure(&env, base_fee, dynamic_multiplier, volume_discount_tiers)
+        liquidity::LiquidityManager::update_fee_structure(
+            &env,
+            base_fee,
+            dynamic_multiplier,
+            volume_discount_tiers,
+        )
     }
 
     /// Get available liquidity for a chain
@@ -455,7 +478,13 @@ impl TeachLinkBridge {
         timeout: Option<u64>,
     ) -> Result<u64, BridgeError> {
         message_passing::MessagePassing::send_packet(
-            &env, source_chain, destination_chain, sender, recipient, payload, timeout,
+            &env,
+            source_chain,
+            destination_chain,
+            sender,
+            recipient,
+            payload,
+            timeout,
         )
     }
 
@@ -487,12 +516,21 @@ impl TeachLinkBridge {
     }
 
     /// Pause specific chains
-    pub fn pause_chains(env: Env, pauser: Address, chain_ids: Vec<u32>, reason: Bytes) -> Result<(), BridgeError> {
+    pub fn pause_chains(
+        env: Env,
+        pauser: Address,
+        chain_ids: Vec<u32>,
+        reason: Bytes,
+    ) -> Result<(), BridgeError> {
         emergency::EmergencyManager::pause_chains(&env, pauser, chain_ids, reason)
     }
 
     /// Resume specific chains
-    pub fn resume_chains(env: Env, resumer: Address, chain_ids: Vec<u32>) -> Result<(), BridgeError> {
+    pub fn resume_chains(
+        env: Env,
+        resumer: Address,
+        chain_ids: Vec<u32>,
+    ) -> Result<(), BridgeError> {
         emergency::EmergencyManager::resume_chains(&env, resumer, chain_ids)
     }
 
@@ -503,7 +541,12 @@ impl TeachLinkBridge {
         max_daily_volume: i128,
         max_transaction_amount: i128,
     ) -> Result<(), BridgeError> {
-        emergency::EmergencyManager::initialize_circuit_breaker(&env, chain_id, max_daily_volume, max_transaction_amount)
+        emergency::EmergencyManager::initialize_circuit_breaker(
+            &env,
+            chain_id,
+            max_daily_volume,
+            max_transaction_amount,
+        )
     }
 
     /// Check if bridge is paused
@@ -540,7 +583,11 @@ impl TeachLinkBridge {
     }
 
     /// Generate compliance report
-    pub fn generate_compliance_report(env: Env, period_start: u64, period_end: u64) -> Result<u64, BridgeError> {
+    pub fn generate_compliance_report(
+        env: Env,
+        period_start: u64,
+        period_end: u64,
+    ) -> Result<u64, BridgeError> {
         audit::AuditManager::generate_compliance_report(&env, period_start, period_end)
     }
 
@@ -587,7 +634,11 @@ impl TeachLinkBridge {
     }
 
     /// Refund an expired atomic swap
-    pub fn refund_atomic_swap(env: Env, swap_id: u64, initiator: Address) -> Result<(), BridgeError> {
+    pub fn refund_atomic_swap(
+        env: Env,
+        swap_id: u64,
+        initiator: Address,
+    ) -> Result<(), BridgeError> {
         atomic_swap::AtomicSwapManager::refund_swap(&env, swap_id, initiator)
     }
 

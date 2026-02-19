@@ -39,18 +39,18 @@ impl AnalyticsManager {
         confirmation_time: u64,
         success: bool,
     ) -> Result<(), BridgeError> {
-        let mut metrics: BridgeMetrics = env
-            .storage()
-            .instance()
-            .get(&BRIDGE_METRICS)
-            .unwrap_or(BridgeMetrics {
-                total_volume: 0,
-                total_transactions: 0,
-                active_validators: 0,
-                average_confirmation_time: 0,
-                success_rate: 10000,
-                last_updated: env.ledger().timestamp(),
-            });
+        let mut metrics: BridgeMetrics =
+            env.storage()
+                .instance()
+                .get(&BRIDGE_METRICS)
+                .unwrap_or(BridgeMetrics {
+                    total_volume: 0,
+                    total_transactions: 0,
+                    active_validators: 0,
+                    average_confirmation_time: 0,
+                    success_rate: 10000,
+                    last_updated: env.ledger().timestamp(),
+                });
 
         // Update metrics
         metrics.total_volume += volume;
@@ -59,9 +59,10 @@ impl AnalyticsManager {
         // Update average confirmation time (exponential moving average)
         if metrics.total_transactions > 0 {
             let alpha = 10; // Smoothing factor (10% weight to new value)
-            metrics.average_confirmation_time = 
-                ((metrics.average_confirmation_time * (100 - alpha) as u64) 
-                + (confirmation_time * alpha as u64)) / 100;
+            metrics.average_confirmation_time = ((metrics.average_confirmation_time
+                * (100 - alpha) as u64)
+                + (confirmation_time * alpha as u64))
+                / 100;
         } else {
             metrics.average_confirmation_time = confirmation_time;
         }
@@ -82,18 +83,18 @@ impl AnalyticsManager {
 
     /// Update validator count
     pub fn update_validator_count(env: &Env, active_validators: u32) -> Result<(), BridgeError> {
-        let mut metrics: BridgeMetrics = env
-            .storage()
-            .instance()
-            .get(&BRIDGE_METRICS)
-            .unwrap_or(BridgeMetrics {
-                total_volume: 0,
-                total_transactions: 0,
-                active_validators: 0,
-                average_confirmation_time: 0,
-                success_rate: 10000,
-                last_updated: env.ledger().timestamp(),
-            });
+        let mut metrics: BridgeMetrics =
+            env.storage()
+                .instance()
+                .get(&BRIDGE_METRICS)
+                .unwrap_or(BridgeMetrics {
+                    total_volume: 0,
+                    total_transactions: 0,
+                    active_validators: 0,
+                    average_confirmation_time: 0,
+                    success_rate: 10000,
+                    last_updated: env.ledger().timestamp(),
+                });
 
         metrics.active_validators = active_validators;
         metrics.last_updated = env.ledger().timestamp();
@@ -138,17 +139,15 @@ impl AnalyticsManager {
             .instance()
             .get(&CHAIN_METRICS)
             .unwrap_or_else(|| Map::new(env));
-        
-        let mut metrics = chain_metrics
-            .get(chain_id)
-            .unwrap_or(ChainMetrics {
-                chain_id,
-                volume_in: 0,
-                volume_out: 0,
-                transaction_count: 0,
-                average_fee: 0,
-                last_updated: env.ledger().timestamp(),
-            });
+
+        let mut metrics = chain_metrics.get(chain_id).unwrap_or(ChainMetrics {
+            chain_id,
+            volume_in: 0,
+            volume_out: 0,
+            transaction_count: 0,
+            average_fee: 0,
+            last_updated: env.ledger().timestamp(),
+        });
 
         // Update volume
         if is_incoming {
@@ -162,8 +161,8 @@ impl AnalyticsManager {
 
         // Update average fee
         if metrics.transaction_count > 0 {
-            metrics.average_fee = 
-                ((metrics.average_fee * (metrics.transaction_count - 1) as i128) + fee) 
+            metrics.average_fee = ((metrics.average_fee * (metrics.transaction_count - 1) as i128)
+                + fee)
                 / metrics.transaction_count as i128;
         } else {
             metrics.average_fee = fee;
@@ -189,7 +188,7 @@ impl AnalyticsManager {
             .instance()
             .get(&DAILY_VOLUMES)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let key = (day_timestamp, chain_id);
         let current_volume = daily_volumes.get(key.clone()).unwrap_or(0);
         daily_volumes.set(key, current_volume + volume);
@@ -240,7 +239,7 @@ impl AnalyticsManager {
             .instance()
             .get(&CHAIN_METRICS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut result = Vec::new(env);
         for (_chain_id, metrics) in chain_metrics.iter() {
             result.push_back(metrics);
@@ -287,7 +286,7 @@ impl AnalyticsManager {
             .instance()
             .get(&CHAIN_METRICS)
             .unwrap_or_else(|| Map::new(env));
-        
+
         let mut chains: Vec<(u32, i128)> = Vec::new(env);
         for (chain_id, metrics) in chain_metrics.iter() {
             let total_volume = metrics.volume_in + metrics.volume_out;
@@ -323,12 +322,30 @@ impl AnalyticsManager {
         let metrics = Self::get_bridge_metrics(env);
         let mut stats: Map<Bytes, i128> = Map::new(env);
 
-        stats.set(Bytes::from_slice(env, b"total_volume"), metrics.total_volume);
-        stats.set(Bytes::from_slice(env, b"total_transactions"), metrics.total_transactions as i128);
-        stats.set(Bytes::from_slice(env, b"active_validators"), metrics.active_validators as i128);
-        stats.set(Bytes::from_slice(env, b"avg_confirmation_time"), metrics.average_confirmation_time as i128);
-        stats.set(Bytes::from_slice(env, b"success_rate"), metrics.success_rate as i128);
-        stats.set(Bytes::from_slice(env, b"health_score"), Self::calculate_health_score(env) as i128);
+        stats.set(
+            Bytes::from_slice(env, b"total_volume"),
+            metrics.total_volume,
+        );
+        stats.set(
+            Bytes::from_slice(env, b"total_transactions"),
+            metrics.total_transactions as i128,
+        );
+        stats.set(
+            Bytes::from_slice(env, b"active_validators"),
+            metrics.active_validators as i128,
+        );
+        stats.set(
+            Bytes::from_slice(env, b"avg_confirmation_time"),
+            metrics.average_confirmation_time as i128,
+        );
+        stats.set(
+            Bytes::from_slice(env, b"success_rate"),
+            metrics.success_rate as i128,
+        );
+        stats.set(
+            Bytes::from_slice(env, b"health_score"),
+            Self::calculate_health_score(env) as i128,
+        );
 
         stats
     }
@@ -355,7 +372,7 @@ impl AnalyticsManager {
     pub fn needs_update(env: &Env) -> bool {
         let metrics = Self::get_bridge_metrics(env);
         let current_time = env.ledger().timestamp();
-        
+
         current_time - metrics.last_updated > METRICS_UPDATE_INTERVAL
     }
 }
