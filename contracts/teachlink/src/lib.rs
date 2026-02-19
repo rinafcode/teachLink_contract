@@ -11,6 +11,14 @@
 //! TeachLink provides the following core features:
 //!
 //! - **Cross-Chain Bridge**: Bridge tokens between Stellar and other blockchains
+//! - **Advanced BFT Consensus**: Byzantine Fault Tolerant validator consensus
+//! - **Validator Slashing**: Economic penalties for malicious validators
+//! - **Multi-Chain Support**: Support for multiple blockchain networks
+//! - **Liquidity Optimization**: AMM and dynamic fee pricing
+//! - **Message Passing**: Guaranteed cross-chain message delivery
+//! - **Emergency Controls**: Circuit breaker and pause mechanisms
+//! - **Atomic Swaps**: Cross-chain token exchanges
+//! - **Audit & Compliance**: Comprehensive logging and reporting
 //! - **Token Rewards**: Incentivize learning and contributions with token rewards
 //! - **Multi-Sig Escrow**: Secure payments with multi-signature escrow and arbitration
 //! - **Content Tokenization**: Mint NFTs representing educational content ownership
@@ -23,6 +31,15 @@
 //! | Module | Description |
 //! |--------|-------------|
 //! | [`bridge`] | Cross-chain token bridging with validator consensus |
+//! | [`bft_consensus`] | Byzantine Fault Tolerant consensus mechanism |
+//! | [`slashing`] | Validator slashing and reward mechanisms |
+//! | [`multichain`] | Multi-chain support and asset management |
+//! | [`liquidity`] | Bridge liquidity pools and AMM |
+//! | [`message_passing`] | Cross-chain message passing |
+//! | [`emergency`] | Emergency pause and circuit breaker |
+//! | [`audit`] | Audit trail and compliance reporting |
+//! | [`atomic_swap`] | Cross-chain atomic swaps |
+//! | [`analytics`] | Bridge monitoring and analytics |
 //! | [`rewards`] | Reward pool management and distribution |
 //! | [`escrow`] | Multi-signature escrow with dispute resolution |
 //! | [`tokenization`] | Educational content NFT minting and management |
@@ -36,20 +53,17 @@
 //! // Initialize the contract
 //! TeachLinkBridge::initialize(env, token, admin, min_validators, fee_recipient);
 //!
-//! // Set up rewards
-//! TeachLinkBridge::initialize_rewards(env, token, rewards_admin);
+//! // Register a validator with BFT consensus
+//! TeachLinkBridge::register_validator(env, validator, stake);
 //!
-//! // Create content token
-//! let token_id = TeachLinkBridge::mint_content_token(
-//!     env, creator, title, description, ContentType::Course,
-//!     content_hash, license, tags, true, 500
-//! );
+//! // Add a supported chain
+//! TeachLinkBridge::add_supported_chain_config(env, chain_id, chain_name, bridge_address);
 //!
-//! // Create escrow for course payment
-//! let escrow_id = TeachLinkBridge::create_escrow(
-//!     env, depositor, beneficiary, token, amount,
-//!     signers, threshold, release_time, refund_time, arbitrator
-//! );
+//! // Bridge tokens with advanced features
+//! let nonce = TeachLinkBridge::bridge_out(env, from, amount, destination_chain, destination_address);
+//!
+//! // Create atomic swap
+//! let swap_id = TeachLinkBridge::initiate_atomic_swap(env, params);
 //! ```
 //!
 //! # Authorization
@@ -57,6 +71,7 @@
 //! Most state-changing functions require authorization:
 //! - Admin functions require the admin address
 //! - User functions require the user's address
+//! - Validator functions require validator authorization
 //! - Escrow functions require appropriate party authorization
 
 #![no_std]
@@ -70,16 +85,25 @@
 #![allow(clippy::trivially_copy_pass_by_ref)]
 #![allow(clippy::needless_borrow)]
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Vec};
 
+mod analytics;
+mod audit;
+mod atomic_swap;
+mod bft_consensus;
 mod bridge;
+mod emergency;
 mod errors;
 mod escrow;
 mod events;
+mod liquidity;
+mod message_passing;
+mod multichain;
 mod provenance;
 mod reputation;
 mod rewards;
 mod score;
+mod slashing;
 mod storage;
 mod tokenization;
 mod types;
@@ -87,9 +111,14 @@ pub mod validation;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
-    BridgeTransaction, ContentMetadata, ContentToken, ContentTokenParameters, ContentType,
-    Contribution, ContributionType, CrossChainMessage, DisputeOutcome, Escrow, EscrowParameters,
-    EscrowStatus, ProvenanceRecord, RewardRate, TransferType, UserReputation, UserReward,
+    AtomicSwap, AuditRecord, BridgeMetrics, BridgeProposal, BridgeTransaction, ChainConfig,
+    ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
+    ContentTokenParameters, ContentType, Contribution, ContributionType, CrossChainMessage,
+    CrossChainPacket, DisputeOutcome, EmergencyState, Escrow, EscrowParameters, EscrowStatus,
+    LPPosition, LiquidityPool, MessageReceipt, MultiChainAsset, OperationType, PacketStatus,
+    ProposalStatus, ProvenanceRecord, RewardRate, RewardType, SlashingReason, SlashingRecord,
+    SwapStatus, TransferType, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
+    ValidatorSignature,
 };
 
 /// TeachLink main contract.
@@ -204,6 +233,399 @@ impl TeachLinkBridge {
     /// Get the token address
     pub fn get_token(env: Env) -> Address {
         bridge::Bridge::get_token(&env)
+    }
+
+    /// Get the admin address
+    pub fn get_admin(env: Env) -> Address {
+        bridge::Bridge::get_admin(&env)
+    }
+
+    // ========== BFT Consensus Functions ==========
+
+    /// Register a validator with stake for BFT consensus
+    pub fn register_validator(env: Env, validator: Address, stake: i128) -> Result<(), BridgeError> {
+        bft_consensus::BFTConsensus::register_validator(&env, validator, stake)
+    }
+
+    /// Unregister a validator and unstake
+    pub fn unregister_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bft_consensus::BFTConsensus::unregister_validator(&env, validator)
+    }
+
+    /// Create a bridge proposal for BFT consensus
+    pub fn create_bridge_proposal(
+        env: Env,
+        message: CrossChainMessage,
+    ) -> Result<u64, BridgeError> {
+        bft_consensus::BFTConsensus::create_proposal(&env, message)
+    }
+
+    /// Vote on a bridge proposal
+    pub fn vote_on_proposal(
+        env: Env,
+        validator: Address,
+        proposal_id: u64,
+        approve: bool,
+    ) -> Result<(), BridgeError> {
+        bft_consensus::BFTConsensus::vote_on_proposal(&env, validator, proposal_id, approve)
+    }
+
+    /// Get validator information
+    pub fn get_validator_info(env: Env, validator: Address) -> Option<ValidatorInfo> {
+        bft_consensus::BFTConsensus::get_validator_info(&env, validator)
+    }
+
+    /// Get consensus state
+    pub fn get_consensus_state(env: Env) -> ConsensusState {
+        bft_consensus::BFTConsensus::get_consensus_state(&env)
+    }
+
+    /// Get proposal by ID
+    pub fn get_proposal(env: Env, proposal_id: u64) -> Option<BridgeProposal> {
+        bft_consensus::BFTConsensus::get_proposal(&env, proposal_id)
+    }
+
+    /// Check if consensus is reached for a proposal
+    pub fn is_consensus_reached(env: Env, proposal_id: u64) -> bool {
+        bft_consensus::BFTConsensus::is_consensus_reached(&env, proposal_id)
+    }
+
+    // ========== Slashing and Rewards Functions ==========
+
+    /// Deposit stake for a validator
+    pub fn deposit_stake(env: Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
+        slashing::SlashingManager::deposit_stake(&env, validator, amount)
+    }
+
+    /// Withdraw stake
+    pub fn withdraw_stake(env: Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
+        slashing::SlashingManager::withdraw_stake(&env, validator, amount)
+    }
+
+    /// Slash a validator for malicious behavior
+    pub fn slash_validator(
+        env: Env,
+        validator: Address,
+        reason: types::SlashingReason,
+        evidence: Bytes,
+        slasher: Address,
+    ) -> Result<i128, BridgeError> {
+        slashing::SlashingManager::slash_validator(&env, validator, reason, evidence, slasher)
+    }
+
+    /// Reward a validator
+    pub fn reward_validator(
+        env: Env,
+        validator: Address,
+        amount: i128,
+        reward_type: types::RewardType,
+    ) -> Result<(), BridgeError> {
+        slashing::SlashingManager::reward_validator(&env, validator, amount, reward_type)
+    }
+
+    /// Fund the reward pool
+    pub fn fund_validator_reward_pool(env: Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
+        slashing::SlashingManager::fund_reward_pool(&env, funder, amount)
+    }
+
+    /// Get validator stake
+    pub fn get_validator_stake(env: Env, validator: Address) -> i128 {
+        slashing::SlashingManager::get_stake(&env, validator)
+    }
+
+    // ========== Multi-Chain Functions ==========
+
+    /// Add a supported chain with configuration
+    pub fn add_supported_chain_config(
+        env: Env,
+        chain_id: u32,
+        chain_name: Bytes,
+        bridge_contract_address: Bytes,
+        confirmation_blocks: u32,
+        gas_price: u64,
+    ) -> Result<(), BridgeError> {
+        multichain::MultiChainManager::add_chain(
+            &env,
+            chain_id,
+            chain_name,
+            bridge_contract_address,
+            confirmation_blocks,
+            gas_price,
+        )
+    }
+
+    /// Update chain configuration
+    pub fn update_chain_config(
+        env: Env,
+        chain_id: u32,
+        is_active: bool,
+        confirmation_blocks: Option<u32>,
+        gas_price: Option<u64>,
+    ) -> Result<(), BridgeError> {
+        multichain::MultiChainManager::update_chain(&env, chain_id, is_active, confirmation_blocks, gas_price)
+    }
+
+    /// Register a multi-chain asset
+    pub fn register_multi_chain_asset(
+        env: Env,
+        asset_id: Bytes,
+        stellar_token: Address,
+        chain_configs: Map<u32, types::ChainAssetInfo>,
+    ) -> Result<u64, BridgeError> {
+        multichain::MultiChainManager::register_asset(&env, asset_id, stellar_token, chain_configs)
+    }
+
+    /// Get chain configuration
+    pub fn get_chain_config(env: Env, chain_id: u32) -> Option<ChainConfig> {
+        multichain::MultiChainManager::get_chain_config(&env, chain_id)
+    }
+
+    /// Check if chain is active
+    pub fn is_chain_active(env: Env, chain_id: u32) -> bool {
+        multichain::MultiChainManager::is_chain_active(&env, chain_id)
+    }
+
+    /// Get supported chains
+    pub fn get_supported_chains(env: Env) -> Vec<u32> {
+        multichain::MultiChainManager::get_supported_chains(&env)
+    }
+
+    // ========== Liquidity and AMM Functions ==========
+
+    /// Initialize liquidity pool for a chain
+    pub fn initialize_liquidity_pool(env: Env, chain_id: u32, token: Address) -> Result<(), BridgeError> {
+        liquidity::LiquidityManager::initialize_pool(&env, chain_id, token)
+    }
+
+    /// Add liquidity to a pool
+    pub fn add_liquidity(
+        env: Env,
+        provider: Address,
+        chain_id: u32,
+        amount: i128,
+    ) -> Result<u32, BridgeError> {
+        liquidity::LiquidityManager::add_liquidity(&env, provider, chain_id, amount)
+    }
+
+    /// Remove liquidity from a pool
+    pub fn remove_liquidity(
+        env: Env,
+        provider: Address,
+        chain_id: u32,
+        amount: i128,
+    ) -> Result<i128, BridgeError> {
+        liquidity::LiquidityManager::remove_liquidity(&env, provider, chain_id, amount)
+    }
+
+    /// Calculate dynamic bridge fee
+    pub fn calculate_bridge_fee(
+        env: Env,
+        chain_id: u32,
+        amount: i128,
+        user_volume_24h: i128,
+    ) -> Result<i128, BridgeError> {
+        liquidity::LiquidityManager::calculate_bridge_fee(&env, chain_id, amount, user_volume_24h)
+    }
+
+    /// Update fee structure
+    pub fn update_fee_structure(
+        env: Env,
+        base_fee: i128,
+        dynamic_multiplier: u32,
+        volume_discount_tiers: Map<u32, u32>,
+    ) -> Result<(), BridgeError> {
+        liquidity::LiquidityManager::update_fee_structure(&env, base_fee, dynamic_multiplier, volume_discount_tiers)
+    }
+
+    /// Get available liquidity for a chain
+    pub fn get_available_liquidity(env: Env, chain_id: u32) -> i128 {
+        liquidity::LiquidityManager::get_available_liquidity(&env, chain_id)
+    }
+
+    // ========== Message Passing Functions ==========
+
+    /// Send a cross-chain packet
+    pub fn send_cross_chain_packet(
+        env: Env,
+        source_chain: u32,
+        destination_chain: u32,
+        sender: Bytes,
+        recipient: Bytes,
+        payload: Bytes,
+        timeout: Option<u64>,
+    ) -> Result<u64, BridgeError> {
+        message_passing::MessagePassing::send_packet(
+            &env, source_chain, destination_chain, sender, recipient, payload, timeout,
+        )
+    }
+
+    /// Get packet by ID
+    pub fn get_packet(env: Env, packet_id: u64) -> Option<CrossChainPacket> {
+        message_passing::MessagePassing::get_packet(&env, packet_id)
+    }
+
+    /// Get packet receipt
+    pub fn get_packet_receipt(env: Env, packet_id: u64) -> Option<types::MessageReceipt> {
+        message_passing::MessagePassing::get_receipt(&env, packet_id)
+    }
+
+    /// Verify packet delivery
+    pub fn verify_packet_delivery(env: Env, packet_id: u64) -> bool {
+        message_passing::MessagePassing::verify_delivery(&env, packet_id)
+    }
+
+    // ========== Emergency Functions ==========
+
+    /// Pause the entire bridge
+    pub fn pause_bridge(env: Env, pauser: Address, reason: Bytes) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::pause_bridge(&env, pauser, reason)
+    }
+
+    /// Resume the bridge
+    pub fn resume_bridge(env: Env, resumer: Address) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::resume_bridge(&env, resumer)
+    }
+
+    /// Pause specific chains
+    pub fn pause_chains(env: Env, pauser: Address, chain_ids: Vec<u32>, reason: Bytes) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::pause_chains(&env, pauser, chain_ids, reason)
+    }
+
+    /// Resume specific chains
+    pub fn resume_chains(env: Env, resumer: Address, chain_ids: Vec<u32>) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::resume_chains(&env, resumer, chain_ids)
+    }
+
+    /// Initialize circuit breaker for a chain
+    pub fn initialize_circuit_breaker(
+        env: Env,
+        chain_id: u32,
+        max_daily_volume: i128,
+        max_transaction_amount: i128,
+    ) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::initialize_circuit_breaker(&env, chain_id, max_daily_volume, max_transaction_amount)
+    }
+
+    /// Check if bridge is paused
+    pub fn is_bridge_paused(env: Env) -> bool {
+        emergency::EmergencyManager::is_bridge_paused(&env)
+    }
+
+    /// Check if a chain is paused
+    pub fn is_chain_paused(env: Env, chain_id: u32) -> bool {
+        emergency::EmergencyManager::is_chain_paused(&env, chain_id)
+    }
+
+    /// Get emergency state
+    pub fn get_emergency_state(env: Env) -> EmergencyState {
+        emergency::EmergencyManager::get_emergency_state(&env)
+    }
+
+    // ========== Audit and Compliance Functions ==========
+
+    /// Create an audit record
+    pub fn create_audit_record(
+        env: Env,
+        operation_type: types::OperationType,
+        operator: Address,
+        details: Bytes,
+        tx_hash: Bytes,
+    ) -> Result<u64, BridgeError> {
+        audit::AuditManager::create_audit_record(&env, operation_type, operator, details, tx_hash)
+    }
+
+    /// Get audit record by ID
+    pub fn get_audit_record(env: Env, record_id: u64) -> Option<AuditRecord> {
+        audit::AuditManager::get_audit_record(&env, record_id)
+    }
+
+    /// Generate compliance report
+    pub fn generate_compliance_report(env: Env, period_start: u64, period_end: u64) -> Result<u64, BridgeError> {
+        audit::AuditManager::generate_compliance_report(&env, period_start, period_end)
+    }
+
+    /// Get compliance report
+    pub fn get_compliance_report(env: Env, report_id: u64) -> Option<ComplianceReport> {
+        audit::AuditManager::get_compliance_report(&env, report_id)
+    }
+
+    // ========== Atomic Swap Functions ==========
+
+    /// Initiate an atomic swap
+    pub fn initiate_atomic_swap(
+        env: Env,
+        initiator: Address,
+        initiator_token: Address,
+        initiator_amount: i128,
+        counterparty: Address,
+        counterparty_token: Address,
+        counterparty_amount: i128,
+        hashlock: Bytes,
+        timelock: u64,
+    ) -> Result<u64, BridgeError> {
+        atomic_swap::AtomicSwapManager::initiate_swap(
+            &env,
+            initiator,
+            initiator_token,
+            initiator_amount,
+            counterparty,
+            counterparty_token,
+            counterparty_amount,
+            hashlock,
+            timelock,
+        )
+    }
+
+    /// Accept and complete an atomic swap
+    pub fn accept_atomic_swap(
+        env: Env,
+        swap_id: u64,
+        counterparty: Address,
+        preimage: Bytes,
+    ) -> Result<(), BridgeError> {
+        atomic_swap::AtomicSwapManager::accept_swap(&env, swap_id, counterparty, preimage)
+    }
+
+    /// Refund an expired atomic swap
+    pub fn refund_atomic_swap(env: Env, swap_id: u64, initiator: Address) -> Result<(), BridgeError> {
+        atomic_swap::AtomicSwapManager::refund_swap(&env, swap_id, initiator)
+    }
+
+    /// Get atomic swap by ID
+    pub fn get_atomic_swap(env: Env, swap_id: u64) -> Option<AtomicSwap> {
+        atomic_swap::AtomicSwapManager::get_swap(&env, swap_id)
+    }
+
+    /// Get active atomic swaps
+    pub fn get_active_atomic_swaps(env: Env) -> Vec<u64> {
+        atomic_swap::AtomicSwapManager::get_active_swaps(&env)
+    }
+
+    // ========== Analytics Functions ==========
+
+    /// Initialize bridge metrics
+    pub fn initialize_bridge_metrics(env: Env) -> Result<(), BridgeError> {
+        analytics::AnalyticsManager::initialize_metrics(&env)
+    }
+
+    /// Get bridge metrics
+    pub fn get_bridge_metrics(env: Env) -> BridgeMetrics {
+        analytics::AnalyticsManager::get_bridge_metrics(&env)
+    }
+
+    /// Get chain metrics
+    pub fn get_chain_metrics(env: Env, chain_id: u32) -> Option<ChainMetrics> {
+        analytics::AnalyticsManager::get_chain_metrics(&env, chain_id)
+    }
+
+    /// Calculate bridge health score
+    pub fn calculate_bridge_health_score(env: Env) -> u32 {
+        analytics::AnalyticsManager::calculate_health_score(&env)
+    }
+
+    /// Get bridge statistics
+    pub fn get_bridge_statistics(env: Env) -> Map<Bytes, i128> {
+        analytics::AnalyticsManager::get_bridge_statistics(&env)
     }
 
     // ========== Rewards Functions ==========
