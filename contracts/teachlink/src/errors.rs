@@ -15,6 +15,43 @@ pub enum BridgeError {
     TimeoutNotReached = 108,
     FeeCannotBeNegative = 109,
     MinimumValidatorsMustBeAtLeastOne = 110,
+    // BFT Consensus Errors
+    ProposalNotFound = 111,
+    ProposalAlreadyVoted = 112,
+    ProposalExpired = 113,
+    InsufficientStake = 114,
+    InsufficientBalance = 115,
+    ValidatorNotActive = 116,
+    ByzantineThresholdNotMet = 117,
+    // Slashing Errors
+    ValidatorAlreadySlashed = 118,
+    InvalidSlashingEvidence = 119,
+    CannotSlashSelf = 120,
+    // Multi-Chain Errors
+    ChainNotActive = 121,
+    AssetNotSupported = 122,
+    InvalidChainConfiguration = 123,
+    // Liquidity Errors
+    InsufficientLiquidity = 124,
+    SlippageExceeded = 125,
+    InvalidLPAmount = 126,
+    // Emergency Errors
+    BridgePaused = 127,
+    ChainPaused = 128,
+    UnauthorizedPause = 129,
+    CircuitBreakerTriggered = 130,
+    // Message Passing Errors
+    PacketNotFound = 131,
+    PacketTimeout = 132,
+    InvalidPayload = 133,
+    // Atomic Swap Errors
+    SwapNotFound = 134,
+    InvalidHashlock = 135,
+    TimelockExpired = 136,
+    SwapAlreadyCompleted = 137,
+    // General Errors
+    Unauthorized = 138,
+    InvalidInput = 139,
 }
 
 /// Escrow module errors
