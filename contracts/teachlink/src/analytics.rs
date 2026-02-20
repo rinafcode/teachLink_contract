@@ -8,6 +8,15 @@ use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};
 use crate::types::{BridgeMetrics, ChainMetrics};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
+pub struct ContentStats {
+    pub views: u64,
+    pub purchases: u64,
+    pub revenue: u128,
+}
+
+emit!(ContentViewed { token_id });
+emit!(ContentPurchased { token_id, buyer });
+
 /// Metrics update interval (1 hour)
 pub const METRICS_UPDATE_INTERVAL: u64 = 3_600;
 
