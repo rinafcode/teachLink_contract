@@ -6,173 +6,96 @@
 #![allow(clippy::doc_markdown)]
 #![allow(deprecated)]
 
-//! TeachLink Governance Contract
+//! TeachLink Advanced Governance Contract
 //!
-//! A decentralized governance system allowing token holders to vote on
-//! platform changes, fee structures, and new feature implementations.
+//! Fully implementing Issue #96 Acceptance Criteria.
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Vec};
 
+mod analytics;
+mod automation;
+mod compliance;
+mod cross_chain;
+mod delegation;
+mod disputes;
 mod events;
 mod governance;
 pub mod mock_token;
+mod quadratic;
+mod simulation;
+mod staking;
 mod storage;
 mod types;
+mod insurance;
 
-pub use mock_token::{MockToken, MockTokenClient};
-pub use types::{
-    GovernanceConfig, GovernanceError, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection,
-    VoteKey,
-};
+pub use types::*;
 
 #[contract]
 pub struct GovernanceContract;
 
 #[contractimpl]
 impl GovernanceContract {
-    // ========== Initialization ==========
-
-    /// Initialize the governance contract
-    ///
-    /// # Arguments
-    /// * `token` - Address of the governance token
-    /// * `admin` - Admin address for privileged operations
-    /// * `proposal_threshold` - Minimum tokens required to create a proposal
-    /// * `quorum` - Minimum total votes required for a proposal to pass
-    /// * `voting_period` - Duration of voting period in seconds (e.g., 604800 for 7 days)
-    /// * `execution_delay` - Delay before executing passed proposals in seconds
-    pub fn initialize(
-        env: Env,
-        token: Address,
-        admin: Address,
-        proposal_threshold: i128,
-        quorum: i128,
-        voting_period: u64,
-        execution_delay: u64,
-    ) {
-        governance::Governance::initialize(
-            &env,
-            token,
-            admin,
-            proposal_threshold,
-            quorum,
-            voting_period,
-            execution_delay,
-        );
+    // 1-2. Initialization & Core
+    pub fn initialize(env: Env, token: Address, admin: Address, threshold: i128, quorum: i128, period: u64, delay: u64) {
+        governance::Governance::initialize(&env, token, admin, threshold, quorum, period, delay);
     }
 
-    // ========== Proposal Management ==========
-
-    /// Create a new governance proposal
-    ///
-    /// Requires the proposer to hold at least `proposal_threshold` tokens.
-    /// Voting starts immediately upon proposal creation.
-    pub fn create_proposal(
-        env: Env,
-        proposer: Address,
-        title: Bytes,
-        description: Bytes,
-        proposal_type: ProposalType,
-        execution_data: Option<Bytes>,
-    ) -> u64 {
-        governance::Governance::create_proposal(
-            &env,
-            proposer,
-            title,
-            description,
-            proposal_type,
-            execution_data,
-        )
+    pub fn create_proposal(env: Env, proposer: Address, title: Bytes, desc: Bytes, p_type: ProposalType, data: Option<Bytes>) -> u64 {
+        governance::Governance::create_proposal(&env, proposer, title, desc, p_type, data, false)
     }
 
-    /// Cast a vote on an active proposal
-    ///
-    /// Voting power is equal to the voter's token balance at time of voting.
-    /// Each address can only vote once per proposal.
-    pub fn cast_vote(env: Env, proposal_id: u64, voter: Address, direction: VoteDirection) -> i128 {
-        governance::Governance::cast_vote(&env, proposal_id, voter, direction)
+    // 3. Liquid Democracy & Delegation
+    pub fn delegate_vote(env: Env, delegator: Address, delegate: Address, expires_at: u64) {
+        let config = governance::Governance::get_config(&env);
+        delegation::DelegationManager::delegate(&env, &config, delegator, delegate, expires_at);
     }
 
-    /// Finalize a proposal after voting ends
-    ///
-    /// Updates the proposal status to Passed or Failed based on votes and quorum.
-    pub fn finalize_proposal(env: Env, proposal_id: u64) {
-        governance::Governance::finalize_proposal(&env, proposal_id);
+    // 4. Quadratic Voting
+    pub fn cast_quadratic_vote(env: Env, voter: Address, proposal_id: u64, num_votes: i128) -> i128 {
+        voter.require_auth();
+        let (total, _) = quadratic::QuadraticVoting::cast_quadratic_vote(&env, &voter, proposal_id, num_votes);
+        total
     }
 
-    /// Execute a passed proposal
-    ///
-    /// Can be called by anyone after the execution delay has passed.
-    pub fn execute_proposal(env: Env, proposal_id: u64, executor: Address) {
-        governance::Governance::execute_proposal(&env, proposal_id, executor);
+    // 5. Token Staking
+    pub fn stake_tokens(env: Env, staker: Address, amount: i128) {
+        let config = governance::Governance::get_config(&env);
+        staking::Staking::stake(&env, &config.token, staker, amount);
     }
 
-    /// Cancel a proposal
-    ///
-    /// - Proposer can cancel during voting period
-    /// - Admin can cancel anytime (except executed proposals)
-    pub fn cancel_proposal(env: Env, proposal_id: u64, caller: Address) {
-        governance::Governance::cancel_proposal(&env, proposal_id, caller);
+    // 6. Analytics & Participation
+    pub fn get_analytics(env: Env) -> GovernanceAnalytics {
+        analytics::Analytics::get_analytics(&env)
     }
 
-    // ========== Admin Functions ==========
-
-    /// Update governance configuration (admin only)
-    pub fn update_config(
-        env: Env,
-        new_proposal_threshold: Option<i128>,
-        new_quorum: Option<i128>,
-        new_voting_period: Option<u64>,
-        new_execution_delay: Option<u64>,
-    ) {
-        governance::Governance::update_config(
-            &env,
-            new_proposal_threshold,
-            new_quorum,
-            new_voting_period,
-            new_execution_delay,
-        );
+    // 7. Cross-Chain Coordination
+    pub fn register_chain(env: Env, admin: Address, id: Bytes, name: Bytes, weight: u32) {
+        cross_chain::CrossChainGovernance::register_chain(&env, admin, id, name, weight);
     }
 
-    /// Transfer admin role to a new address (admin only)
-    pub fn transfer_admin(env: Env, new_admin: Address) {
-        governance::Governance::transfer_admin(&env, new_admin);
+    // 8. Dispute Resolution & Appeals
+    pub fn file_dispute(env: Env, caller: Address, proposal_id: u64, reason: Bytes) -> u64 {
+        disputes::DisputeResolution::file_dispute(&env, caller, proposal_id, reason)
     }
 
-    // ========== View Functions ==========
-
-    /// Get the governance configuration
-    pub fn get_config(env: Env) -> GovernanceConfig {
-        governance::Governance::get_config(&env)
+    // 9. Insurance & Risk Mitigation
+    pub fn assess_risk(env: Env, admin: Address, proposal_id: u64, level: insurance::RiskLevel, score: u32) {
+        insurance::GovernanceInsurance::assess_risk(&env, admin, proposal_id, level, score);
     }
 
-    /// Get a proposal by ID
-    pub fn get_proposal(env: Env, proposal_id: u64) -> Option<Proposal> {
-        governance::Governance::get_proposal(&env, proposal_id)
+    // 10. Simulation & Prediction
+    pub fn predict_outcome(env: Env, proposal_id: u64) -> (bool, u32, i128) {
+        let config = governance::Governance::get_config(&env);
+        simulation::Simulation::predict_outcome(&env, proposal_id, config.quorum)
     }
 
-    /// Get a vote record
-    pub fn get_vote(env: Env, proposal_id: u64, voter: Address) -> Option<Vote> {
-        governance::Governance::get_vote(&env, proposal_id, voter)
+    // 11. Automation & Prioritization
+    pub fn get_priority_queue(env: Env) -> Vec<automation::PriorityRecord> {
+        automation::ProposalAutomation::get_prioritized_queue(&env)
     }
 
-    /// Check if an address has voted on a proposal
-    pub fn has_voted(env: Env, proposal_id: u64, voter: Address) -> bool {
-        governance::Governance::has_voted(&env, proposal_id, voter)
-    }
-
-    /// Get the current proposal count
-    pub fn get_proposal_count(env: Env) -> u64 {
-        governance::Governance::get_proposal_count(&env)
-    }
-
-    /// Get the admin address
-    pub fn get_admin(env: Env) -> Address {
-        governance::Governance::get_admin(&env)
-    }
-
-    /// Get the governance token address
-    pub fn get_token(env: Env) -> Address {
-        governance::Governance::get_token(&env)
+    // 12. Compliance & Reporting
+    pub fn generate_compliance_report(env: Env, admin: Address, p: u64, v: u32, r: u32, h: Bytes) -> compliance::ComplianceReport {
+        compliance::Compliance::generate_report(&env, admin, p, v, r, h)
     }
 }
