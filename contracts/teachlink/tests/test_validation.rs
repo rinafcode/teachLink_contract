@@ -7,6 +7,7 @@ use teachlink_contract::validation::{
     config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
     EscrowValidator, NumberValidator, RewardsValidator, StringValidator, ValidationError,
 };
+use teachlink_contract::{EscrowRole, EscrowSigner};
 
 #[test]
 fn test_address_validation() {
@@ -14,7 +15,10 @@ fn test_address_validation() {
 
     // Test valid address
     let valid_address = Address::generate(&env);
-    assert!(AddressValidator::validate(&env, &valid_address).is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        assert!(AddressValidator::validate(&env, &valid_address).is_ok());
+    });
 
     // Test blacklist functionality (placeholder)
     // This would need actual blacklist data to test properly
@@ -124,46 +128,55 @@ fn test_cross_chain_validation() {
     let valid_amount = 1000i128;
     let valid_recipient = Address::generate(&env);
 
-    // Test valid destination data
-    assert!(
-        CrossChainValidator::validate_destination_data(&env, valid_chain_id, &valid_address)
-            .is_ok()
-    );
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        assert!(CrossChainValidator::validate_destination_data(
+            &env,
+            valid_chain_id,
+            &valid_address
+        )
+        .is_ok());
+    });
 
-    // Test invalid destination data
-    assert!(CrossChainValidator::validate_destination_data(
-        &env,
-        0, // invalid chain ID
-        &valid_address
-    )
-    .is_err());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        assert!(CrossChainValidator::validate_destination_data(
+            &env,
+            0, // invalid chain ID
+            &valid_address
+        )
+        .is_err());
 
-    assert!(CrossChainValidator::validate_destination_data(
-        &env,
-        valid_chain_id,
-        &Bytes::from_array(&env, &[1u8; 19]) // too short
-    )
-    .is_err());
+        assert!(CrossChainValidator::validate_destination_data(
+            &env,
+            valid_chain_id,
+            &Bytes::from_array(&env, &[1u8; 19]) // too short
+        )
+        .is_err());
+    });
 
-    // Test valid cross-chain message
-    assert!(CrossChainValidator::validate_cross_chain_message(
-        &env,
-        1, // source chain
-        2, // destination chain
-        valid_amount,
-        &valid_recipient
-    )
-    .is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // Test valid cross-chain message
+        assert!(CrossChainValidator::validate_cross_chain_message(
+            &env,
+            1, // source chain
+            2, // destination chain
+            valid_amount,
+            &valid_recipient
+        )
+        .is_ok());
 
-    // Test invalid cross-chain message
-    assert!(CrossChainValidator::validate_cross_chain_message(
-        &env,
-        0, // invalid source chain
-        2,
-        valid_amount,
-        &valid_recipient
-    )
-    .is_err());
+        // Test invalid cross-chain message
+        assert!(CrossChainValidator::validate_cross_chain_message(
+            &env,
+            0, // invalid source chain
+            2,
+            valid_amount,
+            &valid_recipient
+        )
+        .is_err());
+    });
 
     assert!(CrossChainValidator::validate_cross_chain_message(
         &env,
@@ -196,15 +209,31 @@ fn test_escrow_validation_edge_cases() {
     // Test duplicate signers
     let duplicate_signer = Address::generate(&env);
     let mut signers_with_duplicates = Vec::new(&env);
-    signers_with_duplicates.push_back(duplicate_signer.clone());
-    signers_with_duplicates.push_back(duplicate_signer.clone());
+    signers_with_duplicates.push_back(EscrowSigner {
+        address: duplicate_signer.clone(),
+        role: EscrowRole::Primary,
+        weight: 1,
+    });
+    signers_with_duplicates.push_back(EscrowSigner {
+        address: duplicate_signer.clone(),
+        role: EscrowRole::Primary,
+        weight: 1,
+    });
 
     assert!(EscrowValidator::check_duplicate_signers(&signers_with_duplicates).is_err());
 
     // Test valid unique signers
     let mut unique_signers = Vec::new(&env);
-    unique_signers.push_back(Address::generate(&env));
-    unique_signers.push_back(Address::generate(&env));
+    unique_signers.push_back(EscrowSigner {
+        address: Address::generate(&env),
+        role: EscrowRole::Primary,
+        weight: 1,
+    });
+    unique_signers.push_back(EscrowSigner {
+        address: Address::generate(&env),
+        role: EscrowRole::Primary,
+        weight: 1,
+    });
 
     assert!(EscrowValidator::check_duplicate_signers(&unique_signers).is_ok());
 
@@ -213,35 +242,41 @@ fn test_escrow_validation_edge_cases() {
     let future_release = current_time + 1000;
     let future_refund = future_release + 1000;
 
-    // This should pass - refund time after release time
-    let result = EscrowValidator::validate_create_escrow(
-        &env,
-        &depositor,
-        &beneficiary,
-        &token,
-        1000,
-        &unique_signers,
-        2,
-        Some(future_release),
-        Some(future_refund),
-        &arbitrator,
-    );
-    assert!(result.is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // This should pass - refund time after release time
+        let result = EscrowValidator::validate_create_escrow(
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            1000,
+            &unique_signers,
+            2,
+            Some(future_release),
+            Some(future_refund),
+            &arbitrator,
+        );
+        assert!(result.is_ok());
+    });
 
-    // This should fail - refund time before release time
-    let result = EscrowValidator::validate_create_escrow(
-        &env,
-        &depositor,
-        &beneficiary,
-        &token,
-        1000,
-        &unique_signers,
-        2,
-        Some(future_refund),
-        Some(future_release), // swapped
-        &arbitrator,
-    );
-    assert!(result.is_err());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // This should fail - refund time before release time
+        let result = EscrowValidator::validate_create_escrow(
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            1000,
+            &unique_signers,
+            2,
+            Some(future_refund),
+            Some(future_release), // swapped
+            &arbitrator,
+        );
+        assert!(result.is_err());
+    });
 }
 
 #[test]
@@ -253,10 +288,14 @@ fn test_escrow_release_conditions() {
     let signer = Address::generate(&env);
     let arbitrator = Address::generate(&env);
 
-    let mut signers = Vec::new(&env);
-    signers.push_back(signer.clone());
-
     // Create a test escrow
+    let mut signers = Vec::new(&env);
+    signers.push_back(EscrowSigner {
+        address: signer.clone(),
+        role: EscrowRole::Primary,
+        weight: 1,
+    });
+
     let escrow = teachlink_contract::Escrow {
         id: 1,
         depositor: depositor.clone(),
@@ -338,104 +377,110 @@ fn test_bridge_validation_edge_cases() {
     let valid_chain_id = 1;
     let valid_address = Bytes::from_array(&env, &[1u8; 20]);
 
-    // Test valid bridge out parameters
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        valid_amount,
-        valid_chain_id,
-        &valid_address
-    )
-    .is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // Test valid bridge out parameters
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            valid_amount,
+            valid_chain_id,
+            &valid_address
+        )
+        .is_ok());
+    });
 
-    // Test edge cases for amounts
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        config::MIN_AMOUNT,
-        valid_chain_id,
-        &valid_address
-    )
-    .is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // Test edge cases for amounts
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            config::MIN_AMOUNT,
+            valid_chain_id,
+            &valid_address
+        )
+        .is_ok());
 
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        0, // invalid
-        valid_chain_id,
-        &valid_address
-    )
-    .is_err());
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            0, // invalid
+            valid_chain_id,
+            &valid_address
+        )
+        .is_err());
 
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        -1, // invalid
-        valid_chain_id,
-        &valid_address
-    )
-    .is_err());
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            -1, // invalid
+            valid_chain_id,
+            &valid_address
+        )
+        .is_err());
 
-    // Test edge cases for chain IDs
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        valid_amount,
-        config::MIN_CHAIN_ID,
-        &valid_address
-    )
-    .is_ok());
+        // Test edge cases for chain IDs
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            valid_amount,
+            config::MIN_CHAIN_ID,
+            &valid_address
+        )
+        .is_ok());
 
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        valid_amount,
-        0, // invalid
-        &valid_address
-    )
-    .is_err());
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            valid_amount,
+            0, // invalid
+            &valid_address
+        )
+        .is_err());
 
-    // Test edge cases for address lengths
-    let min_address = Bytes::from_array(&env, &[1u8; 20]);
-    let max_address = Bytes::from_array(&env, &[1u8; 32]);
+        // Test edge cases for address lengths
+        let min_address = Bytes::from_array(&env, &[1u8; 20]);
+        let max_address = Bytes::from_array(&env, &[1u8; 32]);
 
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        valid_amount,
-        valid_chain_id,
-        &min_address
-    )
-    .is_ok());
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            valid_amount,
+            valid_chain_id,
+            &min_address
+        )
+        .is_ok());
 
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        valid_amount,
-        valid_chain_id,
-        &max_address
-    )
-    .is_ok());
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            valid_amount,
+            valid_chain_id,
+            &max_address
+        )
+        .is_ok());
 
-    let too_short = Bytes::from_array(&env, &[1u8; 19]);
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        valid_amount,
-        valid_chain_id,
-        &too_short
-    )
-    .is_err());
+        let too_short = Bytes::from_array(&env, &[1u8; 19]);
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            valid_amount,
+            valid_chain_id,
+            &too_short
+        )
+        .is_err());
 
-    let too_long = Bytes::from_array(&env, &[1u8; 33]);
-    assert!(BridgeValidator::validate_bridge_out(
-        &env,
-        &from,
-        valid_amount,
-        valid_chain_id,
-        &too_long
-    )
-    .is_err());
+        let too_long = Bytes::from_array(&env, &[1u8; 33]);
+        assert!(BridgeValidator::validate_bridge_out(
+            &env,
+            &from,
+            valid_amount,
+            valid_chain_id,
+            &too_long
+        )
+        .is_err());
+    });
 }
 
 #[test]
@@ -459,8 +504,13 @@ fn test_bridge_completion_validation() {
     let mut validators = Vec::new(&env);
     validators.push_back(validator.clone());
 
-    // Test valid completion
-    assert!(BridgeValidator::validate_bridge_completion(&env, &message, &validators, 1).is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // Test valid completion
+        assert!(
+            BridgeValidator::validate_bridge_completion(&env, &message, &validators, 1).is_ok()
+        );
+    });
 
     // Test insufficient validators
     assert!(BridgeValidator::validate_bridge_completion(
@@ -490,85 +540,91 @@ fn test_rewards_validation_edge_cases() {
     let valid_amount = 1000i128;
     let valid_reward_type = String::from_str(&env, "course_completion");
 
-    // Test valid reward issuance
-    assert!(RewardsValidator::validate_reward_issuance(
-        &env,
-        &recipient,
-        valid_amount,
-        &valid_reward_type
-    )
-    .is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // Test valid reward issuance
+        assert!(RewardsValidator::validate_reward_issuance(
+            &env,
+            &recipient,
+            valid_amount,
+            &valid_reward_type
+        )
+        .is_ok());
+    });
 
-    // Test edge cases for amounts
-    assert!(RewardsValidator::validate_reward_issuance(
-        &env,
-        &recipient,
-        config::MIN_AMOUNT,
-        &valid_reward_type
-    )
-    .is_ok());
+    let contract_id = env.register(teachlink_contract::TeachLinkBridge, ());
+    env.as_contract(&contract_id, || {
+        // Test edge cases for amounts
+        assert!(RewardsValidator::validate_reward_issuance(
+            &env,
+            &recipient,
+            config::MIN_AMOUNT,
+            &valid_reward_type
+        )
+        .is_ok());
 
-    assert!(RewardsValidator::validate_reward_issuance(
-        &env,
-        &recipient,
-        0, // invalid
-        &valid_reward_type
-    )
-    .is_err());
+        assert!(RewardsValidator::validate_reward_issuance(
+            &env,
+            &recipient,
+            0, // invalid
+            &valid_reward_type
+        )
+        .is_err());
 
-    assert!(RewardsValidator::validate_reward_issuance(
-        &env,
-        &recipient,
-        -1, // invalid
-        &valid_reward_type
-    )
-    .is_err());
+        assert!(RewardsValidator::validate_reward_issuance(
+            &env,
+            &recipient,
+            -1, // invalid
+            &valid_reward_type
+        )
+        .is_err());
 
-    // Test edge cases for reward type strings
-    let max_length_string = String::from_str(
-        &env,
-        "a".repeat(config::MAX_STRING_LENGTH as usize).as_str(),
-    );
-    assert!(RewardsValidator::validate_reward_issuance(
-        &env,
-        &recipient,
-        valid_amount,
-        &max_length_string
-    )
-    .is_ok());
+        // Test edge cases for reward type strings
+        let max_length_string = String::from_str(
+            &env,
+            "a".repeat(config::MAX_STRING_LENGTH as usize).as_str(),
+        );
+        assert!(RewardsValidator::validate_reward_issuance(
+            &env,
+            &recipient,
+            valid_amount,
+            &max_length_string
+        )
+        .is_ok());
 
-    let too_long_string = String::from_str(
-        &env,
-        "a".repeat((config::MAX_STRING_LENGTH + 1) as usize)
-            .as_str(),
-    );
-    assert!(RewardsValidator::validate_reward_issuance(
-        &env,
-        &recipient,
-        valid_amount,
-        &too_long_string
-    )
-    .is_err());
+        let too_long_string = String::from_str(
+            &env,
+            "a".repeat((config::MAX_STRING_LENGTH + 1) as usize)
+                .as_str(),
+        );
+        assert!(RewardsValidator::validate_reward_issuance(
+            &env,
+            &recipient,
+            valid_amount,
+            &too_long_string
+        )
+        .is_err());
 
-    let empty_string = String::from_str(&env, "");
-    assert!(RewardsValidator::validate_reward_issuance(
-        &env,
-        &recipient,
-        valid_amount,
-        &empty_string
-    )
-    .is_err());
+        let empty_string = String::from_str(&env, "");
+        assert!(RewardsValidator::validate_reward_issuance(
+            &env,
+            &recipient,
+            valid_amount,
+            &empty_string
+        )
+        .is_err());
 
-    // Test pool funding validation
-    let funder = Address::generate(&env);
-    assert!(RewardsValidator::validate_pool_funding(&env, &funder, valid_amount).is_ok());
+        // Test pool funding validation
+        let funder = Address::generate(&env);
+        assert!(RewardsValidator::validate_pool_funding(&env, &funder, valid_amount).is_ok());
 
-    assert!(RewardsValidator::validate_pool_funding(
-        &env,
-        &funder,
-        0 // invalid
-    )
-    .is_err());
+        assert!(RewardsValidator::validate_pool_funding(
+            &env,
+            &funder,
+            0 // invalid
+        )
+        .is_err());
+    });
 }
 
 #[test]
