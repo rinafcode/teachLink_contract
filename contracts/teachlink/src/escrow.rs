@@ -1,10 +1,13 @@
+use crate::arbitration::ArbitrationManager;
 use crate::errors::EscrowError;
+use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
+use crate::insurance::InsuranceManager;
 use crate::storage::{ESCROWS, ESCROW_COUNT};
-use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowStatus};
+use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowSigner, EscrowStatus};
 use crate::validation::EscrowValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
@@ -17,7 +20,7 @@ impl EscrowManager {
         beneficiary: Address,
         token: Address,
         amount: i128,
-        signers: Vec<Address>,
+        signers: Vec<EscrowSigner>,
         threshold: u32,
         release_time: Option<u64>,
         refund_time: Option<u64>,
@@ -37,6 +40,12 @@ impl EscrowManager {
             refund_time,
             &arbitrator,
         )?;
+
+        // calculate and collect insurance premium
+        let premium = InsuranceManager::calculate_premium(env, amount);
+        if premium > 0 {
+            InsuranceManager::pay_premium_internal(env, depositor.clone(), premium)?;
+        }
 
         env.invoke_contract::<()>(
             &token,
@@ -75,24 +84,29 @@ impl EscrowManager {
         escrows.set(escrow_count, escrow.clone());
         env.storage().instance().set(&ESCROWS, &escrows);
 
+        EscrowAnalyticsManager::update_creation(env, amount);
+
         EscrowCreatedEvent { escrow }.publish(env);
 
         Ok(escrow_count)
     }
 
-    pub fn approve_release(env: &Env, escrow_id: u64, signer: Address) -> Result<u32, EscrowError> {
-        signer.require_auth();
+    pub fn approve_release(
+        env: &Env,
+        escrow_id: u64,
+        signer_addr: Address,
+    ) -> Result<u32, EscrowError> {
+        signer_addr.require_auth();
 
         let mut escrow = Self::load_escrow(env, escrow_id)?;
         Self::ensure_pending(&escrow)?;
 
-        if !Self::is_signer(&escrow.signers, &signer) {
-            return Err(EscrowError::SignerNotAuthorized);
-        }
+        let signer_info = Self::get_signer_info(&escrow.signers, &signer_addr)
+            .ok_or(EscrowError::SignerNotAuthorized)?;
 
         let approval_key = EscrowApprovalKey {
             escrow_id,
-            signer: signer.clone(),
+            signer: signer_addr.clone(),
         };
 
         if env.storage().persistent().has(&approval_key) {
@@ -100,13 +114,13 @@ impl EscrowManager {
         }
 
         env.storage().persistent().set(&approval_key, &true);
-        escrow.approval_count += 1;
+        escrow.approval_count += signer_info.weight;
 
         Self::save_escrow(env, escrow_id, escrow.clone());
 
         EscrowApprovedEvent {
             escrow_id,
-            signer,
+            signer: signer_addr,
             approval_count: escrow.approval_count,
         }
         .publish(env);
@@ -206,9 +220,16 @@ impl EscrowManager {
             return Err(EscrowError::OnlyDepositorOrBeneficiaryCanDispute);
         }
 
+        // If arbitrator is default (zero address), pick a professional one
+        if Self::arbitrator_is_empty(env, &escrow.arbitrator) {
+            escrow.arbitrator = ArbitrationManager::pick_arbitrator(env)?;
+        }
+
         escrow.status = EscrowStatus::Disputed;
         escrow.dispute_reason = Some(reason.clone());
         Self::save_escrow(env, escrow_id, escrow);
+
+        EscrowAnalyticsManager::update_dispute(env);
 
         EscrowDisputedEvent {
             escrow_id,
@@ -255,7 +276,13 @@ impl EscrowManager {
         };
 
         escrow.status = new_status.clone();
+
+        ArbitrationManager::update_reputation(env, arbitrator, true)?;
+
+        let now = env.ledger().timestamp();
+        let created_at = escrow.created_at;
         Self::save_escrow(env, escrow_id, escrow);
+        EscrowAnalyticsManager::update_resolution(env, now - created_at);
 
         EscrowResolvedEvent {
             escrow_id,
@@ -264,6 +291,24 @@ impl EscrowManager {
         }
         .publish(env);
 
+        Ok(())
+    }
+
+    pub fn auto_check_dispute(env: &Env, escrow_id: u64) -> Result<(), EscrowError> {
+        let mut escrow = Self::load_escrow(env, escrow_id)?;
+        if ArbitrationManager::check_stalled_escrow(env, &escrow) {
+            escrow.status = EscrowStatus::Disputed;
+            escrow.dispute_reason = Some(Bytes::from_slice(env, b"Automated stall detection"));
+            escrow.arbitrator = ArbitrationManager::pick_arbitrator(env)?;
+            Self::save_escrow(env, escrow_id, escrow);
+
+            EscrowDisputedEvent {
+                escrow_id,
+                disputer: env.current_contract_address(),
+                reason: Bytes::from_slice(env, b"Automated stall detection"),
+            }
+            .publish(env);
+        }
         Ok(())
     }
 
@@ -284,13 +329,17 @@ impl EscrowManager {
 
     // ---------- Internal Helpers ----------
 
-    fn is_signer(signers: &Vec<Address>, signer: &Address) -> bool {
+    fn get_signer_info(signers: &Vec<EscrowSigner>, signer_addr: &Address) -> Option<EscrowSigner> {
         for s in signers.iter() {
-            if s == *signer {
-                return true;
+            if s.address == *signer_addr {
+                return Some(s);
             }
         }
-        false
+        None
+    }
+
+    fn is_signer(signers: &Vec<EscrowSigner>, signer_addr: &Address) -> bool {
+        Self::get_signer_info(signers, signer_addr).is_some()
     }
 
     fn ensure_pending(escrow: &Escrow) -> Result<(), EscrowError> {
@@ -298,6 +347,11 @@ impl EscrowManager {
             return Err(EscrowError::EscrowNotPending);
         }
         Ok(())
+    }
+
+    fn arbitrator_is_empty(env: &Env, arbitrator: &Address) -> bool {
+        // Use current contract address as a signal for "no arbitrator assigned"
+        *arbitrator == env.current_contract_address()
     }
 
     fn load_escrows(env: &Env) -> Map<u64, Escrow> {

@@ -333,7 +333,22 @@ pub struct ContentTokenParameters {
     pub royalty_percentage: u32,
 }
 
-// ========== Escrow Types ==========
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum EscrowRole {
+    Primary,    // Full control, high weight
+    Secondary,  // Partial control, low weight
+    Arbitrator, // Can resolve disputes
+    Auditor,    // Read-only, can only flag issues
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EscrowSigner {
+    pub address: Address,
+    pub role: EscrowRole,
+    pub weight: u32,
+}
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -342,7 +357,7 @@ pub struct EscrowParameters {
     pub beneficiary: Address,
     pub token: Address,
     pub amount: i128,
-    pub signers: Vec<Address>,
+    pub signers: Vec<EscrowSigner>,
     pub threshold: u32,
     pub release_time: Option<u64>,
     pub refund_time: Option<u64>,
@@ -419,7 +434,7 @@ pub struct Escrow {
     pub beneficiary: Address,
     pub token: Address,
     pub amount: i128,
-    pub signers: Vec<Address>,
+    pub signers: Vec<EscrowSigner>,
     pub threshold: u32,
     pub approval_count: u32,
     pub release_time: Option<u64>,
@@ -432,9 +447,41 @@ pub struct Escrow {
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArbitratorProfile {
+    pub address: Address,
+    pub name: String,
+    pub specialization: Vec<String>,
+    pub reputation_score: u32,
+    pub total_resolved: u64,
+    pub dispute_types_handled: Vec<String>,
+    pub is_active: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InsurancePool {
+    pub token: Address,
+    pub balance: i128,
+    pub premium_rate: u32, // In basis points
+    pub total_claims_paid: i128,
+    pub max_payout_percentage: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EscrowApprovalKey {
     pub escrow_id: u64,
     pub signer: Address,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EscrowMetrics {
+    pub total_escrows: u64,
+    pub total_volume: i128,
+    pub total_disputes: u64,
+    pub total_resolved: u64,
+    pub average_resolution_time: u64,
 }
 
 #[contracttype]

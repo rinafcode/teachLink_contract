@@ -80,3 +80,8 @@ pub const CONTENT_TOKENS: Symbol = symbol_short!("cnt_tok");
 pub const OWNERSHIP: Symbol = symbol_short!("owner");
 pub const PROVENANCE: Symbol = symbol_short!("prov");
 pub const OWNER_TOKENS: Symbol = symbol_short!("own_tok");
+
+// Arbitration and insurance Storage
+pub const ARBITRATORS: Symbol = symbol_short!("arbs");
+pub const INSURANCE_POOL: Symbol = symbol_short!("ins_pool");
+pub const ESCROW_ANALYTICS: Symbol = symbol_short!("esc_an");
