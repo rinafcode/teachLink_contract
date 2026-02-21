@@ -5,7 +5,7 @@
 use crate::notification::*;
 use crate::notification_types::*;
 use crate::storage::*;
-use soroban_sdk::{Address, Bytes, Env, Map, Vec, String};
+use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
 
 #[cfg(test)]
 pub mod notification_tests {
@@ -13,7 +13,10 @@ pub mod notification_tests {
 
     // Helper function to create test addresses
     fn create_test_address(env: &Env, id: u8) -> Address {
-        let address_str = format!("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA{}", id);
+        let address_str = format!(
+            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA{}",
+            id
+        );
         Address::from_string(&String::from_str(env, &address_str))
     }
 
