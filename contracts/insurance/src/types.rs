@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address};
+use soroban_sdk::{contracttype, Address, String, Vec, Bytes};
 
 /// Risk assessment factors for insurance pricing
 #[contracttype]
@@ -126,8 +126,8 @@ pub struct AdvancedClaim {
     pub status: ClaimStatus,
     /// AI verification confidence score (0-100)
     pub ai_confidence: u32,
-    /// Supporting evidence hash
-    pub evidence_hash: [u8; 32],
+    /// Supporting evidence (as Bytes)
+    pub evidence: Bytes,
     /// Oracle verification result (if used)
     pub oracle_verified: bool,
     /// Payout amount (if approved)

@@ -11,7 +11,7 @@ pub enum InsuranceError {
     ClaimNotFound = 502,
     ClaimAlreadyProcessed = 503,
     ClaimNotVerified = 504,
-    
+
     // New errors for enhanced features (505-550)
     InvalidRiskFactors = 505,
     RiskProfileNotFound = 506,
