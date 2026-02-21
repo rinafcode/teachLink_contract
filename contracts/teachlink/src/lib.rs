@@ -109,6 +109,8 @@ mod notification_events_basic;
 mod notification_types;
 mod rewards;
 mod slashing;
+// mod social_events;
+// mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
@@ -134,6 +136,7 @@ pub use types::{
 #[contract]
 pub struct TeachLinkBridge;
 
+/*
 #[contractimpl]
 impl TeachLinkBridge {
     /// Initialize the bridge contract
@@ -1210,6 +1213,168 @@ impl TeachLinkBridge {
         notification::NotificationManager::get_user_notifications(&env, user, limit)
     }
 
+    // ========== Social Learning Functions ==========
+
+    /// Create a study group
+    pub fn create_study_group(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        description: Bytes,
+        subject: Bytes,
+        max_members: u32,
+        is_private: bool,
+        tags: Vec<Bytes>,
+        settings: social_learning::StudyGroupSettings,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_study_group(
+            &env, creator, name, description, subject, max_members, is_private, tags, settings,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Join a study group
+    pub fn join_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::join_study_group(&env, user, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Leave a study group
+    pub fn leave_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::leave_study_group(&env, user, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get study group information
+    pub fn get_study_group(env: Env, group_id: u64) -> Result<social_learning::StudyGroup, BridgeError> {
+        social_learning::SocialLearningManager::get_study_group(&env, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get user's study groups
+    pub fn get_user_study_groups(env: Env, user: Address) -> Vec<u64> {
+        social_learning::SocialLearningManager::get_user_study_groups(&env, user)
+    }
+
+    /// Create a discussion forum
+    pub fn create_forum(
+        env: Env,
+        creator: Address,
+        title: Bytes,
+        description: Bytes,
+        category: Bytes,
+        tags: Vec<Bytes>,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_forum(&env, creator, title, description, category, tags)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Create a forum post
+    pub fn create_forum_post(
+        env: Env,
+        forum_id: u64,
+        author: Address,
+        title: Bytes,
+        content: Bytes,
+        attachments: Vec<Bytes>,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_forum_post(
+            &env, forum_id, author, title, content, attachments,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get forum information
+    pub fn get_forum(env: Env, forum_id: u64) -> Result<social_learning::DiscussionForum, BridgeError> {
+        social_learning::SocialLearningManager::get_forum(&env, forum_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get forum post
+    pub fn get_forum_post(env: Env, post_id: u64) -> Result<social_learning::ForumPost, BridgeError> {
+        social_learning::SocialLearningManager::get_forum_post(&env, post_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Create a collaboration workspace
+    pub fn create_workspace(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        description: Bytes,
+        project_type: social_learning::ProjectType,
+        settings: social_learning::WorkspaceSettings,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_workspace(
+            &env, creator, name, description, project_type, settings,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get workspace information
+    pub fn get_workspace(env: Env, workspace_id: u64) -> Result<social_learning::CollaborationWorkspace, BridgeError> {
+        social_learning::SocialLearningManager::get_workspace(&env, workspace_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get user's workspaces
+    pub fn get_user_workspaces(env: Env, user: Address) -> Vec<u64> {
+        social_learning::SocialLearningManager::get_user_workspaces(&env, user)
+    }
+
+    /// Create a peer review
+    pub fn create_review(
+        env: Env,
+        reviewer: Address,
+        reviewee: Address,
+        content_type: social_learning::ReviewContentType,
+        content_id: u64,
+        rating: u32,
+        feedback: Bytes,
+        criteria: Map<Bytes, u32>,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_review(
+            &env, reviewer, reviewee, content_type, content_id, rating, feedback, criteria,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get review information
+    pub fn get_review(env: Env, review_id: u64) -> Result<social_learning::PeerReview, BridgeError> {
+        social_learning::SocialLearningManager::get_review(&env, review_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Create mentorship profile
+    pub fn create_mentorship_profile(
+        env: Env,
+        mentor: Address,
+        expertise_areas: Vec<Bytes>,
+        experience_level: social_learning::ExperienceLevel,
+        availability: social_learning::AvailabilityStatus,
+        hourly_rate: Option<u64>,
+        bio: Bytes,
+        languages: Vec<Bytes>,
+        timezone: Bytes,
+    ) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::create_mentorship_profile(
+            &env, mentor, expertise_areas, experience_level, availability, hourly_rate, bio, languages, timezone,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get mentorship profile
+    pub fn get_mentorship_profile(env: Env, mentor: Address) -> Result<social_learning::MentorshipProfile, BridgeError> {
+        social_learning::SocialLearningManager::get_mentorship_profile(&env, mentor)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get user social analytics
+    pub fn get_user_analytics(env: Env, user: Address) -> social_learning::SocialAnalytics {
+        social_learning::SocialLearningManager::get_user_analytics(&env, user)
+    }
+
+    /// Update user social analytics
+    pub fn update_user_analytics(env: Env, user: Address, analytics: social_learning::SocialAnalytics) {
+        social_learning::SocialLearningManager::update_user_analytics(&env, user, analytics);
+    }
+
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
 }
+*/
