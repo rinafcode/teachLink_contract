@@ -3,8 +3,8 @@
 
 // TODO: Re-enable when score module is fully implemented
 
-use soroban_sdk::{testutils::Address as _, Address, Env};
-use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
+// use soroban_sdk::{testutils::Address as _, Address, Env};
+// use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
 
 /*
 #[test]
