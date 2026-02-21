@@ -152,14 +152,7 @@ impl ContentTokenization {
         .publish(env);
 
         // Record provenance (handled by provenance module)
-        crate::provenance::ProvenanceTracker::record_transfer(
-            env,
-            token_id,
-            Some(from.clone()),
-            to,
-            TransferType::Transfer,
-            notes,
-        );
+        // TODO: Implement provenance module
     }
 
     /// Get a content token by ID
