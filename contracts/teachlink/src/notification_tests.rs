@@ -13,10 +13,13 @@ pub mod notification_tests {
 
     // Helper function to create test addresses
     fn create_test_address(env: &Env, id: u8) -> Address {
-        let address_str = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
-        let mut full_address = address_str.to_string();
-        full_address.push_str(&id.to_string());
-        Address::from_string(&String::from_str(env, &full_address))
+        let addr_str = match id {
+            1 => "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA1",
+            2 => "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA2",
+            3 => "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA3",
+            _ => "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA0",
+        };
+        Address::from_string(&String::from_str(env, addr_str))
     }
 
     #[test]
@@ -343,12 +346,26 @@ pub mod notification_tests {
         NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
 
         // Send multiple notifications
-        for i in 0..5 {
-            let subject_str = "Test ".to_string() + &i.to_string();
-            let body_str = "Body ".to_string() + &i.to_string();
+        for i in 0u32..5u32 {
+            let subject_bytes = match i {
+                0 => b"Test 0",
+                1 => b"Test 1",
+                2 => b"Test 2",
+                3 => b"Test 3",
+                4 => b"Test 4",
+                _ => b"Test X",
+            };
+            let body_bytes = match i {
+                0 => b"Body 0",
+                1 => b"Body 1",
+                2 => b"Body 2",
+                3 => b"Body 3",
+                4 => b"Body 4",
+                _ => b"Body X",
+            };
             let content = NotificationContent {
-                subject: Bytes::from_slice(&env, subject_str.as_bytes()),
-                body: Bytes::from_slice(&env, body_str.as_bytes()),
+                subject: Bytes::from_slice(&env, subject_bytes),
+                body: Bytes::from_slice(&env, body_bytes),
                 data: Bytes::new(&env),
                 localization: Map::new(&env),
             };
@@ -365,7 +382,6 @@ pub mod notification_tests {
         // Get analytics
         let analytics = NotificationManager::get_notification_analytics(&env, start_time, end_time);
         assert!(analytics.total_sent >= 5);
-        assert!(analytics.total_delivered >= 0); // Some may fail in simulation
         assert!(analytics.channel_stats.len() > 0);
     }
 
@@ -389,12 +405,22 @@ pub mod notification_tests {
         NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
 
         // Send notifications
-        for i in 0..3 {
-            let subject_str = "History Test ".to_string() + &i.to_string();
-            let body_str = "History Body ".to_string() + &i.to_string();
+        for i in 0u32..3u32 {
+            let subject_bytes = match i {
+                0 => b"History Test 0",
+                1 => b"History Test 1",
+                2 => b"History Test 2",
+                _ => b"History Test X",
+            };
+            let body_bytes = match i {
+                0 => b"History Body 0",
+                1 => b"History Body 1",
+                2 => b"History Body 2",
+                _ => b"History Body X",
+            };
             let content = NotificationContent {
-                subject: Bytes::from_slice(&env, subject_str.as_bytes()),
-                body: Bytes::from_slice(&env, body_str.as_bytes()),
+                subject: Bytes::from_slice(&env, subject_bytes),
+                body: Bytes::from_slice(&env, body_bytes),
                 data: Bytes::new(&env),
                 localization: Map::new(&env),
             };
@@ -409,7 +435,7 @@ pub mod notification_tests {
         }
 
         // Get user history
-        let history = NotificationManager::get_user_notifications(&env, recipient, 10);
+        let history = NotificationManager::get_user_notifications(&env, recipient.clone(), 10);
         assert!(history.len() >= 3);
 
         // Verify all notifications belong to the user
@@ -439,12 +465,26 @@ pub mod notification_tests {
 
         // Send notifications up to limit
         let mut success_count = 0;
-        for i in 0..5 {
-            let subject_str = "Rate Limit Test ".to_string() + &i.to_string();
-            let body_str = "Rate Limit Body ".to_string() + &i.to_string();
+        for i in 0u32..5u32 {
+            let subject_bytes = match i {
+                0 => b"Rate Limit Test 0",
+                1 => b"Rate Limit Test 1",
+                2 => b"Rate Limit Test 2",
+                3 => b"Rate Limit Test 3",
+                4 => b"Rate Limit Test 4",
+                _ => b"Rate Limit Test X",
+            };
+            let body_bytes = match i {
+                0 => b"Rate Limit Body 0",
+                1 => b"Rate Limit Body 1",
+                2 => b"Rate Limit Body 2",
+                3 => b"Rate Limit Body 3",
+                4 => b"Rate Limit Body 4",
+                _ => b"Rate Limit Body X",
+            };
             let content = NotificationContent {
-                subject: Bytes::from_slice(&env, subject_str.as_bytes()),
-                body: Bytes::from_slice(&env, body_str.as_bytes()),
+                subject: Bytes::from_slice(&env, subject_bytes),
+                body: Bytes::from_slice(&env, body_bytes),
                 data: Bytes::new(&env),
                 localization: Map::new(&env),
             };
