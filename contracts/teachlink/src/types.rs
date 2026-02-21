@@ -4,6 +4,9 @@
 
 use soroban_sdk::{contracttype, Address, Bytes, Map, String, Vec};
 
+// Include notification types
+pub use crate::notification_types::*;
+
 // ========== Chain Configuration Types ==========
 
 #[contracttype]
