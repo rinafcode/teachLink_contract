@@ -6,6 +6,9 @@ use crate::types::{
     RewardType, SlashingReason, SwapStatus,
 };
 
+// Include notification events
+// pub use crate::notification_events::*;
+
 use soroban_sdk::{Address, Bytes, String};
 
 // ================= Bridge Events =================
