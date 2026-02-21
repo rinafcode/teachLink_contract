@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, String, Vec, Bytes};
+use soroban_sdk::{contracttype, Address, Bytes, String, Vec};
 
 /// Risk assessment factors for insurance pricing
 #[contracttype]
