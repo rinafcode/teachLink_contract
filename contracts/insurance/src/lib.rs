@@ -1102,10 +1102,6 @@ impl EnhancedInsurance {
     pub fn get_policy(env: Env, policy_id: u64) -> Option<InsurancePolicy> {
         env.storage().instance().get(&DataKey::Policy(policy_id))
     }
-    pub fn get_claim(env: Env, claim_id: u64) -> Option<AdvancedClaim> {
-
-        env.storage().instance().get(&DataKey::Claim(claim_id))
-    }
 
     pub fn get_active_policies(env: Env, user: Address) -> Vec<u64> {
         env.storage().instance().get(&DataKey::ActivePolicies(user))
