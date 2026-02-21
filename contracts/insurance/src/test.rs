@@ -190,10 +190,10 @@ fn test_file_claim() {
     let policy_id = client.purchase_policy(&user, &101, &10000);
 
     // File claim
-    let evidence_hash = [1u8; 32];
+    let evidence = Bytes::from_slice(&env, &[1u8; 32]);
     let reason = Bytes::from_slice(&env, b"Course completion failed due to technical issues");
     
-    let result = client.try_file_claim(&user, &policy_id, &evidence_hash, &reason);
+    let result = client.try_file_claim(&user, &policy_id, &evidence, &reason);
     assert!(result.is_ok());
     
     let claim_id = result.unwrap();
@@ -207,7 +207,7 @@ fn test_file_claim() {
     assert_eq!(claim.policy_id, policy_id);
     assert_eq!(claim.status, ClaimStatus::AiVerified); // High confidence
     assert_eq!(claim.ai_confidence, 75);
-    assert_eq!(claim.evidence_hash, evidence_hash);
+    assert_eq!(claim.evidence, evidence);
 }
 
 #[test]
