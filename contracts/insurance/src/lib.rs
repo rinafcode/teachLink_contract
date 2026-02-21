@@ -54,7 +54,9 @@ mod types;
 use crate::errors::InsuranceError;
 use crate::storage::*;
 use crate::types::*;
-use soroban_sdk::{contract, contractimpl, contracttype, token, vec, Address, Bytes, Env, String, Vec};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, token, vec, Address, Bytes, Env, String, Vec,
+};
 
 #[contract]
 pub struct EnhancedInsurance;
@@ -358,33 +360,43 @@ impl EnhancedInsurance {
         reason: Bytes,
     ) -> Result<u64, InsuranceError> {
         user.require_auth();
-        
+
         // Validate policy exists and is active
-        let mut policy: InsurancePolicy = env.storage().instance()
+        let mut policy: InsurancePolicy = env
+            .storage()
+            .instance()
             .get(&DataKey::Policy(policy_id))
             .ok_or(InsuranceError::PolicyNotFound)?;
-        
+
         if policy.status != PolicyStatus::Active {
             return Err(InsuranceError::PolicyExpired);
         }
-        
+
         if env.ledger().timestamp() > policy.expiration_time {
             return Err(InsuranceError::PolicyExpired);
         }
-        
+
         // Check if claim already exists for this policy
-        if env.storage().instance().has(&DataKey::ClaimByPolicy(policy_id)) {
+        if env
+            .storage()
+            .instance()
+            .has(&DataKey::ClaimByPolicy(policy_id))
+        {
             return Err(InsuranceError::ClaimAlreadyFiled);
         }
-        
+
         // AI verification would happen here in a real implementation
         // For now, we'll simulate with a confidence score
         let ai_confidence = 75u32; // Simulated AI confidence
-        
+
         // Create claim
-        let mut claim_count = env.storage().instance().get(&DataKey::ClaimCount).unwrap_or(0);
+        let mut claim_count = env
+            .storage()
+            .instance()
+            .get(&DataKey::ClaimCount)
+            .unwrap_or(0);
         claim_count += 1;
-        
+
         let claim = AdvancedClaim {
             claim_id: claim_count,
             policy_id,
@@ -397,29 +409,45 @@ impl EnhancedInsurance {
             ai_confidence,
             evidence,
             oracle_verified: false,
-            payout_amount: if ai_confidence >= 80 { policy.coverage_amount } else { 0 },
+            payout_amount: if ai_confidence >= 80 {
+                policy.coverage_amount
+            } else {
+                0
+            },
             reason: String::from_str(&env, &"Claim filed"), // Simplified for now
         };
-        
-        env.storage().instance().set(&DataKey::Claim(claim_count), &claim);
-        env.storage().instance().set(&DataKey::ClaimByPolicy(policy_id), &claim_count);
-        env.storage().instance().set(&DataKey::ClaimCount, &claim_count);
-        
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Claim(claim_count), &claim);
+        env.storage()
+            .instance()
+            .set(&DataKey::ClaimByPolicy(policy_id), &claim_count);
+        env.storage()
+            .instance()
+            .set(&DataKey::ClaimCount, &claim_count);
+
         // Update policy status
         if ai_confidence >= 80 {
             policy.status = PolicyStatus::Claimed;
-            env.storage().instance().set(&DataKey::Policy(policy_id), &policy);
+            env.storage()
+                .instance()
+                .set(&DataKey::Policy(policy_id), &policy);
         }
-        
+
         // Add to pending claims if needs oracle review
         if ai_confidence < 80 {
-            let mut pending: Vec<u64> = env.storage().instance()
+            let mut pending: Vec<u64> = env
+                .storage()
+                .instance()
                 .get(&DataKey::PendingClaims)
                 .unwrap_or_else(|| Vec::new(&env));
             pending.push_back(claim_count);
-            env.storage().instance().set(&DataKey::PendingClaims, &pending);
+            env.storage()
+                .instance()
+                .set(&DataKey::PendingClaims, &pending);
         }
-        
+
         Ok(claim_count)
     }
 
@@ -552,15 +580,23 @@ impl EnhancedInsurance {
         risk_reserve_ratio: u32,
     ) -> Result<u64, InsuranceError> {
         admin.require_auth();
-        
-        if !env.storage().instance().get(&DataKey::Admin)
-            .map_or(false, |a: Address| a == admin) {
+
+        if !env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .map_or(false, |a: Address| a == admin)
+        {
             return Err(InsuranceError::UnauthorizedGovernanceAction);
         }
-        
-        let mut pool_count = env.storage().instance().get(&DataKey::PoolCount).unwrap_or(0);
+
+        let mut pool_count = env
+            .storage()
+            .instance()
+            .get(&DataKey::PoolCount)
+            .unwrap_or(0);
         pool_count += 1;
-        
+
         let pool = OptimizedPool {
             pool_id: pool_count,
             name: String::from_str(&env, &"Insurance Pool"), // Simplified for now
@@ -571,17 +607,25 @@ impl EnhancedInsurance {
             reinsurance_partners: Vec::new(&env),
             status: PoolStatus::Active,
         };
-        
-        env.storage().instance().set(&DataKey::Pool(pool_count), &pool);
-        env.storage().instance().set(&DataKey::PoolCount, &pool_count);
-        
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Pool(pool_count), &pool);
+        env.storage()
+            .instance()
+            .set(&DataKey::PoolCount, &pool_count);
+
         // Add to active pools
-        let mut active_pools: Vec<u64> = env.storage().instance()
+        let mut active_pools: Vec<u64> = env
+            .storage()
+            .instance()
             .get(&DataKey::ActivePools)
             .unwrap_or_else(|| Vec::new(&env));
         active_pools.push_back(pool_count);
-        env.storage().instance().set(&DataKey::ActivePools, &active_pools);
-        
+        env.storage()
+            .instance()
+            .set(&DataKey::ActivePools, &active_pools);
+
         Ok(pool_count)
     }
 
@@ -594,33 +638,43 @@ impl EnhancedInsurance {
         allocation_percentage: u32,
     ) -> Result<(), InsuranceError> {
         admin.require_auth();
-        
-        if !env.storage().instance().get(&DataKey::Admin)
-            .map_or(false, |a: Address| a == admin) {
+
+        if !env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .map_or(false, |a: Address| a == admin)
+        {
             return Err(InsuranceError::UnauthorizedGovernanceAction);
         }
-        
-        let mut pool: OptimizedPool = env.storage().instance()
+
+        let mut pool: OptimizedPool = env
+            .storage()
+            .instance()
             .get(&DataKey::Pool(pool_id))
             .ok_or(InsuranceError::PoolNotFound)?;
-        
+
         // Add partner to pool
         pool.reinsurance_partners.push_back(partner.clone());
         env.storage().instance().set(&DataKey::Pool(pool_id), &pool);
-        
+
         // Set allocation
         env.storage().instance().set(
-            &DataKey::ReinsuranceAllocation(pool_id, partner.clone()), 
-            &allocation_percentage
+            &DataKey::ReinsuranceAllocation(pool_id, partner.clone()),
+            &allocation_percentage,
         );
-        
+
         // Add to reinsurance partners list
-        let mut partners: Vec<Address> = env.storage().instance()
+        let mut partners: Vec<Address> = env
+            .storage()
+            .instance()
             .get(&DataKey::ReinsurancePartners)
             .unwrap_or_else(|| Vec::new(&env));
         partners.push_back(partner);
-        env.storage().instance().set(&DataKey::ReinsurancePartners, &partners);
-        
+        env.storage()
+            .instance()
+            .set(&DataKey::ReinsurancePartners, &partners);
+
         Ok(())
     }
 
@@ -751,24 +805,33 @@ impl EnhancedInsurance {
         new_value: i128,
     ) -> Result<u64, InsuranceError> {
         proposer.require_auth();
-        
+
         // Check if proposer has minimum tokens (simplified check)
-        let token_addr = env.storage().instance().get(&DataKey::Token)
+        let token_addr = env
+            .storage()
+            .instance()
+            .get(&DataKey::Token)
             .ok_or(InsuranceError::NotInitialized)?;
         let token_client = token::Client::new(&env, &token_addr);
         let balance = token_client.balance(&proposer);
-        
-        let governance_params: GovernanceParameters = env.storage().instance()
+
+        let governance_params: GovernanceParameters = env
+            .storage()
+            .instance()
             .get(&DataKey::GovernanceParameters)
             .unwrap_or_else(GovernanceParameters::default);
-            
+
         if balance < governance_params.proposal_threshold as i128 {
             return Err(InsuranceError::InsufficientTokenBalance);
         }
-        
-        let mut proposal_count = env.storage().instance().get(&DataKey::ProposalCount).unwrap_or(0);
+
+        let mut proposal_count = env
+            .storage()
+            .instance()
+            .get(&DataKey::ProposalCount)
+            .unwrap_or(0);
         proposal_count += 1;
-        
+
         let proposal = InsuranceProposal {
             proposal_id: proposal_count,
             title: String::from_str(&env, &"Proposal Title"), // Simplified for now
@@ -776,15 +839,20 @@ impl EnhancedInsurance {
             proposal_type,
             new_value,
             voting_start: env.ledger().timestamp(),
-            voting_end: env.ledger().timestamp() + (governance_params.voting_period_days as u64 * 24 * 60 * 60),
+            voting_end: env.ledger().timestamp()
+                + (governance_params.voting_period_days as u64 * 24 * 60 * 60),
             votes_for: 0,
             votes_against: 0,
             status: ProposalStatus::Active,
         };
-        
-        env.storage().instance().set(&DataKey::Proposal(proposal_count), &proposal);
-        env.storage().instance().set(&DataKey::ProposalCount, &proposal_count);
-        
+
+        env.storage()
+            .instance()
+            .set(&DataKey::Proposal(proposal_count), &proposal);
+        env.storage()
+            .instance()
+            .set(&DataKey::ProposalCount, &proposal_count);
+
         Ok(proposal_count)
     }
 
@@ -921,30 +989,44 @@ impl EnhancedInsurance {
         total_supply: i128,
     ) -> Result<u64, InsuranceError> {
         admin.require_auth();
-        
+
         // Verify pool exists
-        let _pool: OptimizedPool = env.storage().instance()
+        let _pool: OptimizedPool = env
+            .storage()
+            .instance()
             .get(&DataKey::Pool(pool_id))
             .ok_or(InsuranceError::PoolNotFound)?;
-        
-        let mut token_count = env.storage().instance().get(&DataKey::TokenCount).unwrap_or(0);
+
+        let mut token_count = env
+            .storage()
+            .instance()
+            .get(&DataKey::TokenCount)
+            .unwrap_or(0);
         token_count += 1;
-        
+
         let token = InsuranceToken {
             token_id: token_count,
             pool_id,
             name: String::from_str(&env, &"Insurance Token"), // Simplified for now
-            symbol: String::from_str(&env, &"INS"), // Simplified for now
+            symbol: String::from_str(&env, &"INS"),           // Simplified for now
             total_supply,
             holder: admin.clone(),
             balance: total_supply,
         };
-        
-        env.storage().instance().set(&DataKey::InsuranceToken(token_count), &token);
-        env.storage().instance().set(&DataKey::TokenByPool(pool_id), &token_count);
-        env.storage().instance().set(&DataKey::TokenHolder(admin, token_count), &total_supply);
-        env.storage().instance().set(&DataKey::TokenCount, &token_count);
-        
+
+        env.storage()
+            .instance()
+            .set(&DataKey::InsuranceToken(token_count), &token);
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenByPool(pool_id), &token_count);
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenHolder(admin, token_count), &total_supply);
+        env.storage()
+            .instance()
+            .set(&DataKey::TokenCount, &token_count);
+
         Ok(token_count)
     }
 
@@ -1104,12 +1186,16 @@ impl EnhancedInsurance {
     }
 
     pub fn get_active_policies(env: Env, user: Address) -> Vec<u64> {
-        env.storage().instance().get(&DataKey::ActivePolicies(user))
+        env.storage()
+            .instance()
+            .get(&DataKey::ActivePolicies(user))
             .unwrap_or_else(|| Vec::new(&env))
     }
 
     pub fn get_pending_claims(env: Env) -> Vec<u64> {
-        env.storage().instance().get(&DataKey::PendingClaims)
+        env.storage()
+            .instance()
+            .get(&DataKey::PendingClaims)
             .unwrap_or_else(|| Vec::new(&env))
     }
 
@@ -1118,25 +1204,35 @@ impl EnhancedInsurance {
     }
 
     pub fn get_active_pools(env: Env) -> Vec<u64> {
-        env.storage().instance().get(&DataKey::ActivePools)
+        env.storage()
+            .instance()
+            .get(&DataKey::ActivePools)
             .unwrap_or_else(|| Vec::new(&env))
     }
 
     pub fn get_insurance_token(env: Env, token_id: u64) -> Option<InsuranceToken> {
-        env.storage().instance().get(&DataKey::InsuranceToken(token_id))
+        env.storage()
+            .instance()
+            .get(&DataKey::InsuranceToken(token_id))
     }
 
     pub fn get_token_balance(env: Env, holder: Address, token_id: u64) -> i128 {
-        env.storage().instance().get(&DataKey::TokenHolder(holder, token_id))
+        env.storage()
+            .instance()
+            .get(&DataKey::TokenHolder(holder, token_id))
             .unwrap_or(0)
     }
 
     pub fn get_proposal(env: Env, proposal_id: u64) -> Option<InsuranceProposal> {
-        env.storage().instance().get(&DataKey::Proposal(proposal_id))
+        env.storage()
+            .instance()
+            .get(&DataKey::Proposal(proposal_id))
     }
 
     pub fn get_governance_parameters(env: Env) -> GovernanceParameters {
-        env.storage().instance().get(&DataKey::GovernanceParameters)
+        env.storage()
+            .instance()
+            .get(&DataKey::GovernanceParameters)
             .unwrap_or_else(GovernanceParameters::default)
     }
 }
