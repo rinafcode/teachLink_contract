@@ -5,16 +5,22 @@
 use crate::notification::*;
 use crate::notification_types::*;
 use crate::storage::*;
-use soroban_sdk::{Address, Bytes, Env, Map, Vec};
+use soroban_sdk::{Address, Bytes, Env, Map, Vec, String};
 
 #[cfg(test)]
 pub mod notification_tests {
     use super::*;
 
+    // Helper function to create test addresses
+    fn create_test_address(env: &Env, id: u8) -> Address {
+        let address_str = format!("GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA{}", id);
+        Address::from_string(&String::from_str(env, &address_str))
+    }
+
     #[test]
     fn test_notification_initialization() {
         let env = Env::default();
-        let admin = Address::generate(&env);
+        let admin = create_test_address(&env, 1);
 
         // Test initialization
         let result = NotificationManager::initialize(&env);
@@ -36,8 +42,8 @@ pub mod notification_tests {
     #[test]
     fn test_send_immediate_notification() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
-        let admin = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
+        let admin = create_test_address(&env, 1);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -86,7 +92,7 @@ pub mod notification_tests {
     #[test]
     fn test_schedule_notification() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
         let current_time = env.ledger().timestamp();
         let future_time = current_time + 3600; // 1 hour from now
 
@@ -145,7 +151,7 @@ pub mod notification_tests {
     #[test]
     fn test_process_scheduled_notifications() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
         let current_time = env.ledger().timestamp();
         let past_time = current_time - 100; // Schedule in the past for immediate processing
 
@@ -200,7 +206,7 @@ pub mod notification_tests {
     #[test]
     fn test_update_preferences() {
         let env = Env::default();
-        let user = Address::generate(&env);
+        let user = create_test_address(&env, 3);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -233,7 +239,7 @@ pub mod notification_tests {
     #[test]
     fn test_create_template() {
         let env = Env::default();
-        let admin = Address::generate(&env);
+        let admin = create_test_address(&env, 1);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -260,8 +266,8 @@ pub mod notification_tests {
     #[test]
     fn test_send_template_notification() {
         let env = Env::default();
-        let admin = Address::generate(&env);
-        let recipient = Address::generate(&env);
+        let admin = create_test_address(&env, 1);
+        let recipient = create_test_address(&env, 2);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -316,7 +322,7 @@ pub mod notification_tests {
     #[test]
     fn test_notification_analytics() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
         let start_time = env.ledger().timestamp() - 3600; // 1 hour ago
         let end_time = env.ledger().timestamp();
 
@@ -362,7 +368,7 @@ pub mod notification_tests {
     #[test]
     fn test_user_notification_history() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -409,7 +415,7 @@ pub mod notification_tests {
     #[test]
     fn test_notification_rate_limiting() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -454,7 +460,7 @@ pub mod notification_tests {
     #[test]
     fn test_quiet_hours_enforcement() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -508,7 +514,7 @@ pub mod notification_tests {
     #[test]
     fn test_do_not_disturb_mode() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
 
         // Initialize system
         NotificationManager::initialize(&env).unwrap();
@@ -545,7 +551,7 @@ pub mod notification_tests {
     #[test]
     fn test_recurring_notifications() {
         let env = Env::default();
-        let recipient = Address::generate(&env);
+        let recipient = create_test_address(&env, 2);
         let current_time = env.ledger().timestamp();
         let future_time = current_time + 3600; // 1 hour from now
 
