@@ -13,11 +13,10 @@ pub mod notification_tests {
 
     // Helper function to create test addresses
     fn create_test_address(env: &Env, id: u8) -> Address {
-        let address_str = format!(
-            "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA{}",
-            id
-        );
-        Address::from_string(&String::from_str(env, &address_str))
+        let address_str = "GAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+        let mut full_address = address_str.to_string();
+        full_address.push_str(&id.to_string());
+        Address::from_string(&String::from_str(env, &full_address))
     }
 
     #[test]
@@ -345,9 +344,11 @@ pub mod notification_tests {
 
         // Send multiple notifications
         for i in 0..5 {
+            let subject_str = "Test ".to_string() + &i.to_string();
+            let body_str = "Body ".to_string() + &i.to_string();
             let content = NotificationContent {
-                subject: Bytes::from_slice(&env, &format!("Test {}", i).as_bytes()),
-                body: Bytes::from_slice(&env, &format!("Body {}", i).as_bytes()),
+                subject: Bytes::from_slice(&env, subject_str.as_bytes()),
+                body: Bytes::from_slice(&env, body_str.as_bytes()),
                 data: Bytes::new(&env),
                 localization: Map::new(&env),
             };
@@ -389,9 +390,11 @@ pub mod notification_tests {
 
         // Send notifications
         for i in 0..3 {
+            let subject_str = "History Test ".to_string() + &i.to_string();
+            let body_str = "History Body ".to_string() + &i.to_string();
             let content = NotificationContent {
-                subject: Bytes::from_slice(&env, &format!("History Test {}", i).as_bytes()),
-                body: Bytes::from_slice(&env, &format!("History Body {}", i).as_bytes()),
+                subject: Bytes::from_slice(&env, subject_str.as_bytes()),
+                body: Bytes::from_slice(&env, body_str.as_bytes()),
                 data: Bytes::new(&env),
                 localization: Map::new(&env),
             };
@@ -437,9 +440,11 @@ pub mod notification_tests {
         // Send notifications up to limit
         let mut success_count = 0;
         for i in 0..5 {
+            let subject_str = "Rate Limit Test ".to_string() + &i.to_string();
+            let body_str = "Rate Limit Body ".to_string() + &i.to_string();
             let content = NotificationContent {
-                subject: Bytes::from_slice(&env, &format!("Rate Limit Test {}", i).as_bytes()),
-                body: Bytes::from_slice(&env, &format!("Rate Limit Body {}", i).as_bytes()),
+                subject: Bytes::from_slice(&env, subject_str.as_bytes()),
+                body: Bytes::from_slice(&env, body_str.as_bytes()),
                 data: Bytes::new(&env),
                 localization: Map::new(&env),
             };
