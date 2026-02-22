@@ -1,7 +1,51 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env};
+use soroban_sdk::{
+    contract, contractevent, contractimpl, symbol_short, Address, Bytes, BytesN, Env,
+};
 
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Didcrt {
+    pub identity_id: BytesN<32>,
+    pub controller: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Didchg {
+    pub identity_id: BytesN<32>,
+    pub new_controller: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Authset {
+    pub identity_id: BytesN<32>,
+    pub method_id: Bytes,
+    pub public_key: Bytes,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Authrem {
+    pub identity_id: BytesN<32>,
+    pub method_id: Bytes,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecoverySet {
+    pub identity_id: BytesN<32>,
+    pub recovery: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Didrec {
+    pub identity_id: BytesN<32>,
+    pub new_controller: Address,
+}
 #[contract]
 pub struct IdentityRegistryContract;
 
@@ -13,8 +57,11 @@ impl IdentityRegistryContract {
         let key = (symbol_short!("didctl"), identity_id.clone());
         assert!(!env.storage().persistent().has(&key), "DID already exists");
         env.storage().persistent().set(&key, &controller);
-        env.events()
-            .publish((symbol_short!("didcrt"),), (identity_id, controller));
+        Didcrt {
+            identity_id,
+            controller,
+        }
+        .publish(env);
     }
 
     // Get controller for a DID
@@ -40,8 +87,11 @@ impl IdentityRegistryContract {
                     "only controller can change controller"
                 );
                 env.storage().persistent().set(&key, &new_controller);
-                env.events()
-                    .publish((symbol_short!("didchg"),), (identity_id, new_controller));
+                Didchg {
+                    identity_id,
+                    new_controller,
+                }
+                .publish(env);
             }
             None => panic!("DID not found"),
         }
@@ -69,10 +119,12 @@ impl IdentityRegistryContract {
             method_id.clone(),
         );
         env.storage().persistent().set(&key, &public_key);
-        env.events().publish(
-            (symbol_short!("authset"),),
-            (identity_id, method_id, public_key),
-        );
+        Authset {
+            identity_id,
+            method_id,
+            public_key,
+        }
+        .publish(env);
     }
 
     // Remove an auth method
@@ -96,8 +148,11 @@ impl IdentityRegistryContract {
             method_id.clone(),
         );
         env.storage().persistent().remove(&key);
-        env.events()
-            .publish((symbol_short!("authrem"),), (identity_id, method_id));
+        Authrem {
+            identity_id,
+            method_id,
+        }
+        .publish(env);
     }
 
     // Set a recovery address that may be used to recover control of the DID
@@ -117,8 +172,11 @@ impl IdentityRegistryContract {
         );
         let key = (symbol_short!("recovery"), identity_id.clone());
         env.storage().persistent().set(&key, &recovery);
-        env.events()
-            .publish((symbol_short!("recovery"),), (identity_id, recovery));
+        RecoverySet {
+            identity_id,
+            recovery,
+        }
+        .publish(env);
     }
 
     // Recover controller using the configured recovery address
@@ -134,8 +192,11 @@ impl IdentityRegistryContract {
                 );
                 let ctrl_key = (symbol_short!("did_ctrl"), identity_id.clone());
                 env.storage().persistent().set(&ctrl_key, &new_controller);
-                env.events()
-                    .publish((symbol_short!("didrec"),), (identity_id, new_controller));
+                Didrec {
+                    identity_id,
+                    new_controller,
+                }
+                .publish(env);
             }
             None => panic!("no recovery configured for DID"),
         }
