@@ -104,15 +104,15 @@ pub const NOTIFICATION_SEGMENTS: Symbol = symbol_short!("notif_seg");
 pub const NOTIFICATION_CAMPAIGNS: Symbol = symbol_short!("notif_cpg");
 pub const NOTIFICATION_ANALYTICS: Symbol = symbol_short!("notif_anl");
 
-// Advanced Analytics & Reporting Storage
-pub const REPORT_TEMPLATE_COUNTER: Symbol = symbol_short!("rpt_tpl_cnt");
+// Advanced Analytics & Reporting Storage (symbol_short! max 9 chars)
+pub const REPORT_TEMPLATE_COUNTER: Symbol = symbol_short!("rpt_tplcn");
 pub const REPORT_TEMPLATES: Symbol = symbol_short!("rpt_tpl");
-pub const REPORT_SCHEDULE_COUNTER: Symbol = symbol_short!("rpt_sch_cnt");
+pub const REPORT_SCHEDULE_COUNTER: Symbol = symbol_short!("rpt_schcn");
 pub const REPORT_SCHEDULES: Symbol = symbol_short!("rpt_sch");
-pub const REPORT_SNAPSHOT_COUNTER: Symbol = symbol_short!("rpt_snp_cnt");
+pub const REPORT_SNAPSHOT_COUNTER: Symbol = symbol_short!("rpt_snpcn");
 pub const REPORT_SNAPSHOTS: Symbol = symbol_short!("rpt_snp");
 pub const REPORT_USAGE: Symbol = symbol_short!("rpt_use");
-pub const REPORT_COMMENT_COUNTER: Symbol = symbol_short!("rpt_cmt_cnt");
+pub const REPORT_COMMENT_COUNTER: Symbol = symbol_short!("rpt_cmtcn");
 pub const REPORT_COMMENTS: Symbol = symbol_short!("rpt_cmt");
 pub const ALERT_RULE_COUNTER: Symbol = symbol_short!("alrt_cnt");
-pub const ALERT_RULES: Symbol = symbol_short!("alrt_rules");
+pub const ALERT_RULES: Symbol = symbol_short!("alrt_ruls");
