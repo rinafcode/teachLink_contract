@@ -15,6 +15,7 @@ import {
   CourseCompletion,
   Contribution,
   RewardPool,
+  AlertLog,
 } from '@database/entities';
 import { ProcessedEvent } from '@horizon/horizon.service';
 import {
@@ -23,6 +24,7 @@ import {
   EscrowEvent,
   TokenizationEvent,
   ScoringEvent,
+  ReportingEvent,
 } from './event-types';
 
 @Injectable()
@@ -48,6 +50,8 @@ export class EventProcessorService {
     private contributionRepo: Repository<Contribution>,
     @InjectRepository(RewardPool)
     private rewardPoolRepo: Repository<RewardPool>,
+    @InjectRepository(AlertLog)
+    private alertLogRepo: Repository<AlertLog>,
   ) {}
 
   async processEvent(event: ProcessedEvent): Promise<void> {
@@ -124,6 +128,20 @@ export class EventProcessorService {
           break;
         case 'ContributionRecordedEvent':
           await this.handleContributionRecordedEvent(event);
+          break;
+
+        // Reporting Events
+        case 'ReportGeneratedEvent':
+          await this.handleReportGeneratedEvent(event);
+          break;
+        case 'ReportScheduledEvent':
+          await this.handleReportScheduledEvent(event);
+          break;
+        case 'ReportCommentAddedEvent':
+          await this.handleReportCommentAddedEvent(event);
+          break;
+        case 'AlertTriggeredEvent':
+          await this.handleAlertTriggeredEvent(event);
           break;
 
         default:
@@ -597,6 +615,35 @@ export class EventProcessorService {
       fromAddress: data.fromAddress || undefined,
     });
     await this.provenanceRepo.save(record);
+  }
+
+  // Reporting Event Handlers
+  private async handleReportGeneratedEvent(event: ProcessedEvent): Promise<void> {
+    const data = event.data as { report_id: string; report_type: string; generated_by: string; period_start: string; period_end: string };
+    this.logger.log(`Indexed ReportGeneratedEvent report_id=${data.report_id} type=${data.report_type}`);
+  }
+
+  private async handleReportScheduledEvent(event: ProcessedEvent): Promise<void> {
+    const data = event.data as { schedule_id: string; template_id: string; owner: string; next_run_at: string };
+    this.logger.log(`Indexed ReportScheduledEvent schedule_id=${data.schedule_id}`);
+  }
+
+  private async handleReportCommentAddedEvent(event: ProcessedEvent): Promise<void> {
+    const data = event.data as { report_id: string; comment_id: string; author: string };
+    this.logger.log(`Indexed ReportCommentAddedEvent report_id=${data.report_id} comment_id=${data.comment_id}`);
+  }
+
+  private async handleAlertTriggeredEvent(event: ProcessedEvent): Promise<void> {
+    const data = event.data as { rule_id: string; condition_type: string; current_value: string; threshold: string; triggered_at: string };
+    const log = this.alertLogRepo.create({
+      ruleId: data.rule_id,
+      conditionType: data.condition_type,
+      currentValue: data.current_value,
+      threshold: data.threshold,
+      triggeredAt: data.triggered_at,
+    });
+    await this.alertLogRepo.save(log);
+    this.logger.log(`Indexed AlertTriggeredEvent rule_id=${data.rule_id}`);
   }
 
   private mapProvenanceEventType(eventType: string): ProvenanceEventType {

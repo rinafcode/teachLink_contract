@@ -8,3 +8,7 @@ export * from './course-completion.entity';
 export * from './contribution.entity';
 export * from './reward-pool.entity';
 export * from './indexer-state.entity';
+export * from './dashboard-snapshot.entity';
+export * from './report-usage.entity';
+export * from './alert-rule.entity';
+export * from './alert-log.entity';
