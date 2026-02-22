@@ -40,6 +40,7 @@
 //! | [`audit`] | Audit trail and compliance reporting |
 //! | [`atomic_swap`] | Cross-chain atomic swaps |
 //! | [`analytics`] | Bridge monitoring and analytics |
+//! | [`reporting`] | Advanced analytics, report templates, dashboards, and alerting |
 //! | [`rewards`] | Reward pool management and distribution |
 //! | [`escrow`] | Multi-signature escrow with dispute resolution |
 //! | [`tokenization`] | Educational content NFT minting and management |
@@ -120,16 +121,16 @@ pub mod validation;
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics,
-    BridgeProposal, BridgeTransaction, ChainConfig, ChainMetrics, ComplianceReport,
-    ConsensusState, ContentMetadata, ContentToken, ContentTokenParameters, CrossChainMessage,
-    CrossChainPacket, DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics,
-    EscrowParameters, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
-    NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
-    NotificationTracking, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    ReportComment, ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage,
-    RewardRate, RewardType, SlashingReason, SlashingRecord, SwapStatus, TransferType,
-    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature, VisualizationDataPoint,
+    BridgeProposal, BridgeTransaction, ChainConfig, ChainMetrics, ComplianceReport, ConsensusState,
+    ContentMetadata, ContentToken, ContentTokenParameters, CrossChainMessage, CrossChainPacket,
+    DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters,
+    EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
+    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
+    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, ReportComment, ReportSchedule,
+    ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType,
+    SlashingReason, SlashingRecord, SwapStatus, TransferType, UserNotificationSettings,
+    UserReputation, UserReward, ValidatorInfo, ValidatorReward, ValidatorSignature,
+    VisualizationDataPoint,
 };
 
 /// TeachLink main contract.

@@ -12,9 +12,9 @@ use crate::events::{
     AlertTriggeredEvent, ReportCommentAddedEvent, ReportGeneratedEvent, ReportScheduledEvent,
 };
 use crate::storage::{
-    ALERT_RULE_COUNTER, ALERT_RULES, REPORT_COMMENT_COUNTER, REPORT_COMMENTS,
-    REPORT_SCHEDULE_COUNTER, REPORT_SCHEDULES, REPORT_SNAPSHOT_COUNTER, REPORT_SNAPSHOTS,
-    REPORT_TEMPLATE_COUNTER, REPORT_TEMPLATES, REPORT_USAGE,
+    ALERT_RULES, ALERT_RULE_COUNTER, REPORT_COMMENTS, REPORT_COMMENT_COUNTER, REPORT_SCHEDULES,
+    REPORT_SCHEDULE_COUNTER, REPORT_SNAPSHOTS, REPORT_SNAPSHOT_COUNTER, REPORT_TEMPLATES,
+    REPORT_TEMPLATE_COUNTER, REPORT_USAGE,
 };
 use crate::types::{
     AlertConditionType, AlertRule, DashboardAnalytics, ReportComment, ReportSchedule,
@@ -59,7 +59,9 @@ impl ReportingManager {
             .unwrap_or_else(|| Map::new(env));
         templates.set(counter, template);
         env.storage().instance().set(&REPORT_TEMPLATES, &templates);
-        env.storage().instance().set(&REPORT_TEMPLATE_COUNTER, &counter);
+        env.storage()
+            .instance()
+            .set(&REPORT_TEMPLATE_COUNTER, &counter);
 
         Ok(counter)
     }
@@ -112,7 +114,9 @@ impl ReportingManager {
             .unwrap_or_else(|| Map::new(env));
         schedules.set(counter, schedule);
         env.storage().instance().set(&REPORT_SCHEDULES, &schedules);
-        env.storage().instance().set(&REPORT_SCHEDULE_COUNTER, &counter);
+        env.storage()
+            .instance()
+            .set(&REPORT_SCHEDULE_COUNTER, &counter);
 
         ReportScheduledEvent {
             schedule_id: counter,
@@ -152,8 +156,8 @@ impl ReportingManager {
     ) -> Result<u64, BridgeError> {
         generator.require_auth();
 
-        let template = Self::get_report_template(env, template_id)
-            .ok_or(BridgeError::InvalidInput)?;
+        let template =
+            Self::get_report_template(env, template_id).ok_or(BridgeError::InvalidInput)?;
 
         let analytics = Self::get_dashboard_analytics(env);
         // Summary stored as placeholder; full data available via get_dashboard_analytics
@@ -185,7 +189,9 @@ impl ReportingManager {
             .unwrap_or_else(|| Map::new(env));
         snapshots.set(counter, snapshot);
         env.storage().instance().set(&REPORT_SNAPSHOTS, &snapshots);
-        env.storage().instance().set(&REPORT_SNAPSHOT_COUNTER, &counter);
+        env.storage()
+            .instance()
+            .set(&REPORT_SNAPSHOT_COUNTER, &counter);
 
         ReportGeneratedEvent {
             report_id: counter,
@@ -210,7 +216,11 @@ impl ReportingManager {
     }
 
     /// Record report view for usage analytics
-    pub fn record_report_view(env: &Env, report_id: u64, viewer: Address) -> Result<(), BridgeError> {
+    pub fn record_report_view(
+        env: &Env,
+        report_id: u64,
+        viewer: Address,
+    ) -> Result<(), BridgeError> {
         viewer.require_auth();
 
         if Self::get_report_snapshot(env, report_id).is_none() {
@@ -287,7 +297,9 @@ impl ReportingManager {
             .unwrap_or_else(|| Map::new(env));
         comments.set(counter, comment);
         env.storage().instance().set(&REPORT_COMMENTS, &comments);
-        env.storage().instance().set(&REPORT_COMMENT_COUNTER, &counter);
+        env.storage()
+            .instance()
+            .set(&REPORT_COMMENT_COUNTER, &counter);
 
         ReportCommentAddedEvent {
             report_id,
