@@ -107,6 +107,7 @@ mod notification;
 mod notification_events_basic;
 // mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
 mod notification_types;
+mod reporting;
 mod rewards;
 mod slashing;
 // mod social_events;
@@ -118,15 +119,17 @@ pub mod validation;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
-    ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics, BridgeProposal, BridgeTransaction,
-    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DisputeOutcome, EmergencyState,
-    Escrow, EscrowMetrics, EscrowParameters, EscrowStatus, LiquidityPool, MultiChainAsset,
-    NotificationChannel, NotificationContent, NotificationPreference, NotificationSchedule,
-    NotificationTemplate, NotificationTracking, OperationType, PacketStatus, ProposalStatus,
-    ProvenanceRecord, RewardRate, RewardType, SlashingReason, SlashingRecord, SwapStatus,
-    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
-    ValidatorReward, ValidatorSignature,
+    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics,
+    BridgeProposal, BridgeTransaction, ChainConfig, ChainMetrics, ComplianceReport,
+    ConsensusState, ContentMetadata, ContentToken, ContentTokenParameters, CrossChainMessage,
+    CrossChainPacket, DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics,
+    EscrowParameters, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
+    NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
+    NotificationTracking, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
+    ReportComment, ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage,
+    RewardRate, RewardType, SlashingReason, SlashingRecord, SwapStatus, TransferType,
+    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
+    ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -686,6 +689,114 @@ impl TeachLinkBridge {
     /// Get bridge statistics
     pub fn get_bridge_statistics(env: Env) -> Map<Bytes, i128> {
         analytics::AnalyticsManager::get_bridge_statistics(&env)
+    }
+
+    // ========== Advanced Analytics & Reporting Functions ==========
+
+    /// Get dashboard-ready aggregate analytics for visualizations
+    pub fn get_dashboard_analytics(env: Env) -> DashboardAnalytics {
+        reporting::ReportingManager::get_dashboard_analytics(&env)
+    }
+
+    /// Create a report template
+    pub fn create_report_template(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        report_type: ReportType,
+        config: Bytes,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::create_report_template(&env, creator, name, report_type, config)
+    }
+
+    /// Get report template by id
+    pub fn get_report_template(env: Env, template_id: u64) -> Option<ReportTemplate> {
+        reporting::ReportingManager::get_report_template(&env, template_id)
+    }
+
+    /// Schedule a report
+    pub fn schedule_report(
+        env: Env,
+        owner: Address,
+        template_id: u64,
+        next_run_at: u64,
+        interval_seconds: u64,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::schedule_report(&env, owner, template_id, next_run_at, interval_seconds)
+    }
+
+    /// Get scheduled reports for an owner
+    pub fn get_scheduled_reports(env: Env, owner: Address) -> Vec<ReportSchedule> {
+        reporting::ReportingManager::get_scheduled_reports(&env, owner)
+    }
+
+    /// Generate a report snapshot
+    pub fn generate_report_snapshot(
+        env: Env,
+        generator: Address,
+        template_id: u64,
+        period_start: u64,
+        period_end: u64,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::generate_report_snapshot(
+            &env, generator, template_id, period_start, period_end,
+        )
+    }
+
+    /// Get report snapshot by id
+    pub fn get_report_snapshot(env: Env, report_id: u64) -> Option<ReportSnapshot> {
+        reporting::ReportingManager::get_report_snapshot(&env, report_id)
+    }
+
+    /// Record report view for usage analytics
+    pub fn record_report_view(env: Env, report_id: u64, viewer: Address) -> Result<(), BridgeError> {
+        reporting::ReportingManager::record_report_view(&env, report_id, viewer)
+    }
+
+    /// Get report usage count
+    pub fn get_report_usage_count(env: Env, report_id: u64) -> u32 {
+        reporting::ReportingManager::get_report_usage_count(&env, report_id)
+    }
+
+    /// Add comment to a report
+    pub fn add_report_comment(
+        env: Env,
+        report_id: u64,
+        author: Address,
+        body: Bytes,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::add_report_comment(&env, report_id, author, body)
+    }
+
+    /// Get comments for a report
+    pub fn get_report_comments(env: Env, report_id: u64) -> Vec<ReportComment> {
+        reporting::ReportingManager::get_report_comments(&env, report_id)
+    }
+
+    /// Create an alert rule
+    pub fn create_alert_rule(
+        env: Env,
+        owner: Address,
+        name: Bytes,
+        condition_type: AlertConditionType,
+        threshold: i128,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::create_alert_rule(&env, owner, name, condition_type, threshold)
+    }
+
+    /// Get alert rules for an owner
+    pub fn get_alert_rules(env: Env, owner: Address) -> Vec<AlertRule> {
+        reporting::ReportingManager::get_alert_rules(&env, owner)
+    }
+
+    /// Evaluate alert rules (returns triggered rule ids)
+    pub fn evaluate_alerts(env: Env) -> Vec<u64> {
+        reporting::ReportingManager::evaluate_alerts(&env)
+    }
+
+    /// Get recent report snapshots
+    pub fn get_recent_report_snapshots(env: Env, limit: u32) -> Vec<ReportSnapshot> {
+        reporting::ReportingManager::get_recent_report_snapshots(&env, limit)
     }
 
     // ========== Rewards Functions ==========
