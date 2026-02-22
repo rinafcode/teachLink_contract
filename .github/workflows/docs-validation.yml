@@ -22,6 +22,10 @@ jobs:
       #     args: --config lychee.toml "./**/*.md"
       #     fail: true
 
-      # 2. Validate code examples (This stays!)
-      - name: Verify Code Snippets
-        run: cargo test --doc
+      # 2. Validate code examples (per workspace member)
+      - name: Verify Code Snippets (teachlink)
+        run: cargo test --doc -p teachlink-contract
+      - name: Verify Code Snippets (governance)
+        run: cargo test --doc -p governance-contract
+      - name: Verify Code Snippets (insurance)
+        run: cargo test --doc -p enhanced-insurance
