@@ -15,7 +15,7 @@
 //! - create_alert_rule / get_alert_rules / evaluate_alerts
 //! - get_recent_report_snapshots
 
-use soroban_sdk::{testutils::Address as _, Address, Bytes, Env};
+use soroban_sdk::Env;
 
 use teachlink_contract::{ReportType, TeachLinkBridge};
 
