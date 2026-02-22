@@ -15,7 +15,8 @@ use soroban_sdk::{Address, Bytes, Env, Map, Vec, Symbol, String, contracttype, c
 use crate::storage::*;
 use crate::types::*;
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StudyGroup {
     pub id: u64,
     pub name: Bytes,
@@ -32,7 +33,8 @@ pub struct StudyGroup {
     pub settings: StudyGroupSettings,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StudyGroupSettings {
     pub allow_member_invites: bool,
     pub require_admin_approval: bool,
@@ -42,7 +44,8 @@ pub struct StudyGroupSettings {
     pub auto_approve_members: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiscussionForum {
     pub id: u64,
     pub title: Bytes,
@@ -58,7 +61,8 @@ pub struct DiscussionForum {
     pub view_count: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ForumPost {
     pub id: u64,
     pub forum_id: u64,
@@ -74,7 +78,8 @@ pub struct ForumPost {
     pub attachments: Vec<Bytes>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CollaborationWorkspace {
     pub id: u64,
     pub name: Bytes,
@@ -90,7 +95,8 @@ pub struct CollaborationWorkspace {
     pub settings: WorkspaceSettings,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ProjectType {
     Study,
     Research,
@@ -99,7 +105,8 @@ pub enum ProjectType {
     Discussion,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum WorkspaceStatus {
     Active,
     Completed,
@@ -107,7 +114,8 @@ pub enum WorkspaceStatus {
     Suspended,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WorkspaceFile {
     pub id: u64,
     pub name: Bytes,
@@ -119,7 +127,8 @@ pub struct WorkspaceFile {
     pub version: u32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WorkspaceTask {
     pub id: u64,
     pub title: Bytes,
@@ -133,7 +142,8 @@ pub struct WorkspaceTask {
     pub completed_at: Option<u64>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TaskStatus {
     Todo,
     InProgress,
@@ -142,7 +152,8 @@ pub enum TaskStatus {
     Cancelled,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TaskPriority {
     Low,
     Medium,
@@ -150,7 +161,8 @@ pub enum TaskPriority {
     Urgent,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WorkspaceSettings {
     pub allow_public_view: bool,
     pub require_approval_to_join: bool,
@@ -159,7 +171,8 @@ pub struct WorkspaceSettings {
     pub auto_save_interval: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PeerReview {
     pub id: u64,
     pub reviewer: Address,
@@ -174,7 +187,8 @@ pub struct PeerReview {
     pub helpful_votes: u32,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ReviewContentType {
     Submission,
     Comment,
@@ -183,7 +197,8 @@ pub enum ReviewContentType {
     Resource,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MentorshipProfile {
     pub mentor: Address,
     pub expertise_areas: Vec<Bytes>,
@@ -199,7 +214,8 @@ pub struct MentorshipProfile {
     pub timezone: Bytes,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ExperienceLevel {
     Beginner,
     Intermediate,
@@ -207,14 +223,16 @@ pub enum ExperienceLevel {
     Expert,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AvailabilityStatus {
     Available,
     Busy,
     Unavailable,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MentorshipSession {
     pub id: u64,
     pub mentor: Address,
@@ -230,7 +248,8 @@ pub struct MentorshipSession {
     pub completed_at: Option<u64>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum SessionStatus {
     Scheduled,
     InProgress,
@@ -239,7 +258,8 @@ pub enum SessionStatus {
     NoShow,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SocialAnalytics {
     pub user: Address,
     pub study_groups_joined: u32,
@@ -254,7 +274,8 @@ pub struct SocialAnalytics {
     pub last_updated: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum EngagementLevel {
     Low,
     Medium,
@@ -262,7 +283,8 @@ pub enum EngagementLevel {
     VeryHigh,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SocialBadge {
     pub id: u64,
     pub name: Bytes,
@@ -274,7 +296,8 @@ pub struct SocialBadge {
     pub created_at: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BadgeCategory {
     Collaboration,
     Mentorship,
@@ -283,7 +306,8 @@ pub enum BadgeCategory {
     Learning,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BadgeRequirements {
     pub study_groups_joined: Option<u32>,
     pub discussions_participated: Option<u32>,
@@ -293,7 +317,8 @@ pub struct BadgeRequirements {
     pub social_score: Option<u64>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum BadgeRarity {
     Common,
     Uncommon,
@@ -302,7 +327,8 @@ pub enum BadgeRarity {
     Legendary,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct GamificationSystem {
     pub points: Map<Address, u64>,
     pub levels: Map<Address, u32>,
@@ -312,7 +338,8 @@ pub struct GamificationSystem {
     pub rewards: Vec<SocialReward>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct SocialReward {
     pub id: u64,
     pub name: Bytes,
@@ -323,7 +350,8 @@ pub struct SocialReward {
     pub created_at: u64,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, contracttype)]
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RewardCategory {
     Digital,
     Physical,
@@ -450,7 +478,7 @@ impl SocialLearningManager {
         }
 
         // Check if max members reached
-        if group.members.len() >= group.max_members as usize {
+        if group.members.len() >= group.max_members {
             return Err(SocialLearningError::MaxMembersReached);
         }
 
@@ -485,11 +513,21 @@ impl SocialLearningManager {
         }
 
         // Remove user from members
-        let new_members = group.members.iter().filter(|&member| member != user).collect::<Vec<_>>();
+        let mut new_members = Vec::new(env);
+        for member in group.members.iter() {
+            if member != user {
+                new_members.push_back(member);
+            }
+        }
         group.members = new_members;
 
         // Remove from admins if applicable
-        let new_admins = group.admins.iter().filter(|&admin| admin != user).collect::<Vec<_>>();
+        let mut new_admins = Vec::new(env);
+        for admin in group.admins.iter() {
+            if admin != user {
+                new_admins.push_back(admin);
+            }
+        }
         group.admins = new_admins;
 
         group.last_activity = env.ledger().timestamp();
@@ -498,8 +536,13 @@ impl SocialLearningManager {
         env.storage().instance().set(&STUDY_GROUPS, &groups);
 
         // Update user's study groups
-        let mut user_groups: Vec<u64> = env.storage().instance().get(&USER_STUDY_GROUPS).unwrap_or(Vec::new(&env));
-        let new_user_groups = user_groups.iter().filter(|&id| id != group_id).collect::<Vec<_>>();
+        let user_groups: Vec<u64> = env.storage().instance().get(&USER_STUDY_GROUPS).unwrap_or(Vec::new(&env));
+        let mut new_user_groups = Vec::new(env);
+        for id in user_groups.iter() {
+            if id != group_id {
+                new_user_groups.push_back(id);
+            }
+        }
         env.storage().instance().set(&USER_STUDY_GROUPS, &new_user_groups);
 
         Ok(())
@@ -757,10 +800,10 @@ impl SocialLearningManager {
             availability,
             hourly_rate,
             bio,
-            rating: 0.0,
+            rating: 0,
             review_count: 0,
             mentee_count: 0,
-            success_rate: 0.0,
+            success_rate: 0,
             languages,
             timezone,
         };
@@ -799,515 +842,5 @@ impl SocialLearningManager {
 
     pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) {
         env.storage().instance().set(&SOCIAL_ANALYTICS, &analytics);
-    }
-}
-
-// Soroban trait implementations for contract types
-impl TryFromVal<Env, Val> for AvailabilityStatus {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        let symbol_str = symbol_short!(symbol);
-        match symbol_str {
-            "Available" => Ok(AvailabilityStatus::Available),
-            "Busy" => Ok(AvailabilityStatus::Busy),
-            "Unavailable" => Ok(AvailabilityStatus::Unavailable),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for AvailabilityStatus {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            AvailabilityStatus::Available => Symbol::new(env, "Available").into_val(env),
-            AvailabilityStatus::Busy => Symbol::new(env, "Busy").into_val(env),
-            AvailabilityStatus::Unavailable => Symbol::new(env, "Unavailable").into_val(env),
-        }
-    }
-}
-
-impl TryFromVal<Env, Val> for MentorshipProfile {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let map = Map::<Val, Val>::try_from_val(env, val)?;
-        Ok(MentorshipProfile {
-            mentor: Address::try_from_val(env, &map.get(Symbol::new(env, "mentor").into_val(env)).unwrap_or_default())?,
-            expertise_areas: Vec::<Bytes>::try_from_val(env, &map.get(Symbol::new(env, "expertise_areas").into_val(env)).unwrap_or_default())?,
-            experience_level: ExperienceLevel::try_from_val(env, &map.get(Symbol::new(env, "experience_level").into_val(env)).unwrap_or_default())?,
-            availability: AvailabilityStatus::try_from_val(env, &map.get(Symbol::new(env, "availability").into_val(env)).unwrap_or_default())?,
-            hourly_rate: Option::<u64>::try_from_val(env, &map.get(Symbol::new(env, "hourly_rate").into_val(env)).unwrap_or_default())?,
-            bio: Bytes::try_from_val(env, &map.get(Symbol::new(env, "bio").into_val(env)).unwrap_or_default())?,
-            rating: u64::try_from_val(env, &map.get(Symbol::new(env, "rating").into_val(env)).unwrap_or_default())?,
-            review_count: u32::try_from_val(env, &map.get(Symbol::new(env, "review_count").into_val(env)).unwrap_or_default())?,
-            mentee_count: u32::try_from_val(env, &map.get(Symbol::new(env, "mentee_count").into_val(env)).unwrap_or_default())?,
-            success_rate: u64::try_from_val(env, &map.get(Symbol::new(env, "success_rate").into_val(env)).unwrap_or_default())?,
-            languages: Vec::<Bytes>::try_from_val(env, &map.get(Symbol::new(env, "languages").into_val(env)).unwrap_or_default())?,
-            timezone: Bytes::try_from_val(env, &map.get(Symbol::new(env, "timezone").into_val(env)).unwrap_or_default())?,
-        })
-    }
-}
-
-impl IntoVal<Env, Val> for MentorshipProfile {
-    fn into_val(&self, env: &Env) -> Val {
-        let mut map = Map::<Val, Val>::new(env);
-        map.set(Symbol::new(env, "mentor").into_val(env), self.mentor.into_val(env));
-        map.set(Symbol::new(env, "expertise_areas").into_val(env), self.expertise_areas.into_val(env));
-        map.set(Symbol::new(env, "experience_level").into_val(env), self.experience_level.into_val(env));
-        map.set(Symbol::new(env, "availability").into_val(env), self.availability.into_val(env));
-        map.set(Symbol::new(env, "hourly_rate").into_val(env), self.hourly_rate.into_val(env));
-        map.set(Symbol::new(env, "bio").into_val(env), self.bio.into_val(env));
-        map.set(Symbol::new(env, "rating").into_val(env), self.rating.into_val(env));
-        map.set(Symbol::new(env, "review_count").into_val(env), self.review_count.into_val(env));
-        map.set(Symbol::new(env, "mentee_count").into_val(env), self.mentee_count.into_val(env));
-        map.set(Symbol::new(env, "success_rate").into_val(env), self.success_rate.into_val(env));
-        map.set(Symbol::new(env, "languages").into_val(env), self.languages.into_val(env));
-        map.set(Symbol::new(env, "timezone").into_val(env), self.timezone.into_val(env));
-        map.into_val(env)
-    }
-}
-
-impl TryFromVal<Env, Val> for SocialAnalytics {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let map = Map::<Val, Val>::try_from_val(env, val)?;
-        Ok(SocialAnalytics {
-            user: Address::try_from_val(env, &map.get(Symbol::new(env, "user").into_val(env)).unwrap_or_default())?,
-            study_groups_joined: u32::try_from_val(env, &map.get(Symbol::new(env, "study_groups_joined").into_val(env)).unwrap_or_default())?,
-            discussions_participated: u32::try_from_val(env, &map.get(Symbol::new(env, "discussions_participated").into_val(env)).unwrap_or_default())?,
-            posts_created: u32::try_from_val(env, &map.get(Symbol::new(env, "posts_created").into_val(env)).unwrap_or_default())?,
-            reviews_given: u32::try_from_val(env, &map.get(Symbol::new(env, "reviews_given").into_val(env)).unwrap_or_default())?,
-            mentorship_hours: u64::try_from_val(env, &map.get(Symbol::new(env, "mentorship_hours").into_val(env)).unwrap_or_default())?,
-            collaboration_projects: u32::try_from_val(env, &map.get(Symbol::new(env, "collaboration_projects").into_val(env)).unwrap_or_default())?,
-            social_score: u64::try_from_val(env, &map.get(Symbol::new(env, "social_score").into_val(env)).unwrap_or_default())?,
-            engagement_level: EngagementLevel::try_from_val(env, &map.get(Symbol::new(env, "engagement_level").into_val(env)).unwrap_or_default())?,
-            badges: Vec::<Bytes>::try_from_val(env, &map.get(Symbol::new(env, "badges").into_val(env)).unwrap_or_default())?,
-            last_updated: u64::try_from_val(env, &map.get(Symbol::new(env, "last_updated").into_val(env)).unwrap_or_default())?,
-        })
-    }
-}
-
-impl IntoVal<Env, Val> for SocialAnalytics {
-    fn into_val(&self, env: &Env) -> Val {
-        let mut map = Map::<Val, Val>::new(env);
-        map.set(Symbol::new(env, "user").into_val(env), self.user.into_val(env));
-        map.set(Symbol::new(env, "study_groups_joined").into_val(env), self.study_groups_joined.into_val(env));
-        map.set(Symbol::new(env, "discussions_participated").into_val(env), self.discussions_participated.into_val(env));
-        map.set(Symbol::new(env, "posts_created").into_val(env), self.posts_created.into_val(env));
-        map.set(Symbol::new(env, "reviews_given").into_val(env), self.reviews_given.into_val(env));
-        map.set(Symbol::new(env, "mentorship_hours").into_val(env), self.mentorship_hours.into_val(env));
-        map.set(Symbol::new(env, "collaboration_projects").into_val(env), self.collaboration_projects.into_val(env));
-        map.set(Symbol::new(env, "social_score").into_val(env), self.social_score.into_val(env));
-        map.set(Symbol::new(env, "engagement_level").into_val(env), self.engagement_level.into_val(env));
-        map.set(Symbol::new(env, "badges").into_val(env), self.badges.into_val(env));
-        map.set(Symbol::new(env, "last_updated").into_val(env), self.last_updated.into_val(env));
-        map.into_val(env)
-    }
-}
-
-// Additional enum implementations
-impl TryFromVal<Env, Val> for ExperienceLevel {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Beginner" => Ok(ExperienceLevel::Beginner),
-            "Intermediate" => Ok(ExperienceLevel::Intermediate),
-            "Advanced" => Ok(ExperienceLevel::Advanced),
-            "Expert" => Ok(ExperienceLevel::Expert),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for ExperienceLevel {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            ExperienceLevel::Beginner => Symbol::new(env, "Beginner").into_val(env),
-            ExperienceLevel::Intermediate => Symbol::new(env, "Intermediate").into_val(env),
-            ExperienceLevel::Advanced => Symbol::new(env, "Advanced").into_val(env),
-            ExperienceLevel::Expert => Symbol::new(env, "Expert").into_val(env),
-        }
-    }
-}
-
-impl TryFromVal<Env, Val> for SessionStatus {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Scheduled" => Ok(SessionStatus::Scheduled),
-            "InProgress" => Ok(SessionStatus::InProgress),
-            "Completed" => Ok(SessionStatus::Completed),
-            "Cancelled" => Ok(SessionStatus::Cancelled),
-            "NoShow" => Ok(SessionStatus::NoShow),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for SessionStatus {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            SessionStatus::Scheduled => Symbol::new(env, "Scheduled").into_val(env),
-            SessionStatus::InProgress => Symbol::new(env, "InProgress").into_val(env),
-            SessionStatus::Completed => Symbol::new(env, "Completed").into_val(env),
-            SessionStatus::Cancelled => Symbol::new(env, "Cancelled").into_val(env),
-            SessionStatus::NoShow => Symbol::new(env, "NoShow").into_val(env),
-        }
-    }
-}
-
-impl TryFromVal<Env, Val> for EngagementLevel {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Low" => Ok(EngagementLevel::Low),
-            "Medium" => Ok(EngagementLevel::Medium),
-            "High" => Ok(EngagementLevel::High),
-            "VeryHigh" => Ok(EngagementLevel::VeryHigh),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for EngagementLevel {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            EngagementLevel::Low => Symbol::new(env, "Low").into_val(env),
-            EngagementLevel::Medium => Symbol::new(env, "Medium").into_val(env),
-            EngagementLevel::High => Symbol::new(env, "High").into_val(env),
-            EngagementLevel::VeryHigh => Symbol::new(env, "VeryHigh").into_val(env),
-        }
-    }
-}
-
-// PeerReview implementations
-impl TryFromVal<Env, Val> for PeerReview {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let map = Map::<Val, Val>::try_from_val(env, val)?;
-        Ok(PeerReview {
-            id: u64::try_from_val(env, &map.get(Symbol::new(env, "id").into_val(env)).unwrap_or_default())?,
-            reviewer: Address::try_from_val(env, &map.get(Symbol::new(env, "reviewer").into_val(env)).unwrap_or_default())?,
-            reviewee: Address::try_from_val(env, &map.get(Symbol::new(env, "reviewee").into_val(env)).unwrap_or_default())?,
-            content_type: ReviewContentType::try_from_val(env, &map.get(Symbol::new(env, "content_type").into_val(env)).unwrap_or_default())?,
-            content_id: u64::try_from_val(env, &map.get(Symbol::new(env, "content_id").into_val(env)).unwrap_or_default())?,
-            rating: u32::try_from_val(env, &map.get(Symbol::new(env, "rating").into_val(env)).unwrap_or_default())?,
-            feedback: Bytes::try_from_val(env, &map.get(Symbol::new(env, "feedback").into_val(env)).unwrap_or_default())?,
-            criteria: Map::<Bytes, u32>::try_from_val(env, &map.get(Symbol::new(env, "criteria").into_val(env)).unwrap_or_default())?,
-            created_at: u64::try_from_val(env, &map.get(Symbol::new(env, "created_at").into_val(env)).unwrap_or_default())?,
-            is_helpful: bool::try_from_val(env, &map.get(Symbol::new(env, "is_helpful").into_val(env)).unwrap_or_default())?,
-            helpful_votes: u32::try_from_val(env, &map.get(Symbol::new(env, "helpful_votes").into_val(env)).unwrap_or_default())?,
-        })
-    }
-}
-
-impl IntoVal<Env, Val> for PeerReview {
-    fn into_val(&self, env: &Env) -> Val {
-        let mut map = Map::<Val, Val>::new(env);
-        map.set(Symbol::new(env, "id").into_val(env), self.id.into_val(env));
-        map.set(Symbol::new(env, "reviewer").into_val(env), self.reviewer.into_val(env));
-        map.set(Symbol::new(env, "reviewee").into_val(env), self.reviewee.into_val(env));
-        map.set(Symbol::new(env, "content_type").into_val(env), self.content_type.into_val(env));
-        map.set(Symbol::new(env, "content_id").into_val(env), self.content_id.into_val(env));
-        map.set(Symbol::new(env, "rating").into_val(env), self.rating.into_val(env));
-        map.set(Symbol::new(env, "feedback").into_val(env), self.feedback.into_val(env));
-        map.set(Symbol::new(env, "criteria").into_val(env), self.criteria.into_val(env));
-        map.set(Symbol::new(env, "created_at").into_val(env), self.created_at.into_val(env));
-        map.set(Symbol::new(env, "is_helpful").into_val(env), self.is_helpful.into_val(env));
-        map.set(Symbol::new(env, "helpful_votes").into_val(env), self.helpful_votes.into_val(env));
-        map.into_val(env)
-    }
-}
-
-// ReviewContentType implementations
-impl TryFromVal<Env, Val> for ReviewContentType {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Submission" => Ok(ReviewContentType::Submission),
-            "Comment" => Ok(ReviewContentType::Comment),
-            "Project" => Ok(ReviewContentType::Project),
-            "Tutorial" => Ok(ReviewContentType::Tutorial),
-            "Resource" => Ok(ReviewContentType::Resource),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for ReviewContentType {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            ReviewContentType::Submission => Symbol::new(env, "Submission").into_val(env),
-            ReviewContentType::Comment => Symbol::new(env, "Comment").into_val(env),
-            ReviewContentType::Project => Symbol::new(env, "Project").into_val(env),
-            ReviewContentType::Tutorial => Symbol::new(env, "Tutorial").into_val(env),
-            ReviewContentType::Resource => Symbol::new(env, "Resource").into_val(env),
-        }
-    }
-}
-
-// WorkspaceSettings implementations
-impl TryFromVal<Env, Val> for WorkspaceSettings {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let map = Map::<Val, Val>::try_from_val(env, val)?;
-        Ok(WorkspaceSettings {
-            allow_public_view: bool::try_from_val(env, &map.get(Symbol::new(env, "allow_public_view").into_val(env)).unwrap_or_default())?,
-            require_approval_to_join: bool::try_from_val(env, &map.get(Symbol::new(env, "require_approval_to_join").into_val(env)).unwrap_or_default())?,
-            enable_chat: bool::try_from_val(env, &map.get(Symbol::new(env, "enable_chat").into_val(env)).unwrap_or_default())?,
-            enable_video_calls: bool::try_from_val(env, &map.get(Symbol::new(env, "enable_video_calls").into_val(env)).unwrap_or_default())?,
-            auto_save_interval: u64::try_from_val(env, &map.get(Symbol::new(env, "auto_save_interval").into_val(env)).unwrap_or_default())?,
-        })
-    }
-}
-
-impl IntoVal<Env, Val> for WorkspaceSettings {
-    fn into_val(&self, env: &Env) -> Val {
-        let mut map = Map::<Val, Val>::new(env);
-        map.set(Symbol::new(env, "allow_public_view").into_val(env), self.allow_public_view.into_val(env));
-        map.set(Symbol::new(env, "require_approval_to_join").into_val(env), self.require_approval_to_join.into_val(env));
-        map.set(Symbol::new(env, "enable_chat").into_val(env), self.enable_chat.into_val(env));
-        map.set(Symbol::new(env, "enable_video_calls").into_val(env), self.enable_video_calls.into_val(env));
-        map.set(Symbol::new(env, "auto_save_interval").into_val(env), self.auto_save_interval.into_val(env));
-        map.into_val(env)
-    }
-}
-
-// CollaborationWorkspace implementations
-impl TryFromVal<Env, Val> for CollaborationWorkspace {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let map = Map::<Val, Val>::try_from_val(env, val)?;
-        Ok(CollaborationWorkspace {
-            id: u64::try_from_val(env, &map.get(Symbol::new(env, "id").into_val(env)).unwrap_or_default())?,
-            name: Bytes::try_from_val(env, &map.get(Symbol::new(env, "name").into_val(env)).unwrap_or_default())?,
-            description: Bytes::try_from_val(env, &map.get(Symbol::new(env, "description").into_val(env)).unwrap_or_default())?,
-            creator: Address::try_from_val(env, &map.get(Symbol::new(env, "creator").into_val(env)).unwrap_or_default())?,
-            collaborators: Vec::<Address>::try_from_val(env, &map.get(Symbol::new(env, "collaborators").into_val(env)).unwrap_or_default())?,
-            project_type: ProjectType::try_from_val(env, &map.get(Symbol::new(env, "project_type").into_val(env)).unwrap_or_default())?,
-            status: WorkspaceStatus::try_from_val(env, &map.get(Symbol::new(env, "status").into_val(env)).unwrap_or_default())?,
-            created_at: u64::try_from_val(env, &map.get(Symbol::new(env, "created_at").into_val(env)).unwrap_or_default())?,
-            last_activity: u64::try_from_val(env, &map.get(Symbol::new(env, "last_activity").into_val(env)).unwrap_or_default())?,
-            files: Vec::<WorkspaceFile>::try_from_val(env, &map.get(Symbol::new(env, "files").into_val(env)).unwrap_or_default())?,
-            tasks: Vec::<WorkspaceTask>::try_from_val(env, &map.get(Symbol::new(env, "tasks").into_val(env)).unwrap_or_default())?,
-            settings: WorkspaceSettings::try_from_val(env, &map.get(Symbol::new(env, "settings").into_val(env)).unwrap_or_default())?,
-        })
-    }
-}
-
-impl IntoVal<Env, Val> for CollaborationWorkspace {
-    fn into_val(&self, env: &Env) -> Val {
-        let mut map = Map::<Val, Val>::new(env);
-        map.set(Symbol::new(env, "id").into_val(env), self.id.into_val(env));
-        map.set(Symbol::new(env, "name").into_val(env), self.name.into_val(env));
-        map.set(Symbol::new(env, "description").into_val(env), self.description.into_val(env));
-        map.set(Symbol::new(env, "creator").into_val(env), self.creator.into_val(env));
-        map.set(Symbol::new(env, "collaborators").into_val(env), self.collaborators.into_val(env));
-        map.set(Symbol::new(env, "project_type").into_val(env), self.project_type.into_val(env));
-        map.set(Symbol::new(env, "status").into_val(env), self.status.into_val(env));
-        map.set(Symbol::new(env, "created_at").into_val(env), self.created_at.into_val(env));
-        map.set(Symbol::new(env, "last_activity").into_val(env), self.last_activity.into_val(env));
-        map.set(Symbol::new(env, "files").into_val(env), self.files.into_val(env));
-        map.set(Symbol::new(env, "tasks").into_val(env), self.tasks.into_val(env));
-        map.set(Symbol::new(env, "settings").into_val(env), self.settings.into_val(env));
-        map.into_val(env)
-    }
-}
-
-// ProjectType implementations
-impl TryFromVal<Env, Val> for ProjectType {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Study" => Ok(ProjectType::Study),
-            "Research" => Ok(ProjectType::Research),
-            "Assignment" => Ok(ProjectType::Assignment),
-            "Tutorial" => Ok(ProjectType::Tutorial),
-            "Discussion" => Ok(ProjectType::Discussion),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for ProjectType {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            ProjectType::Study => Symbol::new(env, "Study").into_val(env),
-            ProjectType::Research => Symbol::new(env, "Research").into_val(env),
-            ProjectType::Assignment => Symbol::new(env, "Assignment").into_val(env),
-            ProjectType::Tutorial => Symbol::new(env, "Tutorial").into_val(env),
-            ProjectType::Discussion => Symbol::new(env, "Discussion").into_val(env),
-        }
-    }
-}
-
-// WorkspaceStatus implementations
-impl TryFromVal<Env, Val> for WorkspaceStatus {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Active" => Ok(WorkspaceStatus::Active),
-            "Completed" => Ok(WorkspaceStatus::Completed),
-            "Archived" => Ok(WorkspaceStatus::Archived),
-            "Suspended" => Ok(WorkspaceStatus::Suspended),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for WorkspaceStatus {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            WorkspaceStatus::Active => Symbol::new(env, "Active").into_val(env),
-            WorkspaceStatus::Completed => Symbol::new(env, "Completed").into_val(env),
-            WorkspaceStatus::Archived => Symbol::new(env, "Archived").into_val(env),
-            WorkspaceStatus::Suspended => Symbol::new(env, "Suspended").into_val(env),
-        }
-    }
-}
-
-// WorkspaceFile implementations
-impl TryFromVal<Env, Val> for WorkspaceFile {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let map = Map::<Val, Val>::try_from_val(env, val)?;
-        Ok(WorkspaceFile {
-            id: u64::try_from_val(env, &map.get(Symbol::new(env, "id").into_val(env)).unwrap_or_default())?,
-            name: Bytes::try_from_val(env, &map.get(Symbol::new(env, "name").into_val(env)).unwrap_or_default())?,
-            content_hash: Bytes::try_from_val(env, &map.get(Symbol::new(env, "content_hash").into_val(env)).unwrap_or_default())?,
-            uploader: Address::try_from_val(env, &map.get(Symbol::new(env, "uploader").into_val(env)).unwrap_or_default())?,
-            uploaded_at: u64::try_from_val(env, &map.get(Symbol::new(env, "uploaded_at").into_val(env)).unwrap_or_default())?,
-            file_type: Bytes::try_from_val(env, &map.get(Symbol::new(env, "file_type").into_val(env)).unwrap_or_default())?,
-            size: u64::try_from_val(env, &map.get(Symbol::new(env, "size").into_val(env)).unwrap_or_default())?,
-            version: u32::try_from_val(env, &map.get(Symbol::new(env, "version").into_val(env)).unwrap_or_default())?,
-        })
-    }
-}
-
-impl IntoVal<Env, Val> for WorkspaceFile {
-    fn into_val(&self, env: &Env) -> Val {
-        let mut map = Map::<Val, Val>::new(env);
-        map.set(Symbol::new(env, "id").into_val(env), self.id.into_val(env));
-        map.set(Symbol::new(env, "name").into_val(env), self.name.into_val(env));
-        map.set(Symbol::new(env, "content_hash").into_val(env), self.content_hash.into_val(env));
-        map.set(Symbol::new(env, "uploader").into_val(env), self.uploader.into_val(env));
-        map.set(Symbol::new(env, "uploaded_at").into_val(env), self.uploaded_at.into_val(env));
-        map.set(Symbol::new(env, "file_type").into_val(env), self.file_type.into_val(env));
-        map.set(Symbol::new(env, "size").into_val(env), self.size.into_val(env));
-        map.set(Symbol::new(env, "version").into_val(env), self.version.into_val(env));
-        map.into_val(env)
-    }
-}
-
-// WorkspaceTask implementations
-impl TryFromVal<Env, Val> for WorkspaceTask {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let map = Map::<Val, Val>::try_from_val(env, val)?;
-        Ok(WorkspaceTask {
-            id: u64::try_from_val(env, &map.get(Symbol::new(env, "id").into_val(env)).unwrap_or_default())?,
-            title: Bytes::try_from_val(env, &map.get(Symbol::new(env, "title").into_val(env)).unwrap_or_default())?,
-            description: Bytes::try_from_val(env, &map.get(Symbol::new(env, "description").into_val(env)).unwrap_or_default())?,
-            assignee: Address::try_from_val(env, &map.get(Symbol::new(env, "assignee").into_val(env)).unwrap_or_default())?,
-            creator: Address::try_from_val(env, &map.get(Symbol::new(env, "creator").into_val(env)).unwrap_or_default())?,
-            due_date: u64::try_from_val(env, &map.get(Symbol::new(env, "due_date").into_val(env)).unwrap_or_default())?,
-            status: TaskStatus::try_from_val(env, &map.get(Symbol::new(env, "status").into_val(env)).unwrap_or_default())?,
-            priority: TaskPriority::try_from_val(env, &map.get(Symbol::new(env, "priority").into_val(env)).unwrap_or_default())?,
-            created_at: u64::try_from_val(env, &map.get(Symbol::new(env, "created_at").into_val(env)).unwrap_or_default())?,
-            completed_at: Option::<u64>::try_from_val(env, &map.get(Symbol::new(env, "completed_at").into_val(env)).unwrap_or_default())?,
-        })
-    }
-}
-
-impl IntoVal<Env, Val> for WorkspaceTask {
-    fn into_val(&self, env: &Env) -> Val {
-        let mut map = Map::<Val, Val>::new(env);
-        map.set(Symbol::new(env, "id").into_val(env), self.id.into_val(env));
-        map.set(Symbol::new(env, "title").into_val(env), self.title.into_val(env));
-        map.set(Symbol::new(env, "description").into_val(env), self.description.into_val(env));
-        map.set(Symbol::new(env, "assignee").into_val(env), self.assignee.into_val(env));
-        map.set(Symbol::new(env, "creator").into_val(env), self.creator.into_val(env));
-        map.set(Symbol::new(env, "due_date").into_val(env), self.due_date.into_val(env));
-        map.set(Symbol::new(env, "status").into_val(env), self.status.into_val(env));
-        map.set(Symbol::new(env, "priority").into_val(env), self.priority.into_val(env));
-        map.set(Symbol::new(env, "created_at").into_val(env), self.created_at.into_val(env));
-        map.set(Symbol::new(env, "completed_at").into_val(env), self.completed_at.into_val(env));
-        map.into_val(env)
-    }
-}
-
-// TaskStatus implementations
-impl TryFromVal<Env, Val> for TaskStatus {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Todo" => Ok(TaskStatus::Todo),
-            "InProgress" => Ok(TaskStatus::InProgress),
-            "Review" => Ok(TaskStatus::Review),
-            "Completed" => Ok(TaskStatus::Completed),
-            "Cancelled" => Ok(TaskStatus::Cancelled),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for TaskStatus {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            TaskStatus::Todo => Symbol::new(env, "Todo").into_val(env),
-            TaskStatus::InProgress => Symbol::new(env, "InProgress").into_val(env),
-            TaskStatus::Review => Symbol::new(env, "Review").into_val(env),
-            TaskStatus::Completed => Symbol::new(env, "Completed").into_val(env),
-            TaskStatus::Cancelled => Symbol::new(env, "Cancelled").into_val(env),
-        }
-    }
-}
-
-// TaskPriority implementations
-impl TryFromVal<Env, Val> for TaskPriority {
-    type Error = soroban_sdk::ConversionError;
-
-    fn try_from_val(env: &Env, val: &Val) -> Result<Self, Self::Error> {
-        let symbol = Symbol::try_from_val(env, val)?;
-        match symbol.to_string().as_str() {
-            "Low" => Ok(TaskPriority::Low),
-            "Medium" => Ok(TaskPriority::Medium),
-            "High" => Ok(TaskPriority::High),
-            "Urgent" => Ok(TaskPriority::Urgent),
-            _ => Err(soroban_sdk::ConversionError {}),
-        }
-    }
-}
-
-impl IntoVal<Env, Val> for TaskPriority {
-    fn into_val(&self, env: &Env) -> Val {
-        match self {
-            TaskPriority::Low => Symbol::new(env, "Low").into_val(env),
-            TaskPriority::Medium => Symbol::new(env, "Medium").into_val(env),
-            TaskPriority::High => Symbol::new(env, "High").into_val(env),
-            TaskPriority::Urgent => Symbol::new(env, "Urgent").into_val(env),
-        }
     }
 }
