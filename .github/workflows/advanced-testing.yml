@@ -1,0 +1,75 @@
+name: Advanced Testing
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 0 * * *'
+
+jobs:
+  comprehensive-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - name: Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Unit Tests
+        run: cargo test --lib --workspace
+
+      - name: Integration Tests
+        run: cargo test --test '*' --workspace
+
+      - name: Benchmarks
+        run: cargo bench --workspace --no-run
+
+  security-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Security Audit
+        run: |
+          cargo install cargo-audit
+          cargo audit
+
+      - name: Dependency Check
+        run: cargo tree --duplicates
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+
+      - name: Generate coverage
+        run: cargo tarpaulin --out Xml
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./cobertura.xml
+
+  performance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run benchmarks
+        run: cargo bench --workspace
+
+      - name: Store benchmark result
+        uses: benchmark-action/github-action-benchmark@v1
+        with:
+          tool: 'cargo'
+          output-file-path: target/criterion/output.txt

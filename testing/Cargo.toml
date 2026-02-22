@@ -1,0 +1,20 @@
+[package]
+name = "teachlink-testing"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+soroban-sdk = "25.0.0-rc.2"
+
+[dev-dependencies]
+proptest = "1.4"
+criterion = "0.5"
+quickcheck = "1.0"
+
+[[bench]]
+name = "bridge_operations"
+harness = false
+
+[[bench]]
+name = "escrow_operations"
+harness = false
