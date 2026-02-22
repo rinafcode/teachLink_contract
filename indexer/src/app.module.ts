@@ -6,6 +6,7 @@ import { DatabaseModule } from '@database/database.module';
 import { HorizonModule } from '@horizon/horizon.module';
 import { EventsModule } from '@events/events.module';
 import { IndexerModule } from '@indexer/indexer.module';
+import { ReportingModule } from './reporting/reporting.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { IndexerModule } from '@indexer/indexer.module';
     HorizonModule,
     EventsModule,
     IndexerModule,
+    ReportingModule,
   ],
 })
 export class AppModule {}
