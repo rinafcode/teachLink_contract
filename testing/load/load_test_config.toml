@@ -1,0 +1,20 @@
+[load_test]
+concurrent_users = 100
+duration_seconds = 60
+ramp_up_seconds = 10
+
+[scenarios]
+bridge_operations = { weight = 40, operations = ["deposit", "release"] }
+escrow_operations = { weight = 30, operations = ["create", "approve", "release"] }
+reward_operations = { weight = 20, operations = ["issue", "claim"] }
+governance_operations = { weight = 10, operations = ["propose", "vote"] }
+
+[thresholds]
+max_latency_ms = 100
+min_throughput_tps = 50
+max_error_rate = 0.01
+
+[reporting]
+output_format = "json"
+output_dir = "testing/reports/load"
+generate_charts = true

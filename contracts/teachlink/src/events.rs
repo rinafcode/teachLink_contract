@@ -6,6 +6,9 @@ use crate::types::{
     RewardType, SlashingReason, SwapStatus,
 };
 
+// Include notification events
+// pub use crate::notification_events::*;
+
 use soroban_sdk::{Address, Bytes, String};
 
 // ================= Bridge Events =================
@@ -411,4 +414,43 @@ pub struct MetadataUpdatedEvent {
     pub token_id: u64,
     pub owner: Address,
     pub timestamp: u64,
+}
+
+// ================= Advanced Analytics & Reporting Events =================
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ReportGeneratedEvent {
+    pub report_id: u64,
+    pub report_type: crate::types::ReportType,
+    pub generated_by: Address,
+    pub period_start: u64,
+    pub period_end: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ReportScheduledEvent {
+    pub schedule_id: u64,
+    pub template_id: u64,
+    pub owner: Address,
+    pub next_run_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ReportCommentAddedEvent {
+    pub report_id: u64,
+    pub comment_id: u64,
+    pub author: Address,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AlertTriggeredEvent {
+    pub rule_id: u64,
+    pub condition_type: crate::types::AlertConditionType,
+    pub current_value: i128,
+    pub threshold: i128,
+    pub triggered_at: u64,
 }
