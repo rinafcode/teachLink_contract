@@ -12,6 +12,10 @@ import {
   Contribution,
   RewardPool,
   IndexerState,
+  DashboardSnapshot,
+  ReportUsage,
+  AlertRule,
+  AlertLog,
 } from './entities';
 
 @Module({
@@ -36,6 +40,10 @@ import {
           Contribution,
           RewardPool,
           IndexerState,
+          DashboardSnapshot,
+          ReportUsage,
+          AlertRule,
+          AlertLog,
         ],
         synchronize: configService.get<boolean>('database.synchronize'),
         logging: configService.get<boolean>('database.logging'),
@@ -53,6 +61,10 @@ import {
       Contribution,
       RewardPool,
       IndexerState,
+      DashboardSnapshot,
+      ReportUsage,
+      AlertRule,
+      AlertLog,
     ]),
   ],
   exports: [TypeOrmModule],
