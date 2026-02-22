@@ -231,13 +231,3 @@ impl DocumentationContract {
         env.storage().instance().set(&DocKey::Version, &version);
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_create_article() {
-        // Test would go here
-    }
-}
