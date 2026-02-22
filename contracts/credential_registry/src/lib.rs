@@ -1,6 +1,8 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contractevent, symbol_short, Address, Bytes, BytesN, Env};
+use soroban_sdk::{
+    contract, contractevent, contractimpl, symbol_short, Address, Bytes, BytesN, Env,
+};
 
 #[contractevent]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -62,7 +64,8 @@ impl CredentialRegistryContract {
             subject_did,
             metadata_ptr,
             expires_at,
-        }.publish(env);
+        }
+        .publish(env);
     }
 
     // Revoke a credential. Caller must be issuer (signed address)
@@ -84,7 +87,8 @@ impl CredentialRegistryContract {
                     credential_hash,
                     issuer_did,
                     subject_did,
-                }.publish(env);
+                }
+                .publish(env);
             }
             None => panic!("credential not found"),
         }
