@@ -1,7 +1,24 @@
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, BytesN, Env};
+use soroban_sdk::{contract, contractimpl, contractevent, symbol_short, Address, Bytes, BytesN, Env};
 
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Crediss {
+    pub credential_hash: BytesN<32>,
+    pub issuer_did: Bytes,
+    pub subject_did: Bytes,
+    pub metadata_ptr: Bytes,
+    pub expires_at: i128,
+}
+
+#[contractevent]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Credrev {
+    pub credential_hash: BytesN<32>,
+    pub issuer_did: Bytes,
+    pub subject_did: Bytes,
+}
 #[contract]
 pub struct CredentialRegistryContract;
 
@@ -39,16 +56,13 @@ impl CredentialRegistryContract {
             0i32,
         );
         env.storage().persistent().set(&key, &record);
-        env.events().publish(
-            (symbol_short!("crediss"),),
-            (
-                credential_hash,
-                issuer_did,
-                subject_did,
-                metadata_ptr,
-                expires_at,
-            ),
-        );
+        Crediss {
+            credential_hash,
+            issuer_did,
+            subject_did,
+            metadata_ptr,
+            expires_at,
+        }.publish(env);
     }
 
     // Revoke a credential. Caller must be issuer (signed address)
@@ -66,10 +80,11 @@ impl CredentialRegistryContract {
                     1i32,
                 );
                 env.storage().persistent().set(&key, &record);
-                env.events().publish(
-                    (symbol_short!("credrev"),),
-                    (credential_hash, issuer_did, subject_did),
-                );
+                Credrev {
+                    credential_hash,
+                    issuer_did,
+                    subject_did,
+                }.publish(env);
             }
             None => panic!("credential not found"),
         }
