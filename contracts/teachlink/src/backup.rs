@@ -8,7 +8,7 @@ use crate::audit::AuditManager;
 use crate::errors::BridgeError;
 use crate::events::{BackupCreatedEvent, BackupVerifiedEvent, RecoveryExecutedEvent};
 use crate::storage::{
-    BACKUP_COUNTER, BACKUP_MANIFESTS, BACKUP_SCHED_CNT, BACKUP_SCHEDULES, RECOVERY_CNT,
+    BACKUP_COUNTER, BACKUP_MANIFESTS, BACKUP_SCHEDULES, BACKUP_SCHED_CNT, RECOVERY_CNT,
     RECOVERY_RECORDS,
 };
 use crate::types::{BackupManifest, BackupSchedule, OperationType, RecoveryRecord, RtoTier};
@@ -28,7 +28,11 @@ impl BackupManager {
     ) -> Result<u64, BridgeError> {
         creator.require_auth();
 
-        let mut counter: u64 = env.storage().instance().get(&BACKUP_COUNTER).unwrap_or(0u64);
+        let mut counter: u64 = env
+            .storage()
+            .instance()
+            .get(&BACKUP_COUNTER)
+            .unwrap_or(0u64);
         counter += 1;
 
         let manifest = BackupManifest {
@@ -89,7 +93,8 @@ impl BackupManager {
     ) -> Result<bool, BridgeError> {
         verifier.require_auth();
 
-        let manifest = Self::get_backup_manifest(env, backup_id).ok_or(BridgeError::InvalidInput)?;
+        let manifest =
+            Self::get_backup_manifest(env, backup_id).ok_or(BridgeError::InvalidInput)?;
         let valid = manifest.integrity_hash == expected_hash;
 
         BackupVerifiedEvent {
@@ -122,7 +127,11 @@ impl BackupManager {
     ) -> Result<u64, BridgeError> {
         owner.require_auth();
 
-        let mut counter: u64 = env.storage().instance().get(&BACKUP_SCHED_CNT).unwrap_or(0u64);
+        let mut counter: u64 = env
+            .storage()
+            .instance()
+            .get(&BACKUP_SCHED_CNT)
+            .unwrap_or(0u64);
         counter += 1;
 
         let schedule = BackupSchedule {
@@ -245,7 +254,11 @@ impl BackupManager {
 
     /// Get recent backup manifests (for monitoring and compliance)
     pub fn get_recent_backups(env: &Env, limit: u32) -> Vec<BackupManifest> {
-        let counter: u64 = env.storage().instance().get(&BACKUP_COUNTER).unwrap_or(0u64);
+        let counter: u64 = env
+            .storage()
+            .instance()
+            .get(&BACKUP_COUNTER)
+            .unwrap_or(0u64);
         let manifests: Map<u64, BackupManifest> = env
             .storage()
             .instance()
