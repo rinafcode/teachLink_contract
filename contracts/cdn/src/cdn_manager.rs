@@ -1,8 +1,9 @@
-use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
-use crate::types::*;
-use crate::storage::*;
 use crate::errors::CDNError;
 use crate::events::*;
+use crate::storage::*;
+use crate::streaming::StreamingManager;
+use crate::types::*;
+use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
 
 pub struct CDNManager;
 
@@ -44,18 +45,23 @@ impl CDNManager {
 
         env.storage().instance().set(&CDN_NODES, &empty_nodes);
         env.storage().instance().set(&CONTENT_ITEMS, &empty_content);
-        env.storage().instance().set(&ACTIVE_NODES, &empty_active_nodes);
+        env.storage()
+            .instance()
+            .set(&ACTIVE_NODES, &empty_active_nodes);
 
         // Emit initialization event
-        env.events().publish((
-            String::from_str(env, "cdn_initialized"),
-            CDNInitializedEvent {
-                admin,
-                primary_region,
-                max_nodes,
-                timestamp: env.ledger().timestamp(),
-            }
-        ), ());
+        env.events().publish(
+            (
+                String::from_str(env, "cdn_initialized"),
+                CDNInitializedEvent {
+                    admin,
+                    primary_region,
+                    max_nodes,
+                    timestamp: env.ledger().timestamp(),
+                },
+            ),
+            (),
+        );
 
         Ok(())
     }
@@ -71,7 +77,10 @@ impl CDNManager {
         capacity: u64,
     ) -> Result<(), CDNError> {
         // Verify admin authorization
-        let stored_admin: Address = env.storage().instance().get(&CDN_ADMIN)
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&CDN_ADMIN)
             .ok_or(CDNError::NotInitialized)?;
         if admin != stored_admin {
             return Err(CDNError::Unauthorized);
@@ -79,7 +88,9 @@ impl CDNManager {
         admin.require_auth();
 
         // Check if node already exists
-        let mut nodes: Map<String, CDNNode> = env.storage().instance()
+        let mut nodes: Map<String, CDNNode> = env
+            .storage()
+            .instance()
             .get(&CDN_NODES)
             .unwrap_or_else(|| Map::new(env));
 
@@ -88,9 +99,12 @@ impl CDNManager {
         }
 
         // Check max nodes limit
-        let config: CDNConfig = env.storage().instance().get(&CDN_CONFIG)
+        let config: CDNConfig = env
+            .storage()
+            .instance()
+            .get(&CDN_CONFIG)
             .ok_or(CDNError::NotInitialized)?;
-        
+
         let current_count: u32 = env.storage().instance().get(&NODE_COUNT).unwrap_or(0);
         if current_count >= config.max_nodes {
             return Err(CDNError::MaxNodesReached);
@@ -116,14 +130,18 @@ impl CDNManager {
         env.storage().instance().set(&CDN_NODES, &nodes);
 
         // Update active nodes list
-        let mut active_nodes: Vec<String> = env.storage().instance()
+        let mut active_nodes: Vec<String> = env
+            .storage()
+            .instance()
             .get(&ACTIVE_NODES)
             .unwrap_or_else(|| Vec::new(env));
         active_nodes.push_back(node_id.clone());
         env.storage().instance().set(&ACTIVE_NODES, &active_nodes);
 
         // Update counters
-        env.storage().instance().set(&NODE_COUNT, &(current_count + 1));
+        env.storage()
+            .instance()
+            .set(&NODE_COUNT, &(current_count + 1));
 
         // Update config
         let mut updated_config = config;
@@ -131,16 +149,19 @@ impl CDNManager {
         env.storage().instance().set(&CDN_CONFIG, &updated_config);
 
         // Emit node registered event
-        env.events().publish((
-            String::from_str(env, "node_registered"),
-            NodeRegisteredEvent {
-                node_id,
-                region,
-                node_type,
-                capacity,
-                timestamp: env.ledger().timestamp(),
-            }
-        ), ());
+        env.events().publish(
+            (
+                String::from_str(env, "node_registered"),
+                NodeRegisteredEvent {
+                    node_id,
+                    region,
+                    node_type,
+                    capacity,
+                    timestamp: env.ledger().timestamp(),
+                },
+            ),
+            (),
+        );
 
         Ok(())
     }
@@ -152,12 +173,13 @@ impl CDNManager {
         health_score: u32,
         current_load: u64,
     ) -> Result<(), CDNError> {
-        let mut nodes: Map<String, CDNNode> = env.storage().instance()
+        let mut nodes: Map<String, CDNNode> = env
+            .storage()
+            .instance()
             .get(&CDN_NODES)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut node = nodes.get(node_id.clone())
-            .ok_or(CDNError::NodeNotFound)?;
+        let mut node = nodes.get(node_id.clone()).ok_or(CDNError::NodeNotFound)?;
 
         // Update health metrics
         node.health_score = health_score.min(100);
@@ -176,31 +198,33 @@ impl CDNManager {
     }
 
     /// Deactivate a CDN node
-    pub fn deactivate_node(
-        env: &Env,
-        admin: Address,
-        node_id: String,
-    ) -> Result<(), CDNError> {
-        let stored_admin: Address = env.storage().instance().get(&CDN_ADMIN)
+    pub fn deactivate_node(env: &Env, admin: Address, node_id: String) -> Result<(), CDNError> {
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&CDN_ADMIN)
             .ok_or(CDNError::NotInitialized)?;
         if admin != stored_admin {
             return Err(CDNError::Unauthorized);
         }
         admin.require_auth();
 
-        let mut nodes: Map<String, CDNNode> = env.storage().instance()
+        let mut nodes: Map<String, CDNNode> = env
+            .storage()
+            .instance()
             .get(&CDN_NODES)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut node = nodes.get(node_id.clone())
-            .ok_or(CDNError::NodeNotFound)?;
+        let mut node = nodes.get(node_id.clone()).ok_or(CDNError::NodeNotFound)?;
 
         node.is_active = false;
         nodes.set(node_id.clone(), node);
         env.storage().instance().set(&CDN_NODES, &nodes);
 
         // Remove from active nodes list
-        let mut active_nodes: Vec<String> = env.storage().instance()
+        let mut active_nodes: Vec<String> = env
+            .storage()
+            .instance()
             .get(&ACTIVE_NODES)
             .unwrap_or_else(|| Vec::new(env));
 
@@ -211,17 +235,22 @@ impl CDNManager {
                 new_active_nodes.push_back(active_node_id);
             }
         }
-        env.storage().instance().set(&ACTIVE_NODES, &new_active_nodes);
+        env.storage()
+            .instance()
+            .set(&ACTIVE_NODES, &new_active_nodes);
 
         // Emit deactivation event
-        env.events().publish((
-            String::from_str(env, "node_deactivated"),
-            NodeDeactivatedEvent {
-                node_id,
-                reason: String::from_str(env, "admin_deactivation"),
-                timestamp: env.ledger().timestamp(),
-            }
-        ), ());
+        env.events().publish(
+            (
+                String::from_str(env, "node_deactivated"),
+                NodeDeactivatedEvent {
+                    node_id,
+                    reason: String::from_str(env, "admin_deactivation"),
+                    timestamp: env.ledger().timestamp(),
+                },
+            ),
+            (),
+        );
 
         Ok(())
     }
@@ -239,7 +268,9 @@ impl CDNManager {
         uploader.require_auth();
 
         // Check if content already exists
-        let mut content_items: Map<String, ContentItem> = env.storage().instance()
+        let mut content_items: Map<String, ContentItem> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ITEMS)
             .unwrap_or_else(|| Map::new(env));
 
@@ -253,7 +284,9 @@ impl CDNManager {
         }
 
         // Get active nodes for replication
-        let active_nodes: Vec<String> = env.storage().instance()
+        let active_nodes: Vec<String> = env
+            .storage()
+            .instance()
             .get(&ACTIVE_NODES)
             .unwrap_or_else(|| Vec::new(env));
 
@@ -309,26 +342,34 @@ impl CDNManager {
 
         // Update content counter
         let current_count: u64 = env.storage().instance().get(&CONTENT_COUNT).unwrap_or(0);
-        env.storage().instance().set(&CONTENT_COUNT, &(current_count + 1));
+        env.storage()
+            .instance()
+            .set(&CONTENT_COUNT, &(current_count + 1));
 
         // Update config
-        let mut config: CDNConfig = env.storage().instance().get(&CDN_CONFIG)
+        let mut config: CDNConfig = env
+            .storage()
+            .instance()
+            .get(&CDN_CONFIG)
             .ok_or(CDNError::NotInitialized)?;
         config.total_content = current_count + 1;
         env.storage().instance().set(&CDN_CONFIG, &config);
 
         // Emit content uploaded event
-        env.events().publish((
-            String::from_str(env, "content_uploaded"),
-            ContentUploadedEvent {
-                content_id,
-                uploader,
-                content_type,
-                size,
-                replicas: replicas.len(),
-                timestamp: env.ledger().timestamp(),
-            }
-        ), ());
+        env.events().publish(
+            (
+                String::from_str(env, "content_uploaded"),
+                ContentUploadedEvent {
+                    content_id,
+                    uploader,
+                    content_type,
+                    size,
+                    replicas: replicas.len(),
+                    timestamp: env.ledger().timestamp(),
+                },
+            ),
+            (),
+        );
 
         Ok(())
     }
@@ -341,15 +382,20 @@ impl CDNManager {
         quality: Option<StreamingQuality>,
     ) -> Result<DeliveryEndpoint, CDNError> {
         // Get content item
-        let content_items: Map<String, ContentItem> = env.storage().instance()
+        let content_items: Map<String, ContentItem> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ITEMS)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut content_item = content_items.get(content_id.clone())
+        let mut content_item = content_items
+            .get(content_id.clone())
             .ok_or(CDNError::ContentNotFound)?;
 
         // Get nodes
-        let nodes: Map<String, CDNNode> = env.storage().instance()
+        let nodes: Map<String, CDNNode> = env
+            .storage()
+            .instance()
             .get(&CDN_NODES)
             .unwrap_or_else(|| Map::new(env));
 
@@ -387,8 +433,9 @@ impl CDNManager {
         let selected_node = best_node.ok_or(CDNError::NoAvailableNodes)?;
 
         // Calculate estimated latency based on region and load
-        let base_latency = if user_location.is_some() && 
-            user_location.as_ref().unwrap() == &selected_node.region {
+        let base_latency = if user_location.is_some()
+            && user_location.as_ref().unwrap() == &selected_node.region
+        {
             20 // Same region
         } else {
             100 // Different region
@@ -405,19 +452,12 @@ impl CDNManager {
         };
 
         // Generate streaming manifest for video content
-        let streaming_manifest = if content_item.content_type == ContentType::Video {
+        let has_streaming_manifest = if content_item.content_type == ContentType::Video {
             // Create basic streaming manifest
-            let profiles = streaming::StreamingManager::create_default_profiles(env, ContentType::Video);
-            Some(StreamingManifest {
-                manifest_url: String::from_str(env, "https://cdn.example.com/playlist.m3u8"),
-                protocol: StreamingProtocol::HLS,
-                profiles,
-                segment_urls: Vec::new(env),
-                duration: 3600, // 1 hour default
-                is_live: false,
-            })
+            let profiles = StreamingManager::create_default_profiles(env, ContentType::Video);
+            !profiles.is_empty()
         } else {
-            None
+            false
         };
 
         // Update access count
@@ -425,7 +465,9 @@ impl CDNManager {
         content_item.last_accessed = env.ledger().timestamp();
         let mut updated_content_items = content_items;
         updated_content_items.set(content_id, content_item);
-        env.storage().instance().set(&CONTENT_ITEMS, &updated_content_items);
+        env.storage()
+            .instance()
+            .set(&CONTENT_ITEMS, &updated_content_items);
 
         // Create delivery endpoint
         let endpoint = DeliveryEndpoint {
@@ -434,7 +476,7 @@ impl CDNManager {
             region: selected_node.region,
             estimated_latency,
             cache_status,
-            streaming_manifest,
+            has_streaming_manifest,
             security_token: None,
         };
 
@@ -445,13 +487,17 @@ impl CDNManager {
 
     /// Get CDN configuration
     pub fn get_config(env: &Env) -> Result<CDNConfig, CDNError> {
-        env.storage().instance().get(&CDN_CONFIG)
+        env.storage()
+            .instance()
+            .get(&CDN_CONFIG)
             .ok_or(CDNError::NotInitialized)
     }
 
     /// Get node information
     pub fn get_node(env: &Env, node_id: String) -> Result<CDNNode, CDNError> {
-        let nodes: Map<String, CDNNode> = env.storage().instance()
+        let nodes: Map<String, CDNNode> = env
+            .storage()
+            .instance()
             .get(&CDN_NODES)
             .unwrap_or_else(|| Map::new(env));
 
@@ -460,23 +506,31 @@ impl CDNManager {
 
     /// Get content information
     pub fn get_content(env: &Env, content_id: String) -> Result<ContentItem, CDNError> {
-        let content_items: Map<String, ContentItem> = env.storage().instance()
+        let content_items: Map<String, ContentItem> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ITEMS)
             .unwrap_or_else(|| Map::new(env));
 
-        content_items.get(content_id).ok_or(CDNError::ContentNotFound)
+        content_items
+            .get(content_id)
+            .ok_or(CDNError::ContentNotFound)
     }
 
     /// List all active nodes
     pub fn list_active_nodes(env: &Env) -> Result<Vec<String>, CDNError> {
-        Ok(env.storage().instance()
+        Ok(env
+            .storage()
+            .instance()
             .get(&ACTIVE_NODES)
             .unwrap_or_else(|| Vec::new(env)))
     }
 
     /// Get admin address
     pub fn get_admin(env: &Env) -> Result<Address, CDNError> {
-        env.storage().instance().get(&CDN_ADMIN)
+        env.storage()
+            .instance()
+            .get(&CDN_ADMIN)
             .ok_or(CDNError::NotInitialized)
     }
 }

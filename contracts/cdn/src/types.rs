@@ -64,9 +64,9 @@ pub enum StreamingQuality {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum StreamingProtocol {
-    HLS,    // HTTP Live Streaming
-    DASH,   // Dynamic Adaptive Streaming over HTTP
-    WebRTC, // Real-time streaming
+    HLS,         // HTTP Live Streaming
+    DASH,        // Dynamic Adaptive Streaming over HTTP
+    WebRTC,      // Real-time streaming
     Progressive, // Progressive download
 }
 
@@ -74,11 +74,11 @@ pub enum StreamingProtocol {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StreamingProfile {
     pub quality: StreamingQuality,
-    pub bitrate: u32,        // in kbps
+    pub bitrate: u32, // in kbps
     pub resolution_width: u32,
     pub resolution_height: u32,
-    pub framerate: u32,      // fps
-    pub codec: String,       // H264, H265, AV1, etc.
+    pub framerate: u32, // fps
+    pub codec: String,  // H264, H265, AV1, etc.
 }
 
 #[contracttype]
@@ -86,8 +86,8 @@ pub struct StreamingProfile {
 pub struct AdaptiveStreamingConfig {
     pub protocol: StreamingProtocol,
     pub profiles: Vec<StreamingProfile>,
-    pub segment_duration: u32,    // in seconds
-    pub playlist_type: String,    // VOD or LIVE
+    pub segment_duration: u32, // in seconds
+    pub playlist_type: String, // VOD or LIVE
     pub encryption_enabled: bool,
     pub drm_enabled: bool,
 }
@@ -95,7 +95,7 @@ pub struct AdaptiveStreamingConfig {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct NetworkCondition {
-    pub bandwidth: u64,           // in bps
+    pub bandwidth: u64,          // in bps
     pub latency: u64,            // in ms
     pub packet_loss: u32,        // percentage
     pub connection_type: String, // wifi, cellular, ethernet
@@ -109,18 +109,18 @@ pub struct StreamingManifest {
     pub protocol: StreamingProtocol,
     pub profiles: Vec<StreamingProfile>,
     pub segment_urls: Vec<String>,
-    pub duration: u64,           // total duration in seconds
+    pub duration: u64, // total duration in seconds
     pub is_live: bool,
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CachePolicy {
-    NoCache,     // No caching
-    ShortTerm,   // Cache for 1 hour
-    MediumTerm,  // Cache for 24 hours
-    LongTerm,    // Cache for 7 days
-    Permanent,   // Cache permanently
+    NoCache,    // No caching
+    ShortTerm,  // Cache for 1 hour
+    MediumTerm, // Cache for 24 hours
+    LongTerm,   // Cache for 7 days
+    Permanent,  // Cache permanently
 }
 
 #[contracttype]
@@ -159,7 +159,7 @@ pub struct DeliveryEndpoint {
     pub region: String,
     pub estimated_latency: u64,
     pub cache_status: CacheStatus,
-    pub streaming_manifest: Option<StreamingManifest>,
+    pub has_streaming_manifest: bool,
     pub security_token: Option<String>,
 }
 
@@ -171,11 +171,11 @@ pub enum CompressionType {
     None,
     Gzip,
     Brotli,
-    WebP,   // For images
-    AVIF,   // For images
-    H264,   // For video
-    H265,   // For video
-    AV1,    // For video
+    WebP, // For images
+    AVIF, // For images
+    H264, // For video
+    H265, // For video
+    AV1,  // For video
 }
 
 #[contracttype]
@@ -325,10 +325,10 @@ pub enum NodeHealthStatus {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PricingModel {
-    pub bandwidth_cost_per_gb: u64,    // Cost per GB of bandwidth
-    pub storage_cost_per_gb: u64,      // Cost per GB of storage
-    pub request_cost_per_1000: u64,    // Cost per 1000 requests
-    pub region_multiplier: u32,        // Regional cost multiplier (percentage)
+    pub bandwidth_cost_per_gb: u64, // Cost per GB of bandwidth
+    pub storage_cost_per_gb: u64,   // Cost per GB of storage
+    pub request_cost_per_1000: u64, // Cost per 1000 requests
+    pub region_multiplier: u32,     // Regional cost multiplier (percentage)
 }
 
 #[contracttype]
@@ -339,13 +339,13 @@ pub struct CostMetrics {
     pub total_request_cost: u64,
     pub total_cost: u64,
     pub cost_per_gb_served: u64,
-    pub cost_efficiency_score: u32,    // 0-100
+    pub cost_efficiency_score: u32, // 0-100
 }
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BudgetAlert {
-    pub alert_type: String,            // warning, critical, exceeded
+    pub alert_type: String, // warning, critical, exceeded
     pub current_spend: u64,
     pub budget_limit: u64,
     pub projected_monthly_cost: u64,
@@ -357,6 +357,6 @@ pub struct BudgetAlert {
 pub struct CostBudget {
     pub monthly_limit: u64,
     pub current_spend: u64,
-    pub alert_thresholds: Vec<u32>,    // Alert at these percentages
-    pub auto_optimize: bool,           // Auto-apply cost optimizations
+    pub alert_thresholds: Vec<u32>, // Alert at these percentages
+    pub auto_optimize: bool,        // Auto-apply cost optimizations
 }
