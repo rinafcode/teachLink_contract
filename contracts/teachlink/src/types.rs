@@ -244,6 +244,9 @@ pub enum OperationType {
     EmergencyResume,
     FeeUpdate,
     ConfigUpdate,
+    BackupCreated,
+    BackupVerified,
+    RecoveryExecuted,
 }
 
 #[contracttype]
@@ -719,4 +722,55 @@ pub struct DashboardAnalytics {
     pub compliance_report_count: u32,
     pub audit_record_count: u64,
     pub generated_at: u64,
+}
+
+// ========== Backup and Disaster Recovery Types ==========
+
+/// RTO tier for recovery time objective (seconds)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RtoTier {
+    Critical,  // e.g. 300 (5 min)
+    High,      // e.g. 3600 (1 hr)
+    Standard,  // e.g. 86400 (24 hr)
+}
+
+/// Backup manifest (metadata for integrity and audit)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BackupManifest {
+    pub backup_id: u64,
+    pub created_at: u64,
+    pub created_by: Address,
+    /// Integrity hash (e.g. hash of critical state snapshot)
+    pub integrity_hash: Bytes,
+    pub rto_tier: RtoTier,
+    /// Encryption/access: 0 = none, non-zero = key version or access policy id
+    pub encryption_ref: u64,
+}
+
+/// Scheduled backup config
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BackupSchedule {
+    pub schedule_id: u64,
+    pub owner: Address,
+    pub next_run_at: u64,
+    pub interval_seconds: u64,
+    pub rto_tier: RtoTier,
+    pub enabled: bool,
+    pub created_at: u64,
+}
+
+/// Recovery record for audit trail and RTO tracking
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecoveryRecord {
+    pub recovery_id: u64,
+    pub backup_id: u64,
+    pub executed_at: u64,
+    pub executed_by: Address,
+    /// Recovery duration in seconds (RTO measurement)
+    pub recovery_duration_secs: u64,
+    pub success: bool,
 }
