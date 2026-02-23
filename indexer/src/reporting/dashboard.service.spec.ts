@@ -1,5 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import { Repository } from 'typeorm';
 import {
   BridgeTransaction,
@@ -13,6 +14,13 @@ import {
 } from '@database/entities';
 import { ReportType } from '@database/entities/dashboard-snapshot.entity';
 import { DashboardService } from './dashboard.service';
+import { MetricsService } from '../performance/metrics.service';
+
+const mockCacheManager = {
+  get: jest.fn().mockResolvedValue(undefined),
+  set: jest.fn().mockResolvedValue(undefined),
+  del: jest.fn().mockResolvedValue(undefined),
+};
 
 describe('DashboardService', () => {
   let service: DashboardService;
@@ -33,11 +41,21 @@ describe('DashboardService', () => {
   const mockEscrowRepo = {
     find: jest.fn().mockResolvedValue([]),
     count: jest.fn().mockResolvedValue(0),
+    createQueryBuilder: jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ sum: '0', avg: '0' }),
+    }),
   };
 
   const mockRewardRepo = {
     find: jest.fn().mockResolvedValue([]),
     count: jest.fn().mockResolvedValue(0),
+    createQueryBuilder: jest.fn().mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      getRawOne: jest.fn().mockResolvedValue({ sum: '0' }),
+    }),
   };
 
   const mockRewardPoolRepo = {
@@ -58,9 +76,12 @@ describe('DashboardService', () => {
 
   beforeEach(async () => {
     jest.clearAllMocks();
+    mockCacheManager.get.mockResolvedValue(undefined);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         DashboardService,
+        MetricsService,
+        { provide: CACHE_MANAGER, useValue: mockCacheManager },
         { provide: getRepositoryToken(BridgeTransaction), useValue: mockBridgeRepo },
         { provide: getRepositoryToken(Escrow), useValue: mockEscrowRepo },
         { provide: getRepositoryToken(Reward), useValue: mockRewardRepo },
@@ -100,6 +121,35 @@ describe('DashboardService', () => {
       expect(typeof result.bridgeSuccessRate).toBe('number');
       expect(typeof result.bridgeHealthScore).toBe('number');
     });
+
+    it('should return cached result when cache hit', async () => {
+      const cached = {
+        bridgeHealthScore: 90,
+        bridgeTotalVolume: '1000',
+        bridgeTotalTransactions: 10,
+        bridgeSuccessRate: 9500,
+        escrowTotalCount: 5,
+        escrowTotalVolume: '500',
+        escrowDisputeCount: 0,
+        escrowAvgResolutionTime: 100,
+        totalRewardsIssued: '200',
+        rewardClaimCount: 2,
+        complianceReportCount: 0,
+        auditRecordCount: 0,
+        generatedAt: String(Math.floor(Date.now() / 1000)),
+      };
+      mockCacheManager.get.mockResolvedValueOnce(cached);
+      const result = await service.getCurrentAnalytics();
+      expect(result).toEqual(cached);
+      expect(mockBridgeRepo.count).not.toHaveBeenCalled();
+    });
+
+    it('performance: getCurrentAnalytics completes within 2s (regression)', async () => {
+      const start = Date.now();
+      await service.getCurrentAnalytics();
+      const elapsed = Date.now() - start;
+      expect(elapsed).toBeLessThan(2000);
+    }, 2500);
   });
 
   describe('saveSnapshot', () => {

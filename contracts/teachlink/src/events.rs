@@ -485,3 +485,18 @@ pub struct RecoveryExecutedEvent {
     pub recovery_duration_secs: u64,
     pub success: bool,
 }
+
+// ================= Performance Optimization Events =================
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct PerfMetricsComputedEvent {
+    pub health_score: u32,
+    pub computed_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct PerfCacheInvalidatedEvent {
+    pub invalidated_at: u64,
+}
