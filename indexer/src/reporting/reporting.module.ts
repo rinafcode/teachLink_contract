@@ -9,6 +9,7 @@ import {
   AlertRule,
   AlertLog,
 } from '@database/entities';
+import { PerformanceModule } from '../performance/performance.module';
 import { DashboardService } from './dashboard.service';
 import { ReportExportService } from './report-export.service';
 import { ReportSchedulerService } from './report-scheduler.service';
@@ -17,6 +18,7 @@ import { ReportingController } from './reporting.controller';
 
 @Module({
   imports: [
+    PerformanceModule,
     TypeOrmModule.forFeature([
       BridgeTransaction,
       Escrow,

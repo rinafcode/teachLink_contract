@@ -313,6 +313,15 @@ pub struct ChainMetrics {
     pub last_updated: u64,
 }
 
+/// Cached bridge summary for performance: health score and top chains by volume.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CachedBridgeSummary {
+    pub health_score: u32,
+    pub top_chains: Vec<(u32, i128)>,
+    pub computed_at: u64,
+}
+
 // ========== Validator Signature Types ==========
 
 #[contracttype]
