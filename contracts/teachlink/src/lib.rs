@@ -41,6 +41,7 @@
 //! | [`atomic_swap`] | Cross-chain atomic swaps |
 //! | [`analytics`] | Bridge monitoring and analytics |
 //! | [`reporting`] | Advanced analytics, report templates, dashboards, and alerting |
+//! | [`backup`] | Backup scheduling, integrity verification, disaster recovery, and RTO audit |
 //! | [`rewards`] | Reward pool management and distribution |
 //! | [`escrow`] | Multi-signature escrow with dispute resolution |
 //! | [`tokenization`] | Educational content NFT minting and management |
@@ -108,6 +109,7 @@ mod notification;
 mod notification_events_basic;
 // mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
 mod notification_types;
+mod backup;
 mod reporting;
 mod rewards;
 mod slashing;
@@ -120,14 +122,15 @@ pub mod validation;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
-    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics,
+    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
+    BackupSchedule, BridgeMetrics,
     BridgeProposal, BridgeTransaction, ChainConfig, ChainMetrics, ComplianceReport, ConsensusState,
     ContentMetadata, ContentToken, ContentTokenParameters, CrossChainMessage, CrossChainPacket,
     DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters,
     EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
-    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, ReportComment, ReportSchedule,
-    ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType,
+    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment, ReportSchedule,
+    ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType, RtoTier,
     SlashingReason, SlashingRecord, SwapStatus, TransferType, UserNotificationSettings,
     UserReputation, UserReward, ValidatorInfo, ValidatorReward, ValidatorSignature,
     VisualizationDataPoint,
@@ -798,6 +801,77 @@ impl TeachLinkBridge {
     /// Get recent report snapshots
     pub fn get_recent_report_snapshots(env: Env, limit: u32) -> Vec<ReportSnapshot> {
         reporting::ReportingManager::get_recent_report_snapshots(&env, limit)
+    }
+
+    // ========== Backup and Disaster Recovery Functions ==========
+
+    /// Create a backup manifest (integrity hash from off-chain)
+    pub fn create_backup(
+        env: Env,
+        creator: Address,
+        integrity_hash: Bytes,
+        rto_tier: RtoTier,
+        encryption_ref: u64,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::create_backup(&env, creator, integrity_hash, rto_tier, encryption_ref)
+    }
+
+    /// Get backup manifest by id
+    pub fn get_backup_manifest(env: Env, backup_id: u64) -> Option<BackupManifest> {
+        backup::BackupManager::get_backup_manifest(&env, backup_id)
+    }
+
+    /// Verify backup integrity
+    pub fn verify_backup(
+        env: Env,
+        backup_id: u64,
+        verifier: Address,
+        expected_hash: Bytes,
+    ) -> Result<bool, BridgeError> {
+        backup::BackupManager::verify_backup(&env, backup_id, verifier, expected_hash)
+    }
+
+    /// Schedule automated backup
+    pub fn schedule_backup(
+        env: Env,
+        owner: Address,
+        next_run_at: u64,
+        interval_seconds: u64,
+        rto_tier: RtoTier,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::schedule_backup(&env, owner, next_run_at, interval_seconds, rto_tier)
+    }
+
+    /// Get scheduled backups for an owner
+    pub fn get_scheduled_backups(env: Env, owner: Address) -> Vec<BackupSchedule> {
+        backup::BackupManager::get_scheduled_backups(&env, owner)
+    }
+
+    /// Record a recovery execution (RTO tracking and audit)
+    pub fn record_recovery(
+        env: Env,
+        backup_id: u64,
+        executed_by: Address,
+        recovery_duration_secs: u64,
+        success: bool,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::record_recovery(
+            &env,
+            backup_id,
+            executed_by,
+            recovery_duration_secs,
+            success,
+        )
+    }
+
+    /// Get recovery records for audit and RTO reporting
+    pub fn get_recovery_records(env: Env, limit: u32) -> Vec<RecoveryRecord> {
+        backup::BackupManager::get_recovery_records(&env, limit)
+    }
+
+    /// Get recent backup manifests
+    pub fn get_recent_backups(env: Env, limit: u32) -> Vec<BackupManifest> {
+        backup::BackupManager::get_recent_backups(&env, limit)
     }
 
     // ========== Rewards Functions ==========

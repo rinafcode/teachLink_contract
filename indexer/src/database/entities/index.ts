@@ -12,3 +12,5 @@ export * from './dashboard-snapshot.entity';
 export * from './report-usage.entity';
 export * from './alert-rule.entity';
 export * from './alert-log.entity';
+export * from './backup-manifest.entity';
+export * from './recovery-record.entity';
