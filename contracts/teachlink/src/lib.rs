@@ -40,6 +40,7 @@
 //! | [`audit`] | Audit trail and compliance reporting |
 //! | [`atomic_swap`] | Cross-chain atomic swaps |
 //! | [`analytics`] | Bridge monitoring and analytics |
+//! | [`performance`] | Performance caching (bridge summary, TTL, invalidation) |
 //! | [`reporting`] | Advanced analytics, report templates, dashboards, and alerting |
 //! | [`backup`] | Backup scheduling, integrity verification, disaster recovery, and RTO audit |
 //! | [`rewards`] | Reward pool management and distribution |
@@ -110,6 +111,7 @@ mod notification_events_basic;
 // mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
 mod backup;
 mod notification_types;
+mod performance;
 mod reporting;
 mod rewards;
 mod slashing;
@@ -123,16 +125,17 @@ pub mod validation;
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
-    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, ChainConfig, ChainMetrics,
-    ComplianceReport, ConsensusState, ContentMetadata, ContentToken, ContentTokenParameters,
-    CrossChainMessage, CrossChainPacket, DashboardAnalytics, DisputeOutcome, EmergencyState,
-    Escrow, EscrowMetrics, EscrowParameters, EscrowStatus, LiquidityPool, MultiChainAsset,
-    NotificationChannel, NotificationContent, NotificationPreference, NotificationSchedule,
-    NotificationTemplate, NotificationTracking, OperationType, PacketStatus, ProposalStatus,
-    ProvenanceRecord, RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot,
-    ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason,
-    SlashingRecord, SwapStatus, TransferType, UserNotificationSettings, UserReputation, UserReward,
-    ValidatorInfo, ValidatorReward, ValidatorSignature, VisualizationDataPoint,
+    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
+    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
+    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowStatus,
+    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
+    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
+    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
+    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
+    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
+    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
+    ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -692,6 +695,21 @@ impl TeachLinkBridge {
     /// Get bridge statistics
     pub fn get_bridge_statistics(env: Env) -> Map<Bytes, i128> {
         analytics::AnalyticsManager::get_bridge_statistics(&env)
+    }
+
+    /// Get cached or computed bridge summary (health score + top chains). Uses cache if fresh.
+    pub fn get_cached_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
+        performance::PerformanceManager::get_or_compute_summary(&env)
+    }
+
+    /// Force recompute and cache bridge summary. Emits PerfMetricsComputedEvent.
+    pub fn compute_and_cache_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
+        performance::PerformanceManager::compute_and_cache_summary(&env)
+    }
+
+    /// Invalidate performance cache (admin only). Emits PerfCacheInvalidatedEvent.
+    pub fn invalidate_performance_cache(env: Env, admin: Address) -> Result<(), BridgeError> {
+        performance::PerformanceManager::invalidate_cache(&env, &admin)
     }
 
     // ========== Advanced Analytics & Reporting Functions ==========
