@@ -24,12 +24,12 @@ pub struct PerformanceManager;
 impl PerformanceManager {
     /// Returns cached bridge summary if present and fresh (within CACHE_TTL_SECS).
     pub fn get_cached_summary(env: &Env) -> Option<CachedBridgeSummary> {
-        let ts: u64 = env.storage().instance().get(&PERF_TS).ok()?;
+        let ts: u64 = env.storage().instance().get(&PERF_TS)?;
         let now = env.ledger().timestamp();
         if now.saturating_sub(ts) > CACHE_TTL_SECS {
             return None;
         }
-        env.storage().instance().get(&PERF_CACHE).ok()
+        env.storage().instance().get(&PERF_CACHE)
     }
 
     /// Computes bridge summary (health score + top chains), writes cache, emits event.
@@ -45,10 +45,11 @@ impl PerformanceManager {
         };
         env.storage().instance().set(&PERF_CACHE, &summary);
         env.storage().instance().set(&PERF_TS, &computed_at);
-        env.events().publish(PerfMetricsComputedEvent {
+        PerfMetricsComputedEvent {
             health_score,
             computed_at,
-        });
+        }
+        .publish(env);
         Ok(summary)
     }
 
@@ -65,9 +66,10 @@ impl PerformanceManager {
         admin.require_auth();
         env.storage().instance().remove(&PERF_CACHE);
         env.storage().instance().remove(&PERF_TS);
-        env.events().publish(PerfCacheInvalidatedEvent {
+        PerfCacheInvalidatedEvent {
             invalidated_at: env.ledger().timestamp(),
-        });
+        }
+        .publish(env);
         Ok(())
     }
 }
