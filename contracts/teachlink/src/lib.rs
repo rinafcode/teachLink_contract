@@ -97,15 +97,19 @@ mod bridge;
 mod emergency;
 mod errors;
 mod escrow;
+// mod advanced_reputation;
 mod escrow_analytics;
 mod events;
 // TODO: Implement governance module
 // mod governance;
+// mod learning_paths;
 mod liquidity;
 mod message_passing;
+// mod mobile_platform;
 mod multichain;
 mod notification;
 mod notification_events_basic;
+// mod content_quality;
 // mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
 mod notification_types;
 mod reporting;
