@@ -730,9 +730,9 @@ pub struct DashboardAnalytics {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum RtoTier {
-    Critical,  // e.g. 300 (5 min)
-    High,      // e.g. 3600 (1 hr)
-    Standard,  // e.g. 86400 (24 hr)
+    Critical, // e.g. 300 (5 min)
+    High,     // e.g. 3600 (1 hr)
+    Standard, // e.g. 86400 (24 hr)
 }
 
 /// Backup manifest (metadata for integrity and audit)
