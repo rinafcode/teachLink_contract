@@ -6,6 +6,7 @@ use soroban_sdk::{symbol_short, Address, Bytes, Env, Map, String, Vec};
 
 pub struct DisasterRecoveryManager;
 
+#[allow(deprecated)]
 impl DisasterRecoveryManager {
     /// Create backup for content across multiple regions
     pub fn create_backup(
@@ -554,7 +555,7 @@ impl DisasterRecoveryManager {
             .get(&BACKUP_RECORDS)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut content_backups = Vec::new(env);
+        let content_backups = Vec::new(env);
 
         // In a real implementation, we would need a more efficient way to query backups by content
         // For now, this is a simplified approach that would need optimization for large datasets

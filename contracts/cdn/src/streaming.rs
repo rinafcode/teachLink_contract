@@ -1,11 +1,12 @@
 use crate::errors::CDNError;
-use crate::events::*;
+
 use crate::storage::*;
 use crate::types::*;
 use soroban_sdk::{Address, Env, Map, String, Vec};
 
 pub struct StreamingManager;
 
+#[allow(deprecated)]
 impl StreamingManager {
     /// Create adaptive streaming configuration for content
     pub fn create_adaptive_config(
@@ -334,10 +335,8 @@ impl StreamingManager {
             StreamingQuality::High
         } else if bandwidth_mbps >= 3 && network_condition.stability_score > 60 {
             StreamingQuality::Medium
-        } else if bandwidth_mbps >= 1 {
-            StreamingQuality::Low
         } else {
-            StreamingQuality::Low // Fallback to lowest quality
+            StreamingQuality::Low // Fallback to lowest quality for all other cases
         }
     }
 

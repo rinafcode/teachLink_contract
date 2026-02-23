@@ -7,6 +7,7 @@ use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
 
 pub struct CDNManager;
 
+#[allow(deprecated)]
 impl CDNManager {
     /// Initialize the CDN system
     pub fn initialize(
@@ -222,7 +223,7 @@ impl CDNManager {
         env.storage().instance().set(&CDN_NODES, &nodes);
 
         // Remove from active nodes list
-        let mut active_nodes: Vec<String> = env
+        let active_nodes: Vec<String> = env
             .storage()
             .instance()
             .get(&ACTIVE_NODES)
