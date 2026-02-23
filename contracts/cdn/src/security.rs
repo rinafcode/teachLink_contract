@@ -6,6 +6,7 @@ use soroban_sdk::{symbol_short, Address, Env, Map, String, Vec};
 
 pub struct SecurityManager;
 
+#[allow(deprecated)]
 impl SecurityManager {
     /// Enable DRM protection for content
     pub fn enable_drm(
@@ -123,7 +124,7 @@ impl SecurityManager {
             .get(&ACCESS_TOKENS)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut active_streams = 0u32;
+        let active_streams = 0u32;
         // In a real implementation, we would iterate through all tokens to count active ones
         // For simplicity, we'll assume this check passes
 
@@ -354,7 +355,7 @@ impl SecurityManager {
             .get(&ACCESS_TOKENS)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut user_tokens = Vec::new(env);
+        let user_tokens = Vec::new(env);
         let current_time = env.ledger().timestamp();
 
         // In a real implementation, we would need a more efficient way to query tokens by user

@@ -6,6 +6,7 @@ use soroban_sdk::{Address, Env, Map, String, Vec};
 
 pub struct OptimizationManager;
 
+#[allow(deprecated)]
 impl OptimizationManager {
     /// Update cache policy for content
     pub fn update_cache_policy(
@@ -208,11 +209,7 @@ impl OptimizationManager {
         let optimized_cost =
             Self::calculate_optimized_cost(env, &content_item, &analytics, &target_regions);
 
-        let savings = if current_cost > optimized_cost {
-            current_cost - optimized_cost
-        } else {
-            0
-        };
+        let savings = current_cost.saturating_sub(optimized_cost);
 
         // Generate cost optimization recommendations
         let mut recommendations = Vec::new(env);
@@ -250,20 +247,20 @@ impl OptimizationManager {
         content_type: &ContentType,
         compression_type: &CompressionType,
     ) -> bool {
-        match (content_type, compression_type) {
+        matches!(
+            (content_type, compression_type),
             (
                 ContentType::Video,
                 CompressionType::H264 | CompressionType::H265 | CompressionType::AV1,
-            ) => true,
-            (ContentType::Image, CompressionType::WebP | CompressionType::AVIF) => true,
-            (
+            ) | (
+                ContentType::Image,
+                CompressionType::WebP | CompressionType::AVIF
+            ) | (
                 ContentType::Document | ContentType::Interactive,
                 CompressionType::Gzip | CompressionType::Brotli,
-            ) => true,
-            (ContentType::Archive, CompressionType::Gzip) => true,
-            (_, CompressionType::None) => true,
-            _ => false,
-        }
+            ) | (ContentType::Archive, CompressionType::Gzip)
+                | (_, CompressionType::None)
+        )
     }
 
     /// Estimate compressed size based on compression type
@@ -388,10 +385,6 @@ impl OptimizationManager {
         let total_cost =
             base_cost + optimized_bandwidth_cost + storage_cost + optimized_replica_cost;
 
-        if total_cost > compression_savings {
-            total_cost - compression_savings
-        } else {
-            0
-        }
+        total_cost.saturating_sub(compression_savings)
     }
 }

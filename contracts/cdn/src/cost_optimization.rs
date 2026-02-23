@@ -1,5 +1,5 @@
 use crate::errors::CDNError;
-use crate::events::*;
+
 use crate::storage::*;
 use crate::types::*;
 use soroban_sdk::{symbol_short, Address, Env, Map, String, Vec};
@@ -75,7 +75,7 @@ impl CostOptimizationManager {
             .storage()
             .instance()
             .get(&GLOBAL_METRICS)
-            .unwrap_or_else(|| GlobalMetrics {
+            .unwrap_or(GlobalMetrics {
                 total_requests: 0,
                 total_bytes_served: 0,
                 average_response_time: 0,
@@ -92,7 +92,7 @@ impl CostOptimizationManager {
         let storage_gb = Self::calculate_total_storage_usage(env);
         let total_storage_cost = storage_gb * pricing_model.storage_cost_per_gb;
 
-        let request_thousands = (global_metrics.total_requests + 999) / 1000; // Round up
+        let request_thousands = global_metrics.total_requests.div_ceil(1000); // Round up
         let total_request_cost = request_thousands * pricing_model.request_cost_per_1000;
 
         let total_cost = total_bandwidth_cost + total_storage_cost + total_request_cost;
@@ -264,11 +264,7 @@ impl CostOptimizationManager {
             OptimizationType::Format => Self::estimate_format_savings(env, &target_content),
         };
 
-        let optimized_cost = if current_cost > estimated_savings {
-            current_cost - estimated_savings
-        } else {
-            0
-        };
+        let optimized_cost = current_cost.saturating_sub(estimated_savings);
 
         let mut recommendations = Vec::new(env);
         match optimization_type {
@@ -313,6 +309,7 @@ impl CostOptimizationManager {
     }
 
     /// Calculate total storage usage across all content
+    #[allow(unused_assignments)]
     fn calculate_total_storage_usage(env: &Env) -> u64 {
         let content_items: Map<String, ContentItem> = env
             .storage()

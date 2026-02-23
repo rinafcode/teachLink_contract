@@ -1,5 +1,3 @@
-#![no_std]
-
 //! Simple CDN Demo
 //!
 //! This example demonstrates basic CDN functionality:
@@ -30,4 +28,8 @@ pub fn demo_cdn_usage() {
 
     // 5. Record access for analytics
     // cdn_contract.record_access("video-001", "us-east-1", "node-001", 1000, 50);
+}
+
+fn main() {
+    demo_cdn_usage();
 }

@@ -6,6 +6,7 @@ use soroban_sdk::{Env, Map, String, Vec};
 
 pub struct AnalyticsManager;
 
+#[allow(deprecated)]
 impl AnalyticsManager {
     /// Record content access for analytics
     pub fn record_access(
@@ -132,19 +133,19 @@ impl AnalyticsManager {
         bytes_served: u64,
         response_time: u64,
     ) -> Result<(), CDNError> {
-        let mut metrics: GlobalMetrics = env
-            .storage()
-            .instance()
-            .get(&GLOBAL_METRICS)
-            .unwrap_or_else(|| GlobalMetrics {
-                total_requests: 0,
-                total_bytes_served: 0,
-                average_response_time: 0,
-                cache_hit_ratio: 0,
-                active_nodes: 0,
-                total_content_items: 0,
-                bandwidth_usage: 0,
-            });
+        let mut metrics: GlobalMetrics =
+            env.storage()
+                .instance()
+                .get(&GLOBAL_METRICS)
+                .unwrap_or(GlobalMetrics {
+                    total_requests: 0,
+                    total_bytes_served: 0,
+                    average_response_time: 0,
+                    cache_hit_ratio: 0,
+                    active_nodes: 0,
+                    total_content_items: 0,
+                    bandwidth_usage: 0,
+                });
 
         // Update metrics
         metrics.total_requests += 1;
