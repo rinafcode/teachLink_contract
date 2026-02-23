@@ -16,6 +16,8 @@ import {
   ReportUsage,
   AlertRule,
   AlertLog,
+  BackupManifestRecord,
+  RecoveryRecordEntity,
 } from './entities';
 
 @Module({
@@ -44,6 +46,8 @@ import {
           ReportUsage,
           AlertRule,
           AlertLog,
+          BackupManifestRecord,
+          RecoveryRecordEntity,
         ],
         synchronize: configService.get<boolean>('database.synchronize'),
         logging: configService.get<boolean>('database.logging'),
@@ -65,6 +69,8 @@ import {
       ReportUsage,
       AlertRule,
       AlertLog,
+      BackupManifestRecord,
+      RecoveryRecordEntity,
     ]),
   ],
   exports: [TypeOrmModule],

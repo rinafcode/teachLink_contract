@@ -116,3 +116,11 @@ pub const REPORT_COMMENT_COUNTER: Symbol = symbol_short!("rpt_cmtcn");
 pub const REPORT_COMMENTS: Symbol = symbol_short!("rpt_cmt");
 pub const ALERT_RULE_COUNTER: Symbol = symbol_short!("alrt_cnt");
 pub const ALERT_RULES: Symbol = symbol_short!("alrt_ruls");
+
+// Backup and Disaster Recovery Storage (symbol_short! max 9 chars)
+pub const BACKUP_COUNTER: Symbol = symbol_short!("bak_cnt");
+pub const BACKUP_MANIFESTS: Symbol = symbol_short!("bak_mnf");
+pub const BACKUP_SCHED_CNT: Symbol = symbol_short!("bak_scc");
+pub const BACKUP_SCHEDULES: Symbol = symbol_short!("bak_sch");
+pub const RECOVERY_CNT: Symbol = symbol_short!("rec_cnt");
+pub const RECOVERY_RECORDS: Symbol = symbol_short!("rec_rec");

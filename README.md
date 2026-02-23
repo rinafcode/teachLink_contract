@@ -409,6 +409,18 @@ fn hello_returns_input() {
 - `curl not found` while funding
   - Install curl or fund the account manually using the friendbot URL
 
+### Windows: linker or "export ordinal too large"
+
+On Windows, `cargo test` may fail with **`link.exe` not found** (MSVC) or **`export ordinal too large: 79994`** (MinGW). The contract has many exports, which can exceed MinGW’s DLL limit.
+
+- **Verify the contract (WASM only, no tests):**
+  ```powershell
+  .\scripts\check-wasm.ps1
+  ```
+  Or: `cargo build -p teachlink-contract --target wasm32-unknown-unknown`
+- **Run full tests:** Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++", then use the default (MSVC) toolchain and run `cargo test -p teachlink-contract`.
+- **Otherwise:** Rely on CI (GitHub Actions) for `cargo test`; the WASM build is what gets deployed.
+
 ## License
 
 This project is licensed under the MIT License. See `LICENSE` for details.

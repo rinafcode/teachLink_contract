@@ -16,7 +16,10 @@ import {
   Contribution,
   RewardPool,
   AlertLog,
+  BackupManifestRecord,
+  RecoveryRecordEntity,
 } from '@database/entities';
+import { RtoTier } from '@database/entities/backup-manifest.entity';
 import { ProcessedEvent } from '@horizon/horizon.service';
 import {
   BridgeEvent,
@@ -25,6 +28,7 @@ import {
   TokenizationEvent,
   ScoringEvent,
   ReportingEvent,
+  BackupEvent,
 } from './event-types';
 
 @Injectable()
@@ -52,6 +56,10 @@ export class EventProcessorService {
     private rewardPoolRepo: Repository<RewardPool>,
     @InjectRepository(AlertLog)
     private alertLogRepo: Repository<AlertLog>,
+    @InjectRepository(BackupManifestRecord)
+    private backupManifestRepo: Repository<BackupManifestRecord>,
+    @InjectRepository(RecoveryRecordEntity)
+    private recoveryRecordRepo: Repository<RecoveryRecordEntity>,
   ) {}
 
   async processEvent(event: ProcessedEvent): Promise<void> {
@@ -142,6 +150,17 @@ export class EventProcessorService {
           break;
         case 'AlertTriggeredEvent':
           await this.handleAlertTriggeredEvent(event);
+          break;
+
+        // Backup and DR Events
+        case 'BackupCreatedEvent':
+          await this.handleBackupCreatedEvent(event);
+          break;
+        case 'BackupVerifiedEvent':
+          await this.handleBackupVerifiedEvent(event);
+          break;
+        case 'RecoveryExecutedEvent':
+          await this.handleRecoveryExecutedEvent(event);
           break;
 
         default:
@@ -644,6 +663,45 @@ export class EventProcessorService {
     });
     await this.alertLogRepo.save(log);
     this.logger.log(`Indexed AlertTriggeredEvent rule_id=${data.rule_id}`);
+  }
+
+  // Backup and DR Event Handlers
+  private async handleBackupCreatedEvent(event: ProcessedEvent): Promise<void> {
+    const data = event.data as { backup_id: string; created_by: string; integrity_hash: string; rto_tier: string; created_at: string };
+    const rtoTier = (data.rto_tier || 'standard').toLowerCase() as keyof typeof RtoTier;
+    const record = this.backupManifestRepo.create({
+      backupId: data.backup_id,
+      createdAt: data.created_at,
+      createdBy: data.created_by,
+      integrityHash: data.integrity_hash,
+      rtoTier: RtoTier[rtoTier] ?? RtoTier.STANDARD,
+      encryptionRef: '0',
+      ledger: event.ledger,
+      txHash: event.txHash,
+    });
+    await this.backupManifestRepo.save(record);
+    this.logger.log(`Indexed BackupCreatedEvent backup_id=${data.backup_id}`);
+  }
+
+  private async handleBackupVerifiedEvent(event: ProcessedEvent): Promise<void> {
+    const data = event.data as { backup_id: string; verified_by: string; verified_at: string; valid: boolean };
+    this.logger.log(`Indexed BackupVerifiedEvent backup_id=${data.backup_id} valid=${data.valid}`);
+  }
+
+  private async handleRecoveryExecutedEvent(event: ProcessedEvent): Promise<void> {
+    const data = event.data as { recovery_id: string; backup_id: string; executed_by: string; recovery_duration_secs: string; success: boolean };
+    const record = this.recoveryRecordRepo.create({
+      recoveryId: data.recovery_id,
+      backupId: data.backup_id,
+      executedAt: event.timestamp || String(Math.floor(Date.now() / 1000)),
+      executedBy: data.executed_by,
+      recoveryDurationSecs: data.recovery_duration_secs,
+      success: data.success,
+      ledger: event.ledger,
+      txHash: event.txHash,
+    });
+    await this.recoveryRecordRepo.save(record);
+    this.logger.log(`Indexed RecoveryExecutedEvent recovery_id=${data.recovery_id}`);
   }
 
   private mapProvenanceEventType(eventType: string): ProvenanceEventType {

@@ -454,3 +454,34 @@ pub struct AlertTriggeredEvent {
     pub threshold: i128,
     pub triggered_at: u64,
 }
+
+// ================= Backup and Disaster Recovery Events =================
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BackupCreatedEvent {
+    pub backup_id: u64,
+    pub created_by: Address,
+    pub integrity_hash: Bytes,
+    pub rto_tier: crate::types::RtoTier,
+    pub created_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BackupVerifiedEvent {
+    pub backup_id: u64,
+    pub verified_by: Address,
+    pub verified_at: u64,
+    pub valid: bool,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct RecoveryExecutedEvent {
+    pub recovery_id: u64,
+    pub backup_id: u64,
+    pub executed_by: Address,
+    pub recovery_duration_secs: u64,
+    pub success: bool,
+}
