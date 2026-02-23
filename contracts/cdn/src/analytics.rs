@@ -1,8 +1,8 @@
-use soroban_sdk::{Env, Map, String, Vec};
-use crate::types::*;
-use crate::storage::*;
 use crate::errors::CDNError;
 use crate::events::*;
+use crate::storage::*;
+use crate::types::*;
+use soroban_sdk::{Env, Map, String, Vec};
 
 pub struct AnalyticsManager;
 
@@ -33,18 +33,21 @@ impl AnalyticsManager {
         };
 
         // Emit content accessed event
-        env.events().publish((
-            String::from_str(env, "content_accessed"),
-            ContentAccessedEvent {
-                content_id,
-                node_id,
-                user_location,
-                bytes_served,
-                response_time,
-                cache_status,
-                timestamp: env.ledger().timestamp(),
-            }
-        ), ());
+        env.events().publish(
+            (
+                String::from_str(env, "content_accessed"),
+                ContentAccessedEvent {
+                    content_id,
+                    node_id,
+                    user_location,
+                    bytes_served,
+                    response_time,
+                    cache_status,
+                    timestamp: env.ledger().timestamp(),
+                },
+            ),
+            (),
+        );
 
         Ok(())
     }
@@ -55,7 +58,9 @@ impl AnalyticsManager {
         content_id: String,
         time_range: Option<TimeRange>,
     ) -> Result<ContentAnalytics, CDNError> {
-        let analytics_map: Map<String, ContentAnalytics> = env.storage().instance()
+        let analytics_map: Map<String, ContentAnalytics> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ANALYTICS)
             .unwrap_or_else(|| Map::new(env));
 
@@ -97,11 +102,10 @@ impl AnalyticsManager {
     }
 
     /// Get regional performance metrics
-    pub fn get_regional_metrics(
-        env: &Env,
-        region: String,
-    ) -> Result<RegionalMetrics, CDNError> {
-        let regional_metrics_map: Map<String, RegionalMetrics> = env.storage().instance()
+    pub fn get_regional_metrics(env: &Env, region: String) -> Result<RegionalMetrics, CDNError> {
+        let regional_metrics_map: Map<String, RegionalMetrics> = env
+            .storage()
+            .instance()
             .get(&REGIONAL_METRICS)
             .unwrap_or_else(|| Map::new(env));
 
@@ -128,7 +132,9 @@ impl AnalyticsManager {
         bytes_served: u64,
         response_time: u64,
     ) -> Result<(), CDNError> {
-        let mut metrics: GlobalMetrics = env.storage().instance()
+        let mut metrics: GlobalMetrics = env
+            .storage()
+            .instance()
             .get(&GLOBAL_METRICS)
             .unwrap_or_else(|| GlobalMetrics {
                 total_requests: 0,
@@ -147,7 +153,9 @@ impl AnalyticsManager {
 
         // Calculate new average response time
         if metrics.total_requests > 1 {
-            let total_response_time = (metrics.average_response_time * (metrics.total_requests - 1)) + response_time;
+            let total_response_time = (metrics.average_response_time as u64
+                * (metrics.total_requests - 1))
+                + response_time;
             metrics.average_response_time = total_response_time / metrics.total_requests;
         } else {
             metrics.average_response_time = response_time;
@@ -155,14 +163,17 @@ impl AnalyticsManager {
 
         // Update cache hit ratio (simplified - based on response time)
         let cache_hits = if response_time < 100 { 1 } else { 0 };
-        let total_cache_score = (metrics.cache_hit_ratio * (metrics.total_requests - 1)) + (cache_hits * 100);
-        metrics.cache_hit_ratio = total_cache_score / metrics.total_requests;
+        let total_cache_score =
+            (metrics.cache_hit_ratio as u64 * (metrics.total_requests - 1)) + (cache_hits * 100);
+        metrics.cache_hit_ratio = (total_cache_score / metrics.total_requests) as u32;
 
         // Get current active nodes and content count
-        let active_nodes: Vec<String> = env.storage().instance()
+        let active_nodes: Vec<String> = env
+            .storage()
+            .instance()
             .get(&ACTIVE_NODES)
             .unwrap_or_else(|| Vec::new(env));
-        metrics.active_nodes = active_nodes.len();
+        metrics.active_nodes = active_nodes.len() as u32;
 
         let content_count: u64 = env.storage().instance().get(&CONTENT_COUNT).unwrap_or(0);
         metrics.total_content_items = content_count;
@@ -179,20 +190,24 @@ impl AnalyticsManager {
         bytes_served: u64,
         response_time: u64,
     ) -> Result<(), CDNError> {
-        let mut analytics_map: Map<String, ContentAnalytics> = env.storage().instance()
+        let mut analytics_map: Map<String, ContentAnalytics> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ANALYTICS)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut analytics = analytics_map.get(content_id.clone())
-            .unwrap_or_else(|| ContentAnalytics {
-                content_id: content_id.clone(),
-                total_requests: 0,
-                total_bytes_served: 0,
-                average_response_time: 0,
-                cache_hit_ratio: 0,
-                top_regions: Vec::new(env),
-                bandwidth_usage: 0,
-            });
+        let mut analytics =
+            analytics_map
+                .get(content_id.clone())
+                .unwrap_or_else(|| ContentAnalytics {
+                    content_id: content_id.clone(),
+                    total_requests: 0,
+                    total_bytes_served: 0,
+                    average_response_time: 0,
+                    cache_hit_ratio: 0,
+                    top_regions: Vec::new(env),
+                    bandwidth_usage: 0,
+                });
 
         // Update analytics
         analytics.total_requests += 1;
@@ -201,7 +216,9 @@ impl AnalyticsManager {
 
         // Calculate new average response time
         if analytics.total_requests > 1 {
-            let total_response_time = (analytics.average_response_time * (analytics.total_requests - 1)) + response_time;
+            let total_response_time = (analytics.average_response_time as u64
+                * (analytics.total_requests - 1))
+                + response_time;
             analytics.average_response_time = total_response_time / analytics.total_requests;
         } else {
             analytics.average_response_time = response_time;
@@ -209,11 +226,14 @@ impl AnalyticsManager {
 
         // Update cache hit ratio (simplified)
         let cache_hits = if response_time < 100 { 1 } else { 0 };
-        let total_cache_score = (analytics.cache_hit_ratio * (analytics.total_requests - 1)) + (cache_hits * 100);
-        analytics.cache_hit_ratio = total_cache_score / analytics.total_requests;
+        let total_cache_score = (analytics.cache_hit_ratio as u64 * (analytics.total_requests - 1))
+            + (cache_hits * 100);
+        analytics.cache_hit_ratio = (total_cache_score / analytics.total_requests) as u32;
 
         analytics_map.set(content_id, analytics);
-        env.storage().instance().set(&CONTENT_ANALYTICS, &analytics_map);
+        env.storage()
+            .instance()
+            .set(&CONTENT_ANALYTICS, &analytics_map);
 
         Ok(())
     }
@@ -225,19 +245,23 @@ impl AnalyticsManager {
         bytes_served: u64,
         response_time: u64,
     ) -> Result<(), CDNError> {
-        let mut regional_metrics_map: Map<String, RegionalMetrics> = env.storage().instance()
+        let mut regional_metrics_map: Map<String, RegionalMetrics> = env
+            .storage()
+            .instance()
             .get(&REGIONAL_METRICS)
             .unwrap_or_else(|| Map::new(env));
 
-        let mut metrics = regional_metrics_map.get(region.clone())
-            .unwrap_or_else(|| RegionalMetrics {
-                region: region.clone(),
-                requests: 0,
-                bytes_served: 0,
-                average_response_time: 0,
-                cache_hit_ratio: 0,
-                active_nodes: 0,
-            });
+        let mut metrics =
+            regional_metrics_map
+                .get(region.clone())
+                .unwrap_or_else(|| RegionalMetrics {
+                    region: region.clone(),
+                    requests: 0,
+                    bytes_served: 0,
+                    average_response_time: 0,
+                    cache_hit_ratio: 0,
+                    active_nodes: 0,
+                });
 
         // Update metrics
         metrics.requests += 1;
@@ -245,7 +269,8 @@ impl AnalyticsManager {
 
         // Calculate new average response time
         if metrics.requests > 1 {
-            let total_response_time = (metrics.average_response_time * (metrics.requests - 1)) + response_time;
+            let total_response_time =
+                (metrics.average_response_time as u64 * (metrics.requests - 1)) + response_time;
             metrics.average_response_time = total_response_time / metrics.requests;
         } else {
             metrics.average_response_time = response_time;
@@ -253,16 +278,21 @@ impl AnalyticsManager {
 
         // Update cache hit ratio (simplified)
         let cache_hits = if response_time < 100 { 1 } else { 0 };
-        let total_cache_score = (metrics.cache_hit_ratio * (metrics.requests - 1)) + (cache_hits * 100);
-        metrics.cache_hit_ratio = total_cache_score / metrics.requests;
+        let total_cache_score =
+            (metrics.cache_hit_ratio as u64 * (metrics.requests - 1)) + (cache_hits * 100);
+        metrics.cache_hit_ratio = (total_cache_score / metrics.requests) as u32;
 
         // Count active nodes in this region
-        let nodes: Map<String, CDNNode> = env.storage().instance()
+        let nodes: Map<String, CDNNode> = env
+            .storage()
+            .instance()
             .get(&CDN_NODES)
             .unwrap_or_else(|| Map::new(env));
 
         let mut active_nodes_count = 0u32;
-        let active_nodes: Vec<String> = env.storage().instance()
+        let active_nodes: Vec<String> = env
+            .storage()
+            .instance()
             .get(&ACTIVE_NODES)
             .unwrap_or_else(|| Vec::new(env));
 
@@ -277,7 +307,9 @@ impl AnalyticsManager {
         metrics.active_nodes = active_nodes_count;
 
         regional_metrics_map.set(region, metrics);
-        env.storage().instance().set(&REGIONAL_METRICS, &regional_metrics_map);
+        env.storage()
+            .instance()
+            .set(&REGIONAL_METRICS, &regional_metrics_map);
 
         Ok(())
     }
@@ -287,14 +319,17 @@ impl AnalyticsManager {
         let mut alerts = Vec::new(env);
 
         // Check global metrics for alerts
-        if let Some(global_metrics) = env.storage().instance().get(&GLOBAL_METRICS) {
+        let global_metrics: Option<GlobalMetrics> = env.storage().instance().get(&GLOBAL_METRICS);
+        if let Some(global_metrics) = global_metrics {
             // Alert if average response time is too high
-            if global_metrics.average_response_time > 1000 { // 1 second
+            if global_metrics.average_response_time > 1000 {
+                // 1 second
                 alerts.push_back(String::from_str(env, "High average response time detected"));
             }
 
             // Alert if cache hit ratio is too low
-            if global_metrics.cache_hit_ratio < 50 { // Less than 50%
+            if global_metrics.cache_hit_ratio < 50 {
+                // Less than 50%
                 alerts.push_back(String::from_str(env, "Low cache hit ratio detected"));
             }
 

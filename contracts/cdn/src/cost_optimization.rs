@@ -1,8 +1,8 @@
-use soroban_sdk::{symbol_short, Env, Map, String, Vec, Address};
-use crate::types::*;
-use crate::storage::*;
 use crate::errors::CDNError;
 use crate::events::*;
+use crate::storage::*;
+use crate::types::*;
+use soroban_sdk::{symbol_short, Address, Env, Map, String, Vec};
 
 pub struct CostOptimizationManager;
 
@@ -14,7 +14,10 @@ impl CostOptimizationManager {
         pricing_model: PricingModel,
     ) -> Result<(), CDNError> {
         // Verify admin authorization
-        let stored_admin: Address = env.storage().instance().get(&CDN_ADMIN)
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&CDN_ADMIN)
             .ok_or(CDNError::NotInitialized)?;
         if admin != stored_admin {
             return Err(CDNError::Unauthorized);
@@ -22,19 +25,20 @@ impl CostOptimizationManager {
         admin.require_auth();
 
         // Store pricing model
-        env.storage().instance().set(&symbol_short!("PRICING"), &pricing_model);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("PRICING"), &pricing_model);
 
         Ok(())
     }
 
     /// Set budget limits and alerts
-    pub fn set_budget(
-        env: &Env,
-        admin: Address,
-        budget: CostBudget,
-    ) -> Result<(), CDNError> {
+    pub fn set_budget(env: &Env, admin: Address, budget: CostBudget) -> Result<(), CDNError> {
         // Verify admin authorization
-        let stored_admin: Address = env.storage().instance().get(&CDN_ADMIN)
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&CDN_ADMIN)
             .ok_or(CDNError::NotInitialized)?;
         if admin != stored_admin {
             return Err(CDNError::Unauthorized);
@@ -47,7 +51,9 @@ impl CostOptimizationManager {
         }
 
         // Store budget configuration
-        env.storage().instance().set(&symbol_short!("BUDGET"), &budget);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("BUDGET"), &budget);
 
         Ok(())
     }
@@ -58,12 +64,16 @@ impl CostOptimizationManager {
         time_range: Option<TimeRange>,
     ) -> Result<CostMetrics, CDNError> {
         // Get pricing model
-        let pricing_model: PricingModel = env.storage().instance()
+        let pricing_model: PricingModel = env
+            .storage()
+            .instance()
             .get(&symbol_short!("PRICING"))
             .unwrap_or_else(|| Self::get_default_pricing_model(env));
 
         // Get global metrics for cost calculation
-        let global_metrics: GlobalMetrics = env.storage().instance()
+        let global_metrics: GlobalMetrics = env
+            .storage()
+            .instance()
             .get(&GLOBAL_METRICS)
             .unwrap_or_else(|| GlobalMetrics {
                 total_requests: 0,
@@ -94,11 +104,8 @@ impl CostOptimizationManager {
         };
 
         // Calculate cost efficiency score (0-100)
-        let cost_efficiency_score = Self::calculate_cost_efficiency_score(
-            env,
-            &global_metrics,
-            total_cost,
-        );
+        let cost_efficiency_score =
+            Self::calculate_cost_efficiency_score(env, &global_metrics, total_cost);
 
         let cost_metrics = CostMetrics {
             total_bandwidth_cost,
@@ -116,11 +123,11 @@ impl CostOptimizationManager {
     }
 
     /// Monitor budget and generate alerts
-    pub fn monitor_budget(
-        env: &Env,
-    ) -> Result<Option<BudgetAlert>, CDNError> {
+    pub fn monitor_budget(env: &Env) -> Result<Option<BudgetAlert>, CDNError> {
         // Get budget configuration
-        let budget: CostBudget = env.storage().instance()
+        let budget: CostBudget = env
+            .storage()
+            .instance()
             .get(&symbol_short!("BUDGET"))
             .ok_or(CDNError::ConfigurationError)?;
 
@@ -130,7 +137,9 @@ impl CostOptimizationManager {
         // Update current spend in budget
         let mut updated_budget = budget.clone();
         updated_budget.current_spend = cost_metrics.total_cost;
-        env.storage().instance().set(&symbol_short!("BUDGET"), &updated_budget);
+        env.storage()
+            .instance()
+            .set(&symbol_short!("BUDGET"), &updated_budget);
 
         // Check if alerts should be triggered
         let spend_percentage = if budget.monthly_limit > 0 {
@@ -152,7 +161,11 @@ impl CostOptimizationManager {
                 };
 
                 let mut recommendations = Vec::new(env);
-                Self::generate_cost_reduction_recommendations(env, &mut recommendations, &cost_metrics);
+                Self::generate_cost_reduction_recommendations(
+                    env,
+                    &mut recommendations,
+                    &cost_metrics,
+                );
 
                 let alert = BudgetAlert {
                     alert_type: String::from_str(env, alert_type),
@@ -170,12 +183,12 @@ impl CostOptimizationManager {
     }
 
     /// Apply automatic cost optimizations
-    pub fn apply_auto_optimizations(
-        env: &Env,
-        admin: Address,
-    ) -> Result<Vec<String>, CDNError> {
+    pub fn apply_auto_optimizations(env: &Env, admin: Address) -> Result<Vec<String>, CDNError> {
         // Verify admin authorization
-        let stored_admin: Address = env.storage().instance().get(&CDN_ADMIN)
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&CDN_ADMIN)
             .ok_or(CDNError::NotInitialized)?;
         if admin != stored_admin {
             return Err(CDNError::Unauthorized);
@@ -190,7 +203,8 @@ impl CostOptimizationManager {
         // Apply compression optimizations for high-cost content
         let compression_savings = Self::apply_compression_optimizations(env)?;
         if compression_savings > 0 {
-            applied_optimizations.push_back(String::from_str(env, "Applied compression optimizations"));
+            applied_optimizations
+                .push_back(String::from_str(env, "Applied compression optimizations"));
         }
 
         // Optimize cache policies for frequently accessed content
@@ -241,19 +255,13 @@ impl CostOptimizationManager {
         let estimated_savings = match optimization_type {
             OptimizationType::Compression => {
                 Self::estimate_compression_savings(env, &target_content)
-            },
-            OptimizationType::Caching => {
-                Self::estimate_caching_savings(env, &target_content)
-            },
+            }
+            OptimizationType::Caching => Self::estimate_caching_savings(env, &target_content),
             OptimizationType::Replication => {
                 Self::estimate_replication_savings(env, &target_content)
-            },
-            OptimizationType::Routing => {
-                Self::estimate_routing_savings(env, &target_content)
-            },
-            OptimizationType::Format => {
-                Self::estimate_format_savings(env, &target_content)
-            },
+            }
+            OptimizationType::Routing => Self::estimate_routing_savings(env, &target_content),
+            OptimizationType::Format => Self::estimate_format_savings(env, &target_content),
         };
 
         let optimized_cost = if current_cost > estimated_savings {
@@ -265,14 +273,20 @@ impl CostOptimizationManager {
         let mut recommendations = Vec::new(env);
         match optimization_type {
             OptimizationType::Compression => {
-                recommendations.push_back(String::from_str(env, "Enable advanced compression for large files"));
-            },
+                recommendations.push_back(String::from_str(
+                    env,
+                    "Enable advanced compression for large files",
+                ));
+            }
             OptimizationType::Caching => {
-                recommendations.push_back(String::from_str(env, "Extend cache duration for popular content"));
-            },
+                recommendations.push_back(String::from_str(
+                    env,
+                    "Extend cache duration for popular content",
+                ));
+            }
             OptimizationType::Replication => {
                 recommendations.push_back(String::from_str(env, "Optimize replica distribution"));
-            },
+            }
             _ => {
                 recommendations.push_back(String::from_str(env, "Apply optimization strategy"));
             }
@@ -291,16 +305,18 @@ impl CostOptimizationManager {
     /// Get default pricing model
     fn get_default_pricing_model(env: &Env) -> PricingModel {
         PricingModel {
-            bandwidth_cost_per_gb: 50,    // $0.05 per GB
-            storage_cost_per_gb: 20,      // $0.02 per GB
-            request_cost_per_1000: 4,     // $0.004 per 1000 requests
-            region_multiplier: 100,       // 100% (no multiplier)
+            bandwidth_cost_per_gb: 50, // $0.05 per GB
+            storage_cost_per_gb: 20,   // $0.02 per GB
+            request_cost_per_1000: 4,  // $0.004 per 1000 requests
+            region_multiplier: 100,    // 100% (no multiplier)
         }
     }
 
     /// Calculate total storage usage across all content
     fn calculate_total_storage_usage(env: &Env) -> u64 {
-        let content_items: Map<String, ContentItem> = env.storage().instance()
+        let content_items: Map<String, ContentItem> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ITEMS)
             .unwrap_or_else(|| Map::new(env));
 
@@ -322,7 +338,7 @@ impl CostOptimizationManager {
     ) -> u32 {
         // Base efficiency on cache hit ratio and cost per GB
         let cache_efficiency = global_metrics.cache_hit_ratio;
-        
+
         let bandwidth_gb = global_metrics.bandwidth_usage / 1_000_000_000;
         let cost_per_gb = if bandwidth_gb > 0 {
             total_cost / bandwidth_gb
@@ -352,13 +368,22 @@ impl CostOptimizationManager {
         cost_metrics: &CostMetrics,
     ) {
         if cost_metrics.total_bandwidth_cost > cost_metrics.total_storage_cost {
-            recommendations.push_back(String::from_str(env, "Enable compression to reduce bandwidth costs"));
-            recommendations.push_back(String::from_str(env, "Improve cache hit ratio to reduce origin requests"));
+            recommendations.push_back(String::from_str(
+                env,
+                "Enable compression to reduce bandwidth costs",
+            ));
+            recommendations.push_back(String::from_str(
+                env,
+                "Improve cache hit ratio to reduce origin requests",
+            ));
         }
 
         if cost_metrics.total_storage_cost > cost_metrics.total_bandwidth_cost {
             recommendations.push_back(String::from_str(env, "Remove unused content replicas"));
-            recommendations.push_back(String::from_str(env, "Archive old content to cheaper storage"));
+            recommendations.push_back(String::from_str(
+                env,
+                "Archive old content to cheaper storage",
+            ));
         }
 
         if cost_metrics.cost_efficiency_score < 60 {
@@ -398,21 +423,35 @@ impl CostOptimizationManager {
         content_id: &String,
         recommendations: &mut Vec<String>,
     ) -> Result<(), CDNError> {
-        let content_items: Map<String, ContentItem> = env.storage().instance()
+        let content_items: Map<String, ContentItem> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ITEMS)
             .unwrap_or_else(|| Map::new(env));
 
         if let Some(content_item) = content_items.get(content_id.clone()) {
-            if content_item.size > 100_000_000 && content_item.compression == CompressionType::None {
-                recommendations.push_back(String::from_str(env, "Enable compression for this large file"));
+            if content_item.size > 100_000_000 && content_item.compression == CompressionType::None
+            {
+                recommendations.push_back(String::from_str(
+                    env,
+                    "Enable compression for this large file",
+                ));
             }
 
-            if content_item.access_count > 1000 && content_item.cache_policy == CachePolicy::ShortTerm {
-                recommendations.push_back(String::from_str(env, "Extend cache duration for popular content"));
+            if content_item.access_count > 1000
+                && content_item.cache_policy == CachePolicy::ShortTerm
+            {
+                recommendations.push_back(String::from_str(
+                    env,
+                    "Extend cache duration for popular content",
+                ));
             }
 
             if content_item.replicas.len() > 5 && content_item.access_count < 10 {
-                recommendations.push_back(String::from_str(env, "Reduce replicas for rarely accessed content"));
+                recommendations.push_back(String::from_str(
+                    env,
+                    "Reduce replicas for rarely accessed content",
+                ));
             }
         }
 
@@ -426,15 +465,24 @@ impl CostOptimizationManager {
         recommendations: &mut Vec<String>,
     ) {
         if cost_metrics.cost_efficiency_score < 70 {
-            recommendations.push_back(String::from_str(env, "Overall cost efficiency is low - review optimization strategies"));
+            recommendations.push_back(String::from_str(
+                env,
+                "Overall cost efficiency is low - review optimization strategies",
+            ));
         }
 
         if cost_metrics.total_bandwidth_cost > cost_metrics.total_storage_cost * 3 {
-            recommendations.push_back(String::from_str(env, "High bandwidth costs - focus on compression and caching"));
+            recommendations.push_back(String::from_str(
+                env,
+                "High bandwidth costs - focus on compression and caching",
+            ));
         }
 
         if cost_metrics.total_storage_cost > cost_metrics.total_bandwidth_cost * 2 {
-            recommendations.push_back(String::from_str(env, "High storage costs - review content lifecycle policies"));
+            recommendations.push_back(String::from_str(
+                env,
+                "High storage costs - review content lifecycle policies",
+            ));
         }
     }
 

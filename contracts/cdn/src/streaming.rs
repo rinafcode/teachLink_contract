@@ -1,8 +1,8 @@
-use soroban_sdk::{Env, Map, String, Vec, Address};
-use crate::types::*;
-use crate::storage::*;
 use crate::errors::CDNError;
 use crate::events::*;
+use crate::storage::*;
+use crate::types::*;
+use soroban_sdk::{Address, Env, Map, String, Vec};
 
 pub struct StreamingManager;
 
@@ -17,7 +17,10 @@ impl StreamingManager {
         segment_duration: u32,
     ) -> Result<(), CDNError> {
         // Verify admin authorization
-        let stored_admin: Address = env.storage().instance().get(&CDN_ADMIN)
+        let stored_admin: Address = env
+            .storage()
+            .instance()
+            .get(&CDN_ADMIN)
             .ok_or(CDNError::NotInitialized)?;
         if admin != stored_admin {
             return Err(CDNError::Unauthorized);
@@ -25,11 +28,14 @@ impl StreamingManager {
         admin.require_auth();
 
         // Verify content exists and is video type
-        let content_items: Map<String, ContentItem> = env.storage().instance()
+        let content_items: Map<String, ContentItem> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ITEMS)
             .unwrap_or_else(|| Map::new(env));
 
-        let content_item = content_items.get(content_id.clone())
+        let content_item = content_items
+            .get(content_id.clone())
             .ok_or(CDNError::ContentNotFound)?;
 
         if content_item.content_type != ContentType::Video {
@@ -52,21 +58,28 @@ impl StreamingManager {
         };
 
         // Store streaming configuration
-        let mut streaming_configs: Map<String, AdaptiveStreamingConfig> = env.storage().instance()
+        let mut streaming_configs: Map<String, AdaptiveStreamingConfig> = env
+            .storage()
+            .instance()
             .get(&STREAMING_CONFIGS)
             .unwrap_or_else(|| Map::new(env));
 
         streaming_configs.set(content_id.clone(), adaptive_config);
-        env.storage().instance().set(&STREAMING_CONFIGS, &streaming_configs);
+        env.storage()
+            .instance()
+            .set(&STREAMING_CONFIGS, &streaming_configs);
 
         // Emit streaming configuration event
-        env.events().publish((
-            String::from_str(env, "streaming_config_created"),
-            content_id,
-            protocol,
-            profiles.len(),
-            env.ledger().timestamp(),
-        ), ());
+        env.events().publish(
+            (
+                String::from_str(env, "streaming_config_created"),
+                content_id,
+                protocol,
+                profiles.len(),
+                env.ledger().timestamp(),
+            ),
+            (),
+        );
 
         Ok(())
     }
@@ -79,11 +92,14 @@ impl StreamingManager {
         user_preferences: Option<StreamingQuality>,
     ) -> Result<StreamingManifest, CDNError> {
         // Get streaming configuration
-        let streaming_configs: Map<String, AdaptiveStreamingConfig> = env.storage().instance()
+        let streaming_configs: Map<String, AdaptiveStreamingConfig> = env
+            .storage()
+            .instance()
             .get(&STREAMING_CONFIGS)
             .unwrap_or_else(|| Map::new(env));
 
-        let config = streaming_configs.get(content_id.clone())
+        let config = streaming_configs
+            .get(content_id.clone())
             .ok_or(CDNError::ContentNotFound)?;
 
         // Select optimal profiles based on network conditions
@@ -108,12 +124,16 @@ impl StreamingManager {
         };
 
         // Cache manifest for future requests
-        let mut manifest_cache: Map<String, StreamingManifest> = env.storage().instance()
+        let mut manifest_cache: Map<String, StreamingManifest> = env
+            .storage()
+            .instance()
             .get(&MANIFEST_CACHE)
             .unwrap_or_else(|| Map::new(env));
 
         manifest_cache.set(content_id, manifest.clone());
-        env.storage().instance().set(&MANIFEST_CACHE, &manifest_cache);
+        env.storage()
+            .instance()
+            .set(&MANIFEST_CACHE, &manifest_cache);
 
         Ok(manifest)
     }
@@ -126,23 +146,22 @@ impl StreamingManager {
         network_condition: NetworkCondition,
     ) -> Result<StreamingQuality, CDNError> {
         // Get streaming configuration
-        let streaming_configs: Map<String, AdaptiveStreamingConfig> = env.storage().instance()
+        let streaming_configs: Map<String, AdaptiveStreamingConfig> = env
+            .storage()
+            .instance()
             .get(&STREAMING_CONFIGS)
             .unwrap_or_else(|| Map::new(env));
 
-        let config = streaming_configs.get(content_id)
+        let config = streaming_configs
+            .get(content_id)
             .ok_or(CDNError::ContentNotFound)?;
 
         // Determine optimal quality based on network conditions
         let optimal_quality = Self::calculate_optimal_quality(&network_condition, &config.profiles);
 
         // Apply adaptive logic - avoid frequent quality changes
-        let adapted_quality = Self::apply_adaptive_logic(
-            env,
-            current_quality,
-            optimal_quality,
-            &network_condition,
-        );
+        let adapted_quality =
+            Self::apply_adaptive_logic(env, current_quality, optimal_quality, &network_condition);
 
         Ok(adapted_quality)
     }
@@ -157,24 +176,41 @@ impl StreamingManager {
         let mut recommendations = Vec::new(env);
 
         // Analyze network conditions and provide recommendations
-        if network_metrics.bandwidth < 1_000_000 { // Less than 1 Mbps
-            recommendations.push_back(String::from_str(env, "Switch to low quality for better playback"));
-        } else if network_metrics.bandwidth < 5_000_000 { // Less than 5 Mbps
+        if network_metrics.bandwidth < 1_000_000 {
+            // Less than 1 Mbps
+            recommendations.push_back(String::from_str(
+                env,
+                "Switch to low quality for better playback",
+            ));
+        } else if network_metrics.bandwidth < 5_000_000 {
+            // Less than 5 Mbps
             recommendations.push_back(String::from_str(env, "Medium quality recommended"));
-        } else if network_metrics.bandwidth > 25_000_000 { // More than 25 Mbps
+        } else if network_metrics.bandwidth > 25_000_000 {
+            // More than 25 Mbps
             recommendations.push_back(String::from_str(env, "High or Ultra quality available"));
         }
 
-        if network_metrics.latency > 200 { // High latency
-            recommendations.push_back(String::from_str(env, "High latency detected - consider lower quality"));
+        if network_metrics.latency > 200 {
+            // High latency
+            recommendations.push_back(String::from_str(
+                env,
+                "High latency detected - consider lower quality",
+            ));
         }
 
-        if network_metrics.packet_loss > 5 { // High packet loss
-            recommendations.push_back(String::from_str(env, "Network instability - adaptive streaming recommended"));
+        if network_metrics.packet_loss > 5 {
+            // High packet loss
+            recommendations.push_back(String::from_str(
+                env,
+                "Network instability - adaptive streaming recommended",
+            ));
         }
 
         if network_metrics.stability_score < 50 {
-            recommendations.push_back(String::from_str(env, "Unstable connection - enable aggressive buffering"));
+            recommendations.push_back(String::from_str(
+                env,
+                "Unstable connection - enable aggressive buffering",
+            ));
         }
 
         Ok(recommendations)
@@ -188,15 +224,29 @@ impl StreamingManager {
         let mut analytics = Map::new(env);
 
         // Get content analytics
-        let content_analytics_map: Map<String, ContentAnalytics> = env.storage().instance()
+        let content_analytics_map: Map<String, ContentAnalytics> = env
+            .storage()
+            .instance()
             .get(&CONTENT_ANALYTICS)
             .unwrap_or_else(|| Map::new(env));
 
         if let Some(content_analytics) = content_analytics_map.get(content_id) {
-            analytics.set(String::from_str(env, "total_streams"), content_analytics.total_requests);
-            analytics.set(String::from_str(env, "total_bytes_streamed"), content_analytics.total_bytes_served);
-            analytics.set(String::from_str(env, "avg_streaming_time"), content_analytics.average_response_time);
-            analytics.set(String::from_str(env, "cache_hit_ratio"), content_analytics.cache_hit_ratio as u64);
+            analytics.set(
+                String::from_str(env, "total_streams"),
+                content_analytics.total_requests,
+            );
+            analytics.set(
+                String::from_str(env, "total_bytes_streamed"),
+                content_analytics.total_bytes_served,
+            );
+            analytics.set(
+                String::from_str(env, "avg_streaming_time"),
+                content_analytics.average_response_time,
+            );
+            analytics.set(
+                String::from_str(env, "cache_hit_ratio"),
+                content_analytics.cache_hit_ratio as u64,
+            );
         }
 
         Ok(analytics)
@@ -230,7 +280,8 @@ impl StreamingManager {
             let required_bandwidth = (profile.bitrate as u64) * 1000; // Convert kbps to bps
 
             // Include profile if network can handle it with some buffer
-            if network_condition.bandwidth > required_bandwidth * 120 / 100 { // 20% buffer
+            if network_condition.bandwidth > required_bandwidth * 120 / 100 {
+                // 20% buffer
                 selected_profiles.push_back(profile);
             }
         }
@@ -305,7 +356,7 @@ impl StreamingManager {
         // If network is unstable, be conservative with quality changes
         if network_condition.stability_score < 50 {
             // Only downgrade quality if absolutely necessary
-            match (current_quality, optimal_quality) {
+            match (current_quality, optimal_quality.clone()) {
                 (StreamingQuality::Ultra, StreamingQuality::Low) => StreamingQuality::Medium,
                 (StreamingQuality::High, StreamingQuality::Low) => StreamingQuality::Medium,
                 _ => optimal_quality,
@@ -360,7 +411,7 @@ impl StreamingManager {
                     framerate: 60,
                     codec: String::from_str(env, "AV1"),
                 });
-            },
+            }
             ContentType::Audio => {
                 // Audio profiles
                 profiles.push_back(StreamingProfile {
@@ -380,7 +431,7 @@ impl StreamingManager {
                     framerate: 0,
                     codec: String::from_str(env, "AAC"),
                 });
-            },
+            }
             _ => {
                 // Default profile for other content types
                 profiles.push_back(StreamingProfile {
