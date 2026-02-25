@@ -126,7 +126,12 @@ mod tokenization;
 mod types;
 pub mod validation;
 
-pub use errors::{BridgeError, EscrowError, RewardsError, MobilePlatformError};
+pub use crate::types::{
+    ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
+    LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
+    OnboardingStage, OnboardingStatus, ThemePreference, UserFeedback, VideoQuality,
+};
+pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
@@ -140,11 +145,6 @@ pub use types::{
     RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
     UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
     ValidatorSignature, VisualizationDataPoint,
-};
-pub use crate::types::{
-    MobileProfile, DeviceInfo, MobilePreferences, MobileAccessibilitySettings,
-    OnboardingStatus, OnboardingStage, UserFeedback, FeedbackCategory,
-    LayoutDensity, FocusStyle, ColorBlindMode, ComponentConfig,
 };
 
 /// TeachLink main contract.
