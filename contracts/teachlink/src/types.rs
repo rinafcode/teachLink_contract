@@ -2,7 +2,7 @@
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
 
-use soroban_sdk::{contracttype, Address, Bytes, Map, String, Vec, Symbol, panic_with_error};
+use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, Symbol, Vec};
 
 // Include notification types
 pub use crate::notification_types::*;
@@ -929,6 +929,8 @@ pub struct DataUsageTracking {
     pub cached_data: u64,
     pub streaming_data: u64,
     pub last_reset: u64,
+    pub daily_limit: u64,
+    pub warning_threshold: u64,
 }
 
 #[contracttype]
@@ -938,8 +940,8 @@ pub struct NetworkAnalytics {
     pub average_download_speed: u64, // Kbps
     pub average_upload_speed: u64,
     pub connection_stability: u64, // Basis points
-    pub offline_duration: u64, // Minutes per day
-    pub roaming_usage: u64, // Bytes
+    pub offline_duration: u64,     // Minutes per day
+    pub roaming_usage: u64,        // Bytes
 }
 
 #[contracttype]
@@ -1067,7 +1069,7 @@ pub enum BiometricType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MobileStatistics {
     pub session_count: u32,
-    pub total_time_spent: u64, // Seconds
+    pub total_time_spent: u64,       // Seconds
     pub average_session_length: u32, // Seconds
     pub active_days_streak: u32,
     pub last_active: u64,
@@ -1076,11 +1078,13 @@ pub struct MobileStatistics {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct OfflineSettings {
-    pub offline_playback_enabled: bool,
-    pub auto_offline_next_lesson: bool,
-    pub offline_quality: VideoQuality,
-    pub offline_storage_limit: u64, // Bytes
-    pub offline_duration: u32, // Hours before expiry
+    pub auto_download_enabled: bool,
+    pub download_quality: OfflineQuality,
+    pub storage_limit: u64,
+    pub sync_strategy: SyncStrategy,
+    pub offline_duration: u64,
+    pub priority_content: Vec<Bytes>,
+    pub compression_enabled: bool,
 }
 
 #[contracttype]
@@ -1124,4 +1128,463 @@ pub struct ComponentConfig {
     pub transition_duration_base: u32,
     pub elevation_steps: Vec<u32>,
     pub typography_scale: Map<Symbol, u32>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OfflineContent {
+    pub content_id: u64,
+    pub content_type: OfflineContentType,
+    pub local_path: Bytes,
+    pub file_size: u64,
+    pub compressed_size: u64,
+    pub download_date: u64,
+    pub expiry_date: u64,
+    pub is_available: bool,
+    pub version: u32,
+    pub dependencies: Vec<u64>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OfflineContentType {
+    VideoLesson,
+    AudioLesson,
+    TextDocument,
+    Quiz,
+    InteractiveExercise,
+    EBook,
+    CourseMaterial,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SyncQueue {
+    pub pending_uploads: Vec<SyncItem>,
+    pub pending_downloads: Vec<SyncItem>,
+    pub conflict_resolution: Vec<SyncConflict>,
+    pub last_sync_attempt: u64,
+    pub sync_status: SyncStatus,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SyncItem {
+    pub id: u64,
+    pub item_type: SyncItemType,
+    pub local_path: Bytes,
+    pub remote_path: Bytes,
+    pub priority: SyncPriority,
+    pub retry_count: u32,
+    pub max_retries: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SyncItemType {
+    ProgressData,
+    QuizResults,
+    Notes,
+    Bookmarks,
+    Certificates,
+    UserPreferences,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SyncPriority {
+    Low,
+    Normal,
+    High,
+    Critical,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SyncConflict {
+    pub conflict_id: u64,
+    pub item_type: SyncItemType,
+    pub local_version: Bytes,
+    pub remote_version: Bytes,
+    pub conflict_reason: Bytes,
+    pub resolution_strategy: ConflictResolution,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ConflictResolution {
+    LocalWins,
+    RemoteWins,
+    Merge,
+    ManualReview,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SyncStatus {
+    Idle,
+    InProgress,
+    Completed,
+    Failed,
+    Paused,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PushNotification {
+    pub id: u64,
+    pub user: Address,
+    pub notification_type: NotificationType,
+    pub title: Bytes,
+    pub message: Bytes,
+    pub data: Map<Bytes, Bytes>, // Additional data
+    pub priority: NotificationPriority,
+    pub scheduled_time: u64,
+    pub expiry_time: u64,
+    pub is_read: bool,
+    pub action_buttons: Vec<NotificationAction>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NotificationType {
+    LearningReminder,
+    DeadlineAlert,
+    AchievementUnlocked,
+    SocialUpdate,
+    ContentUpdate,
+    SystemMessage,
+    PaymentRequired,
+    CourseUpdate,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NotificationPriority {
+    Low,
+    Normal,
+    High,
+    Critical,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NotificationAction {
+    pub action_id: Bytes,
+    pub label: Bytes,
+    pub url: Option<Bytes>,
+    pub auto_dismiss: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileTransaction {
+    pub id: u64,
+    pub user: Address,
+    pub payment_method_id: u64,
+    pub amount: u64,
+    pub currency: Bytes,
+    pub description: Bytes,
+    pub merchant: Bytes,
+    pub status: TransactionStatus,
+    pub timestamp: u64,
+    pub confirmation_code: Bytes,
+    pub fraud_score: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum TransactionStatus {
+    Pending,
+    Completed,
+    Failed,
+    Cancelled,
+    Refunded,
+    Disputed,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SecurityEvent {
+    pub id: u64,
+    pub user: Address,
+    pub event_type: SecurityEventType,
+    pub device_id: Bytes,
+    pub has_location: bool,
+    pub location_lat: i64,
+    pub location_lon: i64,
+    pub location_accuracy: u64,
+    pub location_ts: u64,
+    pub timestamp: u64,
+    pub severity: SecuritySeverity,
+    pub resolved: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileAnalytics {
+    pub user: Address,
+    pub device_analytics: DeviceAnalytics,
+    pub usage_analytics: UsageAnalytics,
+    pub performance_analytics: PerformanceAnalytics,
+    pub engagement_analytics: EngagementAnalytics,
+    pub network_analytics: NetworkAnalytics,
+    pub error_tracking: ErrorTracking,
+    pub last_updated: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeviceAnalytics {
+    pub app_version: Bytes,
+    pub os_version: Bytes,
+    pub device_model: Bytes,
+    pub screen_resolution: Bytes,
+    pub memory_usage: u64,
+    pub storage_usage: u64,
+    pub battery_level: u32,
+    pub thermal_state: ThermalState,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ThermalState {
+    Normal,
+    Warm,
+    Hot,
+    Critical,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UsageAnalytics {
+    pub session_duration: u32, // Average minutes
+    pub sessions_per_day: u32,
+    pub active_days_per_week: u32,
+    pub peak_usage_hours: Vec<u32>,
+    pub feature_usage: Map<Bytes, u32>,
+    pub screen_time: u64,      // Total minutes
+    pub data_consumption: u64, // Bytes
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PerformanceAnalytics {
+    pub app_load_time: u32, // Milliseconds
+    pub screen_render_time: u32,
+    pub network_latency: u32,
+    pub crash_count: u32,
+    pub anr_count: u32, // Application Not Responding
+    pub memory_leaks: u32,
+    pub battery_drain_rate: u64, // Basis points per hour
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EngagementAnalytics {
+    pub lesson_completion_rate: u64, // Basis points
+    pub quiz_attempt_rate: u64,      // Basis points
+    pub social_interaction_count: u32,
+    pub feedback_submission_rate: u64,          // Basis points
+    pub push_notif_response_rate: u64,          // Basis points
+    pub feature_adoption_rate: Map<Bytes, u64>, // Basis points
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ErrorTracking {
+    pub crash_reports: Vec<CrashReport>,
+    pub anr_reports: Vec<ANRReport>,
+    pub network_errors: Vec<NetworkError>,
+    pub user_reported_issues: Vec<UserIssue>,
+    pub error_rate: u64, // Basis points
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CrashReport {
+    pub id: u64,
+    pub timestamp: u64,
+    pub app_version: Bytes,
+    pub device_info: Bytes,
+    pub stack_trace: Bytes,
+    pub user_action: Bytes,
+    pub reproducible: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ANRReport {
+    pub id: u64,
+    pub timestamp: u64,
+    pub duration: u32, // Seconds
+    pub app_state: Bytes,
+    pub device_load: u64, // Basis points
+    pub user_action: Bytes,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NetworkError {
+    pub id: u64,
+    pub timestamp: u64,
+    pub error_type: NetworkErrorType,
+    pub url: Bytes,
+    pub response_code: u32,
+    pub retry_count: u32,
+    pub resolved: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NetworkErrorType {
+    Timeout,
+    ConnectionRefused,
+    DNSFailure,
+    SSLHandshakeFailed,
+    ServerError,
+    ClientError,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UserIssue {
+    pub id: u64,
+    pub timestamp: u64,
+    pub issue_type: Bytes,
+    pub description: Bytes,
+    pub severity: u32,
+    pub user_email: Option<Bytes>,
+    pub resolved: bool,
+    pub resolution: Option<Bytes>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileCommunity {
+    pub user: Address,
+    pub mobile_groups: Vec<MobileGroup>,
+    pub location_sharing: LocationSharingSettings,
+    pub quick_actions: Vec<QuickAction>,
+    pub mobile_challenges: Vec<MobileChallenge>,
+    pub social_features: MobileSocialFeatures,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileGroup {
+    pub id: u64,
+    pub name: Bytes,
+    pub description: Bytes,
+    pub members: Vec<Address>,
+    pub is_location_based: bool,
+    pub meeting_locations: Vec<MobileLocationData>,
+    pub mobile_specific_features: Vec<MobileFeature>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MobileFeature {
+    LocationCheckIn,
+    VoiceNotes,
+    PhotoSharing,
+    QuickPolls,
+    EmergencyAlerts,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LocationSharingSettings {
+    pub enabled: bool,
+    pub sharing_duration: u64, // Hours
+    pub trusted_contacts: Vec<Address>,
+    pub accuracy_level: LocationAccuracy,
+    pub auto_check_in: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LocationAccuracy {
+    Exact,
+    Approximate,
+    CityLevel,
+    Disabled,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct QuickAction {
+    pub id: u64,
+    pub name: Bytes,
+    pub icon: Bytes,
+    pub action_type: QuickActionType,
+    pub target_screen: Bytes,
+    pub parameters: Map<Bytes, Bytes>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum QuickActionType {
+    StartLesson,
+    JoinStudyGroup,
+    TakeQuiz,
+    ViewProgress,
+    ContactMentor,
+    ScheduleReminder,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileChallenge {
+    pub id: u64,
+    pub title: Bytes,
+    pub description: Bytes,
+    pub challenge_type: ChallengeType,
+    pub requirements: Vec<Bytes>,
+    pub rewards: ChallengeReward,
+    pub participants: Vec<Address>,
+    pub start_date: u64,
+    pub end_date: u64,
+    pub is_mobile_specific: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ChallengeType {
+    DailyStreak,
+    WeeklyGoal,
+    SocialLearning,
+    LocationBased,
+    SkillMastery,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ChallengeReward {
+    pub reward_type: MobileRewardType,
+    pub amount: u64,
+    pub badge: Option<Bytes>,
+    pub certificate: Option<Bytes>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum MobileRewardType {
+    Points,
+    Badge,
+    Certificate,
+    Discount,
+    PremiumAccess,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileSocialFeatures {
+    pub voice_notes_enabled: bool,
+    pub photo_sharing_enabled: bool,
+    pub location_checkins_enabled: bool,
+    pub quick_polls_enabled: bool,
+    pub emergency_contacts: Vec<Address>,
+    pub study_buddies: Vec<Address>,
+    pub mentor_quick_connect: bool,
 }
