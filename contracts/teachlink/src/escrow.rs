@@ -5,7 +5,10 @@ use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
+// TODO: Implement insurance module
+/*
 use crate::insurance::InsuranceManager;
+*/
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowSigner, EscrowStatus};
 use crate::validation::EscrowValidator;
@@ -40,12 +43,6 @@ impl EscrowManager {
             refund_time,
             &arbitrator,
         )?;
-
-        // calculate and collect insurance premium
-        let premium = InsuranceManager::calculate_premium(env, amount);
-        if premium > 0 {
-            InsuranceManager::pay_premium_internal(env, depositor.clone(), premium)?;
-        }
 
         env.invoke_contract::<()>(
             &token,
