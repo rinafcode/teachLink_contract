@@ -2,7 +2,7 @@
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
 
-use soroban_sdk::{contracttype, Address, Bytes, Map, String, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, Map, String, Vec, Symbol, panic_with_error};
 
 // Include notification types
 pub use crate::notification_types::*;
@@ -782,4 +782,346 @@ pub struct RecoveryRecord {
     /// Recovery duration in seconds (RTO measurement)
     pub recovery_duration_secs: u64,
     pub success: bool,
+}
+
+// ========== Mobile Platform Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LayoutDensity {
+    Compact,
+    Standard,
+    Comfortable,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FocusStyle {
+    Default,
+    HighVisibility,
+    Solid,
+    Dotted,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ColorBlindMode {
+    None,
+    Protanopia,
+    Deuteranopia,
+    Tritanopia,
+    Grayscale,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OnboardingStage {
+    ProfileSetup,
+    WalletConnect,
+    FirstCourse,
+    CommunityJoin,
+    SecuritySetup,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FeedbackCategory {
+    UX,
+    Performance,
+    Content,
+    Bug,
+    FeatureRequest,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SecurityEventType {
+    LoginAttempt,
+    LoginSuccess,
+    LoginFailure,
+    BiometricUsed,
+    DeviceAdded,
+    DeviceRemoved,
+    SuspiciousActivity,
+    RemoteWipe,
+    PasswordChange,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileLocationData {
+    pub latitude: i64,
+    pub longitude: i64,
+    pub accuracy: u64,
+    pub timestamp: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SecuritySeverity {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileProfile {
+    pub user: Address,
+    pub device_info: DeviceInfo,
+    pub preferences: MobilePreferences,
+    pub offline_settings: OfflineSettings,
+    pub notification_preferences: NotificationPreferences,
+    pub security_settings: MobileSecuritySettings,
+    pub payment_methods: Vec<MobilePaymentMethod>,
+    pub accessibility_settings: MobileAccessibilitySettings,
+    pub last_sync: u64,
+    pub data_usage: DataUsageTracking,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NotificationPreferences {
+    pub learning_reminders: bool,
+    pub deadline_alerts: bool,
+    pub achievement_notifications: bool,
+    pub social_updates: bool,
+    pub content_updates: bool,
+    pub quiet_hours: TimeRange,
+    pub frequency_limit: u32,
+    pub sound_enabled: bool,
+    pub vibration_enabled: bool,
+    pub led_enabled: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct TimeRange {
+    pub start_hour: u32,
+    pub end_hour: u32,
+    pub timezone: Bytes,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobilePaymentMethod {
+    pub id: u64,
+    pub name: Bytes,
+    pub method_type: PaymentMethodType,
+    pub is_default: bool,
+    pub last_used: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum PaymentMethodType {
+    StellarAsset,
+    NativeToken,
+    ExternalProvider,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DataUsageTracking {
+    pub total_downloaded: u64,
+    pub total_uploaded: u64,
+    pub cached_data: u64,
+    pub streaming_data: u64,
+    pub last_reset: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NetworkAnalytics {
+    pub connection_type_distribution: Map<NetworkType, u32>,
+    pub average_download_speed: u64, // Kbps
+    pub average_upload_speed: u64,
+    pub connection_stability: u64, // Basis points
+    pub offline_duration: u64, // Minutes per day
+    pub roaming_usage: u64, // Bytes
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NetworkType {
+    WiFi,
+    Cellular4G,
+    Cellular5G,
+    Ethernet,
+    Offline,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum SyncStrategy {
+    WiFiOnly,
+    WiFiAndCellular,
+    Manual,
+    SmartAdaptive,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum OfflineQuality {
+    TextOnly,
+    LowQuality,
+    StandardQuality,
+    HighQuality,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeviceInfo {
+    pub device_id: Bytes,
+    pub model: Bytes,
+    pub os_version: Bytes,
+    pub push_token: Bytes,
+    pub screen_resolution: Bytes,
+    pub is_tablet: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobilePreferences {
+    pub data_saver_mode: bool,
+    pub auto_download_wifi: bool,
+    pub video_quality: VideoQuality,
+    pub font_size: FontSize,
+    pub theme: ThemePreference,
+    pub language: Bytes,
+    pub vibration_enabled: bool,
+    pub sound_enabled: bool,
+    pub gesture_navigation: bool,
+    pub custom_theme_colors: Map<Symbol, Bytes>, // Color key -> hex
+    pub layout_density: LayoutDensity,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum VideoQuality {
+    Auto,
+    Low,
+    Medium,
+    High,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FontSize {
+    Small,
+    Medium,
+    Large,
+    ExtraLarge,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ThemePreference {
+    Light,
+    Dark,
+    System,
+    OLED,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileAccessibilitySettings {
+    pub screen_reader_enabled: bool,
+    pub high_contrast_enabled: bool,
+    pub large_text_enabled: bool,
+    pub voice_control_enabled: bool,
+    pub gesture_navigation_enabled: bool,
+    pub haptic_feedback_enabled: bool,
+    pub color_blind_mode: ColorBlindMode,
+    pub reduced_motion_enabled: bool,
+    pub focus_indicator_style: FocusStyle,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileSecuritySettings {
+    pub biometric_enabled: bool,
+    pub biometric_type: BiometricType,
+    pub pin_required: bool,
+    pub two_factor_enabled: bool,
+    pub session_timeout: u32, // Minutes
+    pub encryption_enabled: bool,
+    pub remote_wipe_enabled: bool,
+    pub trusted_devices: Vec<Bytes>,
+    pub login_attempts: u32,
+    pub max_login_attempts: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum BiometricType {
+    Fingerprint,
+    FaceID,
+    Voice,
+    Iris,
+    Pattern,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MobileStatistics {
+    pub session_count: u32,
+    pub total_time_spent: u64, // Seconds
+    pub average_session_length: u32, // Seconds
+    pub active_days_streak: u32,
+    pub last_active: u64,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OfflineSettings {
+    pub offline_playback_enabled: bool,
+    pub auto_offline_next_lesson: bool,
+    pub offline_quality: VideoQuality,
+    pub offline_storage_limit: u64, // Bytes
+    pub offline_duration: u32, // Hours before expiry
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OnboardingStatus {
+    pub user: Address,
+    pub completed_stages: Vec<OnboardingStage>,
+    pub current_stage: OnboardingStage,
+    pub last_updated: u64,
+    pub skipped: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UXExperiment {
+    pub experiment_id: u64,
+    pub name: Symbol,
+    pub description: Bytes,
+    pub variant_allocations: Map<Address, Symbol>, // User -> Variant Key
+    pub start_date: u64,
+    pub end_date: u64,
+    pub is_active: bool,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct UserFeedback {
+    pub id: u64,
+    pub user: Address,
+    pub rating: u32, // 1-5
+    pub comment: Bytes,
+    pub timestamp: u64,
+    pub category: FeedbackCategory,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ComponentConfig {
+    pub spacing_unit: u32,
+    pub border_radius_base: u32,
+    pub transition_duration_base: u32,
+    pub elevation_steps: Vec<u32>,
+    pub typography_scale: Map<Symbol, u32>,
 }
