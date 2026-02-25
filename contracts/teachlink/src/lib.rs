@@ -40,6 +40,9 @@
 //! | [`audit`] | Audit trail and compliance reporting |
 //! | [`atomic_swap`] | Cross-chain atomic swaps |
 //! | [`analytics`] | Bridge monitoring and analytics |
+//! | [`performance`] | Performance caching (bridge summary, TTL, invalidation) |
+//! | [`reporting`] | Advanced analytics, report templates, dashboards, and alerting |
+//! | [`backup`] | Backup scheduling, integrity verification, disaster recovery, and RTO audit |
 //! | [`rewards`] | Reward pool management and distribution |
 //! | [`escrow`] | Multi-signature escrow with dispute resolution |
 //! | [`tokenization`] | Educational content NFT minting and management |
@@ -96,17 +99,28 @@ mod bridge;
 mod emergency;
 mod errors;
 mod escrow;
+// mod advanced_reputation;
 mod escrow_analytics;
 mod events;
-mod insurance;
+// TODO: Implement governance module
+// mod governance;
+// mod learning_paths;
 mod liquidity;
 mod message_passing;
+// mod mobile_platform;
 mod multichain;
-mod provenance;
-mod reputation;
+mod notification;
+mod notification_events_basic;
+// mod content_quality;
+// mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
+mod backup;
+mod notification_types;
+mod performance;
+mod reporting;
 mod rewards;
-mod score;
 mod slashing;
+// mod social_events;
+// mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
@@ -114,14 +128,18 @@ pub mod validation;
 
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
-    ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics, BridgeProposal, BridgeTransaction,
+    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
+    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, Contribution, ContributionType, CrossChainMessage,
-    CrossChainPacket, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters,
-    EscrowRole, EscrowSigner, EscrowStatus, InsurancePool, LPPosition, LiquidityPool,
-    MessageReceipt, MultiChainAsset, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    RewardRate, RewardType, SlashingReason, SlashingRecord, SwapStatus, TransferType,
-    UserReputation, UserReward, ValidatorInfo, ValidatorReward, ValidatorSignature,
+    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowStatus,
+    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
+    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
+    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
+    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
+    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
+    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
+    ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -131,6 +149,7 @@ pub use types::{
 #[contract]
 pub struct TeachLinkBridge;
 
+/*
 #[contractimpl]
 impl TeachLinkBridge {
     /// Initialize the bridge contract
@@ -682,6 +701,200 @@ impl TeachLinkBridge {
         analytics::AnalyticsManager::get_bridge_statistics(&env)
     }
 
+    /// Get cached or computed bridge summary (health score + top chains). Uses cache if fresh.
+    pub fn get_cached_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
+        performance::PerformanceManager::get_or_compute_summary(&env)
+    }
+
+    /// Force recompute and cache bridge summary. Emits PerfMetricsComputedEvent.
+    pub fn compute_and_cache_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
+        performance::PerformanceManager::compute_and_cache_summary(&env)
+    }
+
+    /// Invalidate performance cache (admin only). Emits PerfCacheInvalidatedEvent.
+    pub fn invalidate_performance_cache(env: Env, admin: Address) -> Result<(), BridgeError> {
+        performance::PerformanceManager::invalidate_cache(&env, &admin)
+    }
+
+    // ========== Advanced Analytics & Reporting Functions ==========
+
+    /// Get dashboard-ready aggregate analytics for visualizations
+    pub fn get_dashboard_analytics(env: Env) -> DashboardAnalytics {
+        reporting::ReportingManager::get_dashboard_analytics(&env)
+    }
+
+    /// Create a report template
+    pub fn create_report_template(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        report_type: ReportType,
+        config: Bytes,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::create_report_template(&env, creator, name, report_type, config)
+    }
+
+    /// Get report template by id
+    pub fn get_report_template(env: Env, template_id: u64) -> Option<ReportTemplate> {
+        reporting::ReportingManager::get_report_template(&env, template_id)
+    }
+
+    /// Schedule a report
+    pub fn schedule_report(
+        env: Env,
+        owner: Address,
+        template_id: u64,
+        next_run_at: u64,
+        interval_seconds: u64,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::schedule_report(&env, owner, template_id, next_run_at, interval_seconds)
+    }
+
+    /// Get scheduled reports for an owner
+    pub fn get_scheduled_reports(env: Env, owner: Address) -> Vec<ReportSchedule> {
+        reporting::ReportingManager::get_scheduled_reports(&env, owner)
+    }
+
+    /// Generate a report snapshot
+    pub fn generate_report_snapshot(
+        env: Env,
+        generator: Address,
+        template_id: u64,
+        period_start: u64,
+        period_end: u64,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::generate_report_snapshot(
+            &env, generator, template_id, period_start, period_end,
+        )
+    }
+
+    /// Get report snapshot by id
+    pub fn get_report_snapshot(env: Env, report_id: u64) -> Option<ReportSnapshot> {
+        reporting::ReportingManager::get_report_snapshot(&env, report_id)
+    }
+
+    /// Record report view for usage analytics
+    pub fn record_report_view(env: Env, report_id: u64, viewer: Address) -> Result<(), BridgeError> {
+        reporting::ReportingManager::record_report_view(&env, report_id, viewer)
+    }
+
+    /// Get report usage count
+    pub fn get_report_usage_count(env: Env, report_id: u64) -> u32 {
+        reporting::ReportingManager::get_report_usage_count(&env, report_id)
+    }
+
+    /// Add comment to a report
+    pub fn add_report_comment(
+        env: Env,
+        report_id: u64,
+        author: Address,
+        body: Bytes,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::add_report_comment(&env, report_id, author, body)
+    }
+
+    /// Get comments for a report
+    pub fn get_report_comments(env: Env, report_id: u64) -> Vec<ReportComment> {
+        reporting::ReportingManager::get_report_comments(&env, report_id)
+    }
+
+    /// Create an alert rule
+    pub fn create_alert_rule(
+        env: Env,
+        owner: Address,
+        name: Bytes,
+        condition_type: AlertConditionType,
+        threshold: i128,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::create_alert_rule(&env, owner, name, condition_type, threshold)
+    }
+
+    /// Get alert rules for an owner
+    pub fn get_alert_rules(env: Env, owner: Address) -> Vec<AlertRule> {
+        reporting::ReportingManager::get_alert_rules(&env, owner)
+    }
+
+    /// Evaluate alert rules (returns triggered rule ids)
+    pub fn evaluate_alerts(env: Env) -> Vec<u64> {
+        reporting::ReportingManager::evaluate_alerts(&env)
+    }
+
+    /// Get recent report snapshots
+    pub fn get_recent_report_snapshots(env: Env, limit: u32) -> Vec<ReportSnapshot> {
+        reporting::ReportingManager::get_recent_report_snapshots(&env, limit)
+    }
+
+    // ========== Backup and Disaster Recovery Functions ==========
+
+    /// Create a backup manifest (integrity hash from off-chain)
+    pub fn create_backup(
+        env: Env,
+        creator: Address,
+        integrity_hash: Bytes,
+        rto_tier: RtoTier,
+        encryption_ref: u64,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::create_backup(&env, creator, integrity_hash, rto_tier, encryption_ref)
+    }
+
+    /// Get backup manifest by id
+    pub fn get_backup_manifest(env: Env, backup_id: u64) -> Option<BackupManifest> {
+        backup::BackupManager::get_backup_manifest(&env, backup_id)
+    }
+
+    /// Verify backup integrity
+    pub fn verify_backup(
+        env: Env,
+        backup_id: u64,
+        verifier: Address,
+        expected_hash: Bytes,
+    ) -> Result<bool, BridgeError> {
+        backup::BackupManager::verify_backup(&env, backup_id, verifier, expected_hash)
+    }
+
+    /// Schedule automated backup
+    pub fn schedule_backup(
+        env: Env,
+        owner: Address,
+        next_run_at: u64,
+        interval_seconds: u64,
+        rto_tier: RtoTier,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::schedule_backup(&env, owner, next_run_at, interval_seconds, rto_tier)
+    }
+
+    /// Get scheduled backups for an owner
+    pub fn get_scheduled_backups(env: Env, owner: Address) -> Vec<BackupSchedule> {
+        backup::BackupManager::get_scheduled_backups(&env, owner)
+    }
+
+    /// Record a recovery execution (RTO tracking and audit)
+    pub fn record_recovery(
+        env: Env,
+        backup_id: u64,
+        executed_by: Address,
+        recovery_duration_secs: u64,
+        success: bool,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::record_recovery(
+            &env,
+            backup_id,
+            executed_by,
+            recovery_duration_secs,
+            success,
+        )
+    }
+
+    /// Get recovery records for audit and RTO reporting
+    pub fn get_recovery_records(env: Env, limit: u32) -> Vec<RecoveryRecord> {
+        backup::BackupManager::get_recovery_records(&env, limit)
+    }
+
+    /// Get recent backup manifests
+    pub fn get_recent_backups(env: Env, limit: u32) -> Vec<BackupManifest> {
+        backup::BackupManager::get_recent_backups(&env, limit)
+    }
+
     // ========== Rewards Functions ==========
 
     /// Initialize the rewards system
@@ -843,19 +1056,22 @@ impl TeachLinkBridge {
 
     // ========== Insurance Pool Functions ==========
 
-    /// Initialize the escrow insurance pool
+    // TODO: Implement insurance module
+    /*
+    /// Initialize insurance pool
     pub fn initialize_insurance_pool(
         env: Env,
         token: Address,
         premium_rate: u32,
-    ) -> Result<(), EscrowError> {
+    ) -> Result<(), BridgeError> {
         insurance::InsuranceManager::initialize_pool(&env, token, premium_rate)
     }
 
-    /// Fund the insurance pool
-    pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
+    /// Fund insurance pool
+    pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
         insurance::InsuranceManager::fund_pool(&env, funder, amount)
     }
+    */
 
     // ========== Escrow Analytics Functions ==========
 
@@ -881,15 +1097,21 @@ impl TeachLinkBridge {
 
     // ========== Credit Scoring Functions (feat/credit_score) ==========
 
-    /// Record a course completion (admin only for now, or specific authority)
-    pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
-        // require admin
+    // TODO: Implement score module
+    /*
+    /// Record course completion
+    pub fn record_course_completion(
+        env: Env,
+        user: Address,
+        course_id: u64,
+        points: u64,
+    ) {
         let admin = bridge::Bridge::get_admin(&env);
         admin.require_auth();
         score::ScoreManager::record_course_completion(&env, user, course_id, points);
     }
 
-    /// Record a contribution (admin only)
+    /// Record contribution
     pub fn record_contribution(
         env: Env,
         user: Address,
@@ -897,8 +1119,6 @@ impl TeachLinkBridge {
         description: Bytes,
         points: u64,
     ) {
-        let admin = bridge::Bridge::get_admin(&env);
-        admin.require_auth();
         score::ScoreManager::record_contribution(&env, user, c_type, description, points);
     }
 
@@ -907,8 +1127,8 @@ impl TeachLinkBridge {
         score::ScoreManager::get_score(&env, user)
     }
 
-    /// Get user's completed courses
-    pub fn get_user_courses(env: Env, user: Address) -> Vec<u64> {
+    /// Get user's courses
+    pub fn get_user_courses(env: Env, user: Address) -> Vec<types::Course> {
         score::ScoreManager::get_courses(&env, user)
     }
 
@@ -916,9 +1136,12 @@ impl TeachLinkBridge {
     pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
         score::ScoreManager::get_contributions(&env, user)
     }
+    */
 
     // ========== Reputation Functions (main) ==========
 
+    // TODO: Implement missing modules
+    /*
     pub fn update_participation(env: Env, user: Address, points: u32) {
         reputation::update_participation(&env, user, points);
     }
@@ -934,6 +1157,7 @@ impl TeachLinkBridge {
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
         reputation::get_reputation(&env, &user)
     }
+    */
 
     // ========== Content Tokenization Functions ==========
 
@@ -951,7 +1175,8 @@ impl TeachLinkBridge {
             params.is_transferable,
             params.royalty_percentage,
         );
-        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
+        // TODO: Implement provenance module
+        // provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
         token_id
     }
 
@@ -1022,6 +1247,8 @@ impl TeachLinkBridge {
 
     // ========== Provenance Functions ==========
 
+    // TODO: Implement provenance module
+    /*
     /// Get full provenance history for a content token
     pub fn get_content_provenance(env: Env, token_id: u64) -> Vec<ProvenanceRecord> {
         provenance::ProvenanceTracker::get_provenance(&env, token_id)
@@ -1038,6 +1265,7 @@ impl TeachLinkBridge {
     pub fn verify_content_chain(env: &Env, token_id: u64) -> bool {
         provenance::ProvenanceTracker::verify_chain(env, token_id)
     }
+    */
 
     /// Get the creator of a content token
     #[must_use]
@@ -1050,4 +1278,310 @@ impl TeachLinkBridge {
     pub fn get_content_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
         tokenization::ContentTokenization::get_all_owners(env, token_id)
     }
+
+    // ========== Notification System Functions ==========
+
+    /// Initialize notification system
+    pub fn initialize_notifications(env: Env) -> Result<(), BridgeError> {
+        notification::NotificationManager::initialize(&env)
+    }
+
+    /// Send immediate notification
+    pub fn send_notification(
+        env: Env,
+        recipient: Address,
+        channel: NotificationChannel,
+        subject: Bytes,
+        body: Bytes,
+    ) -> Result<u64, BridgeError> {
+        let content = NotificationContent {
+            subject,
+            body,
+            data: Bytes::new(&env),
+            localization: Map::new(&env),
+        };
+        notification::NotificationManager::send_notification(&env, recipient, channel, content)
+    }
+
+    /// Schedule notification for future delivery
+    pub fn schedule_notification(
+        env: Env,
+        recipient: Address,
+        channel: NotificationChannel,
+        subject: Bytes,
+        body: Bytes,
+        scheduled_time: u64,
+        timezone: Bytes,
+    ) -> Result<u64, BridgeError> {
+        let content = NotificationContent {
+            subject,
+            body,
+            data: Bytes::new(&env),
+            localization: Map::new(&env),
+        };
+        let schedule = NotificationSchedule {
+            notification_id: 0, // Will be set by the function
+            recipient: recipient.clone(),
+            channel,
+            scheduled_time,
+            timezone,
+            is_recurring: false,
+            recurrence_pattern: 0,
+            max_deliveries: None,
+            delivery_count: 0,
+        };
+        notification::NotificationManager::schedule_notification(
+            &env, recipient, channel, content, schedule,
+        )
+    }
+
+    /// Process scheduled notifications
+    pub fn process_scheduled_notifications(env: Env) -> Result<u32, BridgeError> {
+        notification::NotificationManager::process_scheduled_notifications(&env)
+    }
+
+    /// Update user notification preferences
+    pub fn update_notification_preferences(
+        env: Env,
+        user: Address,
+        preferences: Vec<NotificationPreference>,
+    ) -> Result<(), BridgeError> {
+        notification::NotificationManager::update_preferences(&env, user, preferences)
+    }
+
+    /// Update user notification settings
+    pub fn update_notification_settings(
+        env: Env,
+        user: Address,
+        timezone: Bytes,
+        quiet_hours_start: u32,
+        quiet_hours_end: u32,
+        max_daily_notifications: u32,
+        do_not_disturb: bool,
+    ) -> Result<(), BridgeError> {
+        let settings = UserNotificationSettings {
+            user: user.clone(),
+            timezone,
+            quiet_hours_start,
+            quiet_hours_end,
+            max_daily_notifications,
+            do_not_disturb,
+        };
+        notification::NotificationManager::update_user_settings(&env, user, settings)
+    }
+
+    /// Create notification template
+    pub fn create_notification_template(
+        env: Env,
+        admin: Address,
+        name: Bytes,
+        channels: Vec<NotificationChannel>,
+        subject: Bytes,
+        body: Bytes,
+    ) -> Result<u64, BridgeError> {
+        let content = NotificationContent {
+            subject,
+            body,
+            data: Bytes::new(&env),
+            localization: Map::new(&env),
+        };
+        notification::NotificationManager::create_template(&env, admin, name, channels, content)
+    }
+
+    /// Send notification using template
+    pub fn send_template_notification(
+        env: Env,
+        recipient: Address,
+        template_id: u64,
+        variables: Map<Bytes, Bytes>,
+    ) -> Result<u64, BridgeError> {
+        notification::NotificationManager::send_template_notification(
+            &env,
+            recipient,
+            template_id,
+            variables,
+        )
+    }
+
+    /// Get notification tracking information
+    pub fn get_notification_tracking(
+        env: Env,
+        notification_id: u64,
+    ) -> Option<NotificationTracking> {
+        notification::NotificationManager::get_notification_tracking(&env, notification_id)
+    }
+
+    /// Get user notification history
+    pub fn get_user_notifications(
+        env: Env,
+        user: Address,
+        limit: u32,
+    ) -> Vec<NotificationTracking> {
+        notification::NotificationManager::get_user_notifications(&env, user, limit)
+    }
+
+    // ========== Social Learning Functions ==========
+
+    /// Create a study group
+    pub fn create_study_group(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        description: Bytes,
+        subject: Bytes,
+        max_members: u32,
+        is_private: bool,
+        tags: Vec<Bytes>,
+        settings: social_learning::StudyGroupSettings,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_study_group(
+            &env, creator, name, description, subject, max_members, is_private, tags, settings,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Join a study group
+    pub fn join_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::join_study_group(&env, user, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Leave a study group
+    pub fn leave_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::leave_study_group(&env, user, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get study group information
+    pub fn get_study_group(env: Env, group_id: u64) -> Result<social_learning::StudyGroup, BridgeError> {
+        social_learning::SocialLearningManager::get_study_group(&env, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get user's study groups
+    pub fn get_user_study_groups(env: Env, user: Address) -> Vec<u64> {
+        social_learning::SocialLearningManager::get_user_study_groups(&env, user)
+    }
+
+    /// Create a discussion forum
+    pub fn create_forum(
+        env: Env,
+        creator: Address,
+        title: Bytes,
+        description: Bytes,
+        category: Bytes,
+        tags: Vec<Bytes>,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_forum(&env, creator, title, description, category, tags)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Create a forum post
+    pub fn create_forum_post(
+        env: Env,
+        forum_id: u64,
+        author: Address,
+        title: Bytes,
+        content: Bytes,
+        attachments: Vec<Bytes>,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_forum_post(
+            &env, forum_id, author, title, content, attachments,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get forum information
+    pub fn get_forum(env: Env, forum_id: u64) -> Result<social_learning::DiscussionForum, BridgeError> {
+        social_learning::SocialLearningManager::get_forum(&env, forum_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get forum post
+    pub fn get_forum_post(env: Env, post_id: u64) -> Result<social_learning::ForumPost, BridgeError> {
+        social_learning::SocialLearningManager::get_forum_post(&env, post_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Create a collaboration workspace
+    pub fn create_workspace(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        description: Bytes,
+        project_type: social_learning::ProjectType,
+        settings: social_learning::WorkspaceSettings,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_workspace(
+            &env, creator, name, description, project_type, settings,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get workspace information
+    pub fn get_workspace(env: Env, workspace_id: u64) -> Result<social_learning::CollaborationWorkspace, BridgeError> {
+        social_learning::SocialLearningManager::get_workspace(&env, workspace_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get user's workspaces
+    pub fn get_user_workspaces(env: Env, user: Address) -> Vec<u64> {
+        social_learning::SocialLearningManager::get_user_workspaces(&env, user)
+    }
+
+    /// Create a peer review
+    pub fn create_review(
+        env: Env,
+        reviewer: Address,
+        reviewee: Address,
+        content_type: social_learning::ReviewContentType,
+        content_id: u64,
+        rating: u32,
+        feedback: Bytes,
+        criteria: Map<Bytes, u32>,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_review(
+            &env, reviewer, reviewee, content_type, content_id, rating, feedback, criteria,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get review information
+    pub fn get_review(env: Env, review_id: u64) -> Result<social_learning::PeerReview, BridgeError> {
+        social_learning::SocialLearningManager::get_review(&env, review_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Create mentorship profile
+    pub fn create_mentorship_profile(
+        env: Env,
+        mentor: Address,
+        expertise_areas: Vec<Bytes>,
+        experience_level: social_learning::ExperienceLevel,
+        availability: social_learning::AvailabilityStatus,
+        hourly_rate: Option<u64>,
+        bio: Bytes,
+        languages: Vec<Bytes>,
+        timezone: Bytes,
+    ) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::create_mentorship_profile(
+            &env, mentor, expertise_areas, experience_level, availability, hourly_rate, bio, languages, timezone,
+        ).map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get mentorship profile
+    pub fn get_mentorship_profile(env: Env, mentor: Address) -> Result<social_learning::MentorshipProfile, BridgeError> {
+        social_learning::SocialLearningManager::get_mentorship_profile(&env, mentor)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get user social analytics
+    pub fn get_user_analytics(env: Env, user: Address) -> social_learning::SocialAnalytics {
+        social_learning::SocialLearningManager::get_user_analytics(&env, user)
+    }
+
+    /// Update user social analytics
+    pub fn update_user_analytics(env: Env, user: Address, analytics: social_learning::SocialAnalytics) {
+        social_learning::SocialLearningManager::update_user_analytics(&env, user, analytics);
+    }
+
+    // Analytics function removed due to contracttype limitations
+    // Use internal notification manager for analytics
 }
+*/

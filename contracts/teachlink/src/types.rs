@@ -4,6 +4,9 @@
 
 use soroban_sdk::{contracttype, Address, Bytes, Map, String, Vec};
 
+// Include notification types
+pub use crate::notification_types::*;
+
 // ========== Chain Configuration Types ==========
 
 #[contracttype]
@@ -241,6 +244,9 @@ pub enum OperationType {
     EmergencyResume,
     FeeUpdate,
     ConfigUpdate,
+    BackupCreated,
+    BackupVerified,
+    RecoveryExecuted,
 }
 
 #[contracttype]
@@ -305,6 +311,15 @@ pub struct ChainMetrics {
     pub transaction_count: u64,
     pub average_fee: i128,
     pub last_updated: u64,
+}
+
+/// Cached bridge summary for performance: health score and top chains by volume.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CachedBridgeSummary {
+    pub health_score: u32,
+    pub top_chains: Vec<(u32, i128)>,
+    pub computed_at: u64,
 }
 
 // ========== Validator Signature Types ==========
@@ -594,4 +609,177 @@ pub enum TransferType {
     Transfer,
     License,
     Revoke,
+}
+
+// ========== Advanced Analytics & Reporting Types ==========
+
+/// Report type for templates and dashboards
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum ReportType {
+    BridgeHealth,
+    EscrowSummary,
+    ComplianceAudit,
+    RewardsSummary,
+    TokenizationSummary,
+    Custom,
+}
+
+/// Template for customizable reports (name, type, optional config)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportTemplate {
+    pub template_id: u64,
+    pub name: Bytes,
+    pub report_type: ReportType,
+    pub created_by: Address,
+    pub created_at: u64,
+    pub config: Bytes,
+}
+
+/// Scheduled report (template + next run + interval)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportSchedule {
+    pub schedule_id: u64,
+    pub template_id: u64,
+    pub owner: Address,
+    pub next_run_at: u64,
+    pub interval_seconds: u64,
+    pub enabled: bool,
+    pub created_at: u64,
+}
+
+/// Snapshot of a generated report (for audit trail and export)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportSnapshot {
+    pub report_id: u64,
+    pub template_id: u64,
+    pub report_type: ReportType,
+    pub generated_at: u64,
+    pub period_start: u64,
+    pub period_end: u64,
+    pub generated_by: Address,
+    /// Serialized summary metrics for visualization (e.g. key-value pairs)
+    pub summary: Bytes,
+}
+
+/// Report view/usage record for analytics
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportUsage {
+    pub report_id: u64,
+    pub viewer: Address,
+    pub viewed_at: u64,
+}
+
+/// Comment on a report for collaboration
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportComment {
+    pub comment_id: u64,
+    pub report_id: u64,
+    pub author: Address,
+    pub body: Bytes,
+    pub created_at: u64,
+}
+
+/// Alert rule for real-time reporting (condition type + threshold)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AlertConditionType {
+    BridgeHealthBelow,
+    EscrowDisputeRateAbove,
+    VolumeAbove,
+    VolumeBelow,
+    TransactionCountAbove,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AlertRule {
+    pub rule_id: u64,
+    pub name: Bytes,
+    pub condition_type: AlertConditionType,
+    pub threshold: i128,
+    pub owner: Address,
+    pub enabled: bool,
+    pub created_at: u64,
+}
+
+/// Aggregated metrics for dashboard visualization (one series = label + value)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct VisualizationDataPoint {
+    pub label: Bytes,
+    pub value: i128,
+}
+
+/// Dashboard-ready aggregate analytics (bridge, escrow, compliance summary)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DashboardAnalytics {
+    pub bridge_health_score: u32,
+    pub bridge_total_volume: i128,
+    pub bridge_total_transactions: u64,
+    pub bridge_success_rate: u32,
+    pub escrow_total_count: u64,
+    pub escrow_total_volume: i128,
+    pub escrow_dispute_count: u64,
+    pub escrow_avg_resolution_time: u64,
+    pub compliance_report_count: u32,
+    pub audit_record_count: u64,
+    pub generated_at: u64,
+}
+
+// ========== Backup and Disaster Recovery Types ==========
+
+/// RTO tier for recovery time objective (seconds)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RtoTier {
+    Critical, // e.g. 300 (5 min)
+    High,     // e.g. 3600 (1 hr)
+    Standard, // e.g. 86400 (24 hr)
+}
+
+/// Backup manifest (metadata for integrity and audit)
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BackupManifest {
+    pub backup_id: u64,
+    pub created_at: u64,
+    pub created_by: Address,
+    /// Integrity hash (e.g. hash of critical state snapshot)
+    pub integrity_hash: Bytes,
+    pub rto_tier: RtoTier,
+    /// Encryption/access: 0 = none, non-zero = key version or access policy id
+    pub encryption_ref: u64,
+}
+
+/// Scheduled backup config
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct BackupSchedule {
+    pub schedule_id: u64,
+    pub owner: Address,
+    pub next_run_at: u64,
+    pub interval_seconds: u64,
+    pub rto_tier: RtoTier,
+    pub enabled: bool,
+    pub created_at: u64,
+}
+
+/// Recovery record for audit trail and RTO tracking
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RecoveryRecord {
+    pub recovery_id: u64,
+    pub backup_id: u64,
+    pub executed_at: u64,
+    pub executed_by: Address,
+    /// Recovery duration in seconds (RTO measurement)
+    pub recovery_duration_secs: u64,
+    pub success: bool,
 }

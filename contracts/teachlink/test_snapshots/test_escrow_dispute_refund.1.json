@@ -21,7 +21,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "800"
+                  "i128": "1000"
                 }
               ]
             }
@@ -30,6 +30,7 @@
         }
       ]
     ],
+    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
@@ -92,7 +93,36 @@
                       "val": {
                         "vec": [
                           {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "address"
+                                },
+                                "val": {
+                                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "role"
+                                },
+                                "val": {
+                                  "vec": [
+                                    {
+                                      "symbol": "Primary"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "weight"
+                                },
+                                "val": {
+                                  "u32": 1
+                                }
+                              }
+                            ]
                           }
                         ]
                       }
@@ -227,6 +257,55 @@
                   "storage": [
                     {
                       "key": {
+                        "symbol": "esc_an"
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "average_resolution_time"
+                            },
+                            "val": {
+                              "u64": "0"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_disputes"
+                            },
+                            "val": {
+                              "u64": "1"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_escrows"
+                            },
+                            "val": {
+                              "u64": "1"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_resolved"
+                            },
+                            "val": {
+                              "u64": "1"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_volume"
+                            },
+                            "val": {
+                              "i128": "600"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "esc_ct"
                       },
                       "val": {
@@ -328,7 +407,36 @@
                                   "val": {
                                     "vec": [
                                       {
-                                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                                        "map": [
+                                          {
+                                            "key": {
+                                              "symbol": "address"
+                                            },
+                                            "val": {
+                                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                                            }
+                                          },
+                                          {
+                                            "key": {
+                                              "symbol": "role"
+                                            },
+                                            "val": {
+                                              "vec": [
+                                                {
+                                                  "symbol": "Primary"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": {
+                                              "symbol": "weight"
+                                            },
+                                            "val": {
+                                              "u32": 1
+                                            }
+                                          }
+                                        ]
                                       }
                                     ]
                                   }
@@ -362,6 +470,55 @@
                                   }
                                 }
                               ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "ins_pool"
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "balance"
+                            },
+                            "val": {
+                              "i128": "0"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "max_payout_percentage"
+                            },
+                            "val": {
+                              "u32": 8000
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "premium_rate"
+                            },
+                            "val": {
+                              "u32": 0
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "token"
+                            },
+                            "val": {
+                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_claims_paid"
+                            },
+                            "val": {
+                              "i128": "0"
                             }
                           }
                         ]
@@ -418,7 +575,7 @@
                               "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                             },
                             "val": {
-                              "i128": "800"
+                              "i128": "1000"
                             }
                           }
                         ]
