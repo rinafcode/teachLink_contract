@@ -107,7 +107,7 @@ mod events;
 // mod learning_paths;
 mod liquidity;
 mod message_passing;
-// mod mobile_platform;
+mod mobile_platform;
 mod multichain;
 mod notification;
 mod notification_events_basic;
@@ -126,7 +126,12 @@ mod tokenization;
 mod types;
 pub mod validation;
 
-pub use errors::{BridgeError, EscrowError, RewardsError};
+pub use crate::types::{
+    ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
+    LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
+    OnboardingStage, OnboardingStatus, ThemePreference, UserFeedback, VideoQuality,
+};
+pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
@@ -1301,6 +1306,85 @@ impl TeachLinkBridge {
             localization: Map::new(&env),
         };
         notification::NotificationManager::send_notification(&env, recipient, channel, content)
+    }
+
+    // ========== Mobile UI/UX Functions ==========
+
+    /// Initialize mobile profile for user
+    pub fn initialize_mobile_profile(
+        env: Env,
+        user: Address,
+        device_info: DeviceInfo,
+        preferences: MobilePreferences,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::initialize_mobile_profile(
+            &env, user, device_info, preferences
+        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Update accessibility settings
+    pub fn update_accessibility_settings(
+        env: Env,
+        user: Address,
+        settings: MobileAccessibilitySettings,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::update_accessibility_settings(
+            &env, user, settings
+        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Update personalization settings
+    pub fn update_personalization(
+        env: Env,
+        user: Address,
+        preferences: MobilePreferences,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::update_personalization(
+            &env, user, preferences
+        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Record onboarding progress
+    pub fn record_onboarding_progress(
+        env: Env,
+        user: Address,
+        stage: OnboardingStage,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::record_onboarding_progress(
+            &env, user, stage
+        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Submit user feedback
+    pub fn submit_user_feedback(
+        env: Env,
+        user: Address,
+        rating: u32,
+        comment: Bytes,
+        category: FeedbackCategory,
+    ) -> Result<u64, MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::submit_user_feedback(
+            &env, user, rating, comment, category
+        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Get user allocated experiment variants
+    pub fn get_user_experiment_variants(
+        env: Env,
+        user: Address,
+    ) -> Map<u64, Symbol> {
+        mobile_platform::MobilePlatformManager::get_user_experiment_variants(&env, user)
+    }
+
+    /// Get design system configuration
+    pub fn get_design_system_config(env: Env) -> ComponentConfig {
+        mobile_platform::MobilePlatformManager::get_design_system_config(&env)
+    }
+
+    /// Set design system configuration (admin only)
+    pub fn set_design_system_config(env: Env, config: ComponentConfig) {
+        // In a real implementation, we would check for admin authorization here
+        mobile_platform::MobilePlatformManager::set_design_system_config(&env, config)
     }
 
     /// Schedule notification for future delivery
