@@ -54,7 +54,11 @@ impl QuadraticVoting {
         };
 
         // Check if credits already allocated
-        if env.storage().persistent().has(&(QV_CREDITS, qv_key.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&(QV_CREDITS, qv_key.clone()))
+        {
             let existing: QVCredits = env
                 .storage()
                 .persistent()
@@ -135,11 +139,7 @@ impl QuadraticVoting {
     }
 
     /// Get the remaining credits for a voter on a proposal
-    pub fn get_remaining_credits(
-        env: &Env,
-        voter: &Address,
-        proposal_id: u64,
-    ) -> i128 {
+    pub fn get_remaining_credits(env: &Env, voter: &Address, proposal_id: u64) -> i128 {
         let qv_key = QVCreditKey {
             voter: voter.clone(),
             proposal_id,
@@ -153,19 +153,13 @@ impl QuadraticVoting {
     }
 
     /// Get the quadratic voting record for a voter on a proposal
-    pub fn get_qv_credits(
-        env: &Env,
-        voter: &Address,
-        proposal_id: u64,
-    ) -> Option<QVCredits> {
+    pub fn get_qv_credits(env: &Env, voter: &Address, proposal_id: u64) -> Option<QVCredits> {
         let qv_key = QVCreditKey {
             voter: voter.clone(),
             proposal_id,
         };
 
-        env.storage()
-            .persistent()
-            .get(&(QV_CREDITS, qv_key))
+        env.storage().persistent().get(&(QV_CREDITS, qv_key))
     }
 
     /// Calculate the cost for a given number of votes

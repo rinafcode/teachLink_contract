@@ -36,7 +36,7 @@ fn setup_test_env() -> (Env, Address, Address, Address, Address) {
     // Set ledger
     env.ledger().set(LedgerInfo {
         timestamp: 1000000,
-        protocol_version: 21,
+        protocol_version: 25,
         sequence_number: 100,
         network_id: Default::default(),
         base_reserve: 10,

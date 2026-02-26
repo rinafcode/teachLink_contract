@@ -43,12 +43,7 @@ impl DisputeResolution {
     ///
     /// # Returns
     /// The dispute ID
-    pub fn file_dispute(
-        env: &Env,
-        disputant: Address,
-        proposal_id: u64,
-        reason: Bytes,
-    ) -> u64 {
+    pub fn file_dispute(env: &Env, disputant: Address, proposal_id: u64, reason: Bytes) -> u64 {
         disputant.require_auth();
 
         assert!(
@@ -58,11 +53,7 @@ impl DisputeResolution {
 
         let now = env.ledger().timestamp();
 
-        let mut dispute_count: u64 = env
-            .storage()
-            .instance()
-            .get(&DISPUTE_COUNT)
-            .unwrap_or(0);
+        let mut dispute_count: u64 = env.storage().instance().get(&DISPUTE_COUNT).unwrap_or(0);
         dispute_count += 1;
 
         let dispute = Dispute {
@@ -86,9 +77,7 @@ impl DisputeResolution {
         env.storage()
             .persistent()
             .set(&(DISPUTES, dispute_key), &dispute);
-        env.storage()
-            .instance()
-            .set(&DISPUTE_COUNT, &dispute_count);
+        env.storage().instance().set(&DISPUTE_COUNT, &dispute_count);
 
         events::dispute_filed(env, dispute_count, proposal_id, &disputant);
 
@@ -103,13 +92,7 @@ impl DisputeResolution {
     /// * `voter` - Address casting the vote
     /// * `support` - true = uphold dispute, false = dismiss
     /// * `power` - Voting power to apply
-    pub fn vote_on_dispute(
-        env: &Env,
-        dispute_id: u64,
-        voter: Address,
-        support: bool,
-        power: i128,
-    ) {
+    pub fn vote_on_dispute(env: &Env, dispute_id: u64, voter: Address, support: bool, power: i128) {
         voter.require_auth();
 
         let dispute_key = DisputeKey { dispute_id };
@@ -121,8 +104,7 @@ impl DisputeResolution {
             .expect("ERR_DISPUTE_NOT_FOUND: Dispute does not exist");
 
         assert!(
-            dispute.status == DisputeStatus::Open
-                || dispute.status == DisputeStatus::UnderReview,
+            dispute.status == DisputeStatus::Open || dispute.status == DisputeStatus::UnderReview,
             "ERR_DISPUTE_NOT_VOTEABLE: Dispute is not open for voting"
         );
 
@@ -174,8 +156,7 @@ impl DisputeResolution {
             .expect("ERR_DISPUTE_NOT_FOUND: Dispute does not exist");
 
         assert!(
-            dispute.status != DisputeStatus::Resolved
-                && dispute.status != DisputeStatus::Dismissed,
+            dispute.status != DisputeStatus::Resolved && dispute.status != DisputeStatus::Dismissed,
             "ERR_DISPUTE_ALREADY_RESOLVED: Dispute has already been resolved"
         );
 
@@ -201,12 +182,7 @@ impl DisputeResolution {
     /// * `dispute_id` - Dispute to appeal
     /// * `appellant` - Address filing the appeal
     /// * `reason` - Reason for the appeal
-    pub fn file_appeal(
-        env: &Env,
-        dispute_id: u64,
-        appellant: Address,
-        reason: Bytes,
-    ) {
+    pub fn file_appeal(env: &Env, dispute_id: u64, appellant: Address, reason: Bytes) {
         appellant.require_auth();
 
         let dispute_key = DisputeKey { dispute_id };
@@ -218,8 +194,7 @@ impl DisputeResolution {
             .expect("ERR_DISPUTE_NOT_FOUND: Dispute does not exist");
 
         assert!(
-            dispute.status == DisputeStatus::Resolved
-                || dispute.status == DisputeStatus::Dismissed,
+            dispute.status == DisputeStatus::Resolved || dispute.status == DisputeStatus::Dismissed,
             "ERR_DISPUTE_NOT_RESOLVED: Dispute must be resolved before appeal"
         );
 
@@ -253,12 +228,7 @@ impl DisputeResolution {
     }
 
     /// Resolve an appeal (admin only)
-    pub fn resolve_appeal(
-        env: &Env,
-        dispute_id: u64,
-        admin: Address,
-        granted: bool,
-    ) {
+    pub fn resolve_appeal(env: &Env, dispute_id: u64, admin: Address, granted: bool) {
         admin.require_auth();
 
         let mut appeal: Appeal = env
@@ -295,23 +265,16 @@ impl DisputeResolution {
     /// Get a dispute by ID
     pub fn get_dispute(env: &Env, dispute_id: u64) -> Option<Dispute> {
         let dispute_key = DisputeKey { dispute_id };
-        env.storage()
-            .persistent()
-            .get(&(DISPUTES, dispute_key))
+        env.storage().persistent().get(&(DISPUTES, dispute_key))
     }
 
     /// Get an appeal by dispute ID
     pub fn get_appeal(env: &Env, dispute_id: u64) -> Option<Appeal> {
-        env.storage()
-            .persistent()
-            .get(&(APPEALS, dispute_id))
+        env.storage().persistent().get(&(APPEALS, dispute_id))
     }
 
     /// Get total dispute count
     pub fn get_dispute_count(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&DISPUTE_COUNT)
-            .unwrap_or(0)
+        env.storage().instance().get(&DISPUTE_COUNT).unwrap_or(0)
     }
 }

@@ -56,7 +56,7 @@ fn setup_governance() -> (
     // Set ledger timestamp
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: 10,
         network_id: Default::default(),
         base_reserve: 10,
@@ -79,7 +79,7 @@ fn setup_governance() -> (
 fn advance_time(env: &Env, seconds: u64) {
     env.ledger().set(LedgerInfo {
         timestamp: env.ledger().timestamp() + seconds,
-        protocol_version: 20,
+        protocol_version: 25,
         sequence_number: env.ledger().sequence() + 1,
         network_id: Default::default(),
         base_reserve: 10,
@@ -413,11 +413,15 @@ fn test_allocate_qv_credits() {
 
 #[test]
 fn test_quadratic_vote_cost() {
+    let env = Env::default();
+    let governance_id = env.register(GovernanceContract, ());
+    let governance_client = GovernanceContractClient::new(&env, &governance_id);
+
     // 1 vote = 1 credit, 2 votes = 4, 3 = 9, etc.
-    assert_eq!(GovernanceContractClient::<'_>::calculate_qv_cost(&1), 1);
-    assert_eq!(GovernanceContractClient::<'_>::calculate_qv_cost(&2), 4);
-    assert_eq!(GovernanceContractClient::<'_>::calculate_qv_cost(&3), 9);
-    assert_eq!(GovernanceContractClient::<'_>::calculate_qv_cost(&10), 100);
+    assert_eq!(governance_client.calculate_qv_cost(&1), 1);
+    assert_eq!(governance_client.calculate_qv_cost(&2), 4);
+    assert_eq!(governance_client.calculate_qv_cost(&3), 9);
+    assert_eq!(governance_client.calculate_qv_cost(&10), 100);
 }
 
 #[test]
@@ -456,8 +460,7 @@ fn test_initialize_staking() {
     let (env, governance_client, _token_client, admin, _voter1, _voter2) = setup_governance();
 
     governance_client.initialize_staking(
-        &admin,
-        &100,   // min_stake
+        &admin, &100,   // min_stake
         &86400, // lock_period (1 day)
         &15000, // 1.5x multiplier
     );
@@ -697,7 +700,7 @@ fn test_create_simulation() {
     );
 
     let sim = governance_client.get_simulation(&sim_id).unwrap();
-    assert_eq!(sim.sim_for_votes, 3000);   // 1000 (existing) + 2000
+    assert_eq!(sim.sim_for_votes, 3000); // 1000 (existing) + 2000
     assert_eq!(sim.sim_against_votes, 500);
     assert_eq!(sim.sim_abstain_votes, 100);
     assert!(sim.predicted_pass);
@@ -721,8 +724,7 @@ fn test_predict_outcome() {
     governance_client.cast_vote(&proposal_id, &voter1, &VoteDirection::For);
     governance_client.cast_vote(&proposal_id, &voter2, &VoteDirection::For);
 
-    let (would_pass, turnout_bps, votes_needed) =
-        governance_client.predict_outcome(&proposal_id);
+    let (would_pass, turnout_bps, votes_needed) = governance_client.predict_outcome(&proposal_id);
 
     assert!(would_pass); // 1500 >= 500 quorum and for > against
     assert_eq!(votes_needed, 0); // quorum met
@@ -881,11 +883,11 @@ fn test_full_governance_flow_with_delegation_and_staking() {
 
     // voter2 power = 500 (own) + 800 (delegated from voter1, who has 1000-200=800)
     //              + 100 (staking bonus from voter1's stake: (200*15000/10000)-200 = 100)
-    // Wait - staking bonus is on voter1, not voter2. 
+    // Wait - staking bonus is on voter1, not voter2.
     // Actually, get_total_voting_power gets staking bonus for the voter themselves.
     // voter2's staking bonus = 0 (voter2 didn't stake)
     // voter2's delegated power = voter1's token balance at delegation time (1000)
-    // But voter1 staked 200, so voter1's token balance as seen by token_client might be 800 
+    // But voter1 staked 200, so voter1's token balance as seen by token_client might be 800
     // (depends on transfer)
     // The delegation tracks power at delegation time.
     // Let's check: voter2 total = own (500) + delegated power from voter1

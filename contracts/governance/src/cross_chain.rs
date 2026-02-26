@@ -15,9 +15,9 @@
 //! uses a relay/oracle pattern: trusted relayers submit external chain
 //! state, which is verified and aggregated on-chain.
 
-use soroban_sdk::{contracttype, Address, Bytes, Env, symbol_short, Symbol};
+use soroban_sdk::{contracttype, symbol_short, Address, Bytes, Env, Symbol};
 
-use crate::events;
+// use crate::events;
 
 /// Storage key for cross-chain proposals
 const XCHAIN_PROPOSALS: Symbol = symbol_short!("xc_prop");
@@ -184,11 +184,7 @@ impl CrossChainGovernance {
             "ERR_INVALID_CHAINS: Must have at least one participating chain"
         );
 
-        let mut count: u64 = env
-            .storage()
-            .instance()
-            .get(&XCHAIN_COUNT)
-            .unwrap_or(0);
+        let mut count: u64 = env.storage().instance().get(&XCHAIN_COUNT).unwrap_or(0);
         count += 1;
 
         let xc_proposal = CrossChainProposal {
@@ -209,9 +205,7 @@ impl CrossChainGovernance {
         env.storage()
             .persistent()
             .set(&(XCHAIN_PROPOSALS, count), &xc_proposal);
-        env.storage()
-            .instance()
-            .set(&XCHAIN_COUNT, &count);
+        env.storage().instance().set(&XCHAIN_COUNT, &count);
 
         count
     }
@@ -260,10 +254,7 @@ impl CrossChainGovernance {
             .get(&(CHAIN_REGISTRY, chain_id.clone()))
             .expect("ERR_CHAIN_NOT_FOUND: Chain not registered");
 
-        assert!(
-            chain_info.active,
-            "ERR_CHAIN_INACTIVE: Chain is not active"
-        );
+        assert!(chain_info.active, "ERR_CHAIN_INACTIVE: Chain is not active");
 
         // Apply weight to votes
         let weight = i128::from(chain_info.vote_weight_bps);
@@ -304,10 +295,7 @@ impl CrossChainGovernance {
     }
 
     /// Finalize a cross-chain proposal after all chains have reported
-    pub fn finalize_cross_chain_proposal(
-        env: &Env,
-        xc_proposal_id: u64,
-    ) -> bool {
+    pub fn finalize_cross_chain_proposal(env: &Env, xc_proposal_id: u64) -> bool {
         let mut xc_proposal: CrossChainProposal = env
             .storage()
             .persistent()
@@ -346,16 +334,11 @@ impl CrossChainGovernance {
 
     /// Get a registered chain's info
     pub fn get_chain_info(env: &Env, chain_id: Bytes) -> Option<ChainInfo> {
-        env.storage()
-            .persistent()
-            .get(&(CHAIN_REGISTRY, chain_id))
+        env.storage().persistent().get(&(CHAIN_REGISTRY, chain_id))
     }
 
     /// Get the cross-chain proposal count
     pub fn get_cross_chain_proposal_count(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&XCHAIN_COUNT)
-            .unwrap_or(0)
+        env.storage().instance().get(&XCHAIN_COUNT).unwrap_or(0)
     }
 }

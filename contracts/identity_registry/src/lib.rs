@@ -203,4 +203,4 @@ impl IdentityRegistryContract {
     }
 }
 
-fn main() {}
+
