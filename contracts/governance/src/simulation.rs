@@ -60,11 +60,7 @@ impl Simulation {
         // Simple turnout prediction (based on current participation)
         let predicted_turnout_bps = if total_votes > 0 { 5000u32 } else { 0u32 };
 
-        let mut sim_count: u64 = env
-            .storage()
-            .instance()
-            .get(&SIM_COUNT)
-            .unwrap_or(0);
+        let mut sim_count: u64 = env.storage().instance().get(&SIM_COUNT).unwrap_or(0);
         sim_count += 1;
 
         let snapshot = SimulationSnapshot {
@@ -82,9 +78,7 @@ impl Simulation {
         env.storage()
             .persistent()
             .set(&(SIMULATIONS, sim_count), &snapshot);
-        env.storage()
-            .instance()
-            .set(&SIM_COUNT, &sim_count);
+        env.storage().instance().set(&SIM_COUNT, &sim_count);
 
         sim_count
     }
@@ -93,28 +87,19 @@ impl Simulation {
     ///
     /// # Returns
     /// Tuple of (would_pass, current_turnout_bps, votes_needed_for_quorum)
-    pub fn predict_outcome(
-        env: &Env,
-        proposal_id: u64,
-        quorum: i128,
-    ) -> (bool, u32, i128) {
+    pub fn predict_outcome(env: &Env, proposal_id: u64, quorum: i128) -> (bool, u32, i128) {
         let proposal: Proposal = env
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
             .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
 
-        let total_votes =
-            proposal.for_votes + proposal.against_votes + proposal.abstain_votes;
+        let total_votes = proposal.for_votes + proposal.against_votes + proposal.abstain_votes;
 
-        let would_pass =
-            total_votes >= quorum && proposal.for_votes > proposal.against_votes;
+        let would_pass = total_votes >= quorum && proposal.for_votes > proposal.against_votes;
 
         let turnout_bps = if quorum > 0 {
-            u32::min(
-                ((total_votes * 10000) / quorum) as u32,
-                10000,
-            )
+            u32::min(((total_votes * 10000) / quorum) as u32, 10000)
         } else {
             10000
         };
@@ -130,16 +115,11 @@ impl Simulation {
 
     /// Get a simulation snapshot by ID
     pub fn get_simulation(env: &Env, sim_id: u64) -> Option<SimulationSnapshot> {
-        env.storage()
-            .persistent()
-            .get(&(SIMULATIONS, sim_id))
+        env.storage().persistent().get(&(SIMULATIONS, sim_id))
     }
 
     /// Get simulation count
     pub fn get_simulation_count(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&SIM_COUNT)
-            .unwrap_or(0)
+        env.storage().instance().get(&SIM_COUNT).unwrap_or(0)
     }
 }

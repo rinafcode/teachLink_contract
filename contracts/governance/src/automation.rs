@@ -1,6 +1,6 @@
 //! Proposal Automation and Prioritization Module
 //!
-//! Provides features for automated proposal scheduling, recurring governance 
+//! Provides features for automated proposal scheduling, recurring governance
 //! actions, and dynamic prioritization of community proposals.
 //!
 //! # Features
@@ -8,7 +8,7 @@
 //! - **Prioritization Engine**: Rank proposals based on voter count, power, and age.
 //! - **Emergency Fast-Track**: Automatically prioritize critical security TIPs.
 
-use soroban_sdk::{contracttype, Address, Env, symbol_short, Symbol, Val, Vec};
+use soroban_sdk::{contracttype, symbol_short, Address, Env, Symbol, Vec};
 
 const AUTO_CONFIG: Symbol = symbol_short!("auto_cfg");
 const QUEUE: Symbol = symbol_short!("priority");
@@ -40,16 +40,23 @@ impl ProposalAutomation {
             max_active_proposals: 10,
         };
         env.storage().instance().set(&AUTO_CONFIG, &config);
-        env.storage().instance().set(&QUEUE, &Vec::<PriorityRecord>::new(env));
+        env.storage()
+            .instance()
+            .set(&QUEUE, &Vec::<PriorityRecord>::new(env));
     }
 
     /// Calculate and update priority for a proposal
-    pub fn update_priority(env: &Env, proposal_id: u64, voter_count: u32, total_power: i128) -> i128 {
+    pub fn update_priority(
+        env: &Env,
+        proposal_id: u64,
+        voter_count: u32,
+        total_power: i128,
+    ) -> i128 {
         let score = (i128::from(voter_count) * 100) + (total_power / 1000);
-        
+
         let mut queue: Vec<PriorityRecord> = env.storage().instance().get(&QUEUE).unwrap();
         let mut found = false;
-        
+
         for i in 0..queue.len() {
             let mut record = queue.get(i).unwrap();
             if record.proposal_id == proposal_id {
@@ -59,7 +66,7 @@ impl ProposalAutomation {
                 break;
             }
         }
-        
+
         if !found {
             queue.push_back(PriorityRecord {
                 proposal_id,
@@ -67,13 +74,16 @@ impl ProposalAutomation {
                 fast_tracked: false,
             });
         }
-        
+
         env.storage().instance().set(&QUEUE, &queue);
         score
     }
 
     /// Get proposals sorted by priority
     pub fn get_prioritized_queue(env: &Env) -> Vec<PriorityRecord> {
-        env.storage().instance().get(&QUEUE).unwrap_or_else(|| Vec::new(env))
+        env.storage()
+            .instance()
+            .get(&QUEUE)
+            .unwrap_or_else(|| Vec::new(env))
     }
 }

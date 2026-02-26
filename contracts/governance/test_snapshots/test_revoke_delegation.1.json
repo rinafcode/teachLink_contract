@@ -82,25 +82,17 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "create_proposal",
+              "function_name": "delegate_vote",
               "args": [
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "bytes": "43616e63656c2054657374"
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
                 },
                 {
-                  "bytes": "54657374696e672063616e63656c6c6174696f6e"
-                },
-                {
-                  "vec": [
-                    {
-                      "symbol": "FeeChange"
-                    }
-                  ]
-                },
-                "void"
+                  "u64": "0"
+                }
               ]
             }
           },
@@ -108,6 +100,7 @@
         }
       ]
     ],
+    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
@@ -115,11 +108,8 @@
           "function": {
             "contract_fn": {
               "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "function_name": "cancel_proposal",
+              "function_name": "revoke_delegation",
               "args": [
-                {
-                  "u64": "1"
-                },
                 {
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 }
@@ -130,6 +120,7 @@
         }
       ]
     ],
+    [],
     []
   ],
   "ledger": {
@@ -152,10 +143,10 @@
               "key": {
                 "vec": [
                   {
-                    "symbol": "particip"
+                    "symbol": "del_pwr"
                   },
                   {
-                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
                   }
                 ]
               },
@@ -164,7 +155,15 @@
                 "map": [
                   {
                     "key": {
-                      "symbol": "delegation_count"
+                      "symbol": "delegate"
+                    },
+                    "val": {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "delegator_count"
                     },
                     "val": {
                       "u32": 0
@@ -172,204 +171,10 @@
                   },
                   {
                     "key": {
-                      "symbol": "last_active"
-                    },
-                    "val": {
-                      "u64": "1000"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "participant"
-                    },
-                    "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "participation_score"
-                    },
-                    "val": {
-                      "u32": 2000
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "proposals_created"
-                    },
-                    "val": {
-                      "u32": 1
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "proposals_voted"
-                    },
-                    "val": {
-                      "u32": 0
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "total_power_used"
+                      "symbol": "total_power"
                     },
                     "val": {
                       "i128": "0"
-                    }
-                  }
-                ]
-              }
-            }
-          },
-          "ext": "v0"
-        },
-        "live_until": 19
-      },
-      {
-        "entry": {
-          "last_modified_ledger_seq": 0,
-          "data": {
-            "contract_data": {
-              "ext": "v0",
-              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
-              "key": {
-                "vec": [
-                  {
-                    "symbol": "proposal"
-                  },
-                  {
-                    "u64": "1"
-                  }
-                ]
-              },
-              "durability": "persistent",
-              "val": {
-                "map": [
-                  {
-                    "key": {
-                      "symbol": "abstain_votes"
-                    },
-                    "val": {
-                      "i128": "0"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "against_votes"
-                    },
-                    "val": {
-                      "i128": "0"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "created_at"
-                    },
-                    "val": {
-                      "u64": "1000"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "description"
-                    },
-                    "val": {
-                      "bytes": "54657374696e672063616e63656c6c6174696f6e"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "execution_data"
-                    },
-                    "val": "void"
-                  },
-                  {
-                    "key": {
-                      "symbol": "for_votes"
-                    },
-                    "val": {
-                      "i128": "0"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "id"
-                    },
-                    "val": {
-                      "u64": "1"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "proposal_type"
-                    },
-                    "val": {
-                      "vec": [
-                        {
-                          "symbol": "FeeChange"
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "proposer"
-                    },
-                    "val": {
-                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "quadratic_voting"
-                    },
-                    "val": {
-                      "bool": false
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "status"
-                    },
-                    "val": {
-                      "vec": [
-                        {
-                          "symbol": "Cancelled"
-                        }
-                      ]
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "title"
-                    },
-                    "val": {
-                      "bytes": "43616e63656c2054657374"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "voter_count"
-                    },
-                    "val": {
-                      "u32": 0
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "voting_end"
-                    },
-                    "val": {
-                      "u64": "4600"
-                    }
-                  },
-                  {
-                    "key": {
-                      "symbol": "voting_start"
-                    },
-                    "val": {
-                      "u64": "1000"
                     }
                   }
                 ]
@@ -395,87 +200,6 @@
                     "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
                   },
                   "storage": [
-                    {
-                      "key": {
-                        "symbol": "analytics"
-                      },
-                      "val": {
-                        "map": [
-                          {
-                            "key": {
-                              "symbol": "active_delegations"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "avg_turnout_bps"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "last_updated"
-                            },
-                            "val": {
-                              "u64": "1000"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "proposals_failed"
-                            },
-                            "val": {
-                              "u64": "0"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "proposals_passed"
-                            },
-                            "val": {
-                              "u64": "0"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "total_proposals"
-                            },
-                            "val": {
-                              "u64": "1"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "total_staked"
-                            },
-                            "val": {
-                              "i128": "0"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "total_votes_cast"
-                            },
-                            "val": {
-                              "u64": "0"
-                            }
-                          },
-                          {
-                            "key": {
-                              "symbol": "unique_voters"
-                            },
-                            "val": {
-                              "u32": 0
-                            }
-                          }
-                        ]
-                      }
-                    },
                     {
                       "key": {
                         "symbol": "config"
@@ -562,7 +286,7 @@
                         "symbol": "prop_cnt"
                       },
                       "val": {
-                        "u64": "1"
+                        "u64": "0"
                       }
                     }
                   ]

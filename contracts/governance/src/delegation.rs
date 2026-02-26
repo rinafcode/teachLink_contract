@@ -20,7 +20,7 @@ use soroban_sdk::{token, Address, Env};
 
 use crate::events;
 use crate::storage::{DELEGATIONS, DELEG_PWR};
-use crate::types::{Delegation, DelegatedPower, DelegationKey, GovernanceConfig};
+use crate::types::{DelegatedPower, Delegation, DelegationKey, GovernanceConfig};
 
 /// Maximum allowed delegation chain depth (hardcoded safety limit)
 const MAX_CHAIN_DEPTH: u32 = 5;
@@ -72,7 +72,11 @@ impl DelegationManager {
         };
 
         // Revoke existing delegation if any
-        if env.storage().persistent().has(&(DELEGATIONS, del_key.clone())) {
+        if env
+            .storage()
+            .persistent()
+            .has(&(DELEGATIONS, del_key.clone()))
+        {
             Self::_revoke_internal(env, config, &delegator);
         }
 
@@ -129,9 +133,7 @@ impl DelegationManager {
         Self::remove_delegated_power(env, config, delegator, &delegation.delegate);
 
         // Remove delegation record
-        env.storage()
-            .persistent()
-            .remove(&(DELEGATIONS, del_key));
+        env.storage().persistent().remove(&(DELEGATIONS, del_key));
     }
 
     /// Get the effective delegate for an address, resolving chains
@@ -146,11 +148,7 @@ impl DelegationManager {
     ///
     /// # Returns
     /// The final delegate address, or the original address if no delegation
-    pub fn get_effective_delegate(
-        env: &Env,
-        delegator: &Address,
-        max_depth: u32,
-    ) -> Address {
+    pub fn get_effective_delegate(env: &Env, delegator: &Address, max_depth: u32) -> Address {
         let mut current = delegator.clone();
         let now = env.ledger().timestamp();
         let effective_max = if max_depth > MAX_CHAIN_DEPTH {
@@ -213,9 +211,7 @@ impl DelegationManager {
         let del_key = DelegationKey {
             delegator: delegator.clone(),
         };
-        env.storage()
-            .persistent()
-            .get(&(DELEGATIONS, del_key))
+        env.storage().persistent().get(&(DELEGATIONS, del_key))
     }
 
     /// Check if an address has delegated their votes
@@ -223,9 +219,7 @@ impl DelegationManager {
         let del_key = DelegationKey {
             delegator: delegator.clone(),
         };
-        env.storage()
-            .persistent()
-            .has(&(DELEGATIONS, del_key))
+        env.storage().persistent().has(&(DELEGATIONS, del_key))
     }
 
     /// Get the delegated power received by a delegate
@@ -247,12 +241,7 @@ impl DelegationManager {
     // ========== Internal Helpers ==========
 
     /// Check if creating a delegation would result in a cycle
-    fn would_create_cycle(
-        env: &Env,
-        from: &Address,
-        target: &Address,
-        max_depth: u32,
-    ) -> bool {
+    fn would_create_cycle(env: &Env, from: &Address, target: &Address, max_depth: u32) -> bool {
         let mut current = from.clone();
         let effective_max = if max_depth > MAX_CHAIN_DEPTH {
             MAX_CHAIN_DEPTH

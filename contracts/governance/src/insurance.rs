@@ -18,7 +18,7 @@
 //! - **Emergency Pause**: Admin can pause execution of risky proposals
 //! - **Veto Power**: Security council can veto proposals above a risk threshold
 
-use soroban_sdk::{contracttype, Address, Bytes, Env, symbol_short, Symbol};
+use soroban_sdk::{contracttype, symbol_short, Address, Bytes, Env, Symbol};
 
 /// Storage key for insurance pool
 const INSURANCE_POOL: Symbol = symbol_short!("ins_pool");
@@ -174,12 +174,7 @@ impl GovernanceInsurance {
     }
 
     /// Deposit tokens into the insurance pool
-    pub fn deposit_to_pool(
-        env: &Env,
-        depositor: Address,
-        token_address: &Address,
-        amount: i128,
-    ) {
+    pub fn deposit_to_pool(env: &Env, depositor: Address, token_address: &Address, amount: i128) {
         depositor.require_auth();
 
         assert!(amount > 0, "ERR_INVALID_AMOUNT: Amount must be positive");
@@ -256,7 +251,10 @@ impl GovernanceInsurance {
     ) -> u64 {
         claimant.require_auth();
 
-        assert!(amount > 0, "ERR_INVALID_AMOUNT: Claim amount must be positive");
+        assert!(
+            amount > 0,
+            "ERR_INVALID_AMOUNT: Claim amount must be positive"
+        );
         assert!(
             !reason.is_empty(),
             "ERR_EMPTY_REASON: Claim reason cannot be empty"
@@ -283,11 +281,7 @@ impl GovernanceInsurance {
 
         let now = env.ledger().timestamp();
 
-        let mut claim_count: u64 = env
-            .storage()
-            .instance()
-            .get(&CLAIM_COUNT)
-            .unwrap_or(0);
+        let mut claim_count: u64 = env.storage().instance().get(&CLAIM_COUNT).unwrap_or(0);
         claim_count += 1;
 
         let claim = InsuranceClaim {
@@ -305,20 +299,13 @@ impl GovernanceInsurance {
         env.storage()
             .persistent()
             .set(&(CLAIMS, claim_count), &claim);
-        env.storage()
-            .instance()
-            .set(&CLAIM_COUNT, &claim_count);
+        env.storage().instance().set(&CLAIM_COUNT, &claim_count);
 
         claim_count
     }
 
     /// Approve or reject an insurance claim (admin only)
-    pub fn review_claim(
-        env: &Env,
-        admin: Address,
-        claim_id: u64,
-        approved: bool,
-    ) {
+    pub fn review_claim(env: &Env, admin: Address, claim_id: u64, approved: bool) {
         admin.require_auth();
 
         let mut claim: InsuranceClaim = env
@@ -329,18 +316,11 @@ impl GovernanceInsurance {
 
         claim.approved = approved;
 
-        env.storage()
-            .persistent()
-            .set(&(CLAIMS, claim_id), &claim);
+        env.storage().persistent().set(&(CLAIMS, claim_id), &claim);
     }
 
     /// Pay out an approved insurance claim
-    pub fn pay_claim(
-        env: &Env,
-        admin: Address,
-        claim_id: u64,
-        token_address: &Address,
-    ) {
+    pub fn pay_claim(env: &Env, admin: Address, claim_id: u64, token_address: &Address) {
         admin.require_auth();
 
         let mut claim: InsuranceClaim = env
@@ -376,9 +356,7 @@ impl GovernanceInsurance {
         pool.total_claims_paid += claim.amount;
         pool.last_updated = env.ledger().timestamp();
 
-        env.storage()
-            .persistent()
-            .set(&(CLAIMS, claim_id), &claim);
+        env.storage().persistent().set(&(CLAIMS, claim_id), &claim);
         env.storage().instance().set(&INSURANCE_POOL, &pool);
     }
 
@@ -396,23 +374,16 @@ impl GovernanceInsurance {
 
     /// Get risk assessment for a proposal
     pub fn get_risk_assessment(env: &Env, proposal_id: u64) -> Option<RiskAssessment> {
-        env.storage()
-            .persistent()
-            .get(&(RISK_SCORES, proposal_id))
+        env.storage().persistent().get(&(RISK_SCORES, proposal_id))
     }
 
     /// Get an insurance claim
     pub fn get_claim(env: &Env, claim_id: u64) -> Option<InsuranceClaim> {
-        env.storage()
-            .persistent()
-            .get(&(CLAIMS, claim_id))
+        env.storage().persistent().get(&(CLAIMS, claim_id))
     }
 
     /// Get total claim count
     pub fn get_claim_count(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&CLAIM_COUNT)
-            .unwrap_or(0)
+        env.storage().instance().get(&CLAIM_COUNT).unwrap_or(0)
     }
 }

@@ -76,12 +76,7 @@ impl Staking {
     /// # Panics
     /// * If staking is not enabled
     /// * If amount is below minimum stake
-    pub fn stake(
-        env: &Env,
-        token_address: &Address,
-        staker: Address,
-        amount: i128,
-    ) {
+    pub fn stake(env: &Env, token_address: &Address, staker: Address, amount: i128) {
         staker.require_auth();
 
         let config: StakingConfig = env
@@ -103,8 +98,7 @@ impl Staking {
         };
 
         // Calculate power bonus
-        let power_bonus =
-            (amount * i128::from(config.power_multiplier) / 10000) - amount;
+        let power_bonus = (amount * i128::from(config.power_multiplier) / 10000) - amount;
 
         // Check if already staked - add to existing
         let stake_info = if let Some(existing) = env
@@ -113,8 +107,7 @@ impl Staking {
             .get::<_, StakeInfo>(&(STAKES, stake_key.clone()))
         {
             let new_amount = existing.amount + amount;
-            let new_bonus =
-                (new_amount * i128::from(config.power_multiplier) / 10000) - new_amount;
+            let new_bonus = (new_amount * i128::from(config.power_multiplier) / 10000) - new_amount;
 
             StakeInfo {
                 staker: staker.clone(),
@@ -143,11 +136,7 @@ impl Staking {
             .set(&(STAKES, stake_key), &stake_info);
 
         // Update total staked
-        let total: i128 = env
-            .storage()
-            .instance()
-            .get(&TOTAL_STAKED)
-            .unwrap_or(0);
+        let total: i128 = env.storage().instance().get(&TOTAL_STAKED).unwrap_or(0);
         env.storage()
             .instance()
             .set(&TOTAL_STAKED, &(total + amount));
@@ -167,12 +156,7 @@ impl Staking {
     /// * If no stake exists
     /// * If lock period has not elapsed
     /// * If amount exceeds staked amount
-    pub fn unstake(
-        env: &Env,
-        token_address: &Address,
-        staker: Address,
-        amount: i128,
-    ) {
+    pub fn unstake(env: &Env, token_address: &Address, staker: Address, amount: i128) {
         staker.require_auth();
 
         let stake_key = StakeKey {
@@ -203,13 +187,8 @@ impl Staking {
         // Update or remove stake
         stake_info.amount -= amount;
         if stake_info.amount > 0 {
-            let config: StakingConfig = env
-                .storage()
-                .instance()
-                .get(&STAKE_CONFIG)
-                .unwrap();
-            stake_info.power_bonus = (stake_info.amount
-                * i128::from(config.power_multiplier)
+            let config: StakingConfig = env.storage().instance().get(&STAKE_CONFIG).unwrap();
+            stake_info.power_bonus = (stake_info.amount * i128::from(config.power_multiplier)
                 / 10000)
                 - stake_info.amount;
 
@@ -217,21 +196,13 @@ impl Staking {
                 .persistent()
                 .set(&(STAKES, stake_key), &stake_info);
         } else {
-            env.storage()
-                .persistent()
-                .remove(&(STAKES, stake_key));
+            env.storage().persistent().remove(&(STAKES, stake_key));
         }
 
         // Update total staked
-        let total: i128 = env
-            .storage()
-            .instance()
-            .get(&TOTAL_STAKED)
-            .unwrap_or(0);
+        let total: i128 = env.storage().instance().get(&TOTAL_STAKED).unwrap_or(0);
         let new_total = if total > amount { total - amount } else { 0 };
-        env.storage()
-            .instance()
-            .set(&TOTAL_STAKED, &new_total);
+        env.storage().instance().set(&TOTAL_STAKED, &new_total);
 
         events::tokens_unstaked(env, &staker, amount);
     }
@@ -241,17 +212,12 @@ impl Staking {
         let stake_key = StakeKey {
             staker: staker.clone(),
         };
-        env.storage()
-            .persistent()
-            .get(&(STAKES, stake_key))
+        env.storage().persistent().get(&(STAKES, stake_key))
     }
 
     /// Get total staked tokens
     pub fn get_total_staked(env: &Env) -> i128 {
-        env.storage()
-            .instance()
-            .get(&TOTAL_STAKED)
-            .unwrap_or(0)
+        env.storage().instance().get(&TOTAL_STAKED).unwrap_or(0)
     }
 
     /// Get staking config

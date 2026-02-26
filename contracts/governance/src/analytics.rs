@@ -19,11 +19,7 @@ impl Analytics {
     /// Record a vote participation event
     ///
     /// Updates both individual and global analytics
-    pub fn record_vote(
-        env: &Env,
-        voter: &Address,
-        power_used: i128,
-    ) {
+    pub fn record_vote(env: &Env, voter: &Address, power_used: i128) {
         // Update individual participation
         let mut record = Self::get_participation(env, voter).unwrap_or(ParticipationRecord {
             participant: voter.clone(),
@@ -55,16 +51,15 @@ impl Analytics {
     /// Record a proposal creation event
     pub fn record_proposal_created(env: &Env, proposer: &Address) {
         // Update individual
-        let mut record =
-            Self::get_participation(env, proposer).unwrap_or(ParticipationRecord {
-                participant: proposer.clone(),
-                proposals_voted: 0,
-                proposals_created: 0,
-                total_power_used: 0,
-                delegation_count: 0,
-                last_active: 0,
-                participation_score: 0,
-            });
+        let mut record = Self::get_participation(env, proposer).unwrap_or(ParticipationRecord {
+            participant: proposer.clone(),
+            proposals_voted: 0,
+            proposals_created: 0,
+            total_power_used: 0,
+            delegation_count: 0,
+            last_active: 0,
+            participation_score: 0,
+        });
 
         record.proposals_created += 1;
         record.last_active = env.ledger().timestamp();
@@ -98,16 +93,15 @@ impl Analytics {
 
     /// Record a delegation event
     pub fn record_delegation(env: &Env, delegate: &Address) {
-        let mut record =
-            Self::get_participation(env, delegate).unwrap_or(ParticipationRecord {
-                participant: delegate.clone(),
-                proposals_voted: 0,
-                proposals_created: 0,
-                total_power_used: 0,
-                delegation_count: 0,
-                last_active: 0,
-                participation_score: 0,
-            });
+        let mut record = Self::get_participation(env, delegate).unwrap_or(ParticipationRecord {
+            participant: delegate.clone(),
+            proposals_voted: 0,
+            proposals_created: 0,
+            total_power_used: 0,
+            delegation_count: 0,
+            last_active: 0,
+            participation_score: 0,
+        });
 
         record.delegation_count += 1;
         record.last_active = env.ledger().timestamp();
@@ -194,11 +188,7 @@ impl Analytics {
     }
 
     /// Update global turnout average after a proposal is finalized
-    pub fn update_turnout(
-        env: &Env,
-        _total_supply: i128,
-        _votes_in_proposal: i128,
-    ) {
+    pub fn update_turnout(env: &Env, _total_supply: i128, _votes_in_proposal: i128) {
         let mut analytics = Self::get_analytics(env);
 
         // Simple running average for now
@@ -207,8 +197,7 @@ impl Analytics {
             if total_decided > 0 {
                 // Approximate turnout tracking
                 analytics.avg_turnout_bps = u32::min(
-                    (analytics.total_votes_cast as u32 * 10000)
-                        / (total_decided as u32 * 10),
+                    (analytics.total_votes_cast as u32 * 10000) / (total_decided as u32 * 10),
                     10000,
                 );
             }

@@ -4,7 +4,7 @@
 //! Ensures all governance actions are traceable and compliant with
 //! decentralization milestones.
 
-use soroban_sdk::{contracttype, Address, Bytes, Env, symbol_short, Symbol, Vec};
+use soroban_sdk::{contracttype, symbol_short, Address, Bytes, Env, Symbol, Vec};
 
 const REPORTS: Symbol = symbol_short!("reports");
 
@@ -27,10 +27,10 @@ impl Compliance {
         total_p: u64,
         voters: u32,
         ratio: u32,
-        hash: Bytes
+        hash: Bytes,
     ) -> ComplianceReport {
         admin.require_auth();
-        
+
         let report = ComplianceReport {
             timestamp: env.ledger().timestamp(),
             total_proposals: total_p,
@@ -39,14 +39,21 @@ impl Compliance {
             audit_hash: hash,
         };
 
-        let mut all_reports: Vec<ComplianceReport> = env.storage().instance().get(&REPORTS).unwrap_or(Vec::new(env));
+        let mut all_reports: Vec<ComplianceReport> = env
+            .storage()
+            .instance()
+            .get(&REPORTS)
+            .unwrap_or(Vec::new(env));
         all_reports.push_back(report.clone());
         env.storage().instance().set(&REPORTS, &all_reports);
-        
+
         report
     }
 
     pub fn get_latest_reports(env: &Env) -> Vec<ComplianceReport> {
-        env.storage().instance().get(&REPORTS).unwrap_or(Vec::new(env))
+        env.storage()
+            .instance()
+            .get(&REPORTS)
+            .unwrap_or(Vec::new(env))
     }
 }
