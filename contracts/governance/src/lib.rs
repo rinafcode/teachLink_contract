@@ -28,8 +28,8 @@ mod staking;
 mod storage;
 mod types;
 
-pub use types::*;
 pub use mock_token::*;
+pub use types::*;
 
 #[contract]
 pub struct GovernanceContract;
@@ -76,12 +76,7 @@ impl GovernanceContract {
         governance::Governance::get_proposal(&env, proposal_id)
     }
 
-    pub fn cast_vote(
-        env: Env,
-        proposal_id: u64,
-        voter: Address,
-        direction: VoteDirection,
-    ) -> i128 {
+    pub fn cast_vote(env: Env, proposal_id: u64, voter: Address, direction: VoteDirection) -> i128 {
         governance::Governance::cast_vote(&env, proposal_id, voter, direction)
     }
 
@@ -162,10 +157,10 @@ impl GovernanceContract {
         let config = governance::Governance::get_config(&env);
         let (_, _, mut total) =
             delegation::DelegationManager::get_total_voting_power(&env, &config, &voter);
-            
+
         let staking_bonus = staking::Staking::get_staking_bonus(&env, &voter);
         total += staking_bonus;
-        
+
         total
     }
 
@@ -285,7 +280,9 @@ impl GovernanceContract {
         upheld: bool,
         resolution: Bytes,
     ) {
-        disputes::DisputeResolution::resolve_dispute(&env, dispute_id, resolver, upheld, resolution);
+        disputes::DisputeResolution::resolve_dispute(
+            &env, dispute_id, resolver, upheld, resolution,
+        );
     }
 
     pub fn get_dispute(env: Env, dispute_id: u64) -> Option<Dispute> {
