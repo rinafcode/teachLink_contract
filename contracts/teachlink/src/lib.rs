@@ -88,10 +88,11 @@
 #![allow(clippy::trivially_copy_pass_by_ref)]
 #![allow(clippy::needless_borrow)]
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Vec, Symbol};
 
 mod analytics;
 mod arbitration;
+mod assessment;
 mod atomic_swap;
 mod audit;
 mod bft_consensus;
@@ -120,7 +121,7 @@ mod reporting;
 mod rewards;
 mod slashing;
 // mod social_events;
-// mod social_learning;
+mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
@@ -146,6 +147,7 @@ pub use types::{
     UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
     ValidatorSignature, VisualizationDataPoint,
 };
+pub use assessment::{Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType};
 
 /// TeachLink main contract.
 ///
@@ -154,7 +156,6 @@ pub use types::{
 #[contract]
 pub struct TeachLinkBridge;
 
-/*
 #[contractimpl]
 impl TeachLinkBridge {
     /// Initialize the bridge contract
@@ -971,6 +972,111 @@ impl TeachLinkBridge {
         rewards::Rewards::get_rewards_admin(&env)
     }
 
+    // ========== Assessment and Testing Platform Functions ==========
+
+    /// Create a new assessment
+    pub fn create_assessment(
+        env: Env,
+        creator: Address,
+        title: Bytes,
+        description: Bytes,
+        questions: Vec<u64>,
+        settings: AssessmentSettings,
+    ) -> Result<u64, assessment::AssessmentError> {
+        assessment::AssessmentManager::create_assessment(
+            &env,
+            creator,
+            title,
+            description,
+            questions,
+            settings,
+        )
+    }
+
+    /// Add a question to the pool
+    pub fn add_assessment_question(
+        env: Env,
+        creator: Address,
+        q_type: QuestionType,
+        content_hash: Bytes,
+        points: u32,
+        difficulty: u32,
+        correct_answer_hash: Bytes,
+        metadata: Map<Symbol, Bytes>,
+    ) -> Result<u64, assessment::AssessmentError> {
+        assessment::AssessmentManager::add_question(
+            &env,
+            creator,
+            q_type,
+            content_hash,
+            points,
+            difficulty,
+            correct_answer_hash,
+            metadata,
+        )
+    }
+
+    /// Submit an assessment
+    pub fn submit_assessment(
+        env: Env,
+        student: Address,
+        assessment_id: u64,
+        answers: Map<u64, Bytes>,
+        proctor_logs: Vec<Bytes>,
+    ) -> Result<u32, assessment::AssessmentError> {
+        assessment::AssessmentManager::submit_assessment(
+            &env,
+            student,
+            assessment_id,
+            answers,
+            proctor_logs,
+        )
+    }
+
+    /// Get assessment details
+    pub fn get_assessment(env: Env, id: u64) -> Option<Assessment> {
+        assessment::AssessmentManager::get_assessment(&env, id)
+    }
+
+    /// Get user submission
+    pub fn get_assessment_submission(
+        env: Env,
+        student: Address,
+        assessment_id: u64,
+    ) -> Option<AssessmentSubmission> {
+        assessment::AssessmentManager::get_submission(&env, student, assessment_id)
+    }
+
+    /// Report a proctoring violation
+    pub fn report_proctor_violation(
+        env: Env,
+        student: Address,
+        assessment_id: u64,
+        violation_type: Bytes,
+    ) -> Result<(), assessment::AssessmentError> {
+        assessment::AssessmentManager::report_proctoring_violation(
+            &env,
+            student,
+            assessment_id,
+            violation_type,
+        )
+    }
+
+    /// Get next adaptive question
+    pub fn get_next_adaptive_question(
+        env: Env,
+        id: u64,
+        scores: Vec<u32>,
+        answered_ids: Vec<u64>,
+    ) -> Result<u64, assessment::AssessmentError> {
+        assessment::AssessmentManager::get_next_adaptive_question(
+            &env,
+            id,
+            scores,
+            answered_ids,
+        )
+    }
+
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow
@@ -1668,4 +1774,3 @@ impl TeachLinkBridge {
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
 }
-*/
