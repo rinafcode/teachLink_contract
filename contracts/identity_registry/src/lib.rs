@@ -202,5 +202,3 @@ impl IdentityRegistryContract {
         }
     }
 }
-
-
