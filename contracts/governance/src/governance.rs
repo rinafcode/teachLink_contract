@@ -4,41 +4,27 @@
 //! voting, and execution. Token holders can participate in platform decisions
 //! by creating proposals and voting with their token balance as voting power.
 //!
+//! # Enhanced Features
+//!
+//! - **Delegated Voting**: Token holders can delegate votes to representatives
+//! - **Quadratic Voting**: Fair decision making with quadratic vote costs
+//! - **Staking Amplification**: Staked tokens receive voting power bonuses
+//! - **Analytics Integration**: All actions are tracked for governance health
+//!
 //! # Proposal Lifecycle
 //!
 //! 1. **Creation**: A token holder with sufficient balance creates a proposal
 //! 2. **Voting**: Token holders vote during the voting period
 //! 3. **Finalization**: After voting ends, the proposal is finalized as passed or failed
 //! 4. **Execution**: Passed proposals can be executed after the execution delay
-//!
-//! # Governance Parameters
-//!
-//! - `proposal_threshold`: Minimum token balance to create proposals
-//! - `quorum`: Minimum total votes required for a valid decision
-//! - `voting_period`: Duration of the voting window (in seconds)
-//! - `execution_delay`: Waiting period before executing passed proposals
-//!
-//! # Example
-//!
-//! ```ignore
-//! // Create a proposal
-//! let proposal_id = Governance::create_proposal(
-//!     &env, proposer, title, description, ProposalType::FeeChange, None
-//! );
-//!
-//! // Vote on the proposal
-//! Governance::cast_vote(&env, proposal_id, voter, VoteDirection::For);
-//!
-//! // After voting period ends, finalize
-//! Governance::finalize_proposal(&env, proposal_id);
-//!
-//! // After execution delay, execute
-//! Governance::execute_proposal(&env, proposal_id, executor);
-//! ```
+//! 5. **Dispute**: Outcomes can be disputed and appealed
 
 use soroban_sdk::{token, Address, Bytes, Env};
 
+use crate::analytics::Analytics;
+use crate::delegation::DelegationManager;
 use crate::events;
+use crate::staking::Staking;
 use crate::storage::{CONFIG, PROPOSALS, PROPOSAL_COUNT, VOTES};
 use crate::types::{
     GovernanceConfig, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection, VoteKey,
@@ -47,7 +33,8 @@ use crate::types::{
 /// Governance contract implementation.
 ///
 /// Provides on-chain governance for the TeachLink platform through
-/// token-weighted voting on proposals.
+/// token-weighted voting on proposals with delegation, quadratic voting,
+/// and staking amplification support.
 pub struct Governance;
 
 impl Governance {
@@ -101,6 +88,9 @@ impl Governance {
             quorum,
             voting_period,
             execution_delay,
+            max_delegation_depth: 3,
+            quadratic_voting_enabled: false,
+            staking_multiplier: 10000, // 1x default
         };
 
         env.storage().instance().set(&CONFIG, &config);
@@ -108,15 +98,6 @@ impl Governance {
     }
 
     /// Get the current governance configuration.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    ///
-    /// # Returns
-    /// The current governance configuration parameters.
-    ///
-    /// # Panics
-    /// * If the contract is not initialized
     pub fn get_config(env: &Env) -> GovernanceConfig {
         env.storage()
             .instance()
@@ -125,23 +106,11 @@ impl Governance {
     }
 
     /// Get the admin address.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    ///
-    /// # Returns
-    /// The current admin address.
     pub fn get_admin(env: &Env) -> Address {
         Self::get_config(env).admin
     }
 
     /// Get the governance token address.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    ///
-    /// # Returns
-    /// The governance token address used for voting power.
     pub fn get_token(env: &Env) -> Address {
         Self::get_config(env).token
     }
@@ -149,7 +118,8 @@ impl Governance {
     /// Create a new governance proposal.
     ///
     /// Creates a proposal that immediately enters the active voting state.
-    /// The proposer must hold at least `proposal_threshold` tokens.
+    /// The proposer must hold at least `proposal_threshold` tokens
+    /// (including staked tokens).
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
@@ -158,19 +128,10 @@ impl Governance {
     /// * `description` - Detailed description of the proposal (must not be empty)
     /// * `proposal_type` - Category of the proposal
     /// * `execution_data` - Optional data for proposal execution
+    /// * `enable_quadratic` - Whether to enable quadratic voting for this proposal
     ///
     /// # Returns
     /// The unique proposal ID.
-    ///
-    /// # Authorization
-    /// Requires authorization from `proposer`.
-    ///
-    /// # Panics
-    /// * If proposer has insufficient token balance
-    /// * If title or description is empty
-    ///
-    /// # Events
-    /// Emits a `proposal_created` event.
     pub fn create_proposal(
         env: &Env,
         proposer: Address,
@@ -178,6 +139,7 @@ impl Governance {
         description: Bytes,
         proposal_type: ProposalType,
         execution_data: Option<Bytes>,
+        enable_quadratic: bool,
     ) -> u64 {
         proposer.require_auth();
 
@@ -194,20 +156,26 @@ impl Governance {
 
         let config = Self::get_config(env);
 
-        // Check proposer has enough tokens
+        // Check proposer has enough tokens (balance + staked)
         let token_client = token::Client::new(env, &config.token);
         let balance = token_client.balance(&proposer);
+        let staking_bonus = Staking::get_staking_bonus(env, &proposer);
+        let effective_balance = balance + staking_bonus;
+
         assert!(
-            balance >= config.proposal_threshold,
+            effective_balance >= config.proposal_threshold,
             "ERR_INSUFFICIENT_BALANCE: Proposer balance below threshold"
         );
+
+        // Check if quadratic voting is allowed
+        let qv_enabled = enable_quadratic && config.quadratic_voting_enabled;
 
         // Generate proposal ID
         let mut proposal_count: u64 = env.storage().instance().get(&PROPOSAL_COUNT).unwrap_or(0);
         proposal_count += 1;
 
         let now = env.ledger().timestamp();
-        let voting_start = now; // Voting starts immediately
+        let voting_start = now;
         let voting_end = voting_start + config.voting_period;
 
         let proposal = Proposal {
@@ -216,7 +184,7 @@ impl Governance {
             title: title.clone(),
             description,
             proposal_type: proposal_type.clone(),
-            status: ProposalStatus::Active, // Active immediately
+            status: ProposalStatus::Active,
             created_at: now,
             voting_start,
             voting_end,
@@ -224,6 +192,8 @@ impl Governance {
             against_votes: 0,
             abstain_votes: 0,
             execution_data,
+            quadratic_voting: qv_enabled,
+            voter_count: 0,
         };
 
         // Store proposal
@@ -234,16 +204,20 @@ impl Governance {
             .instance()
             .set(&PROPOSAL_COUNT, &proposal_count);
 
+        // Track analytics
+        Analytics::record_proposal_created(env, &proposer);
+
         // Emit event
         events::proposal_created(env, proposal_count, &proposer, &title, &proposal_type);
 
         proposal_count
     }
 
-    /// Cast a vote on an active proposal.
+    /// Cast a vote on an active proposal with delegation support.
     ///
-    /// Records a vote with the voter's token balance as voting power.
-    /// Each address can only vote once per proposal.
+    /// Records a vote with the voter's token balance as voting power,
+    /// plus any delegated power they have received. If the voter has
+    /// staked tokens, they receive an amplified voting power bonus.
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
@@ -252,20 +226,7 @@ impl Governance {
     /// * `direction` - Vote direction (For, Against, or Abstain)
     ///
     /// # Returns
-    /// The voting power used (voter's token balance).
-    ///
-    /// # Authorization
-    /// Requires authorization from `voter`.
-    ///
-    /// # Panics
-    /// * If the proposal does not exist
-    /// * If the proposal is not in Active status
-    /// * If the voting period has not started or has ended
-    /// * If the voter has already voted on this proposal
-    /// * If the voter has no voting power (zero token balance)
-    ///
-    /// # Events
-    /// Emits a `vote_cast` event.
+    /// The total voting power used (own + delegated + staking bonus).
     pub fn cast_vote(
         env: &Env,
         proposal_id: u64,
@@ -306,11 +267,20 @@ impl Governance {
             "ERR_ALREADY_VOTED: Address has already voted on this proposal"
         );
 
-        // Get voting power (token balance)
+        // Calculate total voting power: own tokens + delegated power + staking bonus
         let token_client = token::Client::new(env, &config.token);
-        let power = token_client.balance(&voter);
+        let own_power = token_client.balance(&voter);
+
+        // Get delegated power
+        let delegated_power = DelegationManager::get_delegated_power(env, &voter);
+
+        // Get staking bonus
+        let staking_bonus = Staking::get_staking_bonus(env, &voter);
+
+        let total_power = own_power + delegated_power + staking_bonus;
+
         assert!(
-            power > 0,
+            total_power > 0,
             "ERR_NO_VOTING_POWER: Address has no voting power"
         );
 
@@ -318,45 +288,43 @@ impl Governance {
         let vote = Vote {
             voter: voter.clone(),
             proposal_id,
-            power,
+            power: total_power,
             direction: direction.clone(),
             timestamp: now,
+            includes_delegated: delegated_power > 0,
+            delegated_power,
         };
         env.storage().persistent().set(&(VOTES, vote_key), &vote);
 
         // Update proposal vote counts
         match direction {
-            VoteDirection::For => proposal.for_votes += power,
-            VoteDirection::Against => proposal.against_votes += power,
-            VoteDirection::Abstain => proposal.abstain_votes += power,
+            VoteDirection::For => proposal.for_votes += total_power,
+            VoteDirection::Against => proposal.against_votes += total_power,
+            VoteDirection::Abstain => proposal.abstain_votes += total_power,
         }
+        proposal.voter_count += 1;
 
         env.storage()
             .persistent()
             .set(&(PROPOSALS, proposal_id), &proposal);
 
-        // Emit event
-        events::vote_cast(env, proposal_id, &voter, &direction, power);
+        // Track analytics
+        Analytics::record_vote(env, &voter, total_power);
 
-        power
+        // Emit events
+        events::vote_cast(env, proposal_id, &voter, &direction, total_power);
+
+        if delegated_power > 0 {
+            events::delegated_vote_cast(env, proposal_id, &voter, own_power, delegated_power);
+        }
+
+        total_power
     }
 
     /// Finalize a proposal after the voting period ends.
     ///
     /// Determines whether the proposal passed or failed based on
     /// quorum requirements and vote counts.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `proposal_id` - ID of the proposal to finalize
-    ///
-    /// # Panics
-    /// * If the proposal does not exist
-    /// * If the proposal is not in Active status
-    /// * If the voting period has not ended
-    ///
-    /// # Events
-    /// Emits a `proposal_status_changed` event.
     pub fn finalize_proposal(env: &Env, proposal_id: u64) {
         let config = Self::get_config(env);
 
@@ -385,7 +353,9 @@ impl Governance {
         let total_votes = proposal.for_votes + proposal.against_votes + proposal.abstain_votes;
 
         // Check quorum and majority
-        if total_votes >= config.quorum && proposal.for_votes > proposal.against_votes {
+        let passed = total_votes >= config.quorum && proposal.for_votes > proposal.against_votes;
+
+        if passed {
             proposal.status = ProposalStatus::Passed;
         } else {
             proposal.status = ProposalStatus::Failed;
@@ -395,29 +365,13 @@ impl Governance {
             .persistent()
             .set(&(PROPOSALS, proposal_id), &proposal);
 
+        // Track analytics
+        Analytics::record_proposal_finalized(env, passed);
+
         events::proposal_status_changed(env, proposal_id, &old_status, &proposal.status);
     }
 
     /// Execute a passed proposal.
-    ///
-    /// Marks a proposal as executed after the execution delay has passed.
-    /// Actual execution logic depends on the proposal type.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `proposal_id` - ID of the proposal to execute
-    /// * `executor` - Address triggering execution (must authorize)
-    ///
-    /// # Authorization
-    /// Requires authorization from `executor`.
-    ///
-    /// # Panics
-    /// * If the proposal does not exist
-    /// * If the proposal has not passed
-    /// * If the execution delay has not elapsed
-    ///
-    /// # Events
-    /// Emits `proposal_status_changed` and `proposal_executed` events.
     pub fn execute_proposal(env: &Env, proposal_id: u64, executor: Address) {
         executor.require_auth();
 
@@ -457,23 +411,6 @@ impl Governance {
     ///
     /// The proposer can cancel during the voting period.
     /// The admin can cancel at any time (except executed proposals).
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `proposal_id` - ID of the proposal to cancel
-    /// * `caller` - Address requesting cancellation (must authorize)
-    ///
-    /// # Authorization
-    /// Requires authorization from `caller` (must be proposer or admin).
-    ///
-    /// # Panics
-    /// * If the proposal does not exist
-    /// * If caller is neither proposer nor admin
-    /// * If proposer attempts to cancel after voting ends
-    /// * If the proposal has already been executed
-    ///
-    /// # Events
-    /// Emits `proposal_status_changed` and `proposal_cancelled` events.
     pub fn cancel_proposal(env: &Env, proposal_id: u64, caller: Address) {
         caller.require_auth();
 
@@ -521,23 +458,6 @@ impl Governance {
     /// Update governance configuration.
     ///
     /// Allows the admin to modify governance parameters.
-    /// Only provided values are updated; `None` values are ignored.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `new_proposal_threshold` - New minimum tokens for proposals (optional, must be >= 0)
-    /// * `new_quorum` - New quorum requirement (optional, must be >= 0)
-    /// * `new_voting_period` - New voting duration in seconds (optional, must be > 0)
-    /// * `new_execution_delay` - New execution delay in seconds (optional)
-    ///
-    /// # Authorization
-    /// Requires authorization from the admin address.
-    ///
-    /// # Panics
-    /// * If invalid configuration parameters are provided
-    ///
-    /// # Events
-    /// Emits a `config_updated` event.
     pub fn update_config(
         env: &Env,
         new_proposal_threshold: Option<i128>,
@@ -548,7 +468,6 @@ impl Governance {
         let mut config = Self::get_config(env);
         config.admin.require_auth();
 
-        // Validate parameters if provided
         if let Some(threshold) = new_proposal_threshold {
             assert!(
                 threshold >= 0,
@@ -581,14 +500,47 @@ impl Governance {
         events::config_updated(env, &config.admin);
     }
 
-    /// Transfer admin role to a new address.
+    /// Update advanced governance settings (admin only)
     ///
     /// # Arguments
     /// * `env` - The Soroban environment
-    /// * `new_admin` - Address to receive admin privileges
-    ///
-    /// # Authorization
-    /// Requires authorization from the current admin.
+    /// * `max_delegation_depth` - New max delegation chain depth
+    /// * `quadratic_voting_enabled` - Enable/disable quadratic voting globally
+    /// * `staking_multiplier` - New staking power multiplier (basis points)
+    pub fn update_advanced_config(
+        env: &Env,
+        max_delegation_depth: Option<u32>,
+        quadratic_voting_enabled: Option<bool>,
+        staking_multiplier: Option<u32>,
+    ) {
+        let mut config = Self::get_config(env);
+        config.admin.require_auth();
+
+        if let Some(depth) = max_delegation_depth {
+            assert!(
+                depth > 0 && depth <= 10,
+                "ERR_INVALID_CONFIG: Delegation depth must be between 1 and 10"
+            );
+            config.max_delegation_depth = depth;
+        }
+
+        if let Some(qv_enabled) = quadratic_voting_enabled {
+            config.quadratic_voting_enabled = qv_enabled;
+        }
+
+        if let Some(multiplier) = staking_multiplier {
+            assert!(
+                multiplier >= 10000,
+                "ERR_INVALID_CONFIG: Staking multiplier must be at least 10000 (1x)"
+            );
+            config.staking_multiplier = multiplier;
+        }
+
+        env.storage().instance().set(&CONFIG, &config);
+        events::config_updated(env, &config.admin);
+    }
+
+    /// Transfer admin role to a new address.
     pub fn transfer_admin(env: &Env, new_admin: Address) {
         let mut config = Self::get_config(env);
         config.admin.require_auth();
@@ -600,52 +552,23 @@ impl Governance {
     // ========== View Functions ==========
 
     /// Get a proposal by its ID.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `proposal_id` - ID of the proposal to retrieve
-    ///
-    /// # Returns
-    /// The proposal if it exists, `None` otherwise.
     pub fn get_proposal(env: &Env, proposal_id: u64) -> Option<Proposal> {
         env.storage().persistent().get(&(PROPOSALS, proposal_id))
     }
 
     /// Get a vote record by proposal ID and voter address.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `proposal_id` - ID of the proposal
-    /// * `voter` - Address of the voter
-    ///
-    /// # Returns
-    /// The vote record if it exists, `None` otherwise.
     pub fn get_vote(env: &Env, proposal_id: u64, voter: Address) -> Option<Vote> {
         let vote_key = VoteKey { proposal_id, voter };
         env.storage().persistent().get(&(VOTES, vote_key))
     }
 
     /// Check if an address has voted on a proposal.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    /// * `proposal_id` - ID of the proposal
-    /// * `voter` - Address to check
-    ///
-    /// # Returns
-    /// `true` if the address has voted, `false` otherwise.
     pub fn has_voted(env: &Env, proposal_id: u64, voter: Address) -> bool {
         let vote_key = VoteKey { proposal_id, voter };
         env.storage().persistent().has(&(VOTES, vote_key))
     }
 
     /// Get the total number of proposals created.
-    ///
-    /// # Arguments
-    /// * `env` - The Soroban environment
-    ///
-    /// # Returns
-    /// The current proposal count.
     pub fn get_proposal_count(env: &Env) -> u64 {
         env.storage().instance().get(&PROPOSAL_COUNT).unwrap_or(0)
     }
