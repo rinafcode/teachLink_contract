@@ -128,3 +128,9 @@ pub const RECOVERY_RECORDS: Symbol = symbol_short!("rec_rec");
 // Performance optimization and caching (symbol_short! max 9 chars)
 pub const PERF_CACHE: Symbol = symbol_short!("perf_cach");
 pub const PERF_TS: Symbol = symbol_short!("perf_ts");
+
+// Advanced UI/UX Storage (symbol_short! max 9 chars)
+pub const ONBOARDING_STATUS: Symbol = symbol_short!("onboard");
+pub const USER_FEEDBACK: Symbol = symbol_short!("feedback");
+pub const UX_EXPERIMENTS: Symbol = symbol_short!("ux_exp");
+pub const COMPONENT_CONFIG: Symbol = symbol_short!("comp_cfg");
