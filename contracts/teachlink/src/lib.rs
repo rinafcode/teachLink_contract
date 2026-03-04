@@ -88,10 +88,11 @@
 #![allow(clippy::trivially_copy_pass_by_ref)]
 #![allow(clippy::needless_borrow)]
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod analytics;
 mod arbitration;
+mod assessment;
 mod atomic_swap;
 mod audit;
 mod bft_consensus;
@@ -120,7 +121,7 @@ mod reporting;
 mod rewards;
 mod slashing;
 // mod social_events;
-// mod social_learning;
+mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
@@ -130,6 +131,9 @@ pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
     LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
     OnboardingStage, OnboardingStatus, ThemePreference, UserFeedback, VideoQuality,
+};
+pub use assessment::{
+    Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
 pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
 pub use types::{
@@ -154,7 +158,6 @@ pub use types::{
 #[contract]
 pub struct TeachLinkBridge;
 
-/*
 #[contractimpl]
 impl TeachLinkBridge {
     /// Initialize the bridge contract
@@ -736,7 +739,13 @@ impl TeachLinkBridge {
         report_type: ReportType,
         config: Bytes,
     ) -> Result<u64, BridgeError> {
-        reporting::ReportingManager::create_report_template(&env, creator, name, report_type, config)
+        reporting::ReportingManager::create_report_template(
+            &env,
+            creator,
+            name,
+            report_type,
+            config,
+        )
     }
 
     /// Get report template by id
@@ -752,7 +761,13 @@ impl TeachLinkBridge {
         next_run_at: u64,
         interval_seconds: u64,
     ) -> Result<u64, BridgeError> {
-        reporting::ReportingManager::schedule_report(&env, owner, template_id, next_run_at, interval_seconds)
+        reporting::ReportingManager::schedule_report(
+            &env,
+            owner,
+            template_id,
+            next_run_at,
+            interval_seconds,
+        )
     }
 
     /// Get scheduled reports for an owner
@@ -769,7 +784,11 @@ impl TeachLinkBridge {
         period_end: u64,
     ) -> Result<u64, BridgeError> {
         reporting::ReportingManager::generate_report_snapshot(
-            &env, generator, template_id, period_start, period_end,
+            &env,
+            generator,
+            template_id,
+            period_start,
+            period_end,
         )
     }
 
@@ -779,7 +798,11 @@ impl TeachLinkBridge {
     }
 
     /// Record report view for usage analytics
-    pub fn record_report_view(env: Env, report_id: u64, viewer: Address) -> Result<(), BridgeError> {
+    pub fn record_report_view(
+        env: Env,
+        report_id: u64,
+        viewer: Address,
+    ) -> Result<(), BridgeError> {
         reporting::ReportingManager::record_report_view(&env, report_id, viewer)
     }
 
@@ -839,7 +862,13 @@ impl TeachLinkBridge {
         rto_tier: RtoTier,
         encryption_ref: u64,
     ) -> Result<u64, BridgeError> {
-        backup::BackupManager::create_backup(&env, creator, integrity_hash, rto_tier, encryption_ref)
+        backup::BackupManager::create_backup(
+            &env,
+            creator,
+            integrity_hash,
+            rto_tier,
+            encryption_ref,
+        )
     }
 
     /// Get backup manifest by id
@@ -969,6 +998,106 @@ impl TeachLinkBridge {
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Address {
         rewards::Rewards::get_rewards_admin(&env)
+    }
+
+    // ========== Assessment and Testing Platform Functions ==========
+
+    /// Create a new assessment
+    pub fn create_assessment(
+        env: Env,
+        creator: Address,
+        title: Bytes,
+        description: Bytes,
+        questions: Vec<u64>,
+        settings: AssessmentSettings,
+    ) -> Result<u64, assessment::AssessmentError> {
+        assessment::AssessmentManager::create_assessment(
+            &env,
+            creator,
+            title,
+            description,
+            questions,
+            settings,
+        )
+    }
+
+    /// Add a question to the pool
+    pub fn add_assessment_question(
+        env: Env,
+        creator: Address,
+        q_type: QuestionType,
+        content_hash: Bytes,
+        points: u32,
+        difficulty: u32,
+        correct_answer_hash: Bytes,
+        metadata: Map<Symbol, Bytes>,
+    ) -> Result<u64, assessment::AssessmentError> {
+        assessment::AssessmentManager::add_question(
+            &env,
+            creator,
+            q_type,
+            content_hash,
+            points,
+            difficulty,
+            correct_answer_hash,
+            metadata,
+        )
+    }
+
+    /// Submit an assessment
+    pub fn submit_assessment(
+        env: Env,
+        student: Address,
+        assessment_id: u64,
+        answers: Map<u64, Bytes>,
+        proctor_logs: Vec<Bytes>,
+    ) -> Result<u32, assessment::AssessmentError> {
+        assessment::AssessmentManager::submit_assessment(
+            &env,
+            student,
+            assessment_id,
+            answers,
+            proctor_logs,
+        )
+    }
+
+    /// Get assessment details
+    pub fn get_assessment(env: Env, id: u64) -> Option<Assessment> {
+        assessment::AssessmentManager::get_assessment(&env, id)
+    }
+
+    /// Get user submission
+    pub fn get_assessment_submission(
+        env: Env,
+        student: Address,
+        assessment_id: u64,
+    ) -> Option<AssessmentSubmission> {
+        assessment::AssessmentManager::get_submission(&env, student, assessment_id)
+    }
+
+    /// Report a proctoring violation
+    pub fn report_proctor_violation(
+        env: Env,
+        student: Address,
+        assessment_id: u64,
+        violation_type: Bytes,
+    ) -> Result<(), assessment::AssessmentError> {
+        assessment::AssessmentManager::report_proctoring_violation(
+            &env,
+            student,
+            assessment_id,
+            violation_type,
+        )
+    }
+
+    /// Get next adaptive question
+    pub fn get_next_adaptive_question(
+        env: Env,
+        id: u64,
+        scores: Vec<u32>,
+        answered_ids: Vec<u64>,
+    ) -> Result<u64, assessment::AssessmentError> {
+        assessment::AssessmentManager::get_next_adaptive_question(&env, id, scores, answered_ids)
     }
 
     // ========== Escrow Functions ==========
@@ -1318,8 +1447,12 @@ impl TeachLinkBridge {
         preferences: MobilePreferences,
     ) -> Result<(), MobilePlatformError> {
         mobile_platform::MobilePlatformManager::initialize_mobile_profile(
-            &env, user, device_info, preferences
-        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+            &env,
+            user,
+            device_info,
+            preferences,
+        )
+        .map_err(|_| MobilePlatformError::DeviceNotSupported)
     }
 
     /// Update accessibility settings
@@ -1328,9 +1461,8 @@ impl TeachLinkBridge {
         user: Address,
         settings: MobileAccessibilitySettings,
     ) -> Result<(), MobilePlatformError> {
-        mobile_platform::MobilePlatformManager::update_accessibility_settings(
-            &env, user, settings
-        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+        mobile_platform::MobilePlatformManager::update_accessibility_settings(&env, user, settings)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
     }
 
     /// Update personalization settings
@@ -1339,9 +1471,8 @@ impl TeachLinkBridge {
         user: Address,
         preferences: MobilePreferences,
     ) -> Result<(), MobilePlatformError> {
-        mobile_platform::MobilePlatformManager::update_personalization(
-            &env, user, preferences
-        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+        mobile_platform::MobilePlatformManager::update_personalization(&env, user, preferences)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
     }
 
     /// Record onboarding progress
@@ -1350,9 +1481,8 @@ impl TeachLinkBridge {
         user: Address,
         stage: OnboardingStage,
     ) -> Result<(), MobilePlatformError> {
-        mobile_platform::MobilePlatformManager::record_onboarding_progress(
-            &env, user, stage
-        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+        mobile_platform::MobilePlatformManager::record_onboarding_progress(&env, user, stage)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
     }
 
     /// Submit user feedback
@@ -1364,15 +1494,13 @@ impl TeachLinkBridge {
         category: FeedbackCategory,
     ) -> Result<u64, MobilePlatformError> {
         mobile_platform::MobilePlatformManager::submit_user_feedback(
-            &env, user, rating, comment, category
-        ).map_err(|_| MobilePlatformError::DeviceNotSupported)
+            &env, user, rating, comment, category,
+        )
+        .map_err(|_| MobilePlatformError::DeviceNotSupported)
     }
 
     /// Get user allocated experiment variants
-    pub fn get_user_experiment_variants(
-        env: Env,
-        user: Address,
-    ) -> Map<u64, Symbol> {
+    pub fn get_user_experiment_variants(env: Env, user: Address) -> Map<u64, Symbol> {
         mobile_platform::MobilePlatformManager::get_user_experiment_variants(&env, user)
     }
 
@@ -1519,8 +1647,17 @@ impl TeachLinkBridge {
         settings: social_learning::StudyGroupSettings,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_study_group(
-            &env, creator, name, description, subject, max_members, is_private, tags, settings,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            creator,
+            name,
+            description,
+            subject,
+            max_members,
+            is_private,
+            tags,
+            settings,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Join a study group
@@ -1536,7 +1673,10 @@ impl TeachLinkBridge {
     }
 
     /// Get study group information
-    pub fn get_study_group(env: Env, group_id: u64) -> Result<social_learning::StudyGroup, BridgeError> {
+    pub fn get_study_group(
+        env: Env,
+        group_id: u64,
+    ) -> Result<social_learning::StudyGroup, BridgeError> {
         social_learning::SocialLearningManager::get_study_group(&env, group_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1555,8 +1695,15 @@ impl TeachLinkBridge {
         category: Bytes,
         tags: Vec<Bytes>,
     ) -> Result<u64, BridgeError> {
-        social_learning::SocialLearningManager::create_forum(&env, creator, title, description, category, tags)
-            .map_err(|_| BridgeError::InvalidInput)
+        social_learning::SocialLearningManager::create_forum(
+            &env,
+            creator,
+            title,
+            description,
+            category,
+            tags,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Create a forum post
@@ -1569,18 +1716,30 @@ impl TeachLinkBridge {
         attachments: Vec<Bytes>,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_forum_post(
-            &env, forum_id, author, title, content, attachments,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            forum_id,
+            author,
+            title,
+            content,
+            attachments,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get forum information
-    pub fn get_forum(env: Env, forum_id: u64) -> Result<social_learning::DiscussionForum, BridgeError> {
+    pub fn get_forum(
+        env: Env,
+        forum_id: u64,
+    ) -> Result<social_learning::DiscussionForum, BridgeError> {
         social_learning::SocialLearningManager::get_forum(&env, forum_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get forum post
-    pub fn get_forum_post(env: Env, post_id: u64) -> Result<social_learning::ForumPost, BridgeError> {
+    pub fn get_forum_post(
+        env: Env,
+        post_id: u64,
+    ) -> Result<social_learning::ForumPost, BridgeError> {
         social_learning::SocialLearningManager::get_forum_post(&env, post_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1595,12 +1754,21 @@ impl TeachLinkBridge {
         settings: social_learning::WorkspaceSettings,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_workspace(
-            &env, creator, name, description, project_type, settings,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            creator,
+            name,
+            description,
+            project_type,
+            settings,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get workspace information
-    pub fn get_workspace(env: Env, workspace_id: u64) -> Result<social_learning::CollaborationWorkspace, BridgeError> {
+    pub fn get_workspace(
+        env: Env,
+        workspace_id: u64,
+    ) -> Result<social_learning::CollaborationWorkspace, BridgeError> {
         social_learning::SocialLearningManager::get_workspace(&env, workspace_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1622,12 +1790,23 @@ impl TeachLinkBridge {
         criteria: Map<Bytes, u32>,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_review(
-            &env, reviewer, reviewee, content_type, content_id, rating, feedback, criteria,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            reviewer,
+            reviewee,
+            content_type,
+            content_id,
+            rating,
+            feedback,
+            criteria,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get review information
-    pub fn get_review(env: Env, review_id: u64) -> Result<social_learning::PeerReview, BridgeError> {
+    pub fn get_review(
+        env: Env,
+        review_id: u64,
+    ) -> Result<social_learning::PeerReview, BridgeError> {
         social_learning::SocialLearningManager::get_review(&env, review_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1645,12 +1824,24 @@ impl TeachLinkBridge {
         timezone: Bytes,
     ) -> Result<(), BridgeError> {
         social_learning::SocialLearningManager::create_mentorship_profile(
-            &env, mentor, expertise_areas, experience_level, availability, hourly_rate, bio, languages, timezone,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            mentor,
+            expertise_areas,
+            experience_level,
+            availability,
+            hourly_rate,
+            bio,
+            languages,
+            timezone,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get mentorship profile
-    pub fn get_mentorship_profile(env: Env, mentor: Address) -> Result<social_learning::MentorshipProfile, BridgeError> {
+    pub fn get_mentorship_profile(
+        env: Env,
+        mentor: Address,
+    ) -> Result<social_learning::MentorshipProfile, BridgeError> {
         social_learning::SocialLearningManager::get_mentorship_profile(&env, mentor)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1661,11 +1852,14 @@ impl TeachLinkBridge {
     }
 
     /// Update user social analytics
-    pub fn update_user_analytics(env: Env, user: Address, analytics: social_learning::SocialAnalytics) {
+    pub fn update_user_analytics(
+        env: Env,
+        user: Address,
+        analytics: social_learning::SocialAnalytics,
+    ) {
         social_learning::SocialLearningManager::update_user_analytics(&env, user, analytics);
     }
 
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
 }
-*/
