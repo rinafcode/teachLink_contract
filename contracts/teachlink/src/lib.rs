@@ -85,7 +85,7 @@
 #![allow(clippy::trivially_copy_pass_by_ref)]
 #![allow(clippy::needless_borrow)]
 
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Vec, Symbol};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod analytics;
 mod arbitration;
@@ -117,6 +117,9 @@ mod tokenization;
 mod types;
 pub mod validation;
 
+pub use assessment::{
+    Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
+};
 pub use errors::{BridgeError, EscrowError, RewardsError};
 pub use types::{
     ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics, BridgeProposal, BridgeTransaction,
@@ -129,7 +132,6 @@ pub use types::{
     TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
     ValidatorReward, ValidatorSignature,
 };
-pub use assessment::{Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType};
 
 /// TeachLink main contract.
 ///
@@ -857,12 +859,7 @@ impl TeachLinkBridge {
         scores: Vec<u32>,
         answered_ids: Vec<u64>,
     ) -> Result<u64, assessment::AssessmentError> {
-        assessment::AssessmentManager::get_next_adaptive_question(
-            &env,
-            id,
-            scores,
-            answered_ids,
-        )
+        assessment::AssessmentManager::get_next_adaptive_question(&env, id, scores, answered_ids)
     }
 
     // ========== Escrow Functions ==========
@@ -1334,8 +1331,17 @@ impl TeachLinkBridge {
         settings: social_learning::StudyGroupSettings,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_study_group(
-            &env, creator, name, description, subject, max_members, is_private, tags, settings,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            creator,
+            name,
+            description,
+            subject,
+            max_members,
+            is_private,
+            tags,
+            settings,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Join a study group
@@ -1351,7 +1357,10 @@ impl TeachLinkBridge {
     }
 
     /// Get study group information
-    pub fn get_study_group(env: Env, group_id: u64) -> Result<social_learning::StudyGroup, BridgeError> {
+    pub fn get_study_group(
+        env: Env,
+        group_id: u64,
+    ) -> Result<social_learning::StudyGroup, BridgeError> {
         social_learning::SocialLearningManager::get_study_group(&env, group_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1370,8 +1379,15 @@ impl TeachLinkBridge {
         category: Bytes,
         tags: Vec<Bytes>,
     ) -> Result<u64, BridgeError> {
-        social_learning::SocialLearningManager::create_forum(&env, creator, title, description, category, tags)
-            .map_err(|_| BridgeError::InvalidInput)
+        social_learning::SocialLearningManager::create_forum(
+            &env,
+            creator,
+            title,
+            description,
+            category,
+            tags,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Create a forum post
@@ -1384,18 +1400,30 @@ impl TeachLinkBridge {
         attachments: Vec<Bytes>,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_forum_post(
-            &env, forum_id, author, title, content, attachments,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            forum_id,
+            author,
+            title,
+            content,
+            attachments,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get forum information
-    pub fn get_forum(env: Env, forum_id: u64) -> Result<social_learning::DiscussionForum, BridgeError> {
+    pub fn get_forum(
+        env: Env,
+        forum_id: u64,
+    ) -> Result<social_learning::DiscussionForum, BridgeError> {
         social_learning::SocialLearningManager::get_forum(&env, forum_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get forum post
-    pub fn get_forum_post(env: Env, post_id: u64) -> Result<social_learning::ForumPost, BridgeError> {
+    pub fn get_forum_post(
+        env: Env,
+        post_id: u64,
+    ) -> Result<social_learning::ForumPost, BridgeError> {
         social_learning::SocialLearningManager::get_forum_post(&env, post_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1410,12 +1438,21 @@ impl TeachLinkBridge {
         settings: social_learning::WorkspaceSettings,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_workspace(
-            &env, creator, name, description, project_type, settings,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            creator,
+            name,
+            description,
+            project_type,
+            settings,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get workspace information
-    pub fn get_workspace(env: Env, workspace_id: u64) -> Result<social_learning::CollaborationWorkspace, BridgeError> {
+    pub fn get_workspace(
+        env: Env,
+        workspace_id: u64,
+    ) -> Result<social_learning::CollaborationWorkspace, BridgeError> {
         social_learning::SocialLearningManager::get_workspace(&env, workspace_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1437,12 +1474,23 @@ impl TeachLinkBridge {
         criteria: Map<Bytes, u32>,
     ) -> Result<u64, BridgeError> {
         social_learning::SocialLearningManager::create_review(
-            &env, reviewer, reviewee, content_type, content_id, rating, feedback, criteria,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            reviewer,
+            reviewee,
+            content_type,
+            content_id,
+            rating,
+            feedback,
+            criteria,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get review information
-    pub fn get_review(env: Env, review_id: u64) -> Result<social_learning::PeerReview, BridgeError> {
+    pub fn get_review(
+        env: Env,
+        review_id: u64,
+    ) -> Result<social_learning::PeerReview, BridgeError> {
         social_learning::SocialLearningManager::get_review(&env, review_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1460,12 +1508,24 @@ impl TeachLinkBridge {
         timezone: Bytes,
     ) -> Result<(), BridgeError> {
         social_learning::SocialLearningManager::create_mentorship_profile(
-            &env, mentor, expertise_areas, experience_level, availability, hourly_rate, bio, languages, timezone,
-        ).map_err(|_| BridgeError::InvalidInput)
+            &env,
+            mentor,
+            expertise_areas,
+            experience_level,
+            availability,
+            hourly_rate,
+            bio,
+            languages,
+            timezone,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get mentorship profile
-    pub fn get_mentorship_profile(env: Env, mentor: Address) -> Result<social_learning::MentorshipProfile, BridgeError> {
+    pub fn get_mentorship_profile(
+        env: Env,
+        mentor: Address,
+    ) -> Result<social_learning::MentorshipProfile, BridgeError> {
         social_learning::SocialLearningManager::get_mentorship_profile(&env, mentor)
             .map_err(|_| BridgeError::InvalidInput)
     }
@@ -1476,7 +1536,11 @@ impl TeachLinkBridge {
     }
 
     /// Update user social analytics
-    pub fn update_user_analytics(env: Env, user: Address, analytics: social_learning::SocialAnalytics) {
+    pub fn update_user_analytics(
+        env: Env,
+        user: Address,
+        analytics: social_learning::SocialAnalytics,
+    ) {
         social_learning::SocialLearningManager::update_user_analytics(&env, user, analytics);
     }
 
