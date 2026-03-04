@@ -21,7 +21,7 @@
                   "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                 },
                 {
-                  "i128": "1000"
+                  "i128": "2000"
                 }
               ]
             }
@@ -30,6 +30,7 @@
         }
       ]
     ],
+    [],
     [
       [
         "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4",
@@ -92,10 +93,68 @@
                       "val": {
                         "vec": [
                           {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "address"
+                                },
+                                "val": {
+                                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "role"
+                                },
+                                "val": {
+                                  "vec": [
+                                    {
+                                      "symbol": "Primary"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "weight"
+                                },
+                                "val": {
+                                  "u32": 10
+                                }
+                              }
+                            ]
                           },
                           {
-                            "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "address"
+                                },
+                                "val": {
+                                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "role"
+                                },
+                                "val": {
+                                  "vec": [
+                                    {
+                                      "symbol": "Secondary"
+                                    }
+                                  ]
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "weight"
+                                },
+                                "val": {
+                                  "u32": 5
+                                }
+                              }
+                            ]
                           }
                         ]
                       }
@@ -105,7 +164,7 @@
                         "symbol": "threshold"
                       },
                       "val": {
-                        "u32": 2
+                        "u32": 15
                       }
                     },
                     {
@@ -122,6 +181,26 @@
             }
           },
           "sub_invocations": [
+            {
+              "function": {
+                "contract_fn": {
+                  "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4",
+                  "function_name": "transfer",
+                  "args": [
+                    {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                    },
+                    {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
+                    },
+                    {
+                      "i128": "5"
+                    }
+                  ]
+                }
+              },
+              "sub_invocations": []
+            },
             {
               "function": {
                 "contract_fn": {
@@ -214,6 +293,7 @@
         }
       ]
     ],
+    [],
     [],
     [],
     []
@@ -319,6 +399,55 @@
                   "storage": [
                     {
                       "key": {
+                        "symbol": "esc_an"
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "average_resolution_time"
+                            },
+                            "val": {
+                              "u64": "0"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_disputes"
+                            },
+                            "val": {
+                              "u64": "0"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_escrows"
+                            },
+                            "val": {
+                              "u64": "1"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_resolved"
+                            },
+                            "val": {
+                              "u64": "0"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_volume"
+                            },
+                            "val": {
+                              "i128": "500"
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "esc_ct"
                       },
                       "val": {
@@ -350,7 +479,7 @@
                                     "symbol": "approval_count"
                                   },
                                   "val": {
-                                    "u32": 2
+                                    "u32": 15
                                   }
                                 },
                                 {
@@ -418,10 +547,68 @@
                                   "val": {
                                     "vec": [
                                       {
-                                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                                        "map": [
+                                          {
+                                            "key": {
+                                              "symbol": "address"
+                                            },
+                                            "val": {
+                                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMDR4"
+                                            }
+                                          },
+                                          {
+                                            "key": {
+                                              "symbol": "role"
+                                            },
+                                            "val": {
+                                              "vec": [
+                                                {
+                                                  "symbol": "Primary"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": {
+                                              "symbol": "weight"
+                                            },
+                                            "val": {
+                                              "u32": 10
+                                            }
+                                          }
+                                        ]
                                       },
                                       {
-                                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                                        "map": [
+                                          {
+                                            "key": {
+                                              "symbol": "address"
+                                            },
+                                            "val": {
+                                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAOLZM"
+                                            }
+                                          },
+                                          {
+                                            "key": {
+                                              "symbol": "role"
+                                            },
+                                            "val": {
+                                              "vec": [
+                                                {
+                                                  "symbol": "Secondary"
+                                                }
+                                              ]
+                                            }
+                                          },
+                                          {
+                                            "key": {
+                                              "symbol": "weight"
+                                            },
+                                            "val": {
+                                              "u32": 5
+                                            }
+                                          }
+                                        ]
                                       }
                                     ]
                                   }
@@ -443,7 +630,7 @@
                                     "symbol": "threshold"
                                   },
                                   "val": {
-                                    "u32": 2
+                                    "u32": 15
                                   }
                                 },
                                 {
@@ -455,6 +642,55 @@
                                   }
                                 }
                               ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "ins_pool"
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "symbol": "balance"
+                            },
+                            "val": {
+                              "i128": "5"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "max_payout_percentage"
+                            },
+                            "val": {
+                              "u32": 8000
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "premium_rate"
+                            },
+                            "val": {
+                              "u32": 100
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "token"
+                            },
+                            "val": {
+                              "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "total_claims_paid"
+                            },
+                            "val": {
+                              "i128": "0"
                             }
                           }
                         ]
@@ -503,7 +739,7 @@
                               "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM"
                             },
                             "val": {
-                              "i128": "0"
+                              "i128": "5"
                             }
                           },
                           {
@@ -511,7 +747,7 @@
                               "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
                             },
                             "val": {
-                              "i128": "500"
+                              "i128": "1495"
                             }
                           },
                           {

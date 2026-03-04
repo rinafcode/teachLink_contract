@@ -40,6 +40,9 @@
 //! | [`audit`] | Audit trail and compliance reporting |
 //! | [`atomic_swap`] | Cross-chain atomic swaps |
 //! | [`analytics`] | Bridge monitoring and analytics |
+//! | [`performance`] | Performance caching (bridge summary, TTL, invalidation) |
+//! | [`reporting`] | Advanced analytics, report templates, dashboards, and alerting |
+//! | [`backup`] | Backup scheduling, integrity verification, disaster recovery, and RTO audit |
 //! | [`rewards`] | Reward pool management and distribution |
 //! | [`escrow`] | Multi-signature escrow with dispute resolution |
 //! | [`tokenization`] | Educational content NFT minting and management |
@@ -97,17 +100,24 @@ mod bridge;
 mod emergency;
 mod errors;
 mod escrow;
+// mod advanced_reputation;
 mod escrow_analytics;
 mod events;
 // TODO: Implement governance module
 // mod governance;
+// mod learning_paths;
 mod liquidity;
 mod message_passing;
+mod mobile_platform;
 mod multichain;
 mod notification;
 mod notification_events_basic;
+// mod content_quality;
 // mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
+mod backup;
 mod notification_types;
+mod performance;
+mod reporting;
 mod rewards;
 mod slashing;
 // mod social_events;
@@ -117,20 +127,28 @@ mod tokenization;
 mod types;
 pub mod validation;
 
+pub use crate::types::{
+    ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
+    LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
+    OnboardingStage, OnboardingStatus, ThemePreference, UserFeedback, VideoQuality,
+};
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, RewardsError};
+pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
 pub use types::{
-    ArbitratorProfile, AtomicSwap, AuditRecord, BridgeMetrics, BridgeProposal, BridgeTransaction,
+    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
+    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DisputeOutcome, EmergencyState,
-    Escrow, EscrowMetrics, EscrowParameters, EscrowStatus, LiquidityPool, MultiChainAsset,
-    NotificationChannel, NotificationContent, NotificationPreference, NotificationSchedule,
-    NotificationTemplate, NotificationTracking, OperationType, PacketStatus, ProposalStatus,
-    ProvenanceRecord, RewardRate, RewardType, SlashingReason, SlashingRecord, SwapStatus,
-    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
-    ValidatorReward, ValidatorSignature,
+    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowStatus,
+    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
+    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
+    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
+    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
+    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
+    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
+    ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -691,6 +709,226 @@ impl TeachLinkBridge {
         analytics::AnalyticsManager::get_bridge_statistics(&env)
     }
 
+    /// Get cached or computed bridge summary (health score + top chains). Uses cache if fresh.
+    pub fn get_cached_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
+        performance::PerformanceManager::get_or_compute_summary(&env)
+    }
+
+    /// Force recompute and cache bridge summary. Emits PerfMetricsComputedEvent.
+    pub fn compute_and_cache_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
+        performance::PerformanceManager::compute_and_cache_summary(&env)
+    }
+
+    /// Invalidate performance cache (admin only). Emits PerfCacheInvalidatedEvent.
+    pub fn invalidate_performance_cache(env: Env, admin: Address) -> Result<(), BridgeError> {
+        performance::PerformanceManager::invalidate_cache(&env, &admin)
+    }
+
+    // ========== Advanced Analytics & Reporting Functions ==========
+
+    /// Get dashboard-ready aggregate analytics for visualizations
+    pub fn get_dashboard_analytics(env: Env) -> DashboardAnalytics {
+        reporting::ReportingManager::get_dashboard_analytics(&env)
+    }
+
+    /// Create a report template
+    pub fn create_report_template(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        report_type: ReportType,
+        config: Bytes,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::create_report_template(
+            &env,
+            creator,
+            name,
+            report_type,
+            config,
+        )
+    }
+
+    /// Get report template by id
+    pub fn get_report_template(env: Env, template_id: u64) -> Option<ReportTemplate> {
+        reporting::ReportingManager::get_report_template(&env, template_id)
+    }
+
+    /// Schedule a report
+    pub fn schedule_report(
+        env: Env,
+        owner: Address,
+        template_id: u64,
+        next_run_at: u64,
+        interval_seconds: u64,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::schedule_report(
+            &env,
+            owner,
+            template_id,
+            next_run_at,
+            interval_seconds,
+        )
+    }
+
+    /// Get scheduled reports for an owner
+    pub fn get_scheduled_reports(env: Env, owner: Address) -> Vec<ReportSchedule> {
+        reporting::ReportingManager::get_scheduled_reports(&env, owner)
+    }
+
+    /// Generate a report snapshot
+    pub fn generate_report_snapshot(
+        env: Env,
+        generator: Address,
+        template_id: u64,
+        period_start: u64,
+        period_end: u64,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::generate_report_snapshot(
+            &env,
+            generator,
+            template_id,
+            period_start,
+            period_end,
+        )
+    }
+
+    /// Get report snapshot by id
+    pub fn get_report_snapshot(env: Env, report_id: u64) -> Option<ReportSnapshot> {
+        reporting::ReportingManager::get_report_snapshot(&env, report_id)
+    }
+
+    /// Record report view for usage analytics
+    pub fn record_report_view(
+        env: Env,
+        report_id: u64,
+        viewer: Address,
+    ) -> Result<(), BridgeError> {
+        reporting::ReportingManager::record_report_view(&env, report_id, viewer)
+    }
+
+    /// Get report usage count
+    pub fn get_report_usage_count(env: Env, report_id: u64) -> u32 {
+        reporting::ReportingManager::get_report_usage_count(&env, report_id)
+    }
+
+    /// Add comment to a report
+    pub fn add_report_comment(
+        env: Env,
+        report_id: u64,
+        author: Address,
+        body: Bytes,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::add_report_comment(&env, report_id, author, body)
+    }
+
+    /// Get comments for a report
+    pub fn get_report_comments(env: Env, report_id: u64) -> Vec<ReportComment> {
+        reporting::ReportingManager::get_report_comments(&env, report_id)
+    }
+
+    /// Create an alert rule
+    pub fn create_alert_rule(
+        env: Env,
+        owner: Address,
+        name: Bytes,
+        condition_type: AlertConditionType,
+        threshold: i128,
+    ) -> Result<u64, BridgeError> {
+        reporting::ReportingManager::create_alert_rule(&env, owner, name, condition_type, threshold)
+    }
+
+    /// Get alert rules for an owner
+    pub fn get_alert_rules(env: Env, owner: Address) -> Vec<AlertRule> {
+        reporting::ReportingManager::get_alert_rules(&env, owner)
+    }
+
+    /// Evaluate alert rules (returns triggered rule ids)
+    pub fn evaluate_alerts(env: Env) -> Vec<u64> {
+        reporting::ReportingManager::evaluate_alerts(&env)
+    }
+
+    /// Get recent report snapshots
+    pub fn get_recent_report_snapshots(env: Env, limit: u32) -> Vec<ReportSnapshot> {
+        reporting::ReportingManager::get_recent_report_snapshots(&env, limit)
+    }
+
+    // ========== Backup and Disaster Recovery Functions ==========
+
+    /// Create a backup manifest (integrity hash from off-chain)
+    pub fn create_backup(
+        env: Env,
+        creator: Address,
+        integrity_hash: Bytes,
+        rto_tier: RtoTier,
+        encryption_ref: u64,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::create_backup(
+            &env,
+            creator,
+            integrity_hash,
+            rto_tier,
+            encryption_ref,
+        )
+    }
+
+    /// Get backup manifest by id
+    pub fn get_backup_manifest(env: Env, backup_id: u64) -> Option<BackupManifest> {
+        backup::BackupManager::get_backup_manifest(&env, backup_id)
+    }
+
+    /// Verify backup integrity
+    pub fn verify_backup(
+        env: Env,
+        backup_id: u64,
+        verifier: Address,
+        expected_hash: Bytes,
+    ) -> Result<bool, BridgeError> {
+        backup::BackupManager::verify_backup(&env, backup_id, verifier, expected_hash)
+    }
+
+    /// Schedule automated backup
+    pub fn schedule_backup(
+        env: Env,
+        owner: Address,
+        next_run_at: u64,
+        interval_seconds: u64,
+        rto_tier: RtoTier,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::schedule_backup(&env, owner, next_run_at, interval_seconds, rto_tier)
+    }
+
+    /// Get scheduled backups for an owner
+    pub fn get_scheduled_backups(env: Env, owner: Address) -> Vec<BackupSchedule> {
+        backup::BackupManager::get_scheduled_backups(&env, owner)
+    }
+
+    /// Record a recovery execution (RTO tracking and audit)
+    pub fn record_recovery(
+        env: Env,
+        backup_id: u64,
+        executed_by: Address,
+        recovery_duration_secs: u64,
+        success: bool,
+    ) -> Result<u64, BridgeError> {
+        backup::BackupManager::record_recovery(
+            &env,
+            backup_id,
+            executed_by,
+            recovery_duration_secs,
+            success,
+        )
+    }
+
+    /// Get recovery records for audit and RTO reporting
+    pub fn get_recovery_records(env: Env, limit: u32) -> Vec<RecoveryRecord> {
+        backup::BackupManager::get_recovery_records(&env, limit)
+    }
+
+    /// Get recent backup manifests
+    pub fn get_recent_backups(env: Env, limit: u32) -> Vec<BackupManifest> {
+        backup::BackupManager::get_recent_backups(&env, limit)
+    }
+
     // ========== Rewards Functions ==========
 
     /// Initialize the rewards system
@@ -1197,6 +1435,84 @@ impl TeachLinkBridge {
             localization: Map::new(&env),
         };
         notification::NotificationManager::send_notification(&env, recipient, channel, content)
+    }
+
+    // ========== Mobile UI/UX Functions ==========
+
+    /// Initialize mobile profile for user
+    pub fn initialize_mobile_profile(
+        env: Env,
+        user: Address,
+        device_info: DeviceInfo,
+        preferences: MobilePreferences,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::initialize_mobile_profile(
+            &env,
+            user,
+            device_info,
+            preferences,
+        )
+        .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Update accessibility settings
+    pub fn update_accessibility_settings(
+        env: Env,
+        user: Address,
+        settings: MobileAccessibilitySettings,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::update_accessibility_settings(&env, user, settings)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Update personalization settings
+    pub fn update_personalization(
+        env: Env,
+        user: Address,
+        preferences: MobilePreferences,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::update_personalization(&env, user, preferences)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Record onboarding progress
+    pub fn record_onboarding_progress(
+        env: Env,
+        user: Address,
+        stage: OnboardingStage,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::record_onboarding_progress(&env, user, stage)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Submit user feedback
+    pub fn submit_user_feedback(
+        env: Env,
+        user: Address,
+        rating: u32,
+        comment: Bytes,
+        category: FeedbackCategory,
+    ) -> Result<u64, MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::submit_user_feedback(
+            &env, user, rating, comment, category,
+        )
+        .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Get user allocated experiment variants
+    pub fn get_user_experiment_variants(env: Env, user: Address) -> Map<u64, Symbol> {
+        mobile_platform::MobilePlatformManager::get_user_experiment_variants(&env, user)
+    }
+
+    /// Get design system configuration
+    pub fn get_design_system_config(env: Env) -> ComponentConfig {
+        mobile_platform::MobilePlatformManager::get_design_system_config(&env)
+    }
+
+    /// Set design system configuration (admin only)
+    pub fn set_design_system_config(env: Env, config: ComponentConfig) {
+        // In a real implementation, we would check for admin authorization here
+        mobile_platform::MobilePlatformManager::set_design_system_config(&env, config)
     }
 
     /// Schedule notification for future delivery
