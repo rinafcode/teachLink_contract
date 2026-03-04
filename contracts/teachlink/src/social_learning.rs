@@ -10,7 +10,10 @@
 //! - Collaborative project management
 //! - Social gamification and recognition systems
 
-use soroban_sdk::{Address, Bytes, Env, Map, Vec, Symbol, String, contracttype, contracterror, panic_with_error, TryFromVal, IntoVal, Val, symbol_short};
+use soroban_sdk::{
+    contracterror, contracttype, panic_with_error, symbol_short, Address, Bytes, Env, IntoVal, Map,
+    String, Symbol, TryFromVal, Val, Vec,
+};
 
 use crate::storage::*;
 use crate::types::*;
@@ -360,30 +363,30 @@ pub enum RewardCategory {
 }
 
 // Storage keys
-const STUDY_GROUP_COUNTER: Symbol = Symbol::short("SGC");
-const STUDY_GROUPS: Symbol = Symbol::short("SGS");
-const USER_STUDY_GROUPS: Symbol = Symbol::short("USG");
+const STUDY_GROUP_COUNTER: Symbol = symbol_short!("SGC");
+const STUDY_GROUPS: Symbol = symbol_short!("SGS");
+const USER_STUDY_GROUPS: Symbol = symbol_short!("USG");
 
-const FORUM_COUNTER: Symbol = Symbol::short("FC");
-const FORUMS: Symbol = Symbol::short("FRS");
-const FORUM_POSTS: Symbol = Symbol::short("FPS");
-const USER_POSTS: Symbol = Symbol::short("UPS");
+const FORUM_COUNTER: Symbol = symbol_short!("FC");
+const FORUMS: Symbol = symbol_short!("FRS");
+const FORUM_POSTS: Symbol = symbol_short!("FPS");
+const USER_POSTS: Symbol = symbol_short!("UPS");
 
-const WORKSPACE_COUNTER: Symbol = Symbol::short("WC");
-const WORKSPACES: Symbol = Symbol::short("WKS");
-const USER_WORKSPACES: Symbol = Symbol::short("UWS");
+const WORKSPACE_COUNTER: Symbol = symbol_short!("WC");
+const WORKSPACES: Symbol = symbol_short!("WKS");
+const USER_WORKSPACES: Symbol = symbol_short!("UWS");
 
-const REVIEW_COUNTER: Symbol = Symbol::short("RC");
-const REVIEWS: Symbol = Symbol::short("RVS");
-const USER_REVIEWS: Symbol = Symbol::short("URS");
+const REVIEW_COUNTER: Symbol = symbol_short!("RC");
+const REVIEWS: Symbol = symbol_short!("RVS");
+const USER_REVIEWS: Symbol = symbol_short!("URS");
 
-const MENTORSHIP_PROFILES: Symbol = Symbol::short("MPS");
-const MENTORSHIP_SESSIONS: Symbol = Symbol::short("MSS");
-const MENTORSHIP_COUNTER: Symbol = Symbol::short("MSC");
+const MENTORSHIP_PROFILES: Symbol = symbol_short!("MPS");
+const MENTORSHIP_SESSIONS: Symbol = symbol_short!("MSS");
+const MENTORSHIP_COUNTER: Symbol = symbol_short!("MSC");
 
-const SOCIAL_ANALYTICS: Symbol = Symbol::short("SAS");
-const SOCIAL_BADGES: Symbol = Symbol::short("SBS");
-const GAMIFICATION_SYSTEM: Symbol = Symbol::short("GMS");
+const SOCIAL_ANALYTICS: Symbol = symbol_short!("SAS");
+const SOCIAL_BADGES: Symbol = symbol_short!("SBS");
+const GAMIFICATION_SYSTEM: Symbol = symbol_short!("GMS");
 
 // Errors
 #[contracterror]
@@ -421,7 +424,11 @@ impl SocialLearningManager {
         tags: Vec<Bytes>,
         settings: StudyGroupSettings,
     ) -> Result<u64, SocialLearningError> {
-        let counter: u64 = env.storage().instance().get(&STUDY_GROUP_COUNTER).unwrap_or(0);
+        let counter: u64 = env
+            .storage()
+            .instance()
+            .get(&STUDY_GROUP_COUNTER)
+            .unwrap_or(0);
         let group_id = counter + 1;
 
         let mut members = Vec::new(&env);
@@ -447,17 +454,29 @@ impl SocialLearningManager {
         };
 
         // Store study group
-        let mut groups: Map<u64, StudyGroup> = env.storage().instance().get(&STUDY_GROUPS).unwrap_or(Map::new(&env));
+        let mut groups: Map<u64, StudyGroup> = env
+            .storage()
+            .instance()
+            .get(&STUDY_GROUPS)
+            .unwrap_or(Map::new(&env));
         groups.set(group_id, study_group);
         env.storage().instance().set(&STUDY_GROUPS, &groups);
 
         // Update user's study groups
-        let mut user_groups: Vec<u64> = env.storage().instance().get(&USER_STUDY_GROUPS).unwrap_or(Vec::new(&env));
+        let mut user_groups: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&USER_STUDY_GROUPS)
+            .unwrap_or(Vec::new(&env));
         user_groups.push_back(group_id);
-        env.storage().instance().set(&USER_STUDY_GROUPS, &user_groups);
+        env.storage()
+            .instance()
+            .set(&USER_STUDY_GROUPS, &user_groups);
 
         // Update counter
-        env.storage().instance().set(&STUDY_GROUP_COUNTER, &group_id);
+        env.storage()
+            .instance()
+            .set(&STUDY_GROUP_COUNTER, &group_id);
 
         Ok(group_id)
     }
@@ -467,10 +486,15 @@ impl SocialLearningManager {
         user: Address,
         group_id: u64,
     ) -> Result<(), SocialLearningError> {
-        let mut groups: Map<u64, StudyGroup> = env.storage().instance().get(&STUDY_GROUPS)
+        let mut groups: Map<u64, StudyGroup> = env
+            .storage()
+            .instance()
+            .get(&STUDY_GROUPS)
             .ok_or(SocialLearningError::StudyGroupNotFound)?;
-        
-        let mut group = groups.get(group_id).ok_or(SocialLearningError::StudyGroupNotFound)?;
+
+        let mut group = groups
+            .get(group_id)
+            .ok_or(SocialLearningError::StudyGroupNotFound)?;
 
         // Check if user is already a member
         if group.members.contains(&user) {
@@ -490,9 +514,15 @@ impl SocialLearningManager {
         env.storage().instance().set(&STUDY_GROUPS, &groups);
 
         // Update user's study groups
-        let mut user_groups: Vec<u64> = env.storage().instance().get(&USER_STUDY_GROUPS).unwrap_or(Vec::new(&env));
+        let mut user_groups: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&USER_STUDY_GROUPS)
+            .unwrap_or(Vec::new(&env));
         user_groups.push_back(group_id);
-        env.storage().instance().set(&USER_STUDY_GROUPS, &user_groups);
+        env.storage()
+            .instance()
+            .set(&USER_STUDY_GROUPS, &user_groups);
 
         Ok(())
     }
@@ -502,10 +532,15 @@ impl SocialLearningManager {
         user: Address,
         group_id: u64,
     ) -> Result<(), SocialLearningError> {
-        let mut groups: Map<u64, StudyGroup> = env.storage().instance().get(&STUDY_GROUPS)
+        let mut groups: Map<u64, StudyGroup> = env
+            .storage()
+            .instance()
+            .get(&STUDY_GROUPS)
             .ok_or(SocialLearningError::StudyGroupNotFound)?;
-        
-        let mut group = groups.get(group_id).ok_or(SocialLearningError::StudyGroupNotFound)?;
+
+        let mut group = groups
+            .get(group_id)
+            .ok_or(SocialLearningError::StudyGroupNotFound)?;
 
         // Check if user is a member
         if !group.members.contains(&user) {
@@ -536,27 +571,41 @@ impl SocialLearningManager {
         env.storage().instance().set(&STUDY_GROUPS, &groups);
 
         // Update user's study groups
-        let user_groups: Vec<u64> = env.storage().instance().get(&USER_STUDY_GROUPS).unwrap_or(Vec::new(&env));
+        let user_groups: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&USER_STUDY_GROUPS)
+            .unwrap_or(Vec::new(&env));
         let mut new_user_groups = Vec::new(env);
         for id in user_groups.iter() {
             if id != group_id {
                 new_user_groups.push_back(id);
             }
         }
-        env.storage().instance().set(&USER_STUDY_GROUPS, &new_user_groups);
+        env.storage()
+            .instance()
+            .set(&USER_STUDY_GROUPS, &new_user_groups);
 
         Ok(())
     }
 
     pub fn get_study_group(env: &Env, group_id: u64) -> Result<StudyGroup, SocialLearningError> {
-        let groups: Map<u64, StudyGroup> = env.storage().instance().get(&STUDY_GROUPS)
+        let groups: Map<u64, StudyGroup> = env
+            .storage()
+            .instance()
+            .get(&STUDY_GROUPS)
             .ok_or(SocialLearningError::StudyGroupNotFound)?;
-        
-        groups.get(group_id).ok_or(SocialLearningError::StudyGroupNotFound)
+
+        groups
+            .get(group_id)
+            .ok_or(SocialLearningError::StudyGroupNotFound)
     }
 
     pub fn get_user_study_groups(env: &Env, user: Address) -> Vec<u64> {
-        env.storage().instance().get(&USER_STUDY_GROUPS).unwrap_or(Vec::new(&env))
+        env.storage()
+            .instance()
+            .get(&USER_STUDY_GROUPS)
+            .unwrap_or(Vec::new(&env))
     }
 
     // Discussion Forum Management
@@ -587,7 +636,11 @@ impl SocialLearningManager {
         };
 
         // Store forum
-        let mut forums: Map<u64, DiscussionForum> = env.storage().instance().get(&FORUMS).unwrap_or(Map::new(&env));
+        let mut forums: Map<u64, DiscussionForum> = env
+            .storage()
+            .instance()
+            .get(&FORUMS)
+            .unwrap_or(Map::new(&env));
         forums.set(forum_id, forum);
         env.storage().instance().set(&FORUMS, &forums);
 
@@ -606,11 +659,16 @@ impl SocialLearningManager {
         attachments: Vec<Bytes>,
     ) -> Result<u64, SocialLearningError> {
         // Check if forum exists and is not locked
-        let mut forums: Map<u64, DiscussionForum> = env.storage().instance().get(&FORUMS)
+        let mut forums: Map<u64, DiscussionForum> = env
+            .storage()
+            .instance()
+            .get(&FORUMS)
             .ok_or(SocialLearningError::ForumNotFound)?;
-        
-        let mut forum = forums.get(forum_id).ok_or(SocialLearningError::ForumNotFound)?;
-        
+
+        let mut forum = forums
+            .get(forum_id)
+            .ok_or(SocialLearningError::ForumNotFound)?;
+
         if forum.is_locked {
             return Err(SocialLearningError::InsufficientPermissions);
         }
@@ -634,7 +692,11 @@ impl SocialLearningManager {
         };
 
         // Store post
-        let mut posts: Map<u64, ForumPost> = env.storage().instance().get(&FORUM_POSTS).unwrap_or(Map::new(&env));
+        let mut posts: Map<u64, ForumPost> = env
+            .storage()
+            .instance()
+            .get(&FORUM_POSTS)
+            .unwrap_or(Map::new(&env));
         posts.set(post_id, post);
         env.storage().instance().set(&FORUM_POSTS, &posts);
 
@@ -645,7 +707,11 @@ impl SocialLearningManager {
         env.storage().instance().set(&FORUMS, &forums);
 
         // Update user's posts
-        let mut user_posts: Vec<u64> = env.storage().instance().get(&USER_POSTS).unwrap_or(Vec::new(&env));
+        let mut user_posts: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&USER_POSTS)
+            .unwrap_or(Vec::new(&env));
         user_posts.push_back(post_id);
         env.storage().instance().set(&USER_POSTS, &user_posts);
 
@@ -656,16 +722,24 @@ impl SocialLearningManager {
     }
 
     pub fn get_forum(env: &Env, forum_id: u64) -> Result<DiscussionForum, SocialLearningError> {
-        let forums: Map<u64, DiscussionForum> = env.storage().instance().get(&FORUMS)
+        let forums: Map<u64, DiscussionForum> = env
+            .storage()
+            .instance()
+            .get(&FORUMS)
             .ok_or(SocialLearningError::ForumNotFound)?;
-        
-        forums.get(forum_id).ok_or(SocialLearningError::ForumNotFound)
+
+        forums
+            .get(forum_id)
+            .ok_or(SocialLearningError::ForumNotFound)
     }
 
     pub fn get_forum_post(env: &Env, post_id: u64) -> Result<ForumPost, SocialLearningError> {
-        let posts: Map<u64, ForumPost> = env.storage().instance().get(&FORUM_POSTS)
+        let posts: Map<u64, ForumPost> = env
+            .storage()
+            .instance()
+            .get(&FORUM_POSTS)
             .ok_or(SocialLearningError::PostNotFound)?;
-        
+
         posts.get(post_id).ok_or(SocialLearningError::PostNotFound)
     }
 
@@ -678,7 +752,11 @@ impl SocialLearningManager {
         project_type: ProjectType,
         settings: WorkspaceSettings,
     ) -> Result<u64, SocialLearningError> {
-        let counter: u64 = env.storage().instance().get(&WORKSPACE_COUNTER).unwrap_or(0);
+        let counter: u64 = env
+            .storage()
+            .instance()
+            .get(&WORKSPACE_COUNTER)
+            .unwrap_or(0);
         let workspace_id = counter + 1;
 
         let mut collaborators = Vec::new(&env);
@@ -700,30 +778,53 @@ impl SocialLearningManager {
         };
 
         // Store workspace
-        let mut workspaces: Map<u64, CollaborationWorkspace> = env.storage().instance().get(&WORKSPACES).unwrap_or(Map::new(&env));
+        let mut workspaces: Map<u64, CollaborationWorkspace> = env
+            .storage()
+            .instance()
+            .get(&WORKSPACES)
+            .unwrap_or(Map::new(&env));
         workspaces.set(workspace_id, workspace);
         env.storage().instance().set(&WORKSPACES, &workspaces);
 
         // Update user's workspaces
-        let mut user_workspaces: Vec<u64> = env.storage().instance().get(&USER_WORKSPACES).unwrap_or(Vec::new(&env));
+        let mut user_workspaces: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&USER_WORKSPACES)
+            .unwrap_or(Vec::new(&env));
         user_workspaces.push_back(workspace_id);
-        env.storage().instance().set(&USER_WORKSPACES, &user_workspaces);
+        env.storage()
+            .instance()
+            .set(&USER_WORKSPACES, &user_workspaces);
 
         // Update counter
-        env.storage().instance().set(&WORKSPACE_COUNTER, &workspace_id);
+        env.storage()
+            .instance()
+            .set(&WORKSPACE_COUNTER, &workspace_id);
 
         Ok(workspace_id)
     }
 
-    pub fn get_workspace(env: &Env, workspace_id: u64) -> Result<CollaborationWorkspace, SocialLearningError> {
-        let workspaces: Map<u64, CollaborationWorkspace> = env.storage().instance().get(&WORKSPACES)
+    pub fn get_workspace(
+        env: &Env,
+        workspace_id: u64,
+    ) -> Result<CollaborationWorkspace, SocialLearningError> {
+        let workspaces: Map<u64, CollaborationWorkspace> = env
+            .storage()
+            .instance()
+            .get(&WORKSPACES)
             .ok_or(SocialLearningError::WorkspaceNotFound)?;
-        
-        workspaces.get(workspace_id).ok_or(SocialLearningError::WorkspaceNotFound)
+
+        workspaces
+            .get(workspace_id)
+            .ok_or(SocialLearningError::WorkspaceNotFound)
     }
 
     pub fn get_user_workspaces(env: &Env, user: Address) -> Vec<u64> {
-        env.storage().instance().get(&USER_WORKSPACES).unwrap_or(Vec::new(&env))
+        env.storage()
+            .instance()
+            .get(&USER_WORKSPACES)
+            .unwrap_or(Vec::new(&env))
     }
 
     // Peer Review System
@@ -759,12 +860,20 @@ impl SocialLearningManager {
         };
 
         // Store review
-        let mut reviews: Map<u64, PeerReview> = env.storage().instance().get(&REVIEWS).unwrap_or(Map::new(&env));
+        let mut reviews: Map<u64, PeerReview> = env
+            .storage()
+            .instance()
+            .get(&REVIEWS)
+            .unwrap_or(Map::new(&env));
         reviews.set(review_id, review);
         env.storage().instance().set(&REVIEWS, &reviews);
 
         // Update user's reviews
-        let mut user_reviews: Vec<u64> = env.storage().instance().get(&USER_REVIEWS).unwrap_or(Vec::new(&env));
+        let mut user_reviews: Vec<u64> = env
+            .storage()
+            .instance()
+            .get(&USER_REVIEWS)
+            .unwrap_or(Vec::new(&env));
         user_reviews.push_back(review_id);
         env.storage().instance().set(&USER_REVIEWS, &user_reviews);
 
@@ -775,10 +884,15 @@ impl SocialLearningManager {
     }
 
     pub fn get_review(env: &Env, review_id: u64) -> Result<PeerReview, SocialLearningError> {
-        let reviews: Map<u64, PeerReview> = env.storage().instance().get(&REVIEWS)
+        let reviews: Map<u64, PeerReview> = env
+            .storage()
+            .instance()
+            .get(&REVIEWS)
             .ok_or(SocialLearningError::ReviewNotFound)?;
-        
-        reviews.get(review_id).ok_or(SocialLearningError::ReviewNotFound)
+
+        reviews
+            .get(review_id)
+            .ok_or(SocialLearningError::ReviewNotFound)
     }
 
     // Mentorship System
@@ -809,35 +923,52 @@ impl SocialLearningManager {
         };
 
         // Store profile
-        let mut profiles: Map<Address, MentorshipProfile> = env.storage().instance().get(&MENTORSHIP_PROFILES).unwrap_or(Map::new(&env));
+        let mut profiles: Map<Address, MentorshipProfile> = env
+            .storage()
+            .instance()
+            .get(&MENTORSHIP_PROFILES)
+            .unwrap_or(Map::new(&env));
         profiles.set(mentor, profile);
-        env.storage().instance().set(&MENTORSHIP_PROFILES, &profiles);
+        env.storage()
+            .instance()
+            .set(&MENTORSHIP_PROFILES, &profiles);
 
         Ok(())
     }
 
-    pub fn get_mentorship_profile(env: &Env, mentor: Address) -> Result<MentorshipProfile, SocialLearningError> {
-        let profiles: Map<Address, MentorshipProfile> = env.storage().instance().get(&MENTORSHIP_PROFILES)
+    pub fn get_mentorship_profile(
+        env: &Env,
+        mentor: Address,
+    ) -> Result<MentorshipProfile, SocialLearningError> {
+        let profiles: Map<Address, MentorshipProfile> = env
+            .storage()
+            .instance()
+            .get(&MENTORSHIP_PROFILES)
             .ok_or(SocialLearningError::MentorshipProfileNotFound)?;
-        
-        profiles.get(mentor).ok_or(SocialLearningError::MentorshipProfileNotFound)
+
+        profiles
+            .get(mentor)
+            .ok_or(SocialLearningError::MentorshipProfileNotFound)
     }
 
     // Social Analytics
     pub fn get_user_analytics(env: &Env, user: Address) -> SocialAnalytics {
-        env.storage().instance().get(&SOCIAL_ANALYTICS).unwrap_or(SocialAnalytics {
-            user: user.clone(),
-            study_groups_joined: 0,
-            discussions_participated: 0,
-            posts_created: 0,
-            reviews_given: 0,
-            mentorship_hours: 0,
-            collaboration_projects: 0,
-            social_score: 0,
-            engagement_level: EngagementLevel::Low,
-            badges: Vec::new(&env),
-            last_updated: env.ledger().timestamp(),
-        })
+        env.storage()
+            .instance()
+            .get(&SOCIAL_ANALYTICS)
+            .unwrap_or(SocialAnalytics {
+                user: user.clone(),
+                study_groups_joined: 0,
+                discussions_participated: 0,
+                posts_created: 0,
+                reviews_given: 0,
+                mentorship_hours: 0,
+                collaboration_projects: 0,
+                social_score: 0,
+                engagement_level: EngagementLevel::Low,
+                badges: Vec::new(&env),
+                last_updated: env.ledger().timestamp(),
+            })
     }
 
     pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) {

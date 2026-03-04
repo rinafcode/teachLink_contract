@@ -1,6 +1,6 @@
 //! Assessment and Testing Platform Module
 //!
-//! Build a comprehensive assessment system that supports various question types, 
+//! Build a comprehensive assessment system that supports various question types,
 //! automated grading, plagiarism detection, and adaptive testing.
 
 use soroban_sdk::{
@@ -111,7 +111,11 @@ impl AssessmentManager {
     ) -> Result<u64, AssessmentError> {
         creator.require_auth();
 
-        let mut counter: u64 = env.storage().instance().get(&ASSESSMENT_COUNTER).unwrap_or(0);
+        let mut counter: u64 = env
+            .storage()
+            .instance()
+            .get(&ASSESSMENT_COUNTER)
+            .unwrap_or(0);
         counter += 1;
 
         let assessment = Assessment {
@@ -129,7 +133,7 @@ impl AssessmentManager {
             .instance()
             .get(&ASSESSMENTS)
             .unwrap_or(Map::new(env));
-        
+
         assessments.set(counter, assessment);
         env.storage().instance().set(&ASSESSMENTS, &assessments);
         env.storage().instance().set(&ASSESSMENT_COUNTER, &counter);
@@ -168,7 +172,7 @@ impl AssessmentManager {
             .instance()
             .get(&QUESTIONS)
             .unwrap_or(Map::new(env));
-        
+
         questions.set(q_counter, question);
         env.storage().instance().set(&QUESTIONS, &questions);
         env.storage().instance().set(&QUESTION_COUNTER, &q_counter);
@@ -191,8 +195,10 @@ impl AssessmentManager {
             .instance()
             .get(&ASSESSMENTS)
             .ok_or(AssessmentError::AssessmentNotFound)?;
-        
-        let assessment = assessments.get(assessment_id).ok_or(AssessmentError::AssessmentNotFound)?;
+
+        let assessment = assessments
+            .get(assessment_id)
+            .ok_or(AssessmentError::AssessmentNotFound)?;
 
         // Check if deadline passed
         if assessment.settings.time_limit > 0 {
@@ -284,8 +290,10 @@ impl AssessmentManager {
             .instance()
             .get(&ASSESSMENTS)
             .ok_or(AssessmentError::AssessmentNotFound)?;
-        
-        let assessment = assessments.get(assessment_id).ok_or(AssessmentError::AssessmentNotFound)?;
+
+        let assessment = assessments
+            .get(assessment_id)
+            .ok_or(AssessmentError::AssessmentNotFound)?;
 
         if !assessment.settings.is_adaptive {
             return Err(AssessmentError::InvalidInput);
@@ -300,7 +308,9 @@ impl AssessmentManager {
         // Calculate current performance
         let mut correct_count = 0;
         for s in previous_scores.iter() {
-            if s > 0 { correct_count += 1; }
+            if s > 0 {
+                correct_count += 1;
+            }
         }
 
         let performance_ratio = if previous_scores.len() > 0 {
@@ -341,16 +351,24 @@ impl AssessmentManager {
     }
 
     /// Basic Plagiarism Detection: Check if too many answers are identical to previous submissions
-    fn detect_plagiarism(env: &Env, assessment_id: u64, current_answers: &Map<u64, Bytes>) -> Option<bool> {
+    fn detect_plagiarism(
+        env: &Env,
+        assessment_id: u64,
+        current_answers: &Map<u64, Bytes>,
+    ) -> Option<bool> {
         // Implement a window-based or sampling-based check to avoid O(N) storage scan
         // For simplicity, we'll check against the "Recent Submissions" list
         let recent_subs_key = symbol_short!("REC_SUB");
-        let recent_subs: Vec<Map<u64, Bytes>> = env.storage().instance().get(&recent_subs_key).unwrap_or(Vec::new(env));
+        let recent_subs: Vec<Map<u64, Bytes>> = env
+            .storage()
+            .instance()
+            .get(&recent_subs_key)
+            .unwrap_or(Vec::new(env));
 
         for past_answers in recent_subs.iter() {
             let mut match_count = 0;
             let total_questions = current_answers.len();
-            
+
             for (q_id, ans) in current_answers.iter() {
                 if let Some(past_ans) = past_answers.get(q_id) {
                     if ans == past_ans {
@@ -383,23 +401,29 @@ impl AssessmentManager {
             .instance()
             .get(&analytics_key)
             .unwrap_or(Map::new(env));
-        
-        let mut analytics = assessments_analytics.get(assessment_id).unwrap_or(AssessmentAnalytics {
-            assessment_id,
-            total_submissions: 0,
-            average_score: 0,
-            pass_rate: 0,
-            difficulty_rating: 5,
-        });
+
+        let mut analytics =
+            assessments_analytics
+                .get(assessment_id)
+                .unwrap_or(AssessmentAnalytics {
+                    assessment_id,
+                    total_submissions: 0,
+                    average_score: 0,
+                    pass_rate: 0,
+                    difficulty_rating: 5,
+                });
 
         let new_total = analytics.total_submissions + 1;
-        analytics.average_score = ((analytics.average_score * analytics.total_submissions) + score) / new_total;
+        analytics.average_score =
+            ((analytics.average_score * analytics.total_submissions) + score) / new_total;
         analytics.total_submissions = new_total;
 
         // Logic for pass rate...
-        
+
         assessments_analytics.set(assessment_id, analytics);
-        env.storage().instance().set(&analytics_key, &assessments_analytics);
+        env.storage()
+            .instance()
+            .set(&analytics_key, &assessments_analytics);
     }
 
     pub fn get_assessment(env: &Env, id: u64) -> Option<Assessment> {
@@ -407,8 +431,14 @@ impl AssessmentManager {
         assessments.get(id)
     }
 
-    pub fn get_submission(env: &Env, student: Address, assessment_id: u64) -> Option<AssessmentSubmission> {
-        env.storage().persistent().get(&(SUBMISSIONS, student, assessment_id))
+    pub fn get_submission(
+        env: &Env,
+        student: Address,
+        assessment_id: u64,
+    ) -> Option<AssessmentSubmission> {
+        env.storage()
+            .persistent()
+            .get(&(SUBMISSIONS, student, assessment_id))
     }
 
     /// Proctoring: Record a violation during the session
@@ -444,7 +474,9 @@ impl AssessmentManager {
         // Check if admin is authorized (omitted for brevity, assume owner/admin)
 
         let acc_key = (symbol_short!("ACC_S"), student);
-        env.storage().persistent().set(&acc_key, &extra_time_seconds);
+        env.storage()
+            .persistent()
+            .set(&acc_key, &extra_time_seconds);
 
         Ok(())
     }
