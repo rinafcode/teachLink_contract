@@ -94,6 +94,20 @@ pub enum RewardsError {
     RateCannotBeNegative = 305,
 }
 
+/// Mobile platform module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum MobilePlatformError {
+    DeviceNotSupported = 400,
+    InsufficientStorage = 401,
+    NetworkUnavailable = 402,
+    AuthenticationFailed = 403,
+    SyncFailed = 404,
+    PaymentFailed = 405,
+    SecurityViolation = 406,
+    FeatureNotAvailable = 407,
+}
+
 /// Common errors that can be used across modules
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -1,0 +1,41 @@
+{
+  "search": {
+    "enabled": true,
+    "indexPath": ".search-index",
+    "fields": [
+      {
+        "name": "title",
+        "weight": 10
+      },
+      {
+        "name": "content",
+        "weight": 5
+      },
+      {
+        "name": "tags",
+        "weight": 8
+      },
+      {
+        "name": "category",
+        "weight": 3
+      }
+    ],
+    "tokenizer": "standard",
+    "stopWords": ["the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for"],
+    "fuzzySearch": true,
+    "fuzzyThreshold": 0.8
+  },
+  "discovery": {
+    "relatedContent": true,
+    "trendingTopics": true,
+    "popularArticles": true,
+    "recentUpdates": true
+  },
+  "analytics": {
+    "trackViews": true,
+    "trackSearchQueries": true,
+    "trackHelpfulVotes": true,
+    "trackTimeOnPage": true,
+    "anonymizeIp": true
+  }
+}

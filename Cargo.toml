@@ -4,6 +4,9 @@ members = [
   "contracts/governance",
   "contracts/insurance",
   "contracts/teachlink",
+  "contracts/identity_registry",
+  "contracts/credential_registry",
+  "contracts/cdn",
 ]
 
 [workspace.package]

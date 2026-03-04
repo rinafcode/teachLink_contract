@@ -8,6 +8,7 @@
     [],
     [],
     [],
+    [],
     []
   ],
   "ledger": {
@@ -59,6 +60,14 @@
                           },
                           {
                             "key": {
+                              "symbol": "max_delegation_depth"
+                            },
+                            "val": {
+                              "u32": 3
+                            }
+                          },
+                          {
+                            "key": {
                               "symbol": "proposal_threshold"
                             },
                             "val": {
@@ -67,10 +76,26 @@
                           },
                           {
                             "key": {
+                              "symbol": "quadratic_voting_enabled"
+                            },
+                            "val": {
+                              "bool": false
+                            }
+                          },
+                          {
+                            "key": {
                               "symbol": "quorum"
                             },
                             "val": {
                               "i128": "500"
+                            }
+                          },
+                          {
+                            "key": {
+                              "symbol": "staking_multiplier"
+                            },
+                            "val": {
+                              "u32": 10000
                             }
                           },
                           {

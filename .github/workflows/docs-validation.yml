@@ -14,6 +14,12 @@ jobs:
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
 
       # 1. Link checking system (Temporarily disabled)
       # - name: Lychee Link Checker
@@ -22,6 +28,10 @@ jobs:
       #     args: --config lychee.toml "./**/*.md"
       #     fail: true
 
-      # 2. Validate code examples (This stays!)
-      - name: Verify Code Snippets
-        run: cargo test --doc
+      # 2. Validate code examples (per workspace member)
+      - name: Verify Code Snippets (teachlink)
+        run: cargo test --doc -p teachlink-contract
+      - name: Verify Code Snippets (governance)
+        run: cargo test --doc -p governance-contract
+      - name: Verify Code Snippets (insurance)
+        run: cargo test --doc -p enhanced-insurance
