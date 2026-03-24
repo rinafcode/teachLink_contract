@@ -7,6 +7,7 @@ use crate::errors::BridgeError;
 use crate::events::{PacketDeliveredEvent, PacketFailedEvent, PacketSentEvent};
 use crate::storage::{CROSS_CHAIN_PACKETS, MESSAGE_RECEIPTS, PACKET_COUNTER};
 use crate::types::{CrossChainPacket, MessageReceipt, PacketStatus};
+use crate::validation::NumberValidator;
 use soroban_sdk::{Bytes, Env, Map, Vec};
 
 /// Default packet timeout (24 hours)
@@ -32,16 +33,21 @@ impl MessagePassing {
         payload: Bytes,
         timeout: Option<u64>,
     ) -> Result<u64, BridgeError> {
-        // Validate addresses
-        if sender.is_empty() || sender.len() > 64 {
-            return Err(BridgeError::InvalidPayload);
-        }
-        if recipient.is_empty() || recipient.len() > 64 {
-            return Err(BridgeError::InvalidPayload);
-        }
-        if payload.is_empty() {
-            return Err(BridgeError::InvalidPayload);
-        }
+        // Validate chain IDs
+        NumberValidator::validate_chain_id(source_chain)
+            .map_err(|_| BridgeError::InvalidInput)?;
+        NumberValidator::validate_chain_id(destination_chain)
+            .map_err(|_| BridgeError::InvalidInput)?;
+
+        // Validate addresses (1–64 bytes)
+        crate::validation::BytesValidator::validate_length(&sender, 1, 64)
+            .map_err(|_| BridgeError::InvalidPayload)?;
+        crate::validation::BytesValidator::validate_length(&recipient, 1, 64)
+            .map_err(|_| BridgeError::InvalidPayload)?;
+
+        // Validate payload (non-empty, within size limit)
+        crate::validation::BytesValidator::validate_payload(&payload)
+            .map_err(|_| BridgeError::InvalidPayload)?;
 
         // Get packet counter
         let mut packet_counter: u64 = env
