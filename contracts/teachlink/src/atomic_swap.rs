@@ -36,10 +36,21 @@ impl AtomicSwapManager {
     ) -> Result<u64, BridgeError> {
         initiator.require_auth();
 
-        // Validate inputs
-        if initiator_amount <= 0 || counterparty_amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        // Validate address inputs
+        crate::validation::AddressValidator::validate(env, &initiator)
+            .map_err(|_| BridgeError::InvalidInput)?;
+        crate::validation::AddressValidator::validate(env, &counterparty)
+            .map_err(|_| BridgeError::InvalidInput)?;
+        crate::validation::AddressValidator::validate(env, &initiator_token)
+            .map_err(|_| BridgeError::InvalidInput)?;
+        crate::validation::AddressValidator::validate(env, &counterparty_token)
+            .map_err(|_| BridgeError::InvalidInput)?;
+
+        // Validate amount bounds
+        crate::validation::InputSanitizer::sanitize_amount(initiator_amount)
+            .map_err(|_| BridgeError::AmountMustBePositive)?;
+        crate::validation::InputSanitizer::sanitize_amount(counterparty_amount)
+            .map_err(|_| BridgeError::AmountMustBePositive)?;
 
         if hashlock.len() != HASH_LENGTH {
             return Err(BridgeError::InvalidHashlock);
