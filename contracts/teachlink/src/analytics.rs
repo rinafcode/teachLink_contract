@@ -190,7 +190,7 @@ impl AnalyticsManager {
             .unwrap_or_else(|| Map::new(env));
 
         let key = (day_timestamp, chain_id);
-        let current_volume = daily_volumes.get(key.clone()).unwrap_or(0);
+        let current_volume = daily_volumes.get(key).unwrap_or(0);
         daily_volumes.set(key, current_volume + volume);
         env.storage().instance().set(&DAILY_VOLUMES, &daily_volumes);
 
@@ -291,12 +291,10 @@ impl AnalyticsManager {
             .unwrap_or_else(|| Map::new(env));
 
         let mut chains: Vec<(u32, i128)> = Vec::new(env);
-        let mut count = 0u32;
-        for (chain_id, metrics) in chain_metrics.iter() {
-            if count >= Self::MAX_CHAINS_ITER {
+        for (count, (chain_id, metrics)) in chain_metrics.iter().enumerate() {
+            if count as u32 >= Self::MAX_CHAINS_ITER {
                 break;
             }
-            count += 1;
             let total_volume = metrics.volume_in + metrics.volume_out;
             chains.push_back((chain_id, total_volume));
         }

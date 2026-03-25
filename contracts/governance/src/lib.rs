@@ -1,9 +1,4 @@
 #![no_std]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::doc_markdown)]
 #![allow(deprecated)]
 
 //! TeachLink Advanced Governance Contract

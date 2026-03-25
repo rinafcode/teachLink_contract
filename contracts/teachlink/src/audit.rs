@@ -238,7 +238,7 @@ impl AuditManager {
         is_outgoing: bool,
         operator: Address,
         amount: i128,
-        chain_id: u32,
+        _chain_id: u32,
         tx_hash: Bytes,
     ) -> Result<u64, BridgeError> {
         let operation_type = if is_outgoing {
@@ -256,7 +256,7 @@ impl AuditManager {
     pub fn log_validator_operation(
         env: &Env,
         is_added: bool,
-        validator: Address,
+        _validator: Address,
         admin: Address,
         tx_hash: Bytes,
     ) -> Result<u64, BridgeError> {

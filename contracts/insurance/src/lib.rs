@@ -1,6 +1,3 @@
-#![allow(clippy::all)]
-#![allow(unused)]
-
 //! Enhanced Insurance Contract
 //!
 //! This contract implements a comprehensive decentralized insurance system with:
@@ -40,12 +37,6 @@
 //! - Transparent proposal process
 
 #![no_std]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::panic_in_result_fn)]
 
 mod errors;
 mod storage;
@@ -55,7 +46,7 @@ use crate::errors::InsuranceError;
 use crate::storage::*;
 use crate::types::*;
 use soroban_sdk::{
-    contract, contractimpl, contracttype, token, vec, Address, Bytes, Env, String, Vec,
+    contract, contractimpl, token, vec, Address, Bytes, Env, String, Vec,
 };
 
 #[contract]
@@ -145,7 +136,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::RiskModelWeights)
-            .unwrap_or_else(RiskModelWeights::default);
+            .unwrap_or_default();
 
         let risk_score = Self::calculate_risk_score(&factors, &weights)?;
 
@@ -252,7 +243,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::RiskMultiplierRanges)
-            .unwrap_or_else(RiskMultiplierRanges::default);
+            .unwrap_or_default();
 
         let multiplier = if risk_score <= ranges.low_risk_max {
             ranges.low_risk_max
@@ -300,7 +291,7 @@ impl EnhancedInsurance {
             .get(&DataKey::Token)
             .ok_or(InsuranceError::NotInitialized)?;
         let token_client = token::Client::new(&env, &token_addr);
-        token_client.transfer(&user, &env.current_contract_address(), &final_premium);
+        token_client.transfer(&user, env.current_contract_address(), &final_premium);
 
         // Create policy
         let mut policy_count = env
@@ -469,11 +460,11 @@ impl EnhancedInsurance {
     ) -> Result<u64, InsuranceError> {
         admin.require_auth();
 
-        if !env
+        if env
             .storage()
             .instance()
             .get(&DataKey::Admin)
-            .map_or(false, |a: Address| a == admin)
+            .is_none_or(|a: Address| a != admin)
         {
             return Err(InsuranceError::UnauthorizedGovernanceAction);
         }
@@ -581,11 +572,11 @@ impl EnhancedInsurance {
     ) -> Result<u64, InsuranceError> {
         admin.require_auth();
 
-        if !env
+        if env
             .storage()
             .instance()
             .get(&DataKey::Admin)
-            .map_or(false, |a: Address| a == admin)
+            .is_none_or(|a: Address| a != admin)
         {
             return Err(InsuranceError::UnauthorizedGovernanceAction);
         }
@@ -639,11 +630,11 @@ impl EnhancedInsurance {
     ) -> Result<(), InsuranceError> {
         admin.require_auth();
 
-        if !env
+        if env
             .storage()
             .instance()
             .get(&DataKey::Admin)
-            .map_or(false, |a: Address| a == admin)
+            .is_none_or(|a: Address| a != admin)
         {
             return Err(InsuranceError::UnauthorizedGovernanceAction);
         }
@@ -819,7 +810,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::GovernanceParameters)
-            .unwrap_or_else(GovernanceParameters::default);
+            .unwrap_or_default();
 
         if balance < governance_params.proposal_threshold as i128 {
             return Err(InsuranceError::InsufficientTokenBalance);
@@ -925,7 +916,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::GovernanceParameters)
-            .unwrap_or_else(GovernanceParameters::default);
+            .unwrap_or_default();
 
         let total_votes = proposal.votes_for + proposal.votes_against;
         let quorum_met =
@@ -1150,11 +1141,11 @@ impl EnhancedInsurance {
     ) -> Result<(), InsuranceError> {
         admin.require_auth();
 
-        if !env
+        if env
             .storage()
             .instance()
             .get(&DataKey::Admin)
-            .map_or(false, |a: Address| a == admin)
+            .is_none_or(|a: Address| a != admin)
         {
             return Err(InsuranceError::UnauthorizedGovernanceAction);
         }
@@ -1233,6 +1224,6 @@ impl EnhancedInsurance {
         env.storage()
             .instance()
             .get(&DataKey::GovernanceParameters)
-            .unwrap_or_else(GovernanceParameters::default)
+            .unwrap_or_default()
     }
 }

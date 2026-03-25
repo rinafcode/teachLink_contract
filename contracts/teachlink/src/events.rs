@@ -2,8 +2,8 @@ use soroban_sdk::contractevent;
 
 use crate::types::{
     BridgeTransaction, ContentMetadata, ContributionType, CrossChainMessage, DisputeOutcome,
-    Escrow, EscrowStatus, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    RewardType, SlashingReason, SwapStatus,
+    Escrow, EscrowStatus, OperationType, ProposalStatus, ProvenanceRecord,
+    RewardType, SlashingReason,
 };
 
 // Include notification events

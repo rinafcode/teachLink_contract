@@ -181,7 +181,7 @@ impl GovernanceInsurance {
 
         // Transfer tokens to contract
         let token_client = soroban_sdk::token::Client::new(env, token_address);
-        token_client.transfer(&depositor, &env.current_contract_address(), &amount);
+        token_client.transfer(&depositor, env.current_contract_address(), &amount);
 
         // Update pool
         let mut pool: InsurancePool = env

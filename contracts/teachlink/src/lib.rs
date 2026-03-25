@@ -1,6 +1,3 @@
-#![allow(clippy::all)]
-#![allow(unused)]
-
 //! TeachLink Smart Contract
 //!
 //! A comprehensive Soroban smart contract for the TeachLink decentralized
@@ -78,15 +75,6 @@
 //! - Escrow functions require appropriate party authorization
 
 #![no_std]
-#![allow(clippy::unreadable_literal)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::trivially_copy_pass_by_ref)]
-#![allow(clippy::needless_borrow)]
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
@@ -1297,7 +1285,9 @@ impl TeachLinkBridge {
 
     /// Mint a new educational content token
     pub fn mint_content_token(env: Env, params: ContentTokenParameters) -> u64 {
-        let token_id = tokenization::ContentTokenization::mint(
+        // TODO: Implement provenance module
+        // provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
+        tokenization::ContentTokenization::mint(
             &env,
             params.creator.clone(),
             params.title,
@@ -1308,10 +1298,7 @@ impl TeachLinkBridge {
             params.tags,
             params.is_transferable,
             params.royalty_percentage,
-        );
-        // TODO: Implement provenance module
-        // provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
-        token_id
+        )
     }
 
     /// Transfer ownership of a content token

@@ -154,7 +154,7 @@ impl AnalyticsManager {
 
         // Calculate new average response time
         if metrics.total_requests > 1 {
-            let total_response_time = (metrics.average_response_time as u64
+            let total_response_time = (metrics.average_response_time
                 * (metrics.total_requests - 1))
                 + response_time;
             metrics.average_response_time = total_response_time / metrics.total_requests;
@@ -174,7 +174,7 @@ impl AnalyticsManager {
             .instance()
             .get(&ACTIVE_NODES)
             .unwrap_or_else(|| Vec::new(env));
-        metrics.active_nodes = active_nodes.len() as u32;
+        metrics.active_nodes = active_nodes.len();
 
         let content_count: u64 = env.storage().instance().get(&CONTENT_COUNT).unwrap_or(0);
         metrics.total_content_items = content_count;
@@ -217,7 +217,7 @@ impl AnalyticsManager {
 
         // Calculate new average response time
         if analytics.total_requests > 1 {
-            let total_response_time = (analytics.average_response_time as u64
+            let total_response_time = (analytics.average_response_time
                 * (analytics.total_requests - 1))
                 + response_time;
             analytics.average_response_time = total_response_time / analytics.total_requests;
@@ -271,7 +271,7 @@ impl AnalyticsManager {
         // Calculate new average response time
         if metrics.requests > 1 {
             let total_response_time =
-                (metrics.average_response_time as u64 * (metrics.requests - 1)) + response_time;
+                (metrics.average_response_time * (metrics.requests - 1)) + response_time;
             metrics.average_response_time = total_response_time / metrics.requests;
         } else {
             metrics.average_response_time = response_time;

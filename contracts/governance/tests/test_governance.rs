@@ -1,12 +1,5 @@
-#![allow(clippy::assertions_on_constants)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::unreadable_literal)]
-#![allow(clippy::too_many_lines)]
 #![allow(unused_variables)]
 #![allow(dead_code)]
-#![allow(clippy::no_effect_underscore_binding)]
-#![allow(clippy::useless_vec)]
-#![allow(clippy::uninlined_format_args)]
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger as _, LedgerInfo},
@@ -117,7 +110,7 @@ fn test_governance_setup_flow() {
     assert_eq!(config.voting_period, 3600);
     assert_eq!(config.execution_delay, 60);
     assert_eq!(config.max_delegation_depth, 3);
-    assert_eq!(config.quadratic_voting_enabled, false);
+    assert!(!config.quadratic_voting_enabled);
     assert_eq!(config.staking_multiplier, 10000);
 }
 
@@ -142,7 +135,7 @@ fn test_create_proposal() {
     assert_eq!(proposal.status, ProposalStatus::Active);
     assert_eq!(proposal.for_votes, 0);
     assert_eq!(proposal.against_votes, 0);
-    assert_eq!(proposal.quadratic_voting, false);
+    assert!(!proposal.quadratic_voting);
     assert_eq!(proposal.voter_count, 0);
 }
 
@@ -336,7 +329,7 @@ fn test_cast_vote_with_delegation() {
 
     // Check vote record includes delegation info
     let vote = governance_client.get_vote(&proposal_id, &voter2).unwrap();
-    assert_eq!(vote.includes_delegated, true);
+    assert!(vote.includes_delegated);
     assert_eq!(vote.delegated_power, 1000);
 }
 
@@ -627,7 +620,7 @@ fn test_file_and_resolve_appeal() {
 
     let appeal = governance_client.get_appeal(&dispute_id).unwrap();
     assert_eq!(appeal.appellant, voter2);
-    assert_eq!(appeal.granted, false);
+    assert!(!appeal.granted);
 
     // Admin resolves appeal (grants it)
     governance_client.resolve_appeal(&dispute_id, &admin, &true);

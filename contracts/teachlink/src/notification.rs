@@ -4,10 +4,6 @@
 //! scheduling, analytics, and intelligent delivery optimization.
 
 use crate::errors::BridgeError;
-use crate::notification_events_basic::{
-    NotificationDeliveredEvent, NotificationFailedEvent, NotificationPrefUpdatedEvent,
-    NotificationScheduledEvent,
-};
 use crate::storage::{
     NOTIFICATION_COUNTER, NOTIFICATION_LOGS, NOTIFICATION_PREFERENCES, NOTIFICATION_TEMPLATES,
     NOTIFICATION_TRACKING, SCHEDULED_NOTIFICATIONS, USER_NOTIFICATION_SETTINGS,
@@ -17,7 +13,7 @@ use crate::types::{
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
     UserNotificationSettings,
 };
-use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
+use soroban_sdk::{vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 /// Notification delivery intervals (in seconds)
 pub const IMMEDIATE_DELIVERY: u64 = 0;
@@ -215,14 +211,6 @@ impl NotificationManager {
             .instance()
             .set(&NOTIFICATION_TRACKING, &tracking_map);
 
-        // Emit event
-        NotificationScheduledEvent {
-            notification_id,
-            recipient: recipient.clone(),
-            channel,
-            scheduled_time: schedule.scheduled_time,
-        };
-
         Ok(notification_id)
     }
 
@@ -346,12 +334,6 @@ impl NotificationManager {
             .instance()
             .set(&NOTIFICATION_PREFERENCES, &preference_map);
 
-        // Emit event
-        NotificationPrefUpdatedEvent {
-            user,
-            updated_at: env.ledger().timestamp(),
-        };
-
         Ok(())
     }
 
@@ -452,7 +434,7 @@ impl NotificationManager {
         }
 
         // Return the first notification ID for simplicity
-        if notification_ids.len() > 0 {
+        if !notification_ids.is_empty() {
             Ok(notification_ids.first().unwrap())
         } else {
             Err(BridgeError::InvalidInput)
@@ -635,7 +617,7 @@ impl NotificationManager {
         notification_id: u64,
         recipient: Address,
         channel: NotificationChannel,
-        content: NotificationContent,
+        _content: NotificationContent,
     ) -> Result<(), BridgeError> {
         // In a real implementation, this would integrate with external services
         // For now, we'll simulate delivery
@@ -651,32 +633,15 @@ impl NotificationManager {
 
         if let Some(mut tracking) = tracking_map.get(notification_id) {
             // Simulate delivery (90% success rate)
-            let success = (current_time % 10) != 0; // Simple pseudo-random
+            let success = !current_time.is_multiple_of(10); // Simple pseudo-random
 
             if success {
                 tracking.status = NotificationDeliveryStatus::Delivered;
                 tracking.delivered_at = current_time;
-
-                // Emit success event
-                NotificationDeliveredEvent {
-                    notification_id,
-                    recipient: recipient.clone(),
-                    channel,
-                    delivered_at: current_time,
-                };
             } else {
                 tracking.status = NotificationDeliveryStatus::Failed;
                 tracking.error_message = Bytes::from_slice(env, b"Simulated delivery failure");
                 tracking.retry_count += 1;
-
-                // Emit failure event
-                NotificationFailedEvent {
-                    notification_id,
-                    recipient: recipient.clone(),
-                    channel,
-                    error: Bytes::from_slice(env, b"Simulated delivery failure"),
-                    retry_count: tracking.retry_count,
-                };
             }
 
             let mut tracking_map_mut = tracking_map;
@@ -696,13 +661,13 @@ impl NotificationManager {
     }
 
     fn personalize_content(
-        env: &Env,
+        _env: &Env,
         template: &NotificationContent,
-        variables: Map<Bytes, Bytes>,
+        _variables: Map<Bytes, Bytes>,
     ) -> NotificationContent {
         // Simple template variable replacement - in a real implementation this would be more sophisticated
-        let mut subject = template.subject.clone();
-        let mut body = template.body.clone();
+        let subject = template.subject.clone();
+        let body = template.body.clone();
 
         // For now, just return the original content since Soroban doesn't have string manipulation
         // In a real implementation, you'd use an external service or more complex byte manipulation
@@ -715,7 +680,7 @@ impl NotificationManager {
     }
 
     fn calculate_next_schedule(
-        env: &Env,
+        _env: &Env,
         schedule: &NotificationSchedule,
         current_time: u64,
     ) -> Option<u64> {

@@ -45,7 +45,7 @@ impl AtomicSwapManager {
             return Err(BridgeError::InvalidHashlock);
         }
 
-        if timelock < MIN_TIMELOCK || timelock > MAX_TIMELOCK {
+        if !(MIN_TIMELOCK..=MAX_TIMELOCK).contains(&timelock) {
             return Err(BridgeError::InvalidInput);
         }
 
@@ -339,12 +339,12 @@ impl AtomicSwapManager {
     }
 
     /// Verify hashlock against preimage
-    fn verify_hashlock(env: &Env, preimage: &Bytes, hashlock: &Bytes) -> bool {
+    fn verify_hashlock(_env: &Env, preimage: &Bytes, hashlock: &Bytes) -> bool {
         // In a real implementation, this would hash the preimage and compare
         // For Soroban, we'd use the SDK's crypto functions
         // This is a simplified placeholder
 
-        if preimage.len() == 0 {
+        if preimage.is_empty() {
             return false;
         }
 

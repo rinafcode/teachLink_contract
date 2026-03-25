@@ -11,12 +11,8 @@
 //! - Social gamification and recognition systems
 
 use soroban_sdk::{
-    contracterror, contracttype, panic_with_error, symbol_short, Address, Bytes, Env, IntoVal, Map,
-    String, Symbol, TryFromVal, Val, Vec,
+    contracterror, contracttype, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
 };
-
-use crate::storage::*;
-use crate::types::*;
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -601,7 +597,7 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::StudyGroupNotFound)
     }
 
-    pub fn get_user_study_groups(env: &Env, user: Address) -> Vec<u64> {
+    pub fn get_user_study_groups(env: &Env, _user: Address) -> Vec<u64> {
         env.storage()
             .instance()
             .get(&USER_STUDY_GROUPS)
@@ -820,7 +816,7 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::WorkspaceNotFound)
     }
 
-    pub fn get_user_workspaces(env: &Env, user: Address) -> Vec<u64> {
+    pub fn get_user_workspaces(env: &Env, _user: Address) -> Vec<u64> {
         env.storage()
             .instance()
             .get(&USER_WORKSPACES)
@@ -838,7 +834,7 @@ impl SocialLearningManager {
         feedback: Bytes,
         criteria: Map<Bytes, u32>,
     ) -> Result<u64, SocialLearningError> {
-        if rating < 1 || rating > 5 {
+        if !(1u32..=5u32).contains(&rating) {
             return Err(SocialLearningError::InvalidRating);
         }
 
@@ -971,7 +967,7 @@ impl SocialLearningManager {
             })
     }
 
-    pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) {
+    pub fn update_user_analytics(env: &Env, _user: Address, analytics: SocialAnalytics) {
         env.storage().instance().set(&SOCIAL_ANALYTICS, &analytics);
     }
 }

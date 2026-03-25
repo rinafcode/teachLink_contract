@@ -216,11 +216,11 @@ impl MessagePassing {
         let current_time = env.ledger().timestamp();
 
         for (packet_id, mut packet) in packets.iter() {
-            if packet.status == PacketStatus::Pending || packet.status == PacketStatus::Retrying {
-                if current_time > packet.timeout {
-                    packet.status = PacketStatus::TimedOut;
-                    timed_out_packets.push_back(packet_id);
-                }
+            if (packet.status == PacketStatus::Pending || packet.status == PacketStatus::Retrying)
+                && current_time > packet.timeout
+            {
+                packet.status = PacketStatus::TimedOut;
+                timed_out_packets.push_back(packet_id);
             }
         }
 

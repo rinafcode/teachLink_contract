@@ -1,10 +1,5 @@
 #![cfg(test)]
-#![allow(clippy::unreadable_literal)]
 #![allow(clippy::ignore_without_reason)]
-#![allow(clippy::unused_unit)]
-#![allow(clippy::assertions_on_constants)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::too_many_lines)]
 #![allow(unused_variables)]
 
 use super::*;

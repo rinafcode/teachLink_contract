@@ -2,7 +2,7 @@ use soroban_sdk::{Address, Bytes, Env, Vec};
 
 use crate::events::{ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent};
 use crate::storage::{CONTENT_TOKENS, OWNERSHIP, OWNER_TOKENS, TOKEN_COUNTER};
-use crate::types::{ContentMetadata, ContentToken, ContentType, TransferType};
+use crate::types::{ContentMetadata, ContentToken, ContentType};
 
 pub struct ContentTokenization;
 
@@ -89,7 +89,7 @@ impl ContentTokenization {
     }
 
     /// Transfer ownership of a content token
-    pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, notes: Option<Bytes>) {
+    pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, _notes: Option<Bytes>) {
         // Get the token
         let token: ContentToken = env
             .storage()

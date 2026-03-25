@@ -1,5 +1,4 @@
 #![cfg(test)]
-#![allow(clippy::needless_pass_by_value)]
 
 // TODO: Re-enable when score module is fully implemented
 

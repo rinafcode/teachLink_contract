@@ -1,7 +1,7 @@
 use crate::errors::EscrowError;
-use crate::storage::{ARBITRATORS, ESCROWS};
+use crate::storage::ARBITRATORS;
 use crate::types::{ArbitratorProfile, Escrow, EscrowStatus};
-use soroban_sdk::{Address, Env, Map, String, Vec};
+use soroban_sdk::{Address, Env, Map};
 
 pub struct ArbitrationManager;
 

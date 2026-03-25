@@ -57,15 +57,15 @@ cargo test
 
 We welcome various types of contributions:
 
-| Type | Description | Label |
-|------|-------------|-------|
-| 🐛 **Bug Fixes** | Fix issues in existing code | `bug` |
-| ✨ **Features** | Add new functionality | `enhancement` |
+| Type                 | Description                         | Label           |
+| -------------------- | ----------------------------------- | --------------- |
+| 🐛 **Bug Fixes**     | Fix issues in existing code         | `bug`           |
+| ✨ **Features**      | Add new functionality               | `enhancement`   |
 | 📚 **Documentation** | Improve docs, comments, or examples | `documentation` |
-| 🧪 **Tests** | Add or improve test coverage | `testing` |
-| 🔧 **Tooling** | Improve scripts, CI/CD, or DX | `tooling` |
-| 🔒 **Security** | Security improvements or fixes | `security` |
-| ♿ **Accessibility** | Improve accessibility | `accessibility` |
+| 🧪 **Tests**         | Add or improve test coverage        | `testing`       |
+| 🔧 **Tooling**       | Improve scripts, CI/CD, or DX       | `tooling`       |
+| 🔒 **Security**      | Security improvements or fixes      | `security`      |
+| ♿ **Accessibility** | Improve accessibility               | `accessibility` |
 
 ### Contribution Workflow
 
@@ -128,16 +128,16 @@ For internal project tasks:
 
 ### Issue Labels
 
-| Label | Description |
-|-------|-------------|
-| `priority: critical` | Must be addressed immediately |
-| `priority: high` | Should be addressed in current sprint |
-| `priority: medium` | Should be addressed soon |
-| `priority: low` | Nice to have, no urgency |
-| `good first issue` | Good for newcomers |
-| `help wanted` | Extra attention needed |
-| `blocked` | Waiting on external dependency |
-| `wontfix` | Won't be worked on |
+| Label                | Description                           |
+| -------------------- | ------------------------------------- |
+| `priority: critical` | Must be addressed immediately         |
+| `priority: high`     | Should be addressed in current sprint |
+| `priority: medium`   | Should be addressed soon              |
+| `priority: low`      | Nice to have, no urgency              |
+| `good first issue`   | Good for newcomers                    |
+| `help wanted`        | Extra attention needed                |
+| `blocked`            | Waiting on external dependency        |
+| `wontfix`            | Won't be worked on                    |
 
 ---
 
@@ -170,6 +170,7 @@ For internal project tasks:
 ```
 
 **Types:**
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `docs`: Documentation only
@@ -179,6 +180,7 @@ For internal project tasks:
 - `chore`: Maintenance tasks
 
 **Example:**
+
 ```
 feat(contract): add learning reward distribution
 
@@ -205,6 +207,47 @@ Closes #42
 - Use `cargo fmt` for formatting
 - Address all `cargo clippy` warnings
 - Write self-documenting code with clear naming
+
+### Linting Standards
+
+All Rust code must pass `cargo clippy --all-targets --all-features -- -D warnings` with no warnings.
+
+**Clippy configuration** is centralised in `[workspace.lints.clippy]` inside `Cargo.toml`.
+The following lints are project-wide allows due to Soroban SDK constraints:
+
+| Lint                                             | Reason                                                                         |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| `needless_pass_by_value`                         | Soroban SDK contract functions require owned values in signatures              |
+| `must_use_candidate`                             | Contract functions are invoked via WASM ABI, not from Rust                     |
+| `missing_panics_doc` / `missing_errors_doc`      | Internal contracts don't need full rustdoc coverage                            |
+| `doc_markdown`                                   | Contract docstrings don't need markdown link formatting                        |
+| `panic_in_result_fn`                             | Soroban contracts may panic inside result-returning functions                  |
+| `too_many_arguments`                             | Cross-chain APIs require many params; splitting would break the WASM ABI       |
+| `trivially_copy_pass_by_ref` / `needless_borrow` | Soroban SDK semantics sometimes require owned copies                           |
+| `unreadable_literal`                             | Addresses/hashes are byte-level values where underscores can obscure structure |
+| `assertions_on_constants`                        | Soroban test macros emit constant-assertion patterns                           |
+| `too_many_lines`                                 | Contract setup and test functions are inherently long                          |
+
+**Rules for adding a new `#[allow(clippy::...)]`:**
+
+1. **Do not use `#![allow(clippy::all)]`** — this is forbidden and will block CI.
+2. Suppressions **must be as narrow as possible** — prefer an item-level `#[allow]` over a file-level `#![allow]`.
+3. Every suppression **must include a comment** explaining why it is necessary.
+4. If a lint applies broadly to Soroban patterns, add it to `[workspace.lints.clippy]` in `Cargo.toml` with a comment, rather than scattering `#![allow]` across files.
+5. Never suppress safety-related lints (`cast_possible_truncation`, `integer_arithmetic`, `indexing_slicing`) without a code-level comment justifying the safety invariant.
+
+**Running Clippy locally:**
+
+```bash
+# Check for warnings (same as CI)
+cargo clippy --all-targets --all-features -- -D warnings
+
+# Or use the convenience script
+./scripts/lint.sh --check
+
+# Auto-fix where possible
+./scripts/lint.sh --fix
+```
 
 ### Testing Requirements
 
@@ -233,12 +276,12 @@ Closes #42
 
 ### Review Timeline
 
-| PR Size | Expected Review Time |
-|---------|---------------------|
-| Small (< 50 lines) | 1-2 days |
-| Medium (50-200 lines) | 2-3 days |
-| Large (200-500 lines) | 3-5 days |
-| Extra Large (500+ lines) | 5-7 days |
+| PR Size                  | Expected Review Time |
+| ------------------------ | -------------------- |
+| Small (< 50 lines)       | 1-2 days             |
+| Medium (50-200 lines)    | 2-3 days             |
+| Large (200-500 lines)    | 3-5 days             |
+| Extra Large (500+ lines) | 5-7 days             |
 
 ### Review Criteria
 
@@ -264,13 +307,13 @@ We believe in recognizing and rewarding contributors for their valuable work.
 
 ### Contributor Tiers
 
-| Tier | Requirements | Badge |
-|------|--------------|-------|
-| 🌱 **Newcomer** | First contribution merged | Newcomer Badge |
-| 🌿 **Contributor** | 3+ contributions merged | Contributor Badge |
-| 🌳 **Regular Contributor** | 10+ contributions merged | Regular Badge |
-| 🏆 **Core Contributor** | 25+ contributions + consistent quality | Core Badge |
-| ⭐ **Maintainer** | Invited by existing maintainers | Maintainer Badge |
+| Tier                       | Requirements                           | Badge             |
+| -------------------------- | -------------------------------------- | ----------------- |
+| 🌱 **Newcomer**            | First contribution merged              | Newcomer Badge    |
+| 🌿 **Contributor**         | 3+ contributions merged                | Contributor Badge |
+| 🌳 **Regular Contributor** | 10+ contributions merged               | Regular Badge     |
+| 🏆 **Core Contributor**    | 25+ contributions + consistent quality | Core Badge        |
+| ⭐ **Maintainer**          | Invited by existing maintainers        | Maintainer Badge  |
 
 ### Recognition Programs
 
@@ -279,6 +322,7 @@ We believe in recognizing and rewarding contributors for their valuable work.
 Each month, we recognize one contributor who has made exceptional contributions.
 
 **Selection Criteria:**
+
 - Quality of contributions
 - Helpfulness in community
 - Innovation and creativity
@@ -292,20 +336,21 @@ Contributors with significant impact are featured in our [HALL_OF_FAME.md](docs/
 
 Active contributors may be eligible for TEACH token rewards:
 
-| Achievement | Reward |
-|------------|--------|
-| First merged PR | 50 TEACH |
-| Bug fix | 100-500 TEACH |
-| Feature implementation | 500-2000 TEACH |
+| Achievement                | Reward          |
+| -------------------------- | --------------- |
+| First merged PR            | 50 TEACH        |
+| Bug fix                    | 100-500 TEACH   |
+| Feature implementation     | 500-2000 TEACH  |
 | Security vulnerability fix | 1000-5000 TEACH |
-| Documentation improvements | 50-200 TEACH |
-| Monthly MVP | 1000 TEACH |
+| Documentation improvements | 50-200 TEACH    |
+| Monthly MVP                | 1000 TEACH      |
 
-*Token rewards are subject to availability and maintainer approval.*
+_Token rewards are subject to availability and maintainer approval._
 
 ### Attribution
 
 All contributors are listed in:
+
 - [CONTRIBUTORS.md](CONTRIBUTORS.md) - Full contributor list
 - Git commit history
 - Release notes for significant contributions

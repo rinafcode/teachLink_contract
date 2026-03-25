@@ -128,7 +128,7 @@ impl Staking {
 
         // Transfer tokens to the contract
         let token_client = token::Client::new(env, token_address);
-        token_client.transfer(&staker, &env.current_contract_address(), &amount);
+        token_client.transfer(&staker, env.current_contract_address(), &amount);
 
         // Store stake info
         env.storage()
