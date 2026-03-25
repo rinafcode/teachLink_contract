@@ -11,8 +11,5 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 soroban-sdk = "20.0.0"
 
-[lints.clippy]
-all = "allow"
-
-[lints.rust]
-unsafe_code = "deny"
+[lints]
+workspace = true

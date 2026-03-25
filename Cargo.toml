@@ -60,3 +60,6 @@ unsafe_code = "deny"
 # avoids noise from intentional scaffolding while keeping all meaningful Clippy checks active.
 dead_code = "allow"
 unused_variables = "allow"
+# Soroban SDK macros internally check for cfg(feature = "testutils"); this feature is only
+# enabled via dev-dependency features and not declared at the crate level.
+unexpected_cfgs = "allow"
