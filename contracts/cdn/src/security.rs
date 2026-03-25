@@ -238,7 +238,10 @@ impl SecurityManager {
             let mut is_allowed = false;
 
             for i in 0..drm_config.allowed_domains.len() {
-                let allowed_domain = drm_config.allowed_domains.get(i).unwrap();
+                let allowed_domain = match drm_config.allowed_domains.get(i) {
+                    Some(domain) => domain,
+                    None => continue,
+                };
                 // Simplified location matching - in real implementation,
                 // this would use proper geolocation and domain matching
                 if user_location == allowed_domain {

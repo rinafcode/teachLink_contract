@@ -1,7 +1,8 @@
 #![no_std]
 
 use soroban_sdk::{
-    contract, contractevent, contractimpl, symbol_short, Address, Bytes, BytesN, Env,
+    contract, contracterror, contractevent, contractimpl, symbol_short, Address, Bytes, BytesN,
+    Env,
 };
 
 #[contractevent]
@@ -24,6 +25,14 @@ pub struct Credrev {
 #[contract]
 pub struct CredentialRegistryContract;
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CredentialRegistryError {
+    CredentialAlreadyExists = 1,
+    CredentialNotFound = 2,
+    Unauthorized = 3,
+}
+
 #[derive(Clone)]
 pub enum CredentialStatus {
     Active,
@@ -43,13 +52,12 @@ impl CredentialRegistryContract {
         subject_did: Bytes,
         metadata_ptr: Bytes,
         expires_at: i128,
-    ) {
+    ) -> Result<(), CredentialRegistryError> {
         issuer.require_auth();
         let key = (symbol_short!("cred"), credential_hash.clone());
-        assert!(
-            !env.storage().persistent().has(&key),
-            "credential already exists"
-        );
+        if env.storage().persistent().has(&key) {
+            return Err(CredentialRegistryError::CredentialAlreadyExists);
+        }
         let record: (Bytes, Bytes, Bytes, i128, i32) = (
             issuer_did.clone(),
             subject_did.clone(),
@@ -66,10 +74,15 @@ impl CredentialRegistryContract {
             expires_at,
         }
         .publish(env);
+        Ok(())
     }
 
     // Revoke a credential. Caller must be issuer (signed address)
-    pub fn revoke_credential(env: &Env, credential_hash: BytesN<32>, issuer: Address) {
+    pub fn revoke_credential(
+        env: &Env,
+        credential_hash: BytesN<32>,
+        issuer: Address,
+    ) -> Result<(), CredentialRegistryError> {
         issuer.require_auth();
         let key = (symbol_short!("cred"), credential_hash.clone());
         let opt: Option<(Bytes, Bytes, Bytes, i128, i32)> = env.storage().persistent().get(&key);
@@ -89,8 +102,9 @@ impl CredentialRegistryContract {
                     subject_did,
                 }
                 .publish(env);
+                Ok(())
             }
-            None => panic!("credential not found"),
+            None => Err(CredentialRegistryError::CredentialNotFound),
         }
     }
 

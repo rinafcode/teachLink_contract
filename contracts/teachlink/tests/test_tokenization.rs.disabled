@@ -13,6 +13,20 @@ use teachlink_contract::{
     ContentTokenParameters, ContentToken, TeachLinkBridge, TeachLinkBridgeClient,
 };
 
+fn expect_ok<T, E: core::fmt::Debug>(res: Result<T, E>, context: &str) -> T {
+    match res {
+        Ok(value) => value,
+        Err(err) => panic!("{}: {:?}", context, err),
+    }
+}
+
+fn expect_some<T>(opt: Option<T>, context: &str) -> T {
+    match opt {
+        Some(value) => value,
+        None => panic!("{}", context),
+    }
+}
+
 fn create_params(
     _env: &Env,
     creator: Address,
@@ -86,7 +100,7 @@ fn test_mint_content_token() {
     assert_eq!(token_id, 1u64);
 
     // Verify token exists
-    let token = client.get_content_token(&token_id).unwrap();
+    let token = expect_some(client.get_content_token(&token_id), "token not found");
 
     assert_eq!(token.token_id, 1u64);
     assert_eq!(token.owner, creator);
@@ -98,7 +112,8 @@ fn test_mint_content_token() {
     assert_eq!(token.royalty_percentage, 500u32);
 
     // Verify ownership
-    let owner = client.get_content_token_owner(&token_id).unwrap();
+    let owner =
+        expect_some(client.get_content_token_owner(&token_id), "owner not found");
     assert_eq!(owner, creator);
 
     // Verify creator owns the token
@@ -108,7 +123,7 @@ fn test_mint_content_token() {
     // Verify provenance
     // let provenance = client.get_content_provenance(&token_id);
     // assert_eq!(provenance.len(), 1u32);
-    // let first_record = provenance.get(0).unwrap();
+    // let first_record = provenance.get(0);
     // assert_eq!(first_record.transfer_type, TransferType::Mint);
     // assert_eq!(first_record.to, creator);
 }
@@ -171,7 +186,8 @@ fn test_transfer_content_token() {
     client.transfer_content_token(&creator, &new_owner, &token_id, &Some(notes.clone()));
 
     // Verify new ownership
-    let owner = client.get_content_token_owner(&token_id).unwrap();
+    let owner =
+        expect_some(client.get_content_token_owner(&token_id), "owner not found");
     assert_eq!(owner, new_owner);
 
     assert!(client.is_content_token_owner(&token_id, &new_owner));
@@ -182,10 +198,10 @@ fn test_transfer_content_token() {
     // let provenance = client.get_content_provenance(&token_id);
     // assert_eq!(provenance.len(), 2u32);
 
-    // let mint_record = provenance.get(0).unwrap();
+    // let mint_record = provenance.get(0);
     // assert_eq!(mint_record.transfer_type, TransferType::Mint);
 
-    // let transfer_record = provenance.get(1).unwrap();
+    // let transfer_record = provenance.get(1);
     // assert_eq!(transfer_record.transfer_type, TransferType::Transfer);
     // assert_eq!(transfer_record.from, Some(creator));
     // assert_eq!(transfer_record.to, new_owner);
@@ -344,8 +360,14 @@ fn test_get_owner_tokens() {
     // Get owner's tokens
     let owner_tokens = client.get_owner_content_tokens(&creator);
     assert_eq!(owner_tokens.len(), 2u32);
-    assert_eq!(owner_tokens.get(0).unwrap(), token1);
-    assert_eq!(owner_tokens.get(1).unwrap(), token2);
+    assert_eq!(
+        expect_some(owner_tokens.get(0), "missing first owner token"),
+        token1
+    );
+    assert_eq!(
+        expect_some(owner_tokens.get(1), "missing second owner token"),
+        token2
+    );
 }
 
 #[test]
@@ -417,7 +439,7 @@ fn test_update_metadata() {
     );
 
     // Verify updates
-    let token = client.get_content_token(&token_id).unwrap();
+    let token = expect_some(client.get_content_token(&token_id), "token not found");
     assert_eq!(token.metadata.title, new_title);
     assert_eq!(token.metadata.description, new_description);
     assert_eq!(token.metadata.tags, new_tags);
@@ -500,7 +522,8 @@ fn test_verify_provenance_chain() {
     // assert!(is_valid);
 
     // Verify creator
-    let creator_addr = client.get_content_creator(&token_id).unwrap();
+    let creator_addr =
+        expect_some(client.get_content_creator(&token_id), "creator not found");
     assert_eq!(creator_addr, creator);
 }
 

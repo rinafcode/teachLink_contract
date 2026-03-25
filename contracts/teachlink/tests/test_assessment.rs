@@ -37,7 +37,10 @@ fn test_create_assessment() {
 
     assert_eq!(assessment_id, 1);
 
-    let assessment = client.get_assessment(&assessment_id).unwrap();
+    let assessment = match client.get_assessment(&assessment_id) {
+        Some(assessment) => assessment,
+        None => panic!("assessment not found"),
+    };
     assert_eq!(assessment.creator, creator);
 }
 
@@ -121,9 +124,10 @@ fn test_submit_assessment_grading() {
 
     assert_eq!(score, 10);
 
-    let submission = client
-        .get_assessment_submission(&student, &assessment_id)
-        .unwrap();
+    let submission = match client.get_assessment_submission(&student, &assessment_id) {
+        Some(submission) => submission,
+        None => panic!("submission not found"),
+    };
     assert_eq!(submission.score, 10);
     assert_eq!(submission.max_score, 30);
 }

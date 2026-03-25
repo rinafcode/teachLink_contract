@@ -19,7 +19,7 @@
 //! 4. **Execution**: Passed proposals can be executed after the execution delay
 //! 5. **Dispute**: Outcomes can be disputed and appealed
 
-use soroban_sdk::{token, Address, Bytes, Env};
+use soroban_sdk::{panic_with_error, token, Address, Bytes, Env};
 
 use crate::analytics::Analytics;
 use crate::delegation::DelegationManager;
@@ -27,7 +27,8 @@ use crate::events;
 use crate::staking::Staking;
 use crate::storage::{CONFIG, PROPOSALS, PROPOSAL_COUNT, VOTES};
 use crate::types::{
-    GovernanceConfig, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection, VoteKey,
+    GovernanceConfig, GovernanceError, Proposal, ProposalStatus, ProposalType, Vote, VoteDirection,
+    VoteKey,
 };
 
 /// Governance contract implementation.
@@ -102,7 +103,7 @@ impl Governance {
         env.storage()
             .instance()
             .get(&CONFIG)
-            .expect("ERR_NOT_INITIALIZED: Contract not initialized")
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::NotInitialized))
     }
 
     /// Get the admin address.
@@ -242,7 +243,7 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ProposalNotFound));
 
         // Check proposal is active
         assert!(
@@ -332,7 +333,7 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ProposalNotFound));
 
         // Check proposal is still active
         assert!(
@@ -381,7 +382,7 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ProposalNotFound));
 
         // Check proposal has passed
         assert!(
@@ -420,7 +421,7 @@ impl Governance {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ProposalNotFound));
 
         // Check if cancellable
         let is_admin = caller == config.admin;

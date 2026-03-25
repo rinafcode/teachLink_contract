@@ -18,6 +18,13 @@ use governance_contract::{
     ProposalType, VoteDirection,
 };
 
+fn expect_some<T>(opt: Option<T>, context: &str) -> T {
+    match opt {
+        Some(value) => value,
+        None => panic!("{}", context),
+    }
+}
+
 // ========== Test Helper ==========
 
 fn setup_governance() -> (
@@ -138,7 +145,8 @@ fn test_create_proposal() {
 
     assert_eq!(proposal_id, 1);
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.status, ProposalStatus::Active);
     assert_eq!(proposal.for_votes, 0);
     assert_eq!(proposal.against_votes, 0);
@@ -167,7 +175,8 @@ fn test_cast_vote_with_power() {
     let power2 = governance_client.cast_vote(&proposal_id, &voter2, &VoteDirection::Against);
     assert_eq!(power2, 500); // voter2 has 500 tokens
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.for_votes, 1000);
     assert_eq!(proposal.against_votes, 500);
     assert_eq!(proposal.voter_count, 2);
@@ -197,7 +206,8 @@ fn test_finalize_proposal_passed() {
 
     governance_client.finalize_proposal(&proposal_id);
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.status, ProposalStatus::Passed);
 }
 
@@ -225,7 +235,8 @@ fn test_finalize_proposal_failed() {
 
     governance_client.finalize_proposal(&proposal_id);
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     // Against (1000) > For (500), so it fails
     assert_eq!(proposal.status, ProposalStatus::Failed);
 }
@@ -255,7 +266,8 @@ fn test_execute_proposal() {
     advance_time(&env, 61);
     governance_client.execute_proposal(&proposal_id, &admin);
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.status, ProposalStatus::Executed);
 }
 
@@ -276,7 +288,8 @@ fn test_cancel_proposal() {
 
     governance_client.cancel_proposal(&proposal_id, &voter1);
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.status, ProposalStatus::Cancelled);
 }
 
@@ -291,7 +304,8 @@ fn test_delegate_vote() {
 
     assert!(governance_client.has_delegated(&voter1));
 
-    let delegation = governance_client.get_delegation(&voter1).unwrap();
+    let delegation =
+        expect_some(governance_client.get_delegation(&voter1), "delegation not found");
     assert_eq!(delegation.delegate, voter2);
     assert!(delegation.active);
     assert_eq!(delegation.expires_at, 0); // no expiry
@@ -331,11 +345,13 @@ fn test_cast_vote_with_delegation() {
     let power = governance_client.cast_vote(&proposal_id, &voter2, &VoteDirection::For);
     assert_eq!(power, 1500); // 500 own + 1000 delegated
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.for_votes, 1500);
 
     // Check vote record includes delegation info
-    let vote = governance_client.get_vote(&proposal_id, &voter2).unwrap();
+    let vote =
+        expect_some(governance_client.get_vote(&proposal_id, &voter2), "vote not found");
     assert_eq!(vote.includes_delegated, true);
     assert_eq!(vote.delegated_power, 1000);
 }
@@ -465,7 +481,8 @@ fn test_initialize_staking() {
         &15000, // 1.5x multiplier
     );
 
-    let config = governance_client.get_staking_config().unwrap();
+    let config =
+        expect_some(governance_client.get_staking_config(), "staking config not found");
     assert_eq!(config.min_stake, 100);
     assert_eq!(config.lock_period, 86400);
     assert_eq!(config.power_multiplier, 15000);
@@ -481,7 +498,7 @@ fn test_stake_tokens() {
     // voter1 stakes 500 tokens
     governance_client.stake_tokens(&voter1, &500);
 
-    let stake = governance_client.get_stake(&voter1).unwrap();
+    let stake = expect_some(governance_client.get_stake(&voter1), "stake not found");
     assert_eq!(stake.amount, 500);
     // bonus = (500 * 15000 / 10000) - 500 = 750 - 500 = 250
     assert_eq!(stake.power_bonus, 250);
@@ -560,7 +577,8 @@ fn test_file_dispute() {
 
     assert_eq!(dispute_id, 1);
 
-    let dispute = governance_client.get_dispute(&dispute_id).unwrap();
+    let dispute =
+        expect_some(governance_client.get_dispute(&dispute_id), "dispute not found");
     assert_eq!(dispute.proposal_id, proposal_id);
     assert_eq!(dispute.disputant, voter2);
 }
@@ -590,9 +608,13 @@ fn test_resolve_dispute() {
     let resolution = Bytes::from_slice(&env, b"Dispute reviewed and dismissed");
     governance_client.resolve_dispute(&dispute_id, &admin, &false, &resolution);
 
-    let dispute = governance_client.get_dispute(&dispute_id).unwrap();
+    let dispute =
+        expect_some(governance_client.get_dispute(&dispute_id), "dispute not found");
     // DisputeStatus::Dismissed == not upheld
-    assert_eq!(dispute.resolver.unwrap(), admin);
+    assert_eq!(
+        expect_some(dispute.resolver, "resolver not set"),
+        admin
+    );
 }
 
 #[test]
@@ -625,14 +647,15 @@ fn test_file_and_resolve_appeal() {
     let appeal_reason = Bytes::from_slice(&env, b"New evidence available");
     governance_client.file_appeal(&dispute_id, &voter2, &appeal_reason);
 
-    let appeal = governance_client.get_appeal(&dispute_id).unwrap();
+    let appeal = expect_some(governance_client.get_appeal(&dispute_id), "appeal not found");
     assert_eq!(appeal.appellant, voter2);
     assert_eq!(appeal.granted, false);
 
     // Admin resolves appeal (grants it)
     governance_client.resolve_appeal(&dispute_id, &admin, &true);
 
-    let appeal_resolved = governance_client.get_appeal(&dispute_id).unwrap();
+    let appeal_resolved =
+        expect_some(governance_client.get_appeal(&dispute_id), "appeal not found");
     assert!(appeal_resolved.granted);
 }
 
@@ -662,11 +685,13 @@ fn test_analytics_tracking() {
     assert_eq!(analytics.total_votes_cast, 2);
 
     // Check participation records
-    let voter1_participation = governance_client.get_participation(&voter1).unwrap();
+    let voter1_participation =
+        expect_some(governance_client.get_participation(&voter1), "participation not found");
     assert_eq!(voter1_participation.proposals_created, 1);
     assert_eq!(voter1_participation.proposals_voted, 1);
 
-    let voter2_participation = governance_client.get_participation(&voter2).unwrap();
+    let voter2_participation =
+        expect_some(governance_client.get_participation(&voter2), "participation not found");
     assert_eq!(voter2_participation.proposals_voted, 1);
     assert_eq!(voter2_participation.proposals_created, 0);
 }
@@ -699,7 +724,7 @@ fn test_create_simulation() {
         &100,  // additional abstain
     );
 
-    let sim = governance_client.get_simulation(&sim_id).unwrap();
+    let sim = expect_some(governance_client.get_simulation(&sim_id), "simulation not found");
     assert_eq!(sim.sim_for_votes, 3000); // 1000 (existing) + 2000
     assert_eq!(sim.sim_against_votes, 500);
     assert_eq!(sim.sim_abstain_votes, 100);
@@ -906,7 +931,8 @@ fn test_full_governance_flow_with_delegation_and_staking() {
     advance_time(&env, 3601);
     governance_client.finalize_proposal(&proposal_id);
 
-    let proposal = governance_client.get_proposal(&proposal_id).unwrap();
+    let proposal =
+        expect_some(governance_client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.status, ProposalStatus::Passed);
 
     // 7. Check analytics

@@ -267,17 +267,21 @@ impl StreamingManager {
         // If user has a specific preference, try to honor it
         if let Some(preferred_quality) = user_preference {
             for i in 0..available_profiles.len() {
-                let profile = available_profiles.get(i).unwrap();
-                if profile.quality == preferred_quality {
-                    selected_profiles.push_back(profile);
-                    return selected_profiles;
+                if let Some(profile) = available_profiles.get(i) {
+                    if profile.quality == preferred_quality {
+                        selected_profiles.push_back(profile);
+                        return selected_profiles;
+                    }
                 }
             }
         }
 
         // Select profiles based on network bandwidth
         for i in 0..available_profiles.len() {
-            let profile = available_profiles.get(i).unwrap();
+            let profile = match available_profiles.get(i) {
+                Some(profile) => profile,
+                None => continue,
+            };
             let required_bandwidth = (profile.bitrate as u64) * 1000; // Convert kbps to bps
 
             // Include profile if network can handle it with some buffer
@@ -289,7 +293,9 @@ impl StreamingManager {
 
         // Always include at least the lowest quality profile
         if selected_profiles.is_empty() && !available_profiles.is_empty() {
-            selected_profiles.push_back(available_profiles.get(0).unwrap());
+            if let Some(profile) = available_profiles.get(0) {
+                selected_profiles.push_back(profile);
+            }
         }
 
         selected_profiles
@@ -305,7 +311,10 @@ impl StreamingManager {
 
         // Generate URLs for each quality profile
         for i in 0..profiles.len() {
-            let profile = profiles.get(i).unwrap();
+            let profile = match profiles.get(i) {
+                Some(profile) => profile,
+                None => continue,
+            };
             let quality_str = match profile.quality {
                 StreamingQuality::Low => "480p",
                 StreamingQuality::Medium => "720p",

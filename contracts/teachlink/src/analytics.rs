@@ -304,12 +304,23 @@ impl AnalyticsManager {
         let len = chains.len();
         for i in 0..len {
             for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
+                let (_, vol_a) = match chains.get(j) {
+                    Some(value) => value,
+                    None => continue,
+                };
+                let (_, vol_b) = match chains.get(j + 1) {
+                    Some(value) => value,
+                    None => continue,
+                };
                 if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
+                    let temp = match chains.get(j) {
+                        Some(value) => value,
+                        None => continue,
+                    };
+                    if let Some(next) = chains.get(j + 1) {
+                        chains.set(j, next);
+                        chains.set(j + 1, temp);
+                    }
                 }
             }
         }
@@ -341,12 +352,23 @@ impl AnalyticsManager {
         let len = chains.len();
         for i in 0..len {
             for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
+                let (_, vol_a) = match chains.get(j) {
+                    Some(value) => value,
+                    None => continue,
+                };
+                let (_, vol_b) = match chains.get(j + 1) {
+                    Some(value) => value,
+                    None => continue,
+                };
                 if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
+                    let temp = match chains.get(j) {
+                        Some(value) => value,
+                        None => continue,
+                    };
+                    if let Some(next) = chains.get(j + 1) {
+                        chains.set(j, next);
+                        chains.set(j + 1, temp);
+                    }
                 }
             }
         }

@@ -1,8 +1,8 @@
-use soroban_sdk::{contracttype, Address, Bytes};
+use soroban_sdk::{contracterror, contracttype, Address, Bytes};
 
 /// Error types for governance contract operations
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum GovernanceError {
     /// Contract already initialized
     AlreadyInitialized = 1,
@@ -56,6 +56,22 @@ pub enum GovernanceError {
     InsufficientQVCredits = 25,
     /// Simulation not found
     SimulationNotFound = 26,
+    /// Insurance module not initialized
+    InsuranceNotInitialized = 27,
+    /// Insurance claim not found
+    ClaimNotFound = 28,
+    /// Staking module not initialized
+    StakingNotInitialized = 29,
+    /// Stake not found for address
+    StakeNotFound = 30,
+    /// Cross-chain proposal not found
+    CrossChainProposalNotFound = 31,
+    /// Chain not found in registry
+    ChainNotFound = 32,
+    /// Appeal not found
+    AppealNotFound = 33,
+    /// Quadratic voting credits not allocated
+    QVCreditsNotAllocated = 34,
 }
 
 /// Types of proposals that can be created in the governance system

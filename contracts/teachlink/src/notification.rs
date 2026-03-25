@@ -452,11 +452,9 @@ impl NotificationManager {
         }
 
         // Return the first notification ID for simplicity
-        if notification_ids.len() > 0 {
-            Ok(notification_ids.first().unwrap())
-        } else {
-            Err(BridgeError::InvalidInput)
-        }
+        notification_ids
+            .get(0)
+            .ok_or(BridgeError::InvalidInput)
     }
 
     /// Get notification tracking information

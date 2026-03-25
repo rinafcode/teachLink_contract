@@ -16,11 +16,11 @@
 //! - Voting power bonus is active
 //! - Staker can still vote and delegate
 
-use soroban_sdk::{token, Address, Env};
+use soroban_sdk::{panic_with_error, token, Address, Env};
 
 use crate::events;
 use crate::storage::{STAKES, STAKE_CONFIG, TOTAL_STAKED};
-use crate::types::{StakeInfo, StakeKey, StakingConfig};
+use crate::types::{GovernanceError, StakeInfo, StakeKey, StakingConfig};
 
 pub struct Staking;
 
@@ -83,7 +83,7 @@ impl Staking {
             .storage()
             .instance()
             .get(&STAKE_CONFIG)
-            .expect("ERR_STAKING_NOT_INITIALIZED: Staking not initialized");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::StakingNotInitialized));
 
         assert!(config.enabled, "ERR_STAKING_DISABLED: Staking is disabled");
 
@@ -167,7 +167,7 @@ impl Staking {
             .storage()
             .persistent()
             .get(&(STAKES, stake_key.clone()))
-            .expect("ERR_NO_STAKE: No stake found for address");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::StakeNotFound));
 
         let now = env.ledger().timestamp();
         assert!(
@@ -187,7 +187,11 @@ impl Staking {
         // Update or remove stake
         stake_info.amount -= amount;
         if stake_info.amount > 0 {
-            let config: StakingConfig = env.storage().instance().get(&STAKE_CONFIG).unwrap();
+            let config: StakingConfig = env
+                .storage()
+                .instance()
+                .get(&STAKE_CONFIG)
+                .unwrap_or_else(|| panic_with_error!(env, GovernanceError::StakingNotInitialized));
             stake_info.power_bonus = (stake_info.amount * i128::from(config.power_multiplier)
                 / 10000)
                 - stake_info.amount;

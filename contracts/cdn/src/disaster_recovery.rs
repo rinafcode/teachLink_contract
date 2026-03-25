@@ -50,7 +50,9 @@ impl DisasterRecoveryManager {
             .unwrap_or_else(|| Map::new(env));
 
         for i in 0..backup_regions.len() {
-            let region = backup_regions.get(i).unwrap();
+            let region = backup_regions
+                .get(i)
+                .ok_or(CDNError::StorageError)?;
             let mut has_active_node = false;
 
             let active_nodes: Vec<String> = env
@@ -60,8 +62,8 @@ impl DisasterRecoveryManager {
                 .unwrap_or_else(|| Vec::new(env));
 
             for j in 0..active_nodes.len() {
-                let node_id = active_nodes.get(j).unwrap();
-                if let Some(node) = nodes.get(node_id) {
+                let node_id = active_nodes.get(j).ok_or(CDNError::StorageError)?;
+                if let Some(node) = nodes.get(node_id.clone()) {
                     if node.region == region && node.is_active {
                         has_active_node = true;
                         break;
@@ -120,7 +122,9 @@ impl DisasterRecoveryManager {
 
         // In a real implementation, we would trigger actual backup processes here
         // For this contract, we'll mark it as completed immediately
-        let mut completed_record = backup_records.get(backup_id.clone()).unwrap();
+        let mut completed_record = backup_records
+            .get(backup_id.clone())
+            .ok_or(CDNError::StorageError)?;
         completed_record.status = BackupStatus::Completed;
         backup_records.set(backup_id.clone(), completed_record);
         env.storage()
@@ -193,8 +197,8 @@ impl DisasterRecoveryManager {
 
         let mut target_node_available = false;
         for i in 0..active_nodes.len() {
-            let node_id = active_nodes.get(i).unwrap();
-            if let Some(node) = nodes.get(node_id) {
+            let node_id = active_nodes.get(i).ok_or(CDNError::StorageError)?;
+            if let Some(node) = nodes.get(node_id.clone()) {
                 if node.region == target_region && node.is_active {
                     target_node_available = true;
                     break;
@@ -217,8 +221,11 @@ impl DisasterRecoveryManager {
             // Check if target region is already in replicas
             let mut already_exists = false;
             for i in 0..content_item.replicas.len() {
-                let replica_node_id = content_item.replicas.get(i).unwrap();
-                if let Some(node) = nodes.get(replica_node_id) {
+                let replica_node_id = content_item
+                    .replicas
+                    .get(i)
+                    .ok_or(CDNError::StorageError)?;
+                if let Some(node) = nodes.get(replica_node_id.clone()) {
                     if node.region == target_region {
                         already_exists = true;
                         break;
@@ -229,7 +236,7 @@ impl DisasterRecoveryManager {
             if !already_exists {
                 // Find a node in the target region to add as replica
                 for i in 0..active_nodes.len() {
-                    let node_id = active_nodes.get(i).unwrap();
+                    let node_id = active_nodes.get(i).ok_or(CDNError::StorageError)?;
                     if let Some(node) = nodes.get(node_id.clone()) {
                         if node.region == target_region && node.is_active {
                             content_item.replicas.push_back(node_id);
@@ -293,7 +300,9 @@ impl DisasterRecoveryManager {
             .unwrap_or_else(|| Map::new(env));
 
         for i in 0..critical_content.len() {
-            let content_id = critical_content.get(i).unwrap();
+            let content_id = critical_content
+                .get(i)
+                .ok_or(CDNError::StorageError)?;
             if !content_items.contains_key(content_id) {
                 return Err(CDNError::ContentNotFound);
             }
@@ -389,11 +398,14 @@ impl DisasterRecoveryManager {
 
         let mut backup_node_id = String::from_str(env, "");
         for i in 0..recovery_plan.backup_regions.len() {
-            let backup_region = recovery_plan.backup_regions.get(i).unwrap();
+            let backup_region = recovery_plan
+                .backup_regions
+                .get(i)
+                .ok_or(CDNError::StorageError)?;
             if backup_region != failed_region {
                 // Find an active node in this backup region
                 for j in 0..active_nodes.len() {
-                    let node_id = active_nodes.get(j).unwrap();
+                    let node_id = active_nodes.get(j).ok_or(CDNError::StorageError)?;
                     if let Some(node) = nodes.get(node_id.clone()) {
                         if node.region == backup_region && node.is_active {
                             backup_node_id = node_id;
@@ -421,14 +433,20 @@ impl DisasterRecoveryManager {
         let mut affected_content = Vec::new(env);
 
         for i in 0..recovery_plan.critical_content.len() {
-            let content_id = recovery_plan.critical_content.get(i).unwrap();
+            let content_id = recovery_plan
+                .critical_content
+                .get(i)
+                .ok_or(CDNError::StorageError)?;
             if let Some(mut content_item) = content_items.get(content_id.clone()) {
                 // Remove failed region nodes from replicas and add backup node
                 let mut new_replicas = Vec::new(env);
                 let mut needs_backup = true;
 
                 for j in 0..content_item.replicas.len() {
-                    let replica_node_id = content_item.replicas.get(j).unwrap();
+                    let replica_node_id = content_item
+                        .replicas
+                        .get(j)
+                        .ok_or(CDNError::StorageError)?;
                     if let Some(node) = nodes.get(replica_node_id.clone()) {
                         if node.region != failed_region {
                             new_replicas.push_back(replica_node_id.clone());

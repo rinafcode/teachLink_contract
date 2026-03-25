@@ -78,13 +78,17 @@ impl Bridge {
             .storage()
             .instance()
             .get(&SUPPORTED_CHAINS)
-            .unwrap_or_else(|| Map::new(env));
+            .ok_or(BridgeError::NotInitialized)?;
         if !supported_chains.get(destination_chain).unwrap_or(false) {
             return Err(BridgeError::DestinationChainNotSupported);
         }
 
         // Get token address
-        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&TOKEN)
+            .ok_or(BridgeError::NotInitialized)?;
 
         // Transfer tokens from user to bridge (locking them)
         env.invoke_contract::<()>(
@@ -100,7 +104,11 @@ impl Bridge {
 
         // Apply bridge fee if configured
         let fee: i128 = env.storage().instance().get(&BRIDGE_FEE).unwrap_or(0i128);
-        let fee_recipient: Address = env.storage().instance().get(&FEE_RECIPIENT).unwrap();
+        let fee_recipient: Address = env
+            .storage()
+            .instance()
+            .get(&FEE_RECIPIENT)
+            .ok_or(BridgeError::NotInitialized)?;
         let amount_after_fee = if fee > 0 && fee < amount {
             env.invoke_contract::<()>(
                 &token,
@@ -171,7 +179,11 @@ impl Bridge {
         validator_signatures: Vec<Address>,
     ) -> Result<(), BridgeError> {
         // Validate all input parameters
-        let min_validators: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
+        let min_validators: u32 = env
+            .storage()
+            .instance()
+            .get(&MIN_VALIDATORS)
+            .ok_or(BridgeError::NotInitialized)?;
         BridgeValidator::validate_bridge_completion(
             env,
             &message,
@@ -180,7 +192,11 @@ impl Bridge {
         )?;
 
         // Verify all signatures are from valid validators
-        let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        let validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .ok_or(BridgeError::NotInitialized)?;
         for validator in validator_signatures.iter() {
             if !validators.get(validator.clone()).unwrap_or(false) {
                 return Err(BridgeError::InvalidValidatorSignature);
@@ -200,7 +216,11 @@ impl Bridge {
         env.storage().persistent().set(&NONCE, &processed_nonces);
 
         // Get token address
-        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&TOKEN)
+            .ok_or(BridgeError::NotInitialized)?;
 
         // Verify token matches
         if message.token != token {
@@ -260,7 +280,11 @@ impl Bridge {
         }
 
         // Get token address
-        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&TOKEN)
+            .ok_or(BridgeError::NotInitialized)?;
 
         // Refund tokens to original recipient
         env.invoke_contract::<()>(
@@ -287,10 +311,18 @@ impl Bridge {
     /// Add a validator (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
-        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .ok_or(BridgeError::NotInitialized)?;
         validators.set(validator, true);
         env.storage().instance().set(&VALIDATORS, &validators);
 
@@ -300,10 +332,18 @@ impl Bridge {
     /// Remove a validator (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
-        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .ok_or(BridgeError::NotInitialized)?;
         validators.set(validator, false);
         env.storage().instance().set(&VALIDATORS, &validators);
 
@@ -313,10 +353,18 @@ impl Bridge {
     /// Add a supported destination chain (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
-        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        let mut chains: Map<u32, bool> = env.storage().instance().get(&SUPPORTED_CHAINS).unwrap();
+        let mut chains: Map<u32, bool> = env
+            .storage()
+            .instance()
+            .get(&SUPPORTED_CHAINS)
+            .ok_or(BridgeError::NotInitialized)?;
         chains.set(chain_id, true);
         env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
 
@@ -326,10 +374,18 @@ impl Bridge {
     /// Remove a supported destination chain (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
-        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        let mut chains: Map<u32, bool> = env.storage().instance().get(&SUPPORTED_CHAINS).unwrap();
+        let mut chains: Map<u32, bool> = env
+            .storage()
+            .instance()
+            .get(&SUPPORTED_CHAINS)
+            .ok_or(BridgeError::NotInitialized)?;
         chains.set(chain_id, false);
         env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
 
@@ -338,7 +394,11 @@ impl Bridge {
 
     /// Set bridge fee (admin only)
     pub fn set_bridge_fee(env: &Env, fee: i128) -> Result<(), BridgeError> {
-        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)?;
         admin.require_auth();
 
         if fee < 0 {
@@ -353,7 +413,11 @@ impl Bridge {
     /// Set fee recipient (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), BridgeError> {
-        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)?;
         admin.require_auth();
 
         env.storage().instance().set(&FEE_RECIPIENT, &fee_recipient);
@@ -363,7 +427,11 @@ impl Bridge {
 
     /// Set minimum validators (admin only)
     pub fn set_min_validators(env: &Env, min_validators: u32) -> Result<(), BridgeError> {
-        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        let admin: Address = env
+            .storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)?;
         admin.require_auth();
 
         if min_validators == 0 {
@@ -420,12 +488,18 @@ impl Bridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: &Env) -> Address {
-        env.storage().instance().get(&TOKEN).unwrap()
+    pub fn get_token(env: &Env) -> Result<Address, BridgeError> {
+        env.storage()
+            .instance()
+            .get(&TOKEN)
+            .ok_or(BridgeError::NotInitialized)
     }
 
     /// Get the admin address
-    pub fn get_admin(env: &Env) -> Address {
-        env.storage().instance().get(&ADMIN).unwrap()
+    pub fn get_admin(env: &Env) -> Result<Address, BridgeError> {
+        env.storage()
+            .instance()
+            .get(&ADMIN)
+            .ok_or(BridgeError::NotInitialized)
     }
 }

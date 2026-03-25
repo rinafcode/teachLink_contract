@@ -275,7 +275,9 @@ let quality = Some(StreamingQuality::High);
 let endpoint = client.get_delivery_endpoint(&content_id, &user_location, &quality)?;
 
 // Record access for analytics
-client.record_access(&content_id, &user_location.unwrap(), &node_id, &1000u64, &50u64)?;
+if let Some(user_location) = user_location {
+    client.record_access(&content_id, &user_location, &node_id, &1000u64, &50u64)?;
+}
 ```
 
 ## 📊 Implementation Status

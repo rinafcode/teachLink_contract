@@ -11,6 +11,20 @@ use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
 pub mod notification_tests {
     use super::*;
 
+    fn expect_ok<T, E: core::fmt::Debug>(res: Result<T, E>, context: &str) -> T {
+        match res {
+            Ok(value) => value,
+            Err(err) => panic!("{}: {:?}", context, err),
+        }
+    }
+
+    fn expect_some<T>(opt: Option<T>, context: &str) -> T {
+        match opt {
+            Some(value) => value,
+            None => panic!("{}", context),
+        }
+    }
+
     // Helper function to create test addresses
     fn create_test_address(env: &Env, id: u8) -> Address {
         // Use Address::generate for test addresses
@@ -27,15 +41,17 @@ pub mod notification_tests {
         assert!(result.is_ok());
 
         // Verify counter is set
-        let counter: u64 = env.storage().instance().get(&NOTIFICATION_COUNTER).unwrap();
+        let counter: u64 = expect_some(
+            env.storage().instance().get(&NOTIFICATION_COUNTER),
+            "counter not set",
+        );
         assert_eq!(counter, 0);
 
         // Verify default templates are created
-        let templates: Map<u64, NotificationTemplate> = env
-            .storage()
-            .instance()
-            .get(&NOTIFICATION_TEMPLATES)
-            .unwrap();
+        let templates: Map<u64, NotificationTemplate> = expect_some(
+            env.storage().instance().get(&NOTIFICATION_TEMPLATES),
+            "templates not set",
+        );
         assert!(templates.len() >= 2); // Welcome and transaction templates
     }
 
@@ -46,7 +62,7 @@ pub mod notification_tests {
         let admin = create_test_address(&env, 1);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings
         let settings = UserNotificationSettings {
@@ -57,7 +73,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Send notification
         let content = NotificationContent {
@@ -75,12 +91,12 @@ pub mod notification_tests {
         );
 
         assert!(result.is_ok());
-        let notification_id = result.unwrap();
+        let notification_id = expect_ok(result, "notification id missing");
 
         // Verify tracking
         let tracking = NotificationManager::get_notification_tracking(&env, notification_id);
         assert!(tracking.is_some());
-        let tracking = tracking.unwrap();
+        let tracking = expect_some(tracking, "tracking missing");
         assert_eq!(tracking.recipient, recipient);
         assert_eq!(tracking.channel, NotificationChannel::InApp);
         assert!(matches!(
@@ -97,7 +113,7 @@ pub mod notification_tests {
         let future_time = current_time + 3600; // 1 hour from now
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings
         let settings = UserNotificationSettings {
@@ -108,7 +124,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Schedule notification
         let content = NotificationContent {
@@ -139,12 +155,12 @@ pub mod notification_tests {
         );
 
         assert!(result.is_ok());
-        let notification_id = result.unwrap();
+        let notification_id = expect_ok(result, "notification id missing");
 
         // Verify tracking shows scheduled status
         let tracking = NotificationManager::get_notification_tracking(&env, notification_id);
         assert!(tracking.is_some());
-        let tracking = tracking.unwrap();
+        let tracking = expect_some(tracking, "tracking missing");
         assert_eq!(tracking.status, NotificationDeliveryStatus::Scheduled);
     }
 
@@ -156,7 +172,7 @@ pub mod notification_tests {
         let past_time = current_time - 100; // Schedule in the past for immediate processing
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings
         let settings = UserNotificationSettings {
@@ -167,7 +183,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Schedule notification in the past
         let content = NotificationContent {
@@ -189,17 +205,16 @@ pub mod notification_tests {
             delivery_count: 0,
         };
 
-        NotificationManager::schedule_notification(
+        expect_ok(NotificationManager::schedule_notification(
             &env,
             recipient.clone(),
             NotificationChannel::InApp,
             content,
             schedule,
-        )
-        .unwrap();
+        ), "schedule notification failed");
 
         // Process scheduled notifications
-        let processed_count = NotificationManager::process_scheduled_notifications(&env).unwrap();
+        let processed_count = expect_ok(NotificationManager::process_scheduled_notifications(&env), "process notifications failed");
         assert!(processed_count > 0);
     }
 
@@ -209,7 +224,7 @@ pub mod notification_tests {
         let user = create_test_address(&env, 3);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Create preferences
         let mut preferences = Vec::new(&env);
@@ -242,7 +257,7 @@ pub mod notification_tests {
         let admin = create_test_address(&env, 1);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Create template
         let name = Bytes::from_slice(&env, b"Test Template");
@@ -259,7 +274,7 @@ pub mod notification_tests {
 
         let result = NotificationManager::create_template(&env, admin, name, channels, content);
         assert!(result.is_ok());
-        let template_id = result.unwrap();
+        let template_id = expect_ok(result, "template id missing");
         assert!(template_id > 0);
     }
 
@@ -270,7 +285,7 @@ pub mod notification_tests {
         let recipient = create_test_address(&env, 2);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings
         let settings = UserNotificationSettings {
@@ -281,7 +296,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Create template
         let name = Bytes::from_slice(&env, b"Personalized Template");
@@ -296,7 +311,7 @@ pub mod notification_tests {
         };
 
         let template_id =
-            NotificationManager::create_template(&env, admin, name, channels, content).unwrap();
+            expect_ok(NotificationManager::create_template(&env, admin, name, channels, content), "create template failed");
 
         // Create personalization variables
         let mut variables = Map::new(&env);
@@ -327,7 +342,7 @@ pub mod notification_tests {
         let end_time = env.ledger().timestamp();
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings
         let settings = UserNotificationSettings {
@@ -338,7 +353,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Send multiple notifications
         for i in 0u32..5u32 {
@@ -365,13 +380,12 @@ pub mod notification_tests {
                 localization: Map::new(&env),
             };
 
-            NotificationManager::send_notification(
+            expect_ok(NotificationManager::send_notification(
                 &env,
                 recipient.clone(),
                 NotificationChannel::InApp,
                 content,
-            )
-            .unwrap();
+            ), "send notification failed");
         }
 
         // Get analytics
@@ -386,7 +400,7 @@ pub mod notification_tests {
         let recipient = create_test_address(&env, 2);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings
         let settings = UserNotificationSettings {
@@ -397,7 +411,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Send notifications
         for i in 0u32..3u32 {
@@ -420,13 +434,12 @@ pub mod notification_tests {
                 localization: Map::new(&env),
             };
 
-            NotificationManager::send_notification(
+            expect_ok(NotificationManager::send_notification(
                 &env,
                 recipient.clone(),
                 NotificationChannel::InApp,
                 content,
-            )
-            .unwrap();
+            ), "send notification failed");
         }
 
         // Get user history
@@ -445,7 +458,7 @@ pub mod notification_tests {
         let recipient = create_test_address(&env, 2);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings with low daily limit
         let settings = UserNotificationSettings {
@@ -456,7 +469,7 @@ pub mod notification_tests {
             max_daily_notifications: 2, // Very low limit
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Send notifications up to limit
         let mut success_count = 0;
@@ -506,7 +519,7 @@ pub mod notification_tests {
         let recipient = create_test_address(&env, 2);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings with quiet hours
         let settings = UserNotificationSettings {
@@ -517,7 +530,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Try to send non-in-app notification during quiet hours
         let content = NotificationContent {
@@ -560,7 +573,7 @@ pub mod notification_tests {
         let recipient = create_test_address(&env, 2);
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Enable do not disturb
         let settings = UserNotificationSettings {
@@ -571,7 +584,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: true, // Enable DND
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Try to send any notification
         let content = NotificationContent {
@@ -599,7 +612,7 @@ pub mod notification_tests {
         let future_time = current_time + 3600; // 1 hour from now
 
         // Initialize system
-        NotificationManager::initialize(&env).unwrap();
+        expect_ok(NotificationManager::initialize(&env), "initialize failed");
 
         // Set up user settings
         let settings = UserNotificationSettings {
@@ -610,7 +623,7 @@ pub mod notification_tests {
             max_daily_notifications: 50,
             do_not_disturb: false,
         };
-        NotificationManager::update_user_settings(&env, recipient.clone(), settings).unwrap();
+        expect_ok(NotificationManager::update_user_settings(&env, recipient.clone(), settings), "update_user_settings failed");
 
         // Schedule recurring notification
         let content = NotificationContent {
@@ -641,12 +654,12 @@ pub mod notification_tests {
         );
 
         assert!(result.is_ok());
-        let notification_id = result.unwrap();
+        let notification_id = expect_ok(result, "notification id missing");
 
         // Verify it's scheduled
         let tracking = NotificationManager::get_notification_tracking(&env, notification_id);
         assert!(tracking.is_some());
-        let tracking = tracking.unwrap();
+        let tracking = expect_some(tracking, "tracking missing");
         assert_eq!(tracking.status, NotificationDeliveryStatus::Scheduled);
     }
 }

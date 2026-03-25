@@ -18,11 +18,11 @@
 //! within the appeal window. Appeals are reviewed by admin or
 //! governance council.
 
-use soroban_sdk::{Address, Bytes, Env};
+use soroban_sdk::{panic_with_error, Address, Bytes, Env};
 
 use crate::events;
 use crate::storage::{APPEALS, DISPUTES, DISPUTE_COUNT};
-use crate::types::{Appeal, Dispute, DisputeKey, DisputeStatus};
+use crate::types::{Appeal, Dispute, DisputeKey, DisputeStatus, GovernanceError};
 
 /// Default dispute resolution deadline (7 days)
 const DEFAULT_RESOLUTION_PERIOD: u64 = 604800;
@@ -101,7 +101,7 @@ impl DisputeResolution {
             .storage()
             .persistent()
             .get(&(DISPUTES, dispute_key.clone()))
-            .expect("ERR_DISPUTE_NOT_FOUND: Dispute does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::DisputeNotFound));
 
         assert!(
             dispute.status == DisputeStatus::Open || dispute.status == DisputeStatus::UnderReview,
@@ -153,7 +153,7 @@ impl DisputeResolution {
             .storage()
             .persistent()
             .get(&(DISPUTES, dispute_key.clone()))
-            .expect("ERR_DISPUTE_NOT_FOUND: Dispute does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::DisputeNotFound));
 
         assert!(
             dispute.status != DisputeStatus::Resolved && dispute.status != DisputeStatus::Dismissed,
@@ -191,7 +191,7 @@ impl DisputeResolution {
             .storage()
             .persistent()
             .get(&(DISPUTES, dispute_key.clone()))
-            .expect("ERR_DISPUTE_NOT_FOUND: Dispute does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::DisputeNotFound));
 
         assert!(
             dispute.status == DisputeStatus::Resolved || dispute.status == DisputeStatus::Dismissed,
@@ -235,7 +235,7 @@ impl DisputeResolution {
             .storage()
             .persistent()
             .get(&(APPEALS, dispute_id))
-            .expect("ERR_APPEAL_NOT_FOUND: Appeal does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::AppealNotFound));
 
         appeal.granted = granted;
         env.storage()

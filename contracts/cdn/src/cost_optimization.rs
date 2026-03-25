@@ -150,7 +150,10 @@ impl CostOptimizationManager {
 
         // Generate alert if thresholds are exceeded
         for i in 0..budget.alert_thresholds.len() {
-            let threshold = budget.alert_thresholds.get(i).unwrap();
+            let threshold = budget
+                .alert_thresholds
+                .get(i)
+                .ok_or(CDNError::StorageError)?;
             if spend_percentage >= threshold as u64 {
                 let alert_type = if spend_percentage >= 100 {
                     "exceeded"

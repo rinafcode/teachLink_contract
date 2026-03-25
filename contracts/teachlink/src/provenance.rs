@@ -85,15 +85,24 @@ impl ProvenanceTracker {
         }
 
         // First record should be a mint
-        let first = history.get(0).unwrap();
+        let first = match history.get(0) {
+            Some(record) => record,
+            None => return false,
+        };
         if first.transfer_type != TransferType::Mint {
             return false;
         }
 
         // Verify chain continuity
         for i in 1..history.len() {
-            let prev = history.get(i - 1).unwrap();
-            let curr = history.get(i).unwrap();
+            let prev = match history.get(i - 1) {
+                Some(record) => record,
+                None => return false,
+            };
+            let curr = match history.get(i) {
+                Some(record) => record,
+                None => return false,
+            };
 
             // Previous 'to' should match current 'from' (or None for mint)
             let prev_to = prev.to.clone();
@@ -118,12 +127,13 @@ impl ProvenanceTracker {
             return None;
         }
 
-        let first = history.get(0).unwrap();
-        if first.transfer_type == TransferType::Mint {
-            Some(first.to)
-        } else {
-            None
-        }
+        history.get(0).and_then(|first| {
+            if first.transfer_type == TransferType::Mint {
+                Some(first.to)
+            } else {
+                None
+            }
+        })
     }
 
     /// Get all addresses that have owned this token
@@ -133,7 +143,10 @@ impl ProvenanceTracker {
         let mut owners = Vec::new(env);
 
         for i in 0..history.len() {
-            let record = history.get(i).unwrap();
+            let record = match history.get(i) {
+                Some(record) => record,
+                None => continue,
+            };
             // Add the 'to' address (new owner)
             if !owners.contains(record.to.clone()) {
                 owners.push_back(record.to);

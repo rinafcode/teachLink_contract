@@ -15,7 +15,9 @@
 //! uses a relay/oracle pattern: trusted relayers submit external chain
 //! state, which is verified and aggregated on-chain.
 
-use soroban_sdk::{contracttype, symbol_short, Address, Bytes, Env, Symbol};
+use soroban_sdk::{contracttype, panic_with_error, symbol_short, Address, Bytes, Env, Symbol};
+
+use crate::types::GovernanceError;
 
 // use crate::events;
 
@@ -240,7 +242,9 @@ impl CrossChainGovernance {
             .storage()
             .persistent()
             .get(&(XCHAIN_PROPOSALS, xc_proposal_id))
-            .expect("ERR_XC_PROPOSAL_NOT_FOUND: Cross-chain proposal not found");
+            .unwrap_or_else(|| {
+                panic_with_error!(env, GovernanceError::CrossChainProposalNotFound)
+            });
 
         assert!(
             !xc_proposal.finalized,
@@ -252,7 +256,7 @@ impl CrossChainGovernance {
             .storage()
             .persistent()
             .get(&(CHAIN_REGISTRY, chain_id.clone()))
-            .expect("ERR_CHAIN_NOT_FOUND: Chain not registered");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ChainNotFound));
 
         assert!(chain_info.active, "ERR_CHAIN_INACTIVE: Chain is not active");
 
@@ -300,7 +304,9 @@ impl CrossChainGovernance {
             .storage()
             .persistent()
             .get(&(XCHAIN_PROPOSALS, xc_proposal_id))
-            .expect("ERR_XC_PROPOSAL_NOT_FOUND: Cross-chain proposal not found");
+            .unwrap_or_else(|| {
+                panic_with_error!(env, GovernanceError::CrossChainProposalNotFound)
+            });
 
         assert!(
             xc_proposal.quorum_met,

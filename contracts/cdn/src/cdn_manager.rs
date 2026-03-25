@@ -231,7 +231,7 @@ impl CDNManager {
 
         let mut new_active_nodes = Vec::new(env);
         for i in 0..active_nodes.len() {
-            let active_node_id = active_nodes.get(i).unwrap();
+            let active_node_id = active_nodes.get(i).ok_or(CDNError::StorageError)?;
             if active_node_id != node_id {
                 new_active_nodes.push_back(active_node_id);
             }
@@ -299,7 +299,8 @@ impl CDNManager {
         let mut replicas = Vec::new(env);
         let replica_count = active_nodes.len().min(3);
         for i in 0..replica_count {
-            replicas.push_back(active_nodes.get(i).unwrap());
+            let node_id = active_nodes.get(i).ok_or(CDNError::StorageError)?;
+            replicas.push_back(node_id);
         }
 
         // Determine default cache policy based on content type
@@ -405,7 +406,10 @@ impl CDNManager {
         let mut best_score = 0u32;
 
         for i in 0..content_item.replicas.len() {
-            let replica_node_id = content_item.replicas.get(i).unwrap();
+            let replica_node_id = content_item
+                .replicas
+                .get(i)
+                .ok_or(CDNError::StorageError)?;
             if let Some(node) = nodes.get(replica_node_id.clone()) {
                 if !node.is_active {
                     continue;
@@ -434,12 +438,9 @@ impl CDNManager {
         let selected_node = best_node.ok_or(CDNError::NoAvailableNodes)?;
 
         // Calculate estimated latency based on region and load
-        let base_latency = if user_location.is_some()
-            && user_location.as_ref().unwrap() == &selected_node.region
-        {
-            20 // Same region
-        } else {
-            100 // Different region
+        let base_latency = match user_location {
+            Some(ref user_loc) if *user_loc == selected_node.region => 20,
+            _ => 100,
         };
 
         let load_latency = (selected_node.current_load * 50) / selected_node.capacity;

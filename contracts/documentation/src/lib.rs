@@ -5,7 +5,7 @@
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env, String, Vec};
 
 /// Documentation category types
 #[contracttype]
@@ -70,6 +70,13 @@ enum DocKey {
     Version,
 }
 
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum DocumentationError {
+    ArticleNotFound = 1,
+    FaqNotFound = 2,
+}
+
 /// Main documentation contract
 #[contract]
 pub struct DocumentationContract;
@@ -87,7 +94,7 @@ impl DocumentationContract {
         tags: Vec<String>,
         visibility: Visibility,
         author: Address,
-    ) -> Article {
+    ) -> Result<Article, DocumentationError> {
         let timestamp = env.ledger().timestamp();
 
         let article = Article {
@@ -115,12 +122,15 @@ impl DocumentationContract {
             .instance()
             .set(&count_key, &(current_count + 1));
 
-        article
+        Ok(article)
     }
 
     /// Get an article by ID
-    pub fn get_article(env: Env, id: String) -> Article {
-        env.storage().instance().get(&id).unwrap()
+    pub fn get_article(env: Env, id: String) -> Result<Article, DocumentationError> {
+        env.storage()
+            .instance()
+            .get(&id)
+            .ok_or(DocumentationError::ArticleNotFound)
     }
 
     /// Update an existing article
@@ -130,8 +140,12 @@ impl DocumentationContract {
         title: String,
         content: String,
         tags: Vec<String>,
-    ) -> Article {
-        let mut article: Article = env.storage().instance().get(&id).unwrap();
+    ) -> Result<Article, DocumentationError> {
+        let mut article: Article = env
+            .storage()
+            .instance()
+            .get(&id)
+            .ok_or(DocumentationError::ArticleNotFound)?;
 
         article.title = title;
         article.content = content;
@@ -141,23 +155,33 @@ impl DocumentationContract {
 
         env.storage().instance().set(&id, &article);
 
-        article
+        Ok(article)
     }
 
     /// Record a view for analytics
-    pub fn record_view(env: Env, article_id: String) {
-        let mut article: Article = env.storage().instance().get(&article_id).unwrap();
+    pub fn record_view(env: Env, article_id: String) -> Result<(), DocumentationError> {
+        let mut article: Article = env
+            .storage()
+            .instance()
+            .get(&article_id)
+            .ok_or(DocumentationError::ArticleNotFound)?;
         article.view_count += 1;
 
         env.storage().instance().set(&article_id, &article);
+        Ok(())
     }
 
     /// Record that a user found an article helpful
-    pub fn mark_helpful(env: Env, article_id: String) {
-        let mut article: Article = env.storage().instance().get(&article_id).unwrap();
+    pub fn mark_helpful(env: Env, article_id: String) -> Result<(), DocumentationError> {
+        let mut article: Article = env
+            .storage()
+            .instance()
+            .get(&article_id)
+            .ok_or(DocumentationError::ArticleNotFound)?;
         article.helpful_count += 1;
 
         env.storage().instance().set(&article_id, &article);
+        Ok(())
     }
 
     /// Create a new FAQ entry
@@ -169,7 +193,7 @@ impl DocumentationContract {
         category: String,
         language: String,
         author: Address,
-    ) -> FaqEntry {
+    ) -> Result<FaqEntry, DocumentationError> {
         let timestamp = env.ledger().timestamp();
 
         let faq = FaqEntry {
@@ -193,12 +217,15 @@ impl DocumentationContract {
             .instance()
             .set(&count_key, &(current_count + 1));
 
-        faq
+        Ok(faq)
     }
 
     /// Get FAQ by ID
-    pub fn get_faq(env: Env, id: String) -> FaqEntry {
-        env.storage().instance().get(&id).unwrap()
+    pub fn get_faq(env: Env, id: String) -> Result<FaqEntry, DocumentationError> {
+        env.storage()
+            .instance()
+            .get(&id)
+            .ok_or(DocumentationError::FaqNotFound)
     }
 
     /// Search articles by keyword (simplified implementation)

@@ -54,11 +54,18 @@ impl ProposalAutomation {
     ) -> i128 {
         let score = (i128::from(voter_count) * 100) + (total_power / 1000);
 
-        let mut queue: Vec<PriorityRecord> = env.storage().instance().get(&QUEUE).unwrap();
+        let mut queue: Vec<PriorityRecord> = env
+            .storage()
+            .instance()
+            .get(&QUEUE)
+            .unwrap_or_else(|| Vec::new(env));
         let mut found = false;
 
         for i in 0..queue.len() {
-            let mut record = queue.get(i).unwrap();
+            let mut record = match queue.get(i) {
+                Some(record) => record,
+                None => continue,
+            };
             if record.proposal_id == proposal_id {
                 record.priority_score = score;
                 queue.set(i, record);

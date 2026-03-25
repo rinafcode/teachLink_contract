@@ -18,7 +18,9 @@
 //! - **Emergency Pause**: Admin can pause execution of risky proposals
 //! - **Veto Power**: Security council can veto proposals above a risk threshold
 
-use soroban_sdk::{contracttype, symbol_short, Address, Bytes, Env, Symbol};
+use soroban_sdk::{contracttype, panic_with_error, symbol_short, Address, Bytes, Env, Symbol};
+
+use crate::types::GovernanceError;
 
 /// Storage key for insurance pool
 const INSURANCE_POOL: Symbol = symbol_short!("ins_pool");
@@ -188,7 +190,7 @@ impl GovernanceInsurance {
             .storage()
             .instance()
             .get(&INSURANCE_POOL)
-            .expect("ERR_INSURANCE_NOT_INITIALIZED");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::InsuranceNotInitialized));
 
         pool.total_balance += amount;
         pool.last_updated = env.ledger().timestamp();
@@ -215,7 +217,7 @@ impl GovernanceInsurance {
             .storage()
             .instance()
             .get(&INS_CONFIG)
-            .expect("ERR_INSURANCE_NOT_INITIALIZED");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::InsuranceNotInitialized));
 
         let veto_recommended = risk_score > config.risk_threshold;
         let additional_delay = if risk_score > config.risk_threshold {
@@ -264,13 +266,13 @@ impl GovernanceInsurance {
             .storage()
             .instance()
             .get(&INS_CONFIG)
-            .expect("ERR_INSURANCE_NOT_INITIALIZED");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::InsuranceNotInitialized));
 
         let pool: InsurancePool = env
             .storage()
             .instance()
             .get(&INSURANCE_POOL)
-            .expect("ERR_INSURANCE_NOT_INITIALIZED");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::InsuranceNotInitialized));
 
         // Check claim doesn't exceed max
         let max_claim = pool.total_balance * i128::from(config.max_claim_bps) / 10000;
@@ -312,7 +314,7 @@ impl GovernanceInsurance {
             .storage()
             .persistent()
             .get(&(CLAIMS, claim_id))
-            .expect("ERR_CLAIM_NOT_FOUND: Claim does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ClaimNotFound));
 
         claim.approved = approved;
 
@@ -327,7 +329,7 @@ impl GovernanceInsurance {
             .storage()
             .persistent()
             .get(&(CLAIMS, claim_id))
-            .expect("ERR_CLAIM_NOT_FOUND: Claim does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ClaimNotFound));
 
         assert!(claim.approved, "ERR_CLAIM_NOT_APPROVED: Claim not approved");
         assert!(!claim.paid, "ERR_CLAIM_ALREADY_PAID: Claim already paid");
@@ -336,7 +338,7 @@ impl GovernanceInsurance {
             .storage()
             .instance()
             .get(&INSURANCE_POOL)
-            .expect("ERR_INSURANCE_NOT_INITIALIZED");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::InsuranceNotInitialized));
 
         assert!(
             pool.total_balance >= claim.amount,

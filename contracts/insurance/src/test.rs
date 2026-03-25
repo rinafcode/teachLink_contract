@@ -14,6 +14,20 @@ use soroban_sdk::{
     vec, Address, Bytes, Env,
 };
 
+fn expect_ok<T, E: core::fmt::Debug>(res: Result<T, E>, context: &str) -> T {
+    match res {
+        Ok(value) => value,
+        Err(err) => panic!("{}: {:?}", context, err),
+    }
+}
+
+fn expect_some<T>(opt: Option<T>, context: &str) -> T {
+    match opt {
+        Some(value) => value,
+        None => panic!("{}", context),
+    }
+}
+
 fn setup_test_env() -> (Env, Address, Address, Address, Address) {
     let env = Env::default();
     env.mock_all_auths();
@@ -60,7 +74,15 @@ fn test_initialize_contract() {
     // Try to initialize again - should fail
     let result = client.try_initialize(&admin, &oracle, &token_address);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().unwrap(), 500); // AlreadyInitialized
+    let err = match result {
+        Ok(_) => panic!("expected initialize to fail"),
+        Err(err) => err,
+    };
+    let code = match err {
+        soroban_sdk::Error::Contract(code) => code,
+        _ => panic!("unexpected error type"),
+    };
+    assert_eq!(code, 500); // AlreadyInitialized
 }
 
 #[test]
@@ -82,13 +104,13 @@ fn test_create_risk_profile() {
     let result = client.try_create_risk_profile(&user, &factors);
     assert!(result.is_ok());
     
-    let profile_id = result.unwrap();
+    let profile_id = expect_ok(result, "expected profile id");
     assert_eq!(profile_id, 1);
 
     // Get the profile
     let profile = client.get_risk_profile(&user);
     assert!(profile.is_some());
-    let profile = profile.unwrap();
+    let profile = expect_some(profile, "profile not found");
     assert_eq!(profile.profile_id, profile_id);
     assert_eq!(profile.user, user);
     assert_eq!(profile.factors.completion_rate, 85);
@@ -114,7 +136,15 @@ fn test_invalid_risk_factors() {
 
     let result = client.try_create_risk_profile(&user, &invalid_factors);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().unwrap(), 505); // InvalidRiskFactors
+    let err = match result {
+        Ok(_) => panic!("expected create to fail"),
+        Err(err) => err,
+    };
+    let code = match err {
+        soroban_sdk::Error::Contract(code) => code,
+        _ => panic!("unexpected error type"),
+    };
+    assert_eq!(code, 505); // InvalidRiskFactors
 }
 
 #[test]
@@ -146,7 +176,7 @@ fn test_purchase_policy() {
     let result = client.try_purchase_policy(&user, &101, &coverage_amount);
     assert!(result.is_ok());
     
-    let policy_id = result.unwrap();
+    let policy_id = expect_ok(result, "expected policy id");
     assert_eq!(policy_id, 1);
 
     // Check balances after purchase
@@ -159,7 +189,7 @@ fn test_purchase_policy() {
     // Get policy
     let policy = client.get_policy(&policy_id);
     assert!(policy.is_some());
-    let policy = policy.unwrap();
+    let policy = expect_some(policy, "policy not found");
     assert_eq!(policy.policy_id, policy_id);
     assert_eq!(policy.holder, user);
     assert_eq!(policy.course_id, 101);
@@ -196,13 +226,13 @@ fn test_file_claim() {
     let result = client.try_file_claim(&user, &policy_id, &evidence, &reason);
     assert!(result.is_ok());
     
-    let claim_id = result.unwrap();
+    let claim_id = expect_ok(result, "expected claim id");
     assert_eq!(claim_id, 1);
 
     // Get claim
     let claim = client.get_claim(&claim_id);
     assert!(claim.is_some());
-    let claim = claim.unwrap();
+    let claim = expect_some(claim, "claim not found");
     assert_eq!(claim.claim_id, claim_id);
     assert_eq!(claim.policy_id, policy_id);
     assert_eq!(claim.status, ClaimStatus::AiVerified); // High confidence
@@ -266,7 +296,7 @@ fn test_create_pool() {
     // Get pool
     let pool = client.get_pool(&pool_id);
     assert!(pool.is_some());
-    let pool = pool.unwrap();
+    let pool = expect_some(pool, "pool not found");
     assert_eq!(pool.pool_id, pool_id);
     assert_eq!(pool.name, "Learning Insurance Pool");
     assert_eq!(pool.target_utilization, 8000);
@@ -298,7 +328,7 @@ fn test_add_reinsurance_partner() {
     assert!(result.is_ok());
 
     // Check pool has partner
-    let pool = client.get_pool(&pool_id).unwrap();
+    let pool = expect_some(client.get_pool(&pool_id), "pool not found");
     assert_eq!(pool.reinsurance_partners.len(), 2); // user + contract address
     assert_eq!(pool.reinsurance_partners.get(1), user);
 }
@@ -327,7 +357,7 @@ fn test_create_proposal() {
     // Get proposal
     let proposal = client.get_proposal(&proposal_id);
     assert!(proposal.is_some());
-    let proposal = proposal.unwrap();
+    let proposal = expect_some(proposal, "proposal not found");
     assert_eq!(proposal.proposal_id, proposal_id);
     assert_eq!(proposal.title, "Increase Premium Rate");
     assert_eq!(proposal.proposal_type, ProposalType::PremiumRate);
@@ -360,10 +390,18 @@ fn test_voting_process() {
     // Try to vote again - should fail
     let result = client.try_vote(&user, &proposal_id, &false);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().unwrap(), 528); // AlreadyVoted
+    let err = match result {
+        Ok(_) => panic!("expected vote to fail"),
+        Err(err) => err,
+    };
+    let code = match err {
+        soroban_sdk::Error::Contract(code) => code,
+        _ => panic!("unexpected error type"),
+    };
+    assert_eq!(code, 528); // AlreadyVoted
 
     // Check proposal vote counts
-    let proposal = client.get_proposal(&proposal_id).unwrap();
+    let proposal = expect_some(client.get_proposal(&proposal_id), "proposal not found");
     assert_eq!(proposal.votes_for, 1);
     assert_eq!(proposal.votes_against, 0);
 }
@@ -395,7 +433,7 @@ fn test_create_insurance_token() {
     // Get token
     let token = client.get_insurance_token(&token_id);
     assert!(token.is_some());
-    let token = token.unwrap();
+    let token = expect_some(token, "token not found");
     assert_eq!(token.token_id, token_id);
     assert_eq!(token.pool_id, pool_id);
     assert_eq!(token.name, "Insurance Pool Token");
@@ -443,7 +481,7 @@ fn test_compliance_report() {
     // Get report
     let report = client.get_compliance_report(&report_id);
     assert!(report.is_some());
-    let report = report.unwrap();
+    let report = expect_some(report, "report not found");
     assert_eq!(report.report_id, report_id);
     assert_eq!(report.total_policies, 287);
     assert_eq!(report.claims_paid, 35);
@@ -458,21 +496,32 @@ fn test_risk_multiplier_calculation() {
     client.initialize(&admin, &oracle, &token_address);
 
     // Test low risk (0-30) -> 1.0x multiplier
-    let multiplier = client.get_risk_multiplier(&15).unwrap();
+    let multiplier =
+        expect_some(client.get_risk_multiplier(&15), "risk multiplier not found");
     assert_eq!(multiplier, 10000);
 
     // Test medium risk (31-60) -> 1.5x multiplier
-    let multiplier = client.get_risk_multiplier(&45).unwrap();
+    let multiplier =
+        expect_some(client.get_risk_multiplier(&45), "risk multiplier not found");
     assert_eq!(multiplier, 15000);
 
     // Test high risk (61-100) -> 3.0x multiplier
-    let multiplier = client.get_risk_multiplier(&80).unwrap();
+    let multiplier =
+        expect_some(client.get_risk_multiplier(&80), "risk multiplier not found");
     assert_eq!(multiplier, 30000);
 
     // Test invalid risk score
     let result = client.try_get_risk_multiplier(&150);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err().unwrap(), 540); // RiskScoreOutOfRange
+    let err = match result {
+        Ok(_) => panic!("expected risk multiplier to fail"),
+        Err(err) => err,
+    };
+    let code = match err {
+        soroban_sdk::Error::Contract(code) => code,
+        _ => panic!("unexpected error type"),
+    };
+    assert_eq!(code, 540); // RiskScoreOutOfRange
 }
 
 #[test]

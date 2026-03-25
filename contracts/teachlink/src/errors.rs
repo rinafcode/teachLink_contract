@@ -52,6 +52,8 @@ pub enum BridgeError {
     // General Errors
     Unauthorized = 138,
     InvalidInput = 139,
+    NotInitialized = 140,
+    MissingConfiguration = 141,
 }
 
 /// Escrow module errors
@@ -92,6 +94,9 @@ pub enum RewardsError {
     NoRewardsAvailable = 303,
     NoPendingRewards = 304,
     RateCannotBeNegative = 305,
+    NotInitialized = 306,
+    MissingToken = 307,
+    MissingAdmin = 308,
 }
 
 /// Mobile platform module errors
@@ -117,6 +122,16 @@ pub enum CommonError {
     InsufficientBalance = 402,
     TransferFailed = 403,
     StorageError = 404,
+}
+
+/// Content tokenization errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TokenizationError {
+    TokenNotFound = 500,
+    NotTokenOwner = 501,
+    TokenNotTransferable = 502,
+    OwnershipIndexCorrupted = 503,
 }
 
 /// Result type alias for bridge operations

@@ -16,11 +16,11 @@
 //! - Revoke delegation at any time
 //! - Set delegation expiry dates
 
-use soroban_sdk::{token, Address, Env};
+use soroban_sdk::{panic_with_error, token, Address, Env};
 
 use crate::events;
 use crate::storage::{DELEGATIONS, DELEG_PWR};
-use crate::types::{DelegatedPower, Delegation, DelegationKey, GovernanceConfig};
+use crate::types::{DelegatedPower, Delegation, DelegationKey, GovernanceConfig, GovernanceError};
 
 /// Maximum allowed delegation chain depth (hardcoded safety limit)
 const MAX_CHAIN_DEPTH: u32 = 5;
@@ -127,7 +127,7 @@ impl DelegationManager {
             .storage()
             .persistent()
             .get(&(DELEGATIONS, del_key.clone()))
-            .expect("ERR_DELEGATION_NOT_FOUND: No active delegation found");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::DelegationNotFound));
 
         // Remove delegated power from the delegate
         Self::remove_delegated_power(env, config, delegator, &delegation.delegate);

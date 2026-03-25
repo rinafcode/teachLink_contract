@@ -9,6 +9,20 @@ use teachlink_contract::{
     TeachLinkBridge, TeachLinkBridgeClient,
 };
 
+fn expect_ok<T, E: core::fmt::Debug>(res: Result<T, E>, context: &str) -> T {
+    match res {
+        Ok(value) => value,
+        Err(err) => panic!("{}: {:?}", context, err),
+    }
+}
+
+fn expect_some<T>(opt: Option<T>, context: &str) -> T {
+    match opt {
+        Some(value) => value,
+        None => panic!("{}", context),
+    }
+}
+
 #[contract]
 pub struct TestToken;
 
@@ -39,7 +53,7 @@ impl TestToken {
             .storage()
             .instance()
             .get(&symbol_short!("admin"))
-            .unwrap();
+            .unwrap_or_else(|| panic!("admin not set"));
 
         admin.require_auth();
 
@@ -146,7 +160,7 @@ fn test_escrow_release_flow() {
     assert_eq!(token_client.balance(&depositor), 1495);
     assert_eq!(token_client.balance(&depositor), 1495);
 
-    let escrow = escrow_client.get_escrow(&escrow_id).unwrap();
+    let escrow = expect_some(escrow_client.get_escrow(&escrow_id), "escrow not found");
     assert_eq!(escrow.status, EscrowStatus::Released);
 }
 
@@ -202,7 +216,7 @@ fn test_escrow_dispute_refund() {
 
     assert_eq!(token_client.balance(&depositor), 1000);
 
-    let escrow = escrow_client.get_escrow(&escrow_id).unwrap();
+    let escrow = expect_some(escrow_client.get_escrow(&escrow_id), "escrow not found");
     assert_eq!(escrow.status, EscrowStatus::Refunded);
 }
 
@@ -266,6 +280,6 @@ fn test_professional_arbitration_picking() {
 
     escrow_client.dispute_escrow(&escrow_id, &depositor, &reason);
 
-    let escrow = escrow_client.get_escrow(&escrow_id).unwrap();
+    let escrow = expect_some(escrow_client.get_escrow(&escrow_id), "escrow not found");
     assert_eq!(escrow.arbitrator, arb_addr);
 }

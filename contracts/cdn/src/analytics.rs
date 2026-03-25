@@ -298,8 +298,8 @@ impl AnalyticsManager {
             .unwrap_or_else(|| Vec::new(env));
 
         for i in 0..active_nodes.len() {
-            let node_id = active_nodes.get(i).unwrap();
-            if let Some(node) = nodes.get(node_id) {
+            let node_id = active_nodes.get(i).ok_or(CDNError::StorageError)?;
+            if let Some(node) = nodes.get(node_id.clone()) {
                 if node.region == region && node.is_active {
                     active_nodes_count += 1;
                 }

@@ -18,11 +18,11 @@
 //! - 5 votes on proposal A (25) + 5 votes on proposal B (25) + 7 votes on C (49) = 99 credits
 //! - Or distribute more broadly across many proposals
 
-use soroban_sdk::{token, Address, Env};
+use soroban_sdk::{panic_with_error, token, Address, Env};
 
 use crate::events;
 use crate::storage::QV_CREDITS;
-use crate::types::{GovernanceConfig, QVCreditKey, QVCredits};
+use crate::types::{GovernanceConfig, GovernanceError, QVCreditKey, QVCredits};
 
 pub struct QuadraticVoting;
 
@@ -63,7 +63,7 @@ impl QuadraticVoting {
                 .storage()
                 .persistent()
                 .get(&(QV_CREDITS, qv_key))
-                .unwrap();
+                .unwrap_or_else(|| panic_with_error!(env, GovernanceError::QVCreditsNotAllocated));
             return existing.total_credits - existing.spent_credits;
         }
 
@@ -112,7 +112,7 @@ impl QuadraticVoting {
             .storage()
             .persistent()
             .get(&(QV_CREDITS, qv_key.clone()))
-            .expect("ERR_NO_QV_CREDITS: No quadratic voting credits allocated");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::QVCreditsNotAllocated));
 
         // Calculate quadratic cost
         let new_total_votes = credits.votes_purchased + num_votes;

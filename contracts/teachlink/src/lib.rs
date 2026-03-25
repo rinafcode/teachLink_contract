@@ -135,7 +135,7 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError, TokenizationError};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
@@ -261,12 +261,12 @@ impl TeachLinkBridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: Env) -> Address {
+    pub fn get_token(env: Env) -> Result<Address, BridgeError> {
         bridge::Bridge::get_token(&env)
     }
 
     /// Get the admin address
-    pub fn get_admin(env: Env) -> Address {
+    pub fn get_admin(env: Env) -> Result<Address, BridgeError> {
         bridge::Bridge::get_admin(&env)
     }
 
@@ -971,8 +971,8 @@ impl TeachLinkBridge {
     }
 
     /// Update rewards admin (admin only)
-    pub fn update_rewards_admin(env: Env, new_admin: Address) {
-        rewards::Rewards::update_rewards_admin(&env, new_admin);
+    pub fn update_rewards_admin(env: Env, new_admin: Address) -> Result<(), RewardsError> {
+        rewards::Rewards::update_rewards_admin(&env, new_admin)
     }
 
     /// Get user reward information
@@ -996,7 +996,7 @@ impl TeachLinkBridge {
     }
 
     /// Get rewards admin address
-    pub fn get_rewards_admin(env: Env) -> Address {
+    pub fn get_rewards_admin(env: Env) -> Result<Address, RewardsError> {
         rewards::Rewards::get_rewards_admin(&env)
     }
 
@@ -1321,8 +1321,8 @@ impl TeachLinkBridge {
         to: Address,
         token_id: u64,
         notes: Option<Bytes>,
-    ) {
-        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes);
+    ) -> Result<(), TokenizationError> {
+        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes)
     }
 
     /// Get a content token by ID
@@ -1358,7 +1358,7 @@ impl TeachLinkBridge {
         title: Option<Bytes>,
         description: Option<Bytes>,
         tags: Option<Vec<Bytes>>,
-    ) {
+    ) -> Result<(), TokenizationError> {
         tokenization::ContentTokenization::update_metadata(
             &env,
             owner,
@@ -1366,7 +1366,7 @@ impl TeachLinkBridge {
             title,
             description,
             tags,
-        );
+        )
     }
 
     /// Set transferability of a content token (only by owner)
@@ -1375,8 +1375,8 @@ impl TeachLinkBridge {
         owner: Address,
         token_id: u64,
         transferable: bool,
-    ) {
-        tokenization::ContentTokenization::set_transferable(&env, owner, token_id, transferable);
+    ) -> Result<(), TokenizationError> {
+        tokenization::ContentTokenization::set_transferable(&env, owner, token_id, transferable)
     }
 
     // ========== Provenance Functions ==========

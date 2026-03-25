@@ -1,5 +1,6 @@
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
+use crate::errors::TokenizationError;
 use crate::events::{ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent};
 use crate::storage::{CONTENT_TOKENS, OWNERSHIP, OWNER_TOKENS, TOKEN_COUNTER};
 use crate::types::{ContentMetadata, ContentToken, ContentType, TransferType};
@@ -89,19 +90,29 @@ impl ContentTokenization {
     }
 
     /// Transfer ownership of a content token
-    pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, notes: Option<Bytes>) {
+    pub fn transfer(
+        env: &Env,
+        from: Address,
+        to: Address,
+        token_id: u64,
+        _notes: Option<Bytes>,
+    ) -> Result<(), TokenizationError> {
         // Get the token
         let token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
         // Verify ownership
-        assert!(token.owner == from, "Caller is not the owner");
+        if token.owner != from {
+            return Err(TokenizationError::NotTokenOwner);
+        }
 
         // Check if transferable
-        assert!(token.is_transferable, "Token is not transferable");
+        if !token.is_transferable {
+            return Err(TokenizationError::TokenNotTransferable);
+        }
 
         // Update ownership
         env.storage().persistent().set(&(OWNERSHIP, token_id), &to);
@@ -122,7 +133,9 @@ impl ContentTokenization {
             .unwrap_or(Vec::new(env));
         let mut new_from_tokens = Vec::new(env);
         for i in 0..from_tokens.len() {
-            let id = from_tokens.get(i).unwrap();
+            let id = from_tokens
+                .get(i)
+                .ok_or(TokenizationError::OwnershipIndexCorrupted)?;
             if id != token_id {
                 new_from_tokens.push_back(id);
             }
@@ -153,6 +166,7 @@ impl ContentTokenization {
 
         // Record provenance (handled by provenance module)
         // TODO: Implement provenance module
+        Ok(())
     }
 
     /// Get a content token by ID
@@ -209,14 +223,16 @@ impl ContentTokenization {
         title: Option<Bytes>,
         description: Option<Bytes>,
         tags: Option<Vec<Bytes>>,
-    ) {
+    ) -> Result<(), TokenizationError> {
         let mut token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
-        assert!(token.owner == owner, "Only owner can update metadata");
+        if token.owner != owner {
+            return Err(TokenizationError::NotTokenOwner);
+        }
 
         if let Some(new_title) = title {
             token.metadata.title = new_title;
@@ -243,17 +259,25 @@ impl ContentTokenization {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
+        Ok(())
     }
 
     /// Set transferability of a token (only by owner)
-    pub fn set_transferable(env: &Env, owner: Address, token_id: u64, transferable: bool) {
+    pub fn set_transferable(
+        env: &Env,
+        owner: Address,
+        token_id: u64,
+        transferable: bool,
+    ) -> Result<(), TokenizationError> {
         let mut token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
-        assert!(token.owner == owner, "Only owner can set transferability");
+        if token.owner != owner {
+            return Err(TokenizationError::NotTokenOwner);
+        }
 
         token.is_transferable = transferable;
         token.metadata.updated_at = env.ledger().timestamp();
@@ -261,5 +285,6 @@ impl ContentTokenization {
         env.storage()
             .persistent()
             .set(&(CONTENT_TOKENS, token_id), &token);
+        Ok(())
     }
 }

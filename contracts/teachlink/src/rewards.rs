@@ -44,7 +44,11 @@ impl Rewards {
 
         RewardsValidator::validate_pool_funding(env, &funder, amount)?;
 
-        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&TOKEN)
+            .ok_or(RewardsError::MissingToken)?;
 
         env.invoke_contract::<()>(
             &token,
@@ -78,7 +82,11 @@ impl Rewards {
         amount: i128,
         reward_type: String,
     ) -> Result<(), RewardsError> {
-        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+        let rewards_admin: Address = env
+            .storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::MissingAdmin)?;
         rewards_admin.require_auth();
 
         RewardsValidator::validate_reward_issuance(env, &recipient, amount, &reward_type)?;
@@ -157,7 +165,11 @@ impl Rewards {
             return Err(RewardsError::InsufficientRewardPoolBalance);
         }
 
-        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+        let token: Address = env
+            .storage()
+            .instance()
+            .get(&TOKEN)
+            .ok_or(RewardsError::MissingToken)?;
 
         env.invoke_contract::<()>(
             &token,
@@ -203,7 +215,11 @@ impl Rewards {
         rate: i128,
         enabled: bool,
     ) -> Result<(), RewardsError> {
-        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+        let rewards_admin: Address = env
+            .storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::MissingAdmin)?;
         rewards_admin.require_auth();
 
         if rate < 0 {
@@ -230,11 +246,16 @@ impl Rewards {
         Ok(())
     }
 
-    pub fn update_rewards_admin(env: &Env, new_admin: Address) {
-        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+    pub fn update_rewards_admin(env: &Env, new_admin: Address) -> Result<(), RewardsError> {
+        let rewards_admin: Address = env
+            .storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::MissingAdmin)?;
         rewards_admin.require_auth();
 
         env.storage().instance().set(&REWARDS_ADMIN, &new_admin);
+        Ok(())
     }
 
     // ==========================
@@ -270,7 +291,10 @@ impl Rewards {
         reward_rates.get(reward_type)
     }
 
-    pub fn get_rewards_admin(env: &Env) -> Address {
-        env.storage().instance().get(&REWARDS_ADMIN).unwrap()
+    pub fn get_rewards_admin(env: &Env) -> Result<Address, RewardsError> {
+        env.storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::MissingAdmin)
     }
 }

@@ -10,10 +10,10 @@
 //! - Predict turnout based on historical data
 //! - Model delegation effects on proposals
 
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{panic_with_error, Address, Env};
 
 use crate::storage::{PROPOSALS, SIMULATIONS, SIM_COUNT};
-use crate::types::{Proposal, SimulationSnapshot};
+use crate::types::{GovernanceError, Proposal, SimulationSnapshot};
 
 pub struct Simulation;
 
@@ -48,7 +48,7 @@ impl Simulation {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ProposalNotFound));
 
         let sim_for = proposal.for_votes + additional_for;
         let sim_against = proposal.against_votes + additional_against;
@@ -92,7 +92,7 @@ impl Simulation {
             .storage()
             .persistent()
             .get(&(PROPOSALS, proposal_id))
-            .expect("ERR_PROPOSAL_NOT_FOUND: Proposal does not exist");
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::ProposalNotFound));
 
         let total_votes = proposal.for_votes + proposal.against_votes + proposal.abstain_votes;
 
