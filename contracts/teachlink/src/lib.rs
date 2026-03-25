@@ -196,6 +196,18 @@ impl TeachLinkBridge {
         bridge::Bridge::cancel_bridge(&env, nonce)
     }
 
+    pub fn mark_bridge_failed(env: Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
+        bridge::Bridge::mark_bridge_failed(&env, nonce, reason)
+    }
+
+    pub fn retry_bridge(env: Env, nonce: u64) -> Result<u32, BridgeError> {
+        bridge::Bridge::retry_bridge(&env, nonce)
+    }
+
+    pub fn refund_bridge_transaction(env: Env, nonce: u64) -> Result<(), BridgeError> {
+        bridge::Bridge::refund_bridge_transaction(&env, nonce)
+    }
+
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
@@ -518,6 +530,35 @@ impl TeachLinkBridge {
         )
     }
 
+    /// Mark a cross-chain packet as delivered
+    pub fn deliver_cross_chain_packet(
+        env: Env,
+        packet_id: u64,
+        gas_used: u64,
+        result: Bytes,
+    ) -> Result<(), BridgeError> {
+        message_passing::MessagePassing::deliver_packet(&env, packet_id, gas_used, result)
+    }
+
+    /// Mark a cross-chain packet as failed
+    pub fn fail_cross_chain_packet(
+        env: Env,
+        packet_id: u64,
+        reason: Bytes,
+    ) -> Result<(), BridgeError> {
+        message_passing::MessagePassing::fail_packet(&env, packet_id, reason)
+    }
+
+    /// Retry a failed or timed-out cross-chain packet
+    pub fn retry_cross_chain_packet(env: Env, packet_id: u64) -> Result<(), BridgeError> {
+        message_passing::MessagePassing::retry_packet(&env, packet_id)
+    }
+
+    /// Mark all expired packets as timed out and return packet IDs
+    pub fn check_cross_chain_timeouts(env: Env) -> Result<Vec<u64>, BridgeError> {
+        message_passing::MessagePassing::check_timeouts(&env)
+    }
+
     /// Get packet by ID
     pub fn get_packet(env: Env, packet_id: u64) -> Option<CrossChainPacket> {
         message_passing::MessagePassing::get_packet(&env, packet_id)
@@ -531,6 +572,11 @@ impl TeachLinkBridge {
     /// Verify packet delivery
     pub fn verify_packet_delivery(env: Env, packet_id: u64) -> bool {
         message_passing::MessagePassing::verify_delivery(&env, packet_id)
+    }
+
+    /// Get retry count for a packet
+    pub fn get_packet_retry_count(env: Env, packet_id: u64) -> u32 {
+        message_passing::MessagePassing::get_packet_retry_count(&env, packet_id)
     }
 
     // ========== Emergency Functions ==========

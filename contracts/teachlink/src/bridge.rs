@@ -1,12 +1,16 @@
 use crate::errors::BridgeError;
 use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
 use crate::storage::{
-    ADMIN, BRIDGE_FEE, BRIDGE_TXS, FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN,
-    VALIDATORS,
+    ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS, BRIDGE_TXS,
+    FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
 };
 use crate::types::{BridgeTransaction, CrossChainMessage};
 use crate::validation::BridgeValidator;
-use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, Vec};
+use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
+
+const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
+const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
+const BRIDGE_RETRY_DELAY_BASE_SECONDS: u64 = 300;
 
 pub struct Bridge;
 
@@ -142,6 +146,26 @@ impl Bridge {
         bridge_txs.set(nonce, bridge_tx.clone());
         env.storage().instance().set(&BRIDGE_TXS, &bridge_txs);
 
+        let mut retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        retry_counts.set(nonce, 0);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_RETRY_COUNTS, &retry_counts);
+
+        let mut last_retry: Map<u64, u64> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_LAST_RETRY)
+            .unwrap_or_else(|| Map::new(env));
+        last_retry.set(nonce, env.ledger().timestamp());
+        env.storage()
+            .instance()
+            .set(&BRIDGE_LAST_RETRY, &last_retry);
+
         // Emit events
         BridgeInitiatedEvent {
             nonce,
@@ -233,16 +257,111 @@ impl Bridge {
         }
         .publish(env);
 
+        let mut bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        if bridge_txs.contains_key(message.nonce) {
+            bridge_txs.remove(message.nonce);
+            env.storage().instance().set(&BRIDGE_TXS, &bridge_txs);
+        }
+
+        Self::clear_bridge_retry_metadata(env, message.nonce);
+
         Ok(())
+    }
+
+    pub fn mark_bridge_failed(env: &Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
+        if reason.is_empty() {
+            return Err(BridgeError::InvalidInput);
+        }
+
+        let bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        if !bridge_txs.contains_key(nonce) {
+            return Err(BridgeError::BridgeTransactionNotFound);
+        }
+
+        let mut failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+        failures.set(nonce, reason);
+        env.storage().instance().set(&BRIDGE_FAILURES, &failures);
+
+        Ok(())
+    }
+
+    pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
+        let bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        let bridge_tx = bridge_txs
+            .get(nonce)
+            .ok_or(BridgeError::BridgeTransactionNotFound)?;
+
+        let current_time = env.ledger().timestamp();
+        if current_time.saturating_sub(bridge_tx.timestamp) >= BRIDGE_TIMEOUT_SECONDS {
+            return Err(BridgeError::PacketTimeout);
+        }
+
+        let mut retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        let retry_count = retry_counts.get(nonce).unwrap_or(0);
+        if retry_count >= MAX_BRIDGE_RETRY_ATTEMPTS {
+            return Err(BridgeError::RetryLimitExceeded);
+        }
+
+        let mut last_retry: Map<u64, u64> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_LAST_RETRY)
+            .unwrap_or_else(|| Map::new(env));
+        let last_retry_at = last_retry.get(nonce).unwrap_or(bridge_tx.timestamp);
+
+        let backoff_multiplier = 1u64 << retry_count;
+        let retry_delay = BRIDGE_RETRY_DELAY_BASE_SECONDS.saturating_mul(backoff_multiplier);
+        let next_allowed_retry = last_retry_at.saturating_add(retry_delay);
+
+        if current_time < next_allowed_retry {
+            return Err(BridgeError::RetryBackoffActive);
+        }
+
+        let updated_retry_count = retry_count + 1;
+        retry_counts.set(nonce, updated_retry_count);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_RETRY_COUNTS, &retry_counts);
+        last_retry.set(nonce, current_time);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_LAST_RETRY, &last_retry);
+
+        let mut failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+        failures.remove(nonce);
+        env.storage().instance().set(&BRIDGE_FAILURES, &failures);
+
+        Ok(updated_retry_count)
     }
 
     /// Cancel a bridge transaction and refund locked tokens
     /// Only callable after a timeout period
     /// - nonce: The nonce of the bridge transaction to cancel
     pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
-        // Timeout constant (7 days = 604800 seconds)
-        const TIMEOUT: u64 = 604_800;
-
         // Get bridge transaction
         let bridge_txs: Map<u64, BridgeTransaction> = env
             .storage()
@@ -253,9 +372,15 @@ impl Bridge {
             .get(nonce)
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
-        // Check timeout
-        let elapsed = env.ledger().timestamp() - bridge_tx.timestamp;
-        if elapsed < TIMEOUT {
+        let failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+
+        // Allow refunds for timed-out or explicitly failed transactions
+        let elapsed = env.ledger().timestamp().saturating_sub(bridge_tx.timestamp);
+        if elapsed < BRIDGE_TIMEOUT_SECONDS && !failures.contains_key(nonce) {
             return Err(BridgeError::TimeoutNotReached);
         }
 
@@ -279,7 +404,43 @@ impl Bridge {
         updated_txs.remove(nonce);
         env.storage().instance().set(&BRIDGE_TXS, &updated_txs);
 
+        Self::clear_bridge_retry_metadata(env, nonce);
+
         Ok(())
+    }
+
+    pub fn refund_bridge_transaction(env: &Env, nonce: u64) -> Result<(), BridgeError> {
+        Self::cancel_bridge(env, nonce)
+    }
+
+    fn clear_bridge_retry_metadata(env: &Env, nonce: u64) {
+        let mut retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        retry_counts.remove(nonce);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_RETRY_COUNTS, &retry_counts);
+
+        let mut last_retry: Map<u64, u64> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_LAST_RETRY)
+            .unwrap_or_else(|| Map::new(env));
+        last_retry.remove(nonce);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_LAST_RETRY, &last_retry);
+
+        let mut failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+        failures.remove(nonce);
+        env.storage().instance().set(&BRIDGE_FAILURES, &failures);
     }
 
     // ========== Admin Functions ==========
@@ -427,5 +588,77 @@ impl Bridge {
     /// Get the admin address
     pub fn get_admin(env: &Env) -> Address {
         env.storage().instance().get(&ADMIN).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Bridge, BRIDGE_RETRY_DELAY_BASE_SECONDS};
+    use crate::errors::BridgeError;
+    use crate::storage::{BRIDGE_TXS, TOKEN};
+    use crate::types::BridgeTransaction;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::{Address as _, Ledger};
+    use soroban_sdk::{Address, Bytes, Env, Map};
+
+    fn set_time(env: &Env, timestamp: u64) {
+        env.ledger().with_mut(|ledger_info| {
+            ledger_info.timestamp = timestamp;
+        });
+    }
+
+    fn seed_bridge_tx(env: &Env, nonce: u64, timestamp: u64) {
+        let token = Address::generate(env);
+        let sender = Address::generate(env);
+        env.storage().instance().set(&TOKEN, &token);
+
+        let tx = BridgeTransaction {
+            nonce,
+            token,
+            amount: 500,
+            recipient: sender,
+            destination_chain: 2,
+            destination_address: Bytes::from_slice(env, b"dest"),
+            timestamp,
+        };
+
+        let mut txs: Map<u64, BridgeTransaction> = Map::new(env);
+        txs.set(nonce, tx);
+        env.storage().instance().set(&BRIDGE_TXS, &txs);
+    }
+
+    #[test]
+    fn mark_bridge_failed_requires_existing_tx() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let result = env.as_contract(&contract_id, || {
+            Bridge::mark_bridge_failed(&env, 99, Bytes::from_slice(&env, b"failure"))
+        });
+        assert_eq!(result, Err(BridgeError::BridgeTransactionNotFound));
+    }
+
+    #[test]
+    fn retry_bridge_enforces_backoff_and_limit() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        env.as_contract(&contract_id, || {
+            set_time(&env, 10_000);
+            seed_bridge_tx(&env, 1, 10_000);
+
+            let retry_too_early = Bridge::retry_bridge(&env, 1);
+            assert_eq!(retry_too_early, Err(BridgeError::RetryBackoffActive));
+
+            let mut now = 10_000u64;
+            for retry_count in 0..5u32 {
+                now += BRIDGE_RETRY_DELAY_BASE_SECONDS * (1u64 << retry_count);
+                set_time(&env, now);
+                let updated_retry_count = Bridge::retry_bridge(&env, 1).expect("retry should pass");
+                assert_eq!(updated_retry_count, retry_count + 1);
+            }
+
+            set_time(&env, now + 100_000);
+            let retry_over_limit = Bridge::retry_bridge(&env, 1);
+            assert_eq!(retry_over_limit, Err(BridgeError::RetryLimitExceeded));
+        });
     }
 }
