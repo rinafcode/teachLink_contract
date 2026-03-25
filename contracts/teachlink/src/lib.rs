@@ -435,6 +435,465 @@ impl TeachLinkBridge {
             .instance()
             .get(&Self::CONFIG)
             .unwrap_or_default()
+    /// Check if a signer approved
+    pub fn has_escrow_approval(env: Env, escrow_id: u64, signer: Address) -> bool {
+        escrow::EscrowManager::has_approved(&env, escrow_id, signer)
+    }
+
+    /// Get the current escrow count
+    pub fn get_escrow_count(env: Env) -> u64 {
+        escrow::EscrowManager::get_escrow_count(&env)
+    }
+
+    // ========== Credit Scoring Functions (feat/credit_score) ==========
+
+    // TODO: Implement score module
+    /*
+    /// Record course completion
+    pub fn record_course_completion(
+        env: Env,
+        user: Address,
+        course_id: u64,
+        points: u64,
+    ) {
+        let admin = bridge::Bridge::get_admin(&env);
+        admin.require_auth();
+        score::ScoreManager::record_course_completion(&env, user, course_id, points);
+    }
+
+    /// Record contribution
+    pub fn record_contribution(
+        env: Env,
+        user: Address,
+        c_type: types::ContributionType,
+        description: Bytes,
+        points: u64,
+    ) {
+        score::ScoreManager::record_contribution(&env, user, c_type, description, points);
+    }
+
+    /// Get user's credit score
+    pub fn get_credit_score(env: Env, user: Address) -> u64 {
+        score::ScoreManager::get_score(&env, user)
+    }
+
+    /// Get user's courses
+    pub fn get_user_courses(env: Env, user: Address) -> Vec<types::Course> {
+        score::ScoreManager::get_courses(&env, user)
+    }
+
+    /// Get user's contributions
+    pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
+        score::ScoreManager::get_contributions(&env, user)
+    }
+    */
+
+    // ========== Reputation Functions (main) ==========
+
+    // TODO: Implement missing modules
+    /*
+    pub fn update_participation(env: Env, user: Address, points: u32) {
+        reputation::update_participation(&env, user, points);
+    }
+
+    pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
+        reputation::update_course_progress(&env, user, is_completion);
+    }
+
+    pub fn rate_contribution(env: Env, user: Address, rating: u32) {
+        reputation::rate_contribution(&env, user, rating);
+    }
+
+    pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
+        reputation::get_reputation(&env, &user)
+    }
+    */
+
+    // ========== Content Tokenization Functions ==========
+
+    /// Mint a new educational content token
+    pub fn mint_content_token(env: Env, params: ContentTokenParameters) -> u64 {
+        // TODO: Implement provenance module
+        // provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
+        tokenization::ContentTokenization::mint(
+            &env,
+            params.creator.clone(),
+            params.title,
+            params.description,
+            params.content_type,
+            params.content_hash,
+            params.license_type,
+            params.tags,
+            params.is_transferable,
+            params.royalty_percentage,
+        )
+    }
+
+    /// Transfer ownership of a content token
+    pub fn transfer_content_token(
+        env: Env,
+        from: Address,
+        to: Address,
+        token_id: u64,
+        notes: Option<Bytes>,
+    ) {
+        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes);
+    }
+
+    /// Get a content token by ID
+    pub fn get_content_token(env: Env, token_id: u64) -> Option<ContentToken> {
+        tokenization::ContentTokenization::get_token(&env, token_id)
+    }
+
+    /// Get the owner of a content token
+    pub fn get_content_token_owner(env: Env, token_id: u64) -> Option<Address> {
+        tokenization::ContentTokenization::get_owner(&env, token_id)
+    }
+
+    /// Check if an address owns a content token
+    pub fn is_content_token_owner(env: Env, token_id: u64, address: Address) -> bool {
+        tokenization::ContentTokenization::is_owner(&env, token_id, address)
+    }
+
+    /// Get all tokens owned by an address
+    pub fn get_owner_content_tokens(env: Env, owner: Address) -> Vec<u64> {
+        tokenization::ContentTokenization::get_owner_tokens(&env, owner)
+    }
+
+    /// Get the total number of content tokens minted
+    pub fn get_content_token_count(env: Env) -> u64 {
+        tokenization::ContentTokenization::get_token_count(&env)
+    }
+
+    /// Update content token metadata (only by owner)
+    pub fn update_content_metadata(
+        env: Env,
+        owner: Address,
+        token_id: u64,
+        title: Option<Bytes>,
+        description: Option<Bytes>,
+        tags: Option<Vec<Bytes>>,
+    ) {
+        tokenization::ContentTokenization::update_metadata(
+            &env,
+            owner,
+            token_id,
+            title,
+            description,
+            tags,
+        );
+    }
+
+    /// Set transferability of a content token (only by owner)
+    pub fn set_content_token_transferable(
+        env: Env,
+        owner: Address,
+        token_id: u64,
+        transferable: bool,
+    ) {
+        tokenization::ContentTokenization::set_transferable(&env, owner, token_id, transferable);
+    }
+
+    // ========== Provenance Functions ==========
+
+    // TODO: Implement provenance module
+    /*
+    /// Get full provenance history for a content token
+    pub fn get_content_provenance(env: Env, token_id: u64) -> Vec<ProvenanceRecord> {
+        provenance::ProvenanceTracker::get_provenance(&env, token_id)
+    }
+
+    /// Get the number of transfers for a content token
+    #[must_use]
+    pub fn get_content_transfer_count(env: &Env, token_id: u64) -> u32 {
+        provenance::ProvenanceTracker::get_transfer_count(env, token_id)
+    }
+
+    /// Verify ownership chain integrity for a content token
+    #[must_use]
+    pub fn verify_content_chain(env: &Env, token_id: u64) -> bool {
+        provenance::ProvenanceTracker::verify_chain(env, token_id)
+    }
+    */
+
+    /// Get the creator of a content token
+    #[must_use]
+    pub fn get_content_creator(env: &Env, token_id: u64) -> Option<Address> {
+        tokenization::ContentTokenization::get_creator(env, token_id)
+    }
+
+    /// Get all owners of a content token
+    #[must_use]
+    pub fn get_content_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
+        tokenization::ContentTokenization::get_all_owners(env, token_id)
+    }
+
+    // ========== Notification System Functions ==========
+
+    /// Initialize notification system
+    pub fn initialize_notifications(env: Env) -> Result<(), BridgeError> {
+        notification::NotificationManager::initialize(&env)
+    }
+
+    /// Send immediate notification
+    pub fn send_notification(
+        env: Env,
+        recipient: Address,
+        channel: NotificationChannel,
+        subject: Bytes,
+        body: Bytes,
+    ) -> Result<u64, BridgeError> {
+        let content = NotificationContent {
+            subject,
+            body,
+            data: Bytes::new(&env),
+            localization: Map::new(&env),
+        };
+        notification::NotificationManager::send_notification(&env, recipient, channel, content)
+    }
+
+    // ========== Mobile UI/UX Functions ==========
+
+    /// Initialize mobile profile for user
+    pub fn initialize_mobile_profile(
+        env: Env,
+        user: Address,
+        device_info: DeviceInfo,
+        preferences: MobilePreferences,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::initialize_mobile_profile(
+            &env,
+            user,
+            device_info,
+            preferences,
+        )
+        .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Update accessibility settings
+    pub fn update_accessibility_settings(
+        env: Env,
+        user: Address,
+        settings: MobileAccessibilitySettings,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::update_accessibility_settings(&env, user, settings)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Update personalization settings
+    pub fn update_personalization(
+        env: Env,
+        user: Address,
+        preferences: MobilePreferences,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::update_personalization(&env, user, preferences)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Record onboarding progress
+    pub fn record_onboarding_progress(
+        env: Env,
+        user: Address,
+        stage: OnboardingStage,
+    ) -> Result<(), MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::record_onboarding_progress(&env, user, stage)
+            .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Submit user feedback
+    pub fn submit_user_feedback(
+        env: Env,
+        user: Address,
+        rating: u32,
+        comment: Bytes,
+        category: FeedbackCategory,
+    ) -> Result<u64, MobilePlatformError> {
+        mobile_platform::MobilePlatformManager::submit_user_feedback(
+            &env, user, rating, comment, category,
+        )
+        .map_err(|_| MobilePlatformError::DeviceNotSupported)
+    }
+
+    /// Get user allocated experiment variants
+    pub fn get_user_experiment_variants(env: Env, user: Address) -> Map<u64, Symbol> {
+        mobile_platform::MobilePlatformManager::get_user_experiment_variants(&env, user)
+    }
+
+    /// Get design system configuration
+    pub fn get_design_system_config(env: Env) -> ComponentConfig {
+        mobile_platform::MobilePlatformManager::get_design_system_config(&env)
+    }
+
+    /// Set design system configuration (admin only)
+    pub fn set_design_system_config(env: Env, config: ComponentConfig) {
+        // In a real implementation, we would check for admin authorization here
+        mobile_platform::MobilePlatformManager::set_design_system_config(&env, config)
+    }
+
+    /// Schedule notification for future delivery
+    pub fn schedule_notification(
+        env: Env,
+        recipient: Address,
+        channel: NotificationChannel,
+        subject: Bytes,
+        body: Bytes,
+        scheduled_time: u64,
+        timezone: Bytes,
+    ) -> Result<u64, BridgeError> {
+        let content = NotificationContent {
+            subject,
+            body,
+            data: Bytes::new(&env),
+            localization: Map::new(&env),
+        };
+        let schedule = NotificationSchedule {
+            notification_id: 0, // Will be set by the function
+            recipient: recipient.clone(),
+            channel,
+            scheduled_time,
+            timezone,
+            is_recurring: false,
+            recurrence_pattern: 0,
+            max_deliveries: None,
+            delivery_count: 0,
+        };
+        notification::NotificationManager::schedule_notification(
+            &env, recipient, channel, content, schedule,
+        )
+    }
+
+    /// Process scheduled notifications
+    pub fn process_scheduled_notifications(env: Env) -> Result<u32, BridgeError> {
+        notification::NotificationManager::process_scheduled_notifications(&env)
+    }
+
+    /// Update user notification preferences
+    pub fn update_notification_preferences(
+        env: Env,
+        user: Address,
+        preferences: Vec<NotificationPreference>,
+    ) -> Result<(), BridgeError> {
+        notification::NotificationManager::update_preferences(&env, user, preferences)
+    }
+
+    /// Update user notification settings
+    pub fn update_notification_settings(
+        env: Env,
+        user: Address,
+        timezone: Bytes,
+        quiet_hours_start: u32,
+        quiet_hours_end: u32,
+        max_daily_notifications: u32,
+        do_not_disturb: bool,
+    ) -> Result<(), BridgeError> {
+        let settings = UserNotificationSettings {
+            user: user.clone(),
+            timezone,
+            quiet_hours_start,
+            quiet_hours_end,
+            max_daily_notifications,
+            do_not_disturb,
+        };
+        notification::NotificationManager::update_user_settings(&env, user, settings)
+    }
+
+    /// Create notification template
+    pub fn create_notification_template(
+        env: Env,
+        admin: Address,
+        name: Bytes,
+        channels: Vec<NotificationChannel>,
+        subject: Bytes,
+        body: Bytes,
+    ) -> Result<u64, BridgeError> {
+        let content = NotificationContent {
+            subject,
+            body,
+            data: Bytes::new(&env),
+            localization: Map::new(&env),
+        };
+        notification::NotificationManager::create_template(&env, admin, name, channels, content)
+    }
+
+    /// Send notification using template
+    pub fn send_template_notification(
+        env: Env,
+        recipient: Address,
+        template_id: u64,
+        variables: Map<Bytes, Bytes>,
+    ) -> Result<u64, BridgeError> {
+        notification::NotificationManager::send_template_notification(
+            &env,
+            recipient,
+            template_id,
+            variables,
+        )
+    }
+
+    /// Get notification tracking information
+    pub fn get_notification_tracking(
+        env: Env,
+        notification_id: u64,
+    ) -> Option<NotificationTracking> {
+        notification::NotificationManager::get_notification_tracking(&env, notification_id)
+    }
+
+    /// Get user notification history
+    pub fn get_user_notifications(
+        env: Env,
+        user: Address,
+        limit: u32,
+    ) -> Vec<NotificationTracking> {
+        notification::NotificationManager::get_user_notifications(&env, user, limit)
+    }
+
+    // ========== Social Learning Functions ==========
+
+    /// Create a study group
+    pub fn create_study_group(
+        env: Env,
+        creator: Address,
+        name: Bytes,
+        description: Bytes,
+        subject: Bytes,
+        max_members: u32,
+        is_private: bool,
+        tags: Vec<Bytes>,
+        settings: social_learning::StudyGroupSettings,
+    ) -> Result<u64, BridgeError> {
+        social_learning::SocialLearningManager::create_study_group(
+            &env,
+            creator,
+            name,
+            description,
+            subject,
+            max_members,
+            is_private,
+            tags,
+            settings,
+        )
+        .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Join a study group
+    pub fn join_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::join_study_group(&env, user, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Leave a study group
+    pub fn leave_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
+        social_learning::SocialLearningManager::leave_study_group(&env, user, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
+    }
+
+    /// Get study group information
+    pub fn get_study_group(
+        env: Env,
+        group_id: u64,
+    ) -> Result<social_learning::StudyGroup, BridgeError> {
+        social_learning::SocialLearningManager::get_study_group(&env, group_id)
+            .map_err(|_| BridgeError::InvalidInput)
     }
     
     /// Get error statistics
