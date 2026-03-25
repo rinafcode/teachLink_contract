@@ -1,5 +1,4 @@
-use crate::types::*;
-use soroban_sdk::{contracttype, Address, Vec};
+use soroban_sdk::{contracttype, Address};
 
 /// Storage keys for the enhanced insurance contract
 #[contracttype]
