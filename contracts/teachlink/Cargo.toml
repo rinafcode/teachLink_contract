@@ -6,7 +6,7 @@ license = "MIT"
 repository = "https://github.com/rinafcode/teachLink_contract"
 
 [lib]
-crate-type = ["cdylib", "rlib"]
+crate-type = ["cdylib"]
 
 [dependencies]
 soroban-sdk = "20.0.0"
