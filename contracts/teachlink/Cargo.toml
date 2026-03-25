@@ -8,14 +8,8 @@ repository.workspace = true
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-testutils = ["soroban-sdk/testutils"]
-
 [dependencies]
-soroban-sdk = { workspace = true, default-features = false }
-
-[dev-dependencies]
-soroban-sdk = { workspace = true, features = ["testutils"] }
+soroban-sdk.workspace = true
 
 [lints]
 workspace = true
