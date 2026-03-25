@@ -52,6 +52,9 @@ pub enum BridgeError {
     // General Errors
     Unauthorized = 138,
     InvalidInput = 139,
+    RetryLimitExceeded = 140,
+    RetryBackoffActive = 141,
+    BridgeTransactionFailed = 142,
 }
 
 /// Escrow module errors

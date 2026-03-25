@@ -238,6 +238,10 @@ impl MultiChainManager {
         amount: i128,
         is_outgoing: bool,
     ) -> Result<(), BridgeError> {
+        if amount <= 0 {
+            return Err(BridgeError::AmountMustBePositive);
+        }
+
         let mut assets: Map<u64, MultiChainAsset> = env
             .storage()
             .instance()
@@ -246,10 +250,23 @@ impl MultiChainManager {
 
         let mut asset = assets.get(asset_id).ok_or(BridgeError::AssetNotSupported)?;
 
+        if !asset.is_active {
+            return Err(BridgeError::AssetNotSupported);
+        }
+
         if is_outgoing {
-            asset.total_bridged += amount;
+            asset.total_bridged = asset
+                .total_bridged
+                .checked_add(amount)
+                .ok_or(BridgeError::InvalidInput)?;
         } else {
-            asset.total_bridged -= amount;
+            if asset.total_bridged < amount {
+                return Err(BridgeError::InsufficientBalance);
+            }
+            asset.total_bridged = asset
+                .total_bridged
+                .checked_sub(amount)
+                .ok_or(BridgeError::InvalidInput)?;
         }
 
         assets.set(asset_id, asset);
@@ -354,6 +371,10 @@ impl MultiChainManager {
         destination_chain: u32,
         asset_id: u64,
     ) -> Result<(), BridgeError> {
+        if source_chain == destination_chain {
+            return Err(BridgeError::InvalidInput);
+        }
+
         // Check if source chain is active
         if !Self::is_chain_active(env, source_chain) {
             return Err(BridgeError::ChainNotActive);
@@ -385,6 +406,141 @@ impl MultiChainManager {
             return Err(BridgeError::AssetNotSupported);
         }
 
+        let source_asset_info = asset
+            .chain_configs
+            .get(source_chain)
+            .ok_or(BridgeError::AssetNotSupported)?;
+        if !source_asset_info.is_active {
+            return Err(BridgeError::ChainNotActive);
+        }
+
+        let destination_asset_info = asset
+            .chain_configs
+            .get(destination_chain)
+            .ok_or(BridgeError::AssetNotSupported)?;
+        if !destination_asset_info.is_active {
+            return Err(BridgeError::DestinationChainNotSupported);
+        }
+
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::MultiChainManager;
+    use crate::errors::BridgeError;
+    use crate::storage::{CHAIN_CONFIGS, MULTI_CHAIN_ASSETS, SUPPORTED_CHAINS};
+    use crate::types::{ChainAssetInfo, ChainConfig, MultiChainAsset};
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{Address, Bytes, Env, Map};
+
+    fn seed_basic_state(env: &Env, destination_asset_active: bool) {
+        let mut supported_chains: Map<u32, bool> = Map::new(env);
+        supported_chains.set(1, true);
+        supported_chains.set(2, true);
+        env.storage()
+            .instance()
+            .set(&SUPPORTED_CHAINS, &supported_chains);
+
+        let chain1 = ChainConfig {
+            chain_id: 1,
+            chain_name: Bytes::from_slice(env, b"chain-1"),
+            is_active: true,
+            bridge_contract_address: Bytes::from_slice(env, b"bridge-1"),
+            confirmation_blocks: 12,
+            gas_price: 100,
+            last_updated: 1,
+        };
+
+        let chain2 = ChainConfig {
+            chain_id: 2,
+            chain_name: Bytes::from_slice(env, b"chain-2"),
+            is_active: true,
+            bridge_contract_address: Bytes::from_slice(env, b"bridge-2"),
+            confirmation_blocks: 12,
+            gas_price: 100,
+            last_updated: 1,
+        };
+
+        let mut chain_configs: Map<u32, ChainConfig> = Map::new(env);
+        chain_configs.set(1, chain1);
+        chain_configs.set(2, chain2);
+        env.storage().instance().set(&CHAIN_CONFIGS, &chain_configs);
+
+        let mut asset_chain_configs: Map<u32, ChainAssetInfo> = Map::new(env);
+        asset_chain_configs.set(
+            1,
+            ChainAssetInfo {
+                chain_id: 1,
+                token_address: Bytes::from_slice(env, b"token-1"),
+                decimals: 7,
+                is_active: true,
+            },
+        );
+        asset_chain_configs.set(
+            2,
+            ChainAssetInfo {
+                chain_id: 2,
+                token_address: Bytes::from_slice(env, b"token-2"),
+                decimals: 7,
+                is_active: destination_asset_active,
+            },
+        );
+
+        let asset = MultiChainAsset {
+            asset_id: Bytes::from_slice(env, b"USDC"),
+            stellar_token: Address::generate(env),
+            chain_configs: asset_chain_configs,
+            total_bridged: 100,
+            is_active: true,
+        };
+
+        let mut assets: Map<u64, MultiChainAsset> = Map::new(env);
+        assets.set(1, asset);
+        env.storage().instance().set(&MULTI_CHAIN_ASSETS, &assets);
+    }
+
+    #[test]
+    fn update_bridged_amount_rejects_invalid_amount() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        env.as_contract(&contract_id, || {
+            seed_basic_state(&env, true);
+        });
+
+        let result = env.as_contract(&contract_id, || {
+            MultiChainManager::update_bridged_amount(&env, 1, 0, true)
+        });
+        assert_eq!(result, Err(BridgeError::AmountMustBePositive));
+    }
+
+    #[test]
+    fn update_bridged_amount_rejects_underflow() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        env.as_contract(&contract_id, || {
+            seed_basic_state(&env, true);
+        });
+
+        let result = env.as_contract(&contract_id, || {
+            MultiChainManager::update_bridged_amount(&env, 1, 101, false)
+        });
+        assert_eq!(result, Err(BridgeError::InsufficientBalance));
+    }
+
+    #[test]
+    fn validate_cross_chain_transfer_checks_chain_specific_asset_status() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        env.as_contract(&contract_id, || {
+            seed_basic_state(&env, false);
+        });
+
+        let result = env.as_contract(&contract_id, || {
+            MultiChainManager::validate_cross_chain_transfer(&env, 1, 2, 1)
+        });
+        assert_eq!(result, Err(BridgeError::DestinationChainNotSupported));
     }
 }
