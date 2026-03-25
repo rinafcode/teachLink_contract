@@ -12,7 +12,7 @@ crate-type = ["cdylib", "rlib"]
 testutils = ["soroban-sdk/testutils"]
 
 [dependencies]
-soroban-sdk.workspace = true
+soroban-sdk = { workspace = true, default-features = false }
 
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
