@@ -1,4 +1,4 @@
-#![allow(clippy::all)]
+#![no_std]
 
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, Env, Map};
 
@@ -15,7 +15,7 @@ impl TeachLinkBridge {
         admin: Address,
         min_validators: u32,
         fee_recipient: Address,
-    ) -> Result<(), String> {
+    ) {
         env.storage()
             .instance()
             .set(&symbol_short!("token"), &token);
@@ -29,7 +29,6 @@ impl TeachLinkBridge {
             .instance()
             .set(&symbol_short!("fee_rec"), &fee_recipient);
         env.storage().instance().set(&symbol_short!("nonce"), &0u64);
-        Ok(())
     }
 
     /// Bridge tokens out to another chain
@@ -39,7 +38,7 @@ impl TeachLinkBridge {
         amount: i128,
         destination_chain: u32,
         destination_address: Bytes,
-    ) -> Result<u64, String> {
+    ) -> u64 {
         let nonce = env
             .storage()
             .instance()
@@ -57,9 +56,9 @@ impl TeachLinkBridge {
             new_nonce,
             (from, amount, destination_chain, destination_address),
         );
-        env.storage().instance().set(&key, bridge_txs);
+        env.storage().instance().set(&key, &bridge_txs);
 
-        Ok(new_nonce)
+        new_nonce
     }
 
     /// Get nonce
