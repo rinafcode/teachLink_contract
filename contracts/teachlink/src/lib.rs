@@ -2,6 +2,64 @@
 
 use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, Env, Vec, Symbol};
 
+/// Configuration constants for TeachLink contract
+pub mod constants {
+    /// Fee configuration
+    pub mod fees {
+        pub const DEFAULT_FEE_RATE: u32 = 100; // 1% in basis points
+        pub const MAX_FEE_RATE: u32 = 10000; // 100% in basis points
+        pub const FEE_CALCULATION_DIVISOR: u32 = 10000; // Convert basis points to decimal
+    }
+    
+    /// Amount validation
+    pub mod amounts {
+        pub const MIN_AMOUNT: i128 = 1; // Minimum bridge amount
+        pub const FALLBACK_PRICE: i128 = 1000000; // 1 USD in 6 decimals
+    }
+    
+    /// Chain configuration
+    pub mod chains {
+        pub const MIN_CHAIN_ID: u32 = 1; // Minimum valid chain ID
+        pub const DEFAULT_MIN_CONFIRMATIONS: u32 = 3; // Default block confirmations
+        pub const MAX_CHAIN_NAME_LENGTH: u32 = 32; // Maximum chain name length
+    }
+    
+    /// Oracle configuration
+    pub mod oracle {
+        pub const MAX_CONFIDENCE: u32 = 100; // Maximum confidence percentage
+        pub const DEFAULT_CONFIDENCE_THRESHOLD: u32 = 80; // Minimum confidence for oracle data
+        pub const PRICE_FRESHNESS_SECONDS: u64 = 3600; // 1 hour in seconds
+    }
+    
+    /// Rate limiting
+    pub mod rate_limits {
+        pub const DEFAULT_PER_MINUTE: u32 = 10; // Default calls per minute
+        pub const DEFAULT_PER_HOUR: u32 = 100; // Default calls per hour
+        pub const DEFAULT_PENALTY_MULTIPLIER: u32 = 2; // Penalty multiplier
+        pub const SECONDS_PER_MINUTE: u64 = 60; // Seconds in a minute
+        pub const SECONDS_PER_HOUR: u64 = 3600; // Seconds in an hour
+    }
+    
+    /// Error codes
+    pub mod error_codes {
+        pub const SUCCESS: u32 = 0;
+        pub const INVALID_ADDRESS: u32 = 1001;
+        pub const INVALID_AMOUNT: u32 = 1002;
+        pub const FALLBACK_DISABLED: u32 = 1003;
+        pub const CHAIN_NOT_SUPPORTED: u32 = 1004;
+        pub const RATE_LIMIT_EXCEEDED: u32 = 1005;
+        pub const INSUFFICIENT_BALANCE: u32 = 1006;
+        pub const BRIDGE_FAILED: u32 = 1007;
+    }
+    
+    /// Storage limits
+    pub mod storage {
+        pub const MAX_BRIDGE_TXS: u32 = 1000; // Maximum bridge transactions stored
+        pub const MAX_CHAIN_CONFIGS: u32 = 50; // Maximum chain configurations
+        pub const MAX_ORACLE_PRICES: u32 = 100; // Maximum oracle prices stored
+    }
+}
+
 /// Error types for TeachLink contract
 #[derive(Clone, Debug)]
 pub enum TeachLinkError {
@@ -21,7 +79,27 @@ pub enum TeachLinkError {
     UnauthorizedOracle,
 }
 
-/// TeachLink main contract with standardized error handling.
+/// Configuration struct for bridge parameters
+#[derive(Clone, Debug)]
+pub struct BridgeConfig {
+    pub fee_rate: u32,
+    pub min_confirmations: u32,
+    pub confidence_threshold: u32,
+    pub fallback_enabled: bool,
+}
+
+impl Default for BridgeConfig {
+    fn default() -> Self {
+        Self {
+            fee_rate: constants::fees::DEFAULT_FEE_RATE,
+            min_confirmations: constants::chains::DEFAULT_MIN_CONFIRMATIONS,
+            confidence_threshold: constants::oracle::DEFAULT_CONFIDENCE_THRESHOLD,
+            fallback_enabled: true,
+        }
+    }
+}
+
+/// TeachLink main contract with named constants and configuration.
 #[cfg(not(test))]
 #[contract]
 pub struct TeachLinkBridge;
@@ -35,26 +113,25 @@ impl TeachLinkBridge {
     const BRIDGE_TXS: Symbol = symbol_short!("bridge_txs");
     const FALLBACK_ENABLED: Symbol = symbol_short!("fallback");
     const ERROR_COUNT: Symbol = symbol_short!("error_count");
+    const CONFIG: Symbol = symbol_short!("config");
     
-    // Constants
-    const DEFAULT_FEE_RATE: u32 = 100; // basis points (1%)
-    const FALLBACK_PRICE: i128 = 1000000; // 1 USD in 6 decimals
-    const MIN_AMOUNT: i128 = 1;
-    const MAX_FEE_RATE: u32 = 10000; // 100%
-    
-    /// Initialize bridge contract
+    /// Initialize bridge contract with configuration
     pub fn initialize(env: Env, admin: Address) {
         Self::require_initialized(&env, false);
         Self::validate_address(&admin);
         
+        // Initialize with default configuration
+        let config = BridgeConfig::default();
+        
         env.storage().instance().set(&Self::ADMIN, &admin);
         env.storage().instance().set(&Self::NONCE, &0u64);
-        env.storage().instance().set(&Self::FALLBACK_ENABLED, &true);
+        env.storage().instance().set(&Self::FALLBACK_ENABLED, &config.fallback_enabled);
         env.storage().instance().set(&Self::BRIDGE_TXS, &Vec::new(&env));
         env.storage().instance().set(&Self::ERROR_COUNT, &0u64);
+        env.storage().instance().set(&Self::CONFIG, &config);
     }
     
-    /// Bridge tokens out with comprehensive error handling
+    /// Bridge tokens out with named constants
     pub fn bridge_out(
         env: Env,
         from: Address,
@@ -67,10 +144,11 @@ impl TeachLinkBridge {
         Self::validate_chain_id(&destination_chain);
         Self::validate_bytes_address(&destination_address);
         
+        let config = Self::get_config(&env);
         let nonce = Self::get_next_nonce(&env);
         
-        // Calculate fees
-        let fee_amount = Self::calculate_fee(&amount, Self::DEFAULT_FEE_RATE);
+        // Calculate fees using named constants
+        let fee_amount = Self::calculate_fee(&amount, config.fee_rate);
         let bridge_amount = amount - fee_amount;
         
         Self::validate_amount(&bridge_amount);
@@ -81,13 +159,19 @@ impl TeachLinkBridge {
             .instance()
             .get(&Self::BRIDGE_TXS)
             .unwrap_or(Vec::new(&env));
+        
+        // Enforce storage limit
+        if bridge_txs.len() >= constants::storage::MAX_BRIDGE_TXS {
+            Self::handle_error(&env, TeachLinkError::BridgeFailed);
+        }
+        
         bridge_txs.push_back(bridge_data);
         env.storage().instance().set(&Self::BRIDGE_TXS, &bridge_txs);
         
         nonce
     }
     
-    /// Add support for a new chain with error handling
+    /// Add support for a new chain with validation using constants
     pub fn add_chain_support(
         env: Env,
         chain_id: u32,
@@ -101,11 +185,20 @@ impl TeachLinkBridge {
         Self::validate_fee_rate(&fee_rate);
         Self::validate_address(&bridge_address);
         
+        // Check chain name length
+        if name.to_string().len() > constants::chains::MAX_CHAIN_NAME_LENGTH as usize {
+            Self::handle_error(&env, TeachLinkError::InvalidAddress);
+        }
+        
         // Check if chain already exists
         let chains: Vec<(u32, Symbol, Address, u32, u32)> = env.storage()
             .instance()
             .get(&symbol_short!("chains"))
             .unwrap_or(Vec::new(&env));
+        
+        if chains.len() >= constants::storage::MAX_CHAIN_CONFIGS {
+            Self::handle_error(&env, TeachLinkError::ChainExists);
+        }
         
         for chain in chains.iter() {
             if chain.0 == chain_id {
@@ -120,7 +213,7 @@ impl TeachLinkBridge {
         env.storage().instance().set(&symbol_short!("chains"), &updated_chains);
     }
     
-    /// Update oracle price with error handling
+    /// Update oracle price with validation using constants
     pub fn update_oracle_price(
         env: Env,
         asset: Symbol,
@@ -150,12 +243,16 @@ impl TeachLinkBridge {
             Self::handle_error(&env, TeachLinkError::UnauthorizedOracle);
         }
         
-        // Update oracle prices
+        // Update oracle prices with storage limit check
         let oracle_price = (asset, price, env.ledger().timestamp(), confidence);
         let mut prices: Vec<(Symbol, i128, u64, u32)> = env.storage()
             .instance()
             .get(&symbol_short!("prices"))
             .unwrap_or(Vec::new(&env));
+        
+        if prices.len() >= constants::storage::MAX_ORACLE_PRICES {
+            Self::handle_error(&env, TeachLinkError::InvalidPrice);
+        }
         
         let mut updated = false;
         for i in 0..prices.len() {
@@ -174,7 +271,15 @@ impl TeachLinkBridge {
         env.storage().instance().set(&symbol_short!("prices"), &prices);
     }
     
-    // Validation functions
+    /// Update bridge configuration
+    pub fn update_config(env: Env, config: BridgeConfig) {
+        Self::require_admin(&env);
+        Self::validate_fee_rate(&config.fee_rate);
+        
+        env.storage().instance().set(&Self::CONFIG, &config);
+    }
+    
+    // Validation functions using constants
     fn require_initialized(env: &Env, should_be_initialized: bool) {
         let is_init = env.storage().instance().get(&Self::ADMIN).is_some();
         if is_init != should_be_initialized {
@@ -196,8 +301,6 @@ impl TeachLinkBridge {
     }
     
     fn validate_address(address: &Address) {
-        // In a real implementation, this would validate the address format
-        // For now, we just ensure it's not zero
         if address.to_string().is_empty() {
             Self::handle_error(&Env::default(), TeachLinkError::InvalidAddress);
         }
@@ -210,19 +313,19 @@ impl TeachLinkBridge {
     }
     
     fn validate_amount(amount: &i128) {
-        if *amount < Self::MIN_AMOUNT {
+        if *amount < constants::amounts::MIN_AMOUNT {
             Self::handle_error(&Env::default(), TeachLinkError::InvalidAmount);
         }
     }
     
     fn validate_chain_id(chain_id: &u32) {
-        if *chain_id == 0 {
+        if *chain_id < constants::chains::MIN_CHAIN_ID {
             Self::handle_error(&Env::default(), TeachLinkError::InvalidChainId);
         }
     }
     
     fn validate_fee_rate(fee_rate: &u32) {
-        if *fee_rate > Self::MAX_FEE_RATE {
+        if *fee_rate > constants::fees::MAX_FEE_RATE {
             Self::handle_error(&Env::default(), TeachLinkError::FeeTooHigh);
         }
     }
@@ -234,13 +337,20 @@ impl TeachLinkBridge {
     }
     
     fn validate_confidence(confidence: &u32) {
-        if *confidence > 100 {
+        if *confidence > constants::oracle::MAX_CONFIDENCE {
             Self::handle_error(&Env::default(), TeachLinkError::InvalidConfidence);
         }
     }
     
     fn calculate_fee(amount: &i128, fee_rate: u32) -> i128 {
-        amount * fee_rate as i128 / 10000
+        amount * fee_rate as i128 / constants::fees::FEE_CALCULATION_DIVISOR as i128
+    }
+    
+    fn get_config(env: &Env) -> BridgeConfig {
+        env.storage()
+            .instance()
+            .get(&Self::CONFIG)
+            .unwrap_or_default()
     }
     
     fn handle_error(env: &Env, error: TeachLinkError) -> ! {
@@ -326,6 +436,12 @@ impl TeachLinkBridge {
                     "Invalid price",
                 );
             }
+            TeachLinkError::InvalidConfidence => {
+                env.panic_with_error_data(
+                    &symbol_short!("invalid_confidence"),
+                    "Invalid confidence",
+                );
+            }
             TeachLinkError::UnauthorizedOracle => {
                 env.panic_with_error_data(
                     &symbol_short!("unauthorized_oracle"),
@@ -357,12 +473,31 @@ impl TeachLinkBridge {
         bridge_txs.get(index)
     }
     
+    /// Get configuration
+    pub fn get_config(env: Env) -> BridgeConfig {
+        env.storage()
+            .instance()
+            .get(&Self::CONFIG)
+            .unwrap_or_default()
+    }
+    
     /// Get error statistics
     pub fn get_error_stats(env: Env) -> u64 {
         env.storage()
             .instance()
             .get(&Self::ERROR_COUNT)
             .unwrap_or(0u64)
+    }
+    
+    /// Get constant values for external reference
+    pub fn get_constants(env: Env) -> (u32, u32, u32, i128, u64) {
+        (
+            constants::fees::DEFAULT_FEE_RATE,
+            constants::chains::DEFAULT_MIN_CONFIRMATIONS,
+            constants::oracle::DEFAULT_CONFIDENCE_THRESHOLD,
+            constants::amounts::FALLBACK_PRICE,
+            constants::oracle::PRICE_FRESHNESS_SECONDS,
+        )
     }
     
     /// Enable/disable fallback mechanism
