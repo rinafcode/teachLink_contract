@@ -1,1 +1,0 @@
-// Test file disabled - all tests pass when contract is fully implemented
