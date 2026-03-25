@@ -45,9 +45,7 @@ mod types;
 use crate::errors::InsuranceError;
 use crate::storage::*;
 use crate::types::*;
-use soroban_sdk::{
-    contract, contractimpl, token, vec, Address, Bytes, Env, String, Vec,
-};
+use soroban_sdk::{contract, contractimpl, token, vec, Address, Bytes, Env, String, Vec};
 
 #[contract]
 pub struct EnhancedInsurance;
