@@ -1,12 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-  "contracts/governance",
-  "contracts/insurance",
   "contracts/teachlink",
-  "contracts/identity_registry",
-  "contracts/credential_registry",
-  "contracts/cdn",
 ]
 
 [workspace.package]
@@ -17,13 +12,6 @@ license = "MIT"
 [workspace.dependencies]
 soroban-sdk = "25.3.0"
 
-[workspace.lints.clippy]
-all = { level = "allow", priority = -1 }
-pedantic = { level = "allow", priority = -2 }
-
-[workspace.lints.rust]
-unsafe_code = "deny"
-
 [profile.release]
 opt-level = "z"
 overflow-checks = true
@@ -33,3 +21,10 @@ debug-assertions = false
 panic = "abort"
 codegen-units = 1
 lto = true
+
+[workspace.lints.clippy]
+all = { level = "allow", priority = -1 }
+pedantic = { level = "allow", priority = -2 }
+
+[workspace.lints.rust]
+unsafe_code = "deny"
