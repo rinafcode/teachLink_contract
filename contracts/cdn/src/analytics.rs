@@ -154,9 +154,8 @@ impl AnalyticsManager {
 
         // Calculate new average response time
         if metrics.total_requests > 1 {
-            let total_response_time = (metrics.average_response_time
-                * (metrics.total_requests - 1))
-                + response_time;
+            let total_response_time =
+                (metrics.average_response_time * (metrics.total_requests - 1)) + response_time;
             metrics.average_response_time = total_response_time / metrics.total_requests;
         } else {
             metrics.average_response_time = response_time;
@@ -217,9 +216,8 @@ impl AnalyticsManager {
 
         // Calculate new average response time
         if analytics.total_requests > 1 {
-            let total_response_time = (analytics.average_response_time
-                * (analytics.total_requests - 1))
-                + response_time;
+            let total_response_time =
+                (analytics.average_response_time * (analytics.total_requests - 1)) + response_time;
             analytics.average_response_time = total_response_time / analytics.total_requests;
         } else {
             analytics.average_response_time = response_time;

@@ -5,9 +5,7 @@
 
 use crate::errors::MobilePlatformError;
 use crate::types::*;
-use soroban_sdk::{
-    panic_with_error, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
-};
+use soroban_sdk::{panic_with_error, symbol_short, Address, Bytes, Env, Map, Symbol, Vec};
 
 const MOBILE_PROFILE: Symbol = symbol_short!("mob_prof");
 const OFFLINE_CONTENT: Symbol = symbol_short!("off_cont");
