@@ -2,7 +2,9 @@
 //!
 //! A simple ERC20-like token for testing governance functionality.
 
-use soroban_sdk::{contract, contractimpl, contracttype, panic_with_error, Address, Env, Map, String};
+use soroban_sdk::{
+    contract, contractimpl, contracttype, panic_with_error, Address, Env, Map, String,
+};
 
 use crate::types::GovernanceError;
 

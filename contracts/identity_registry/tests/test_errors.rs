@@ -1,22 +1,32 @@
 #![cfg(test)]
 
-use soroban_sdk::{testutils::Address as _, Address, Bytes, BytesN, Env};
+use soroban_sdk::{testutils::Address as _, Address, BytesN, ConversionError, Env, InvokeError};
 
-use identity_registry_contract::{
+use identity_registry::{
     IdentityRegistryContract, IdentityRegistryContractClient, IdentityRegistryError,
 };
 
-fn expect_err<T, E: core::fmt::Debug>(res: Result<T, E>, context: &str) -> E {
+fn expect_contract_err<T, E: Copy + core::fmt::Debug>(
+    res: Result<Result<T, ConversionError>, Result<E, InvokeError>>,
+    context: &str,
+) -> E {
     match res {
-        Ok(_) => panic!("{}: expected error", context),
-        Err(err) => err,
+        Ok(Ok(_)) => panic!("{}: expected error", context),
+        Ok(Err(err)) => panic!("{}: conversion error {:?}", context, err),
+        Err(Ok(err)) => err,
+        Err(Err(err)) => panic!("{}: invoke error {:?}", context, err),
     }
 }
 
-fn expect_ok<T, E: core::fmt::Debug>(res: Result<T, E>, context: &str) -> T {
+fn expect_contract_ok<T, E: core::fmt::Debug>(
+    res: Result<Result<T, ConversionError>, Result<E, InvokeError>>,
+    context: &str,
+) -> T {
     match res {
-        Ok(value) => value,
-        Err(err) => panic!("{}: {:?}", context, err),
+        Ok(Ok(value)) => value,
+        Ok(Err(err)) => panic!("{}: conversion error {:?}", context, err),
+        Err(Ok(err)) => panic!("{}: contract error {:?}", context, err),
+        Err(Err(err)) => panic!("{}: invoke error {:?}", context, err),
     }
 }
 
@@ -32,8 +42,8 @@ fn test_set_controller_missing() {
     let current = Address::generate(&env);
     let new_controller = Address::generate(&env);
 
-    let err = expect_err(
-        client.set_controller(&identity_id, &current, &new_controller),
+    let err = expect_contract_err(
+        client.try_set_controller(&identity_id, &current, &new_controller),
         "set_controller missing",
     );
     assert_eq!(err, IdentityRegistryError::DidNotFound);
@@ -51,13 +61,13 @@ fn test_set_controller_unauthorized() {
     let controller = Address::generate(&env);
     let attacker = Address::generate(&env);
 
-    expect_ok(
-        client.create_did(&identity_id, &controller),
+    expect_contract_ok(
+        client.try_create_did(&identity_id, &controller),
         "create_did",
     );
 
-    let err = expect_err(
-        client.set_controller(&identity_id, &attacker, &attacker),
+    let err = expect_contract_err(
+        client.try_set_controller(&identity_id, &attacker, &attacker),
         "set_controller unauthorized",
     );
     assert_eq!(err, IdentityRegistryError::Unauthorized);

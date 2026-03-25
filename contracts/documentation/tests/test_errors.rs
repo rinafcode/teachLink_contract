@@ -1,13 +1,18 @@
 #![cfg(test)]
 
-use soroban_sdk::{Env, String};
+use soroban_sdk::{ConversionError, Env, InvokeError, String};
 
-use documentation_contract::{DocumentationContract, DocumentationContractClient, DocumentationError};
+use teachlink_documentation::{DocumentationContract, DocumentationContractClient, DocumentationError};
 
-fn expect_err<T, E: core::fmt::Debug>(res: Result<T, E>, context: &str) -> E {
+fn expect_contract_err<T, E: Copy + core::fmt::Debug>(
+    res: Result<Result<T, ConversionError>, Result<E, InvokeError>>,
+    context: &str,
+) -> E {
     match res {
-        Ok(_) => panic!("{}: expected error", context),
-        Err(err) => err,
+        Ok(Ok(_)) => panic!("{}: expected error", context),
+        Ok(Err(err)) => panic!("{}: conversion error {:?}", context, err),
+        Err(Ok(err)) => err,
+        Err(Err(err)) => panic!("{}: invoke error {:?}", context, err),
     }
 }
 
@@ -17,8 +22,8 @@ fn test_article_not_found() {
     let contract_id = env.register(DocumentationContract, ());
     let client = DocumentationContractClient::new(&env, &contract_id);
 
-    let err = expect_err(
-        client.get_article(&String::from_str(&env, "missing")),
+    let err = expect_contract_err(
+        client.try_get_article(&String::from_str(&env, "missing")),
         "get_article missing",
     );
     assert_eq!(err, DocumentationError::ArticleNotFound);
@@ -30,8 +35,8 @@ fn test_faq_not_found() {
     let contract_id = env.register(DocumentationContract, ());
     let client = DocumentationContractClient::new(&env, &contract_id);
 
-    let err = expect_err(
-        client.get_faq(&String::from_str(&env, "missing")),
+    let err = expect_contract_err(
+        client.try_get_faq(&String::from_str(&env, "missing")),
         "get_faq missing",
     );
     assert_eq!(err, DocumentationError::FaqNotFound);

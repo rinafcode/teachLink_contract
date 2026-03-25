@@ -140,7 +140,7 @@ pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    ContentTokenParameters, ContentType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
     DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowStatus,
     LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,

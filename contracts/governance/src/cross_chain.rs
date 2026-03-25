@@ -242,9 +242,7 @@ impl CrossChainGovernance {
             .storage()
             .persistent()
             .get(&(XCHAIN_PROPOSALS, xc_proposal_id))
-            .unwrap_or_else(|| {
-                panic_with_error!(env, GovernanceError::CrossChainProposalNotFound)
-            });
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::CrossChainProposalNotFound));
 
         assert!(
             !xc_proposal.finalized,
@@ -304,9 +302,7 @@ impl CrossChainGovernance {
             .storage()
             .persistent()
             .get(&(XCHAIN_PROPOSALS, xc_proposal_id))
-            .unwrap_or_else(|| {
-                panic_with_error!(env, GovernanceError::CrossChainProposalNotFound)
-            });
+            .unwrap_or_else(|| panic_with_error!(env, GovernanceError::CrossChainProposalNotFound));
 
         assert!(
             xc_proposal.quorum_met,

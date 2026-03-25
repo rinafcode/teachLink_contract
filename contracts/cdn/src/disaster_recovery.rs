@@ -50,9 +50,7 @@ impl DisasterRecoveryManager {
             .unwrap_or_else(|| Map::new(env));
 
         for i in 0..backup_regions.len() {
-            let region = backup_regions
-                .get(i)
-                .ok_or(CDNError::StorageError)?;
+            let region = backup_regions.get(i).ok_or(CDNError::StorageError)?;
             let mut has_active_node = false;
 
             let active_nodes: Vec<String> = env
@@ -221,10 +219,7 @@ impl DisasterRecoveryManager {
             // Check if target region is already in replicas
             let mut already_exists = false;
             for i in 0..content_item.replicas.len() {
-                let replica_node_id = content_item
-                    .replicas
-                    .get(i)
-                    .ok_or(CDNError::StorageError)?;
+                let replica_node_id = content_item.replicas.get(i).ok_or(CDNError::StorageError)?;
                 if let Some(node) = nodes.get(replica_node_id.clone()) {
                     if node.region == target_region {
                         already_exists = true;
@@ -300,9 +295,7 @@ impl DisasterRecoveryManager {
             .unwrap_or_else(|| Map::new(env));
 
         for i in 0..critical_content.len() {
-            let content_id = critical_content
-                .get(i)
-                .ok_or(CDNError::StorageError)?;
+            let content_id = critical_content.get(i).ok_or(CDNError::StorageError)?;
             if !content_items.contains_key(content_id) {
                 return Err(CDNError::ContentNotFound);
             }
@@ -443,10 +436,8 @@ impl DisasterRecoveryManager {
                 let mut needs_backup = true;
 
                 for j in 0..content_item.replicas.len() {
-                    let replica_node_id = content_item
-                        .replicas
-                        .get(j)
-                        .ok_or(CDNError::StorageError)?;
+                    let replica_node_id =
+                        content_item.replicas.get(j).ok_or(CDNError::StorageError)?;
                     if let Some(node) = nodes.get(replica_node_id.clone()) {
                         if node.region != failed_region {
                             new_replicas.push_back(replica_node_id.clone());

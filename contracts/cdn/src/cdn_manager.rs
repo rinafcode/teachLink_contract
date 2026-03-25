@@ -406,10 +406,7 @@ impl CDNManager {
         let mut best_score = 0u32;
 
         for i in 0..content_item.replicas.len() {
-            let replica_node_id = content_item
-                .replicas
-                .get(i)
-                .ok_or(CDNError::StorageError)?;
+            let replica_node_id = content_item.replicas.get(i).ok_or(CDNError::StorageError)?;
             if let Some(node) = nodes.get(replica_node_id.clone()) {
                 if !node.is_active {
                     continue;
