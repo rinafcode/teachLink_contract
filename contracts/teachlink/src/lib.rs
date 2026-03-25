@@ -1,40 +1,34 @@
 #![cfg_attr(not(test), no_std)]
 
-#[cfg(not(test))]
-use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, Env, Map};
+use soroban_sdk::{contract, contractimpl, symbol_short, Address, Bytes, Env, Vec, Symbol};
 
+/// TeachLink main contract with basic bridge functionality.
 #[cfg(not(test))]
-/// TeachLink main contract.
 #[contract]
 pub struct TeachLinkBridge;
 
 #[cfg(not(test))]
 #[contractimpl]
 impl TeachLinkBridge {
-    /// Initialize the bridge contract
-    pub fn initialize(
-        env: Env,
-        token: Address,
-        admin: Address,
-        min_validators: u32,
-        fee_recipient: Address,
-    ) {
-        env.storage()
-            .instance()
-            .set(&symbol_short!("token"), &token);
-        env.storage()
-            .instance()
-            .set(&symbol_short!("admin"), &admin);
-        env.storage()
-            .instance()
-            .set(&symbol_short!("min_val"), &min_validators);
-        env.storage()
-            .instance()
-            .set(&symbol_short!("fee_rec"), &fee_recipient);
-        env.storage().instance().set(&symbol_short!("nonce"), &0u64);
+    // Storage keys
+    const ADMIN: Symbol = symbol_short!("admin");
+    const NONCE: Symbol = symbol_short!("nonce");
+    const BRIDGE_TXS: Symbol = symbol_short!("bridge_txs");
+    const FALLBACK_ENABLED: Symbol = symbol_short!("fallback");
+    
+    // Constants
+    const DEFAULT_FEE_RATE: u32 = 100; // basis points (1%)
+    const FALLBACK_PRICE: i128 = 1000000; // 1 USD in 6 decimals
+    
+    /// Initialize bridge contract
+    pub fn initialize(env: Env, admin: Address) {
+        env.storage().instance().set(&Self::ADMIN, &admin);
+        env.storage().instance().set(&Self::NONCE, &0u64);
+        env.storage().instance().set(&Self::FALLBACK_ENABLED, &true);
+        env.storage().instance().set(&Self::BRIDGE_TXS, &Vec::new(&env));
     }
-
-    /// Bridge tokens out to another chain
+    
+    /// Bridge tokens out
     pub fn bridge_out(
         env: Env,
         from: Address,
@@ -42,50 +36,57 @@ impl TeachLinkBridge {
         destination_chain: u32,
         destination_address: Bytes,
     ) -> u64 {
-        let nonce = env
-            .storage()
+        let nonce = Self::get_next_nonce(env);
+        
+        // Calculate fees
+        let fee_amount = amount * Self::DEFAULT_FEE_RATE as i128 / 10000;
+        let bridge_amount = amount - fee_amount;
+        
+        // Store bridge transaction
+        let bridge_data = (from, bridge_amount, destination_chain, destination_address);
+        let mut bridge_txs: Vec<(Address, i128, u32, Bytes)> = env.storage()
             .instance()
-            .get(&symbol_short!("nonce"))
+            .get(&Self::BRIDGE_TXS)
+            .unwrap_or(Vec::new(&env));
+        bridge_txs.push_back(bridge_data);
+        env.storage().instance().set(&Self::BRIDGE_TXS, &bridge_txs);
+        
+        nonce
+    }
+    
+    /// Get next nonce
+    fn get_next_nonce(env: Env) -> u64 {
+        let nonce = env.storage()
+            .instance()
+            .get(&Self::NONCE)
             .unwrap_or(0u64);
         let new_nonce = nonce + 1;
         env.storage()
             .instance()
-            .set(&symbol_short!("nonce"), &new_nonce);
-
-        // Store bridge transaction
-        let key = symbol_short!("bridge");
-        let mut bridge_txs = env.storage().instance().get(&key).unwrap_or(Map::new(&env));
-        bridge_txs.set(
-            new_nonce,
-            (from, amount, destination_chain, destination_address),
-        );
-        env.storage().instance().set(&key, &bridge_txs);
-
+            .set(&Self::NONCE, &new_nonce);
         new_nonce
     }
-
-    /// Get nonce
-    pub fn get_nonce(env: Env) -> u64 {
-        env.storage()
+    
+    /// Get bridge transaction
+    pub fn get_bridge_tx(env: Env, index: u32) -> Option<(Address, i128, u32, Bytes)> {
+        let bridge_txs: Vec<(Address, i128, u32, Bytes)> = env.storage()
             .instance()
-            .get(&symbol_short!("nonce"))
-            .unwrap_or(0u64)
+            .get(&Self::BRIDGE_TXS)
+            .unwrap_or(Vec::new(&env));
+        bridge_txs.get(index)
     }
-
-    /// Get token address
-    pub fn get_token(env: Env) -> Address {
-        env.storage()
-            .instance()
-            .get(&symbol_short!("token"))
-            .unwrap()
+    
+    /// Enable/disable fallback mechanism
+    pub fn set_fallback_enabled(env: Env, enabled: bool) {
+        env.storage().instance().set(&Self::FALLBACK_ENABLED, &enabled);
     }
-
-    /// Get admin address
-    pub fn get_admin(env: Env) -> Address {
+    
+    /// Get fallback status
+    pub fn is_fallback_enabled(env: Env) -> bool {
         env.storage()
             .instance()
-            .get(&symbol_short!("admin"))
-            .unwrap()
+            .get(&Self::FALLBACK_ENABLED)
+            .unwrap_or(true)
     }
 }
 
