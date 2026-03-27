@@ -1,8 +1,6 @@
 [workspace]
 resolver = "2"
 members = [
-  "contracts/governance",
-  "contracts/insurance",
   "contracts/teachlink",
 ]
 
@@ -12,7 +10,17 @@ repository = "https://github.com/rinafcode/teachLink_contract"
 license = "MIT"
 
 [workspace.dependencies]
-soroban-sdk = "25.0.0-rc.2"
+soroban-sdk = "20.0.0"
+
+[profile.release]
+opt-level = "z"
+overflow-checks = true
+debug = 0
+strip = "symbols"
+debug-assertions = false
+panic = "abort"
+codegen-units = 1
+lto = true
 
 [workspace.lints.clippy]
 all = { level = "allow", priority = -1 }

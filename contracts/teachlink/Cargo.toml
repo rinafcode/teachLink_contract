@@ -1,21 +1,18 @@
 [package]
 name = "teachlink-contract"
 version = "0.1.0"
-edition.workspace = true
-license.workspace = true
-repository.workspace = true
+edition = "2021"
+license = "MIT"
+repository = "https://github.com/rinafcode/teachLink_contract"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[features]
-testutils = ["soroban-sdk/testutils"]
-
 [dependencies]
-soroban-sdk.workspace = true
+soroban-sdk = "20.0.0"
 
-[dev-dependencies]
-soroban-sdk = { workspace = true, features = ["testutils"] }
+[lints.clippy]
+all = "allow"
 
-[lints]
-workspace = true
+[lints.rust]
+unsafe_code = "deny"
