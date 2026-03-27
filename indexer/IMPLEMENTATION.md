@@ -40,6 +40,13 @@ Indexes all 18+ TeachLink contract event types across five domains:
 - Comprehensive logging and error handling
 - Non-root container execution for security
 
+### 6. Performance Optimization and Caching
+- **In-memory cache** (CacheModule): Dashboard analytics cached with 60s TTL; reduces DB load for repeated `/analytics/dashboard` requests.
+- **Query optimization**: Dashboard aggregates use `SUM`/`COUNT`/`AVG` in SQL instead of loading full tables (escrow volume, reward volume, resolution time).
+- **Performance monitoring**: `GET /health` for load balancer liveness; `GET /metrics` returns JSON (request count, cache hit rate, last dashboard latency, uptime).
+- **Cache invalidation**: `DashboardService.invalidateDashboardCache()` for manual or scheduled invalidation; TTL provides automatic freshness.
+- **Regression testing**: Dashboard tests include cache-hit behavior and a 2s latency cap for `getCurrentAnalytics`.
+
 ## Architecture
 
 ### Layered Design
