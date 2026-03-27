@@ -150,7 +150,35 @@ impl EnhancedInsurance {
 
     // ===== Governance & RBAC Endpoints =====
 
-    /// Grant a specific role (Super Admin only)
+    /// Grant a specific role to an account
+    ///
+    /// This function gives a specific role to the target account. Only the super admin
+    /// can perform this action.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `caller` - The address of the caller (must be super admin).
+    /// * `role` - The role identifier to grant.
+    /// * `account` - The address of the account being granted the role.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), InsuranceError>` - Ok if the role was granted.
+    ///
+    /// # Errors
+    ///
+    /// * `UnauthorizedRole` - If the caller is not a super admin.
+    ///
+    /// # Events
+    ///
+    /// * `RoleGnt` - Emitted when a role is granted.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// EnhancedInsurance::grant_role(env, super_admin, ROLE_CLAIMS_MANAGER, manager_addr);
+    /// ```
     pub fn grant_role(env: Env, caller: Address, role: u32, account: Address) -> Result<(), InsuranceError> {
         Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
         env.storage().instance().set(&DataKey::HasRole(role, account.clone()), &true);
@@ -158,7 +186,35 @@ impl EnhancedInsurance {
         Ok(())
     }
 
-    /// Revoke a specific role (Super Admin only)
+    /// Revoke a specific role from an account
+    ///
+    /// This function removes a specific role from the target account. Only the super admin
+    /// can perform this action.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `caller` - The address of the caller (must be super admin).
+    /// * `role` - The role identifier to revoke.
+    /// * `account` - The address of the account having their role revoked.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), InsuranceError>` - Ok if the role was revoked.
+    ///
+    /// # Errors
+    ///
+    /// * `UnauthorizedRole` - If the caller is not a super admin.
+    ///
+    /// # Events
+    ///
+    /// * `RoleRvk` - Emitted when a role is revoked.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// EnhancedInsurance::revoke_role(env, super_admin, ROLE_CLAIMS_MANAGER, manager_addr);
+    /// ```
     pub fn revoke_role(env: Env, caller: Address, role: u32, account: Address) -> Result<(), InsuranceError> {
         Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
         env.storage().instance().set(&DataKey::HasRole(role, account.clone()), &false);
