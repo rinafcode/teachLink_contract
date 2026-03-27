@@ -107,8 +107,7 @@ fn test_escrow_release_flow() {
     token_client.initialize(&token_admin);
     token_client.mint(&depositor, &2_000); // More for premium
 
-    // FUTURE: Re-enable when insurance module is implemented (tracked in TRACKING.md)
-    // escrow_client.initialize_insurance_pool(&token_contract_id, &100); // 1% premium
+    escrow_client.initialize_insurance_pool(&token_contract_id, &100); // 1% premium
 
     let mut signers = Vec::new(&env);
     signers.push_back(EscrowSigner {
@@ -171,8 +170,7 @@ fn test_escrow_dispute_refund() {
     token_client.initialize(&token_admin);
     token_client.mint(&depositor, &1000);
 
-    // FUTURE: Re-enable when insurance module is implemented (tracked in TRACKING.md)
-    // escrow_client.initialize_insurance_pool(&token_contract_id, &0); // No premium for this test
+    escrow_client.initialize_insurance_pool(&token_contract_id, &0); // No premium for this test
 
     let mut signers = Vec::new(&env);
     signers.push_back(EscrowSigner {
@@ -220,8 +218,7 @@ fn test_professional_arbitration_picking() {
     token_client.initialize(&Address::generate(&env));
     token_client.mint(&depositor, &1000);
 
-    // FUTURE: Re-enable when insurance module is implemented (tracked in TRACKING.md)
-    // escrow_client.initialize_insurance_pool(&token_contract_id, &0); // No premium for this test
+    escrow_client.initialize_insurance_pool(&token_contract_id, &0); // No premium for this test
     let beneficiary = Address::generate(&env);
     let arb_addr = Address::generate(&env);
 

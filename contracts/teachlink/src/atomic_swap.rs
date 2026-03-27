@@ -346,7 +346,7 @@ impl AtomicSwapManager {
 
         // Hash the preimage
         let hash_bytesn = env.crypto().sha256(preimage);
-        
+
         // Convert BytesN<32> to Bytes for comparison
         let expected_bytes: Bytes = hash_bytesn.into();
 
