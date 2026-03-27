@@ -424,3 +424,47 @@ On Windows, `cargo test` may fail with **`link.exe` not found** (MSVC) or **`exp
 ## License
 
 This project is licensed under the MIT License. See `LICENSE` for details.
+
+# TeachLink_contract
+
+TeachLink_contract is a Rust-based blockchain smart contract suite designed to support advanced content tokenization, decentralized marketplace operations, validator governance, and insurance mechanisms. It provides the foundation for secure, transparent, and collaborative digital asset management.
+
+---
+
+## 🚀 Features
+- **NFT Tokenization**: Mint and manage content NFTs with dynamic metadata and provenance tracking.
+- **Marketplace**: Decentralized marketplace for buying, selling, and fractionalizing content assets.
+- **Royalty Distribution**: Automated revenue sharing among creators, collaborators, and investors.
+- **Licensing & Rights Management**: On-chain license registry for content usage rights.
+- **Validator Slashing**: Consensus security with penalties for malicious or negligent validators.
+- **Analytics & Recommendations**: Usage tracking, quality scoring, and discovery engine.
+- **Collaboration & Co-Ownership**: Joint minting and shared ownership models.
+- **Insurance & Protection**: Coverage for fraud, plagiarism, and rights violations.
+
+---
+
+## 🛠 Installation & Setup
+
+### Prerequisites
+- Rust (latest stable)
+- Cargo
+- Node.js & npm (for frontend integration)
+- Docker (optional, for containerized services)
+
+### Steps
+```bash
+# Clone the repository
+git clone https://github.com/your-org/TeachLink_contract.git
+cd TeachLink_contract
+
+# Build contracts
+cargo build
+
+# Run backend services
+cd backend
+cargo run
+
+# Run frontend (if applicable)
+cd frontend
+npm install
+npm run dev
