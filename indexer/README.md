@@ -272,21 +272,30 @@ npm run test:cov
 
 ## Monitoring
 
-### Health Checks
+Baseline observability is now included for the production compose stack.
 
-The indexer includes automatic health monitoring:
-- Runs every 5 minutes
-- Checks if indexer is running
-- Auto-restarts on failure
-- Logs status and metrics
+Endpoints exposed by the application:
 
-### Metrics
+- `GET /health`: structured readiness with database, Horizon, and indexer-state freshness checks
+- `GET /metrics`: Prometheus metrics
+- `GET /metrics/json`: lightweight JSON snapshot for quick inspection
 
-Track indexer performance via the `indexer_state` table:
-- `lastProcessedLedger`: Most recent indexed ledger
-- `totalEventsProcessed`: Total events indexed
-- `totalErrors`: Total errors encountered
-- `updatedAt`: Last update timestamp
+The compose stack can also start:
+
+- Prometheus
+- Alertmanager
+- Grafana
+- PostgreSQL Exporter
+- Blackbox Exporter
+- a local webhook sink for alert delivery testing
+
+Quick start:
+
+```bash
+docker compose --profile production --profile observability up -d
+```
+
+Full setup, dashboards, alert list, validation steps, and the alert test procedure are documented in [MONITORING.md](MONITORING.md).
 
 ## Troubleshooting
 
