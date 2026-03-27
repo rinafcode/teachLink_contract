@@ -595,11 +595,11 @@ impl Bridge {
 mod tests {
     use super::{Bridge, BRIDGE_RETRY_DELAY_BASE_SECONDS};
     use crate::errors::BridgeError;
-    use crate::storage::{BRIDGE_TXS, TOKEN};
-    use crate::types::BridgeTransaction;
+    use crate::storage::{BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS};
+    use crate::types::{BridgeTransaction, CrossChainMessage};
     use crate::TeachLinkBridge;
     use soroban_sdk::testutils::{Address as _, Ledger};
-    use soroban_sdk::{Address, Bytes, Env, Map};
+    use soroban_sdk::{vec, Address, Bytes, Env, Map, Vec};
 
     fn set_time(env: &Env, timestamp: u64) {
         env.ledger().with_mut(|ledger_info| {
@@ -635,6 +635,42 @@ mod tests {
             Bridge::mark_bridge_failed(&env, 99, Bytes::from_slice(&env, b"failure"))
         });
         assert_eq!(result, Err(BridgeError::BridgeTransactionNotFound));
+    }
+
+    #[test]
+    fn complete_bridge_rejects_replay_when_nonce_already_processed() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        env.as_contract(&contract_id, || {
+            let token = Address::generate(&env);
+            let validator = Address::generate(&env);
+            let recipient = Address::generate(&env);
+
+            env.storage().instance().set(&TOKEN, &token);
+            env.storage().instance().set(&MIN_VALIDATORS, &1u32);
+
+            let mut validators: Map<Address, bool> = Map::new(&env);
+            validators.set(validator.clone(), true);
+            env.storage().instance().set(&VALIDATORS, &validators);
+
+            let mut processed: Map<u64, bool> = Map::new(&env);
+            processed.set(7u64, true);
+            env.storage().persistent().set(&NONCE, &processed);
+
+            let message = CrossChainMessage {
+                source_chain: 1,
+                source_tx_hash: Bytes::from_slice(&env, &[0xab; 32]),
+                nonce: 7,
+                token: token.clone(),
+                amount: 100,
+                recipient: recipient.clone(),
+                destination_chain: 2,
+            };
+
+            let sigs: Vec<Address> = vec![&env, validator];
+            let r = Bridge::complete_bridge(&env, message, sigs);
+            assert_eq!(r, Err(BridgeError::NonceAlreadyProcessed));
+        });
     }
 
     #[test]
