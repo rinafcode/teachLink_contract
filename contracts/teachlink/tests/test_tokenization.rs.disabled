@@ -104,7 +104,7 @@ fn test_mint_content_token() {
     // Verify creator owns the token
     assert!(client.is_content_token_owner(&token_id, &creator));
 
-    // TODO: Re-enable when provenance module is implemented
+    // FUTURE: Re-enable when provenance module is implemented (tracked in TRACKING.md)
     // Verify provenance
     // let provenance = client.get_content_provenance(&token_id);
     // assert_eq!(provenance.len(), 1u32);
@@ -177,7 +177,7 @@ fn test_transfer_content_token() {
     assert!(client.is_content_token_owner(&token_id, &new_owner));
     assert!(!client.is_content_token_owner(&token_id, &creator));
 
-    // TODO: Re-enable when provenance module is implemented
+    // FUTURE: Re-enable when provenance module is implemented (tracked in TRACKING.md)
     // Verify provenance
     // let provenance = client.get_content_provenance(&token_id);
     // assert_eq!(provenance.len(), 2u32);
@@ -494,7 +494,7 @@ fn test_verify_provenance_chain() {
 
     client.transfer_content_token(&owner1, &owner2, &token_id, &None);
 
-    // TODO: Re-enable when provenance module is implemented
+    // FUTURE: Re-enable when provenance module is implemented (tracked in TRACKING.md)
     // Verify chain integrity
     // let is_valid = client.verify_content_chain(&token_id);
     // assert!(is_valid);

@@ -103,7 +103,7 @@ mod escrow;
 // mod advanced_reputation;
 mod escrow_analytics;
 mod events;
-// TODO: Implement governance module
+// FUTURE: Implement governance module (tracked in TRACKING.md)
 // mod governance;
 // mod learning_paths;
 mod liquidity;
@@ -113,7 +113,7 @@ mod multichain;
 mod notification;
 mod notification_events_basic;
 // mod content_quality;
-// mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
+// mod notification_tests; // FUTURE: Re-enable when testutils dependencies are resolved (tracked in TRACKING.md)
 mod backup;
 mod notification_types;
 mod performance;
@@ -1236,7 +1236,7 @@ impl TeachLinkBridge {
 
     // ========== Insurance Pool Functions ==========
 
-    // TODO: Implement insurance module
+    // FUTURE: Implement insurance module (tracked in TRACKING.md)
     /*
     /// Initialize insurance pool
     pub fn initialize_insurance_pool(
@@ -1277,7 +1277,7 @@ impl TeachLinkBridge {
 
     // ========== Credit Scoring Functions (feat/credit_score) ==========
 
-    // TODO: Implement score module
+    // FUTURE: Implement score module (tracked in TRACKING.md)
     /*
     /// Record course completion
     pub fn record_course_completion(
@@ -1320,7 +1320,7 @@ impl TeachLinkBridge {
 
     // ========== Reputation Functions (main) ==========
 
-    // TODO: Implement missing modules
+    // FUTURE: Implement missing modules (tracked in TRACKING.md)
     /*
     pub fn update_participation(env: Env, user: Address, points: u32) {
         reputation::update_participation(&env, user, points);
@@ -1355,7 +1355,7 @@ impl TeachLinkBridge {
             params.is_transferable,
             params.royalty_percentage,
         );
-        // TODO: Implement provenance module
+        // FUTURE: Implement provenance module (tracked in TRACKING.md)
         // provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
         token_id
     }
@@ -1427,7 +1427,7 @@ impl TeachLinkBridge {
 
     // ========== Provenance Functions ==========
 
-    // TODO: Implement provenance module
+    // FUTURE: Implement provenance module (tracked in TRACKING.md)
     /*
     /// Get full provenance history for a content token
     pub fn get_content_provenance(env: Env, token_id: u64) -> Vec<ProvenanceRecord> {

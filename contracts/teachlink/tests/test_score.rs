@@ -1,7 +1,7 @@
 #![cfg(test)]
 #![allow(clippy::needless_pass_by_value)]
 
-// TODO: Re-enable when score module is fully implemented
+// FUTURE: Re-enable when score module is fully implemented (tracked in TRACKING.md)
 
 // use soroban_sdk::{testutils::Address as _, Address, Env};
 // use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
