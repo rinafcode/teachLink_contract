@@ -161,6 +161,32 @@ pub struct TeachLinkBridge;
 #[contractimpl]
 impl TeachLinkBridge {
     /// Initialize the bridge contract
+    ///
+    /// This function sets up the core parameters for the bridge, including the token,
+    /// administrator, and initial validator threshold. It must be called once before
+    /// any other bridge functions.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `token` - The address of the token to be bridged.
+    /// * `admin` - The address with administrative permissions.
+    /// * `min_validators` - The minimum number of validator signatures required for a bridge transaction.
+    /// * `fee_recipient` - The address that will receive bridge fees.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), BridgeError>` - Returns `Ok(())` if initialization is successful.
+    ///
+    /// # Errors
+    ///
+    /// * `AlreadyInitialized` - If the contract has already been initialized.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// TeachLinkBridge::initialize(env, token_addr, admin_addr, 3, fee_collector_addr);
+    /// ```
     pub fn initialize(
         env: Env,
         token: Address,
@@ -171,7 +197,38 @@ impl TeachLinkBridge {
         bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)
     }
 
-    /// Bridge tokens out to another chain (lock/burn tokens on Stellar)
+    /// Bridge tokens out to another chain
+    ///
+    /// Locks or burns tokens on the Stellar network to be minted or released on the
+    /// destination chain. Generates a unique nonce for tracking the transaction.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `from` - The address of the user initiating the bridge.
+    /// * `amount` - The amount of tokens to bridge.
+    /// * `destination_chain` - The ID of the target blockchain.
+    /// * `destination_address` - The recipient's address on the destination chain.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<u64, BridgeError>` - Returns the unique nonce of the bridge transaction.
+    ///
+    /// # Errors
+    ///
+    /// * `InvalidAmount` - If the amount is less than or equal to zero.
+    /// * `UnsupportedChain` - If the destination chain is not supported.
+    /// * `InsufficientBalance` - If the sender does not have enough tokens.
+    ///
+    /// # Events
+    ///
+    /// * `BridgeOut` - Emitted when tokens are successfully locked for bridging.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let nonce = TeachLinkBridge::bridge_out(env, user_addr, 1000, 1, dest_bytes);
+    /// ```
     pub fn bridge_out(
         env: Env,
         from: Address,
@@ -182,7 +239,33 @@ impl TeachLinkBridge {
         bridge::Bridge::bridge_out(&env, from, amount, destination_chain, destination_address)
     }
 
-    /// Complete a bridge transaction (mint/release tokens on Stellar)
+    /// Complete an incoming bridge transaction
+    ///
+    /// This function handles the completion of a bridge transaction from another chain
+    /// to Stellar. It validates validator signatures and mints or releases tokens to
+    /// the recipient on Stellar.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `message` - The `CrossChainMessage` containing transaction details.
+    /// * `validator_signatures` - A list of validator addresses who signed the message.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), BridgeError>` - Returns `Ok(())` if the transaction is completed.
+    ///
+    /// # Errors
+    ///
+    /// * `ThresholdNotMet` - If the number of signatures is below the threshold.
+    /// * `InvalidSignature` - If any validator signature is invalid.
+    /// * `AlreadyCompleted` - If the bridge transaction has already been processed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// TeachLinkBridge::complete_bridge(env, message, signatures);
+    /// ```
     pub fn complete_bridge(
         env: Env,
         message: CrossChainMessage,
@@ -191,11 +274,53 @@ impl TeachLinkBridge {
         bridge::Bridge::complete_bridge(&env, message, validator_signatures)
     }
 
-    /// Cancel a bridge transaction and refund locked tokens
+    /// Cancel a pending bridge transaction
+    ///
+    /// Refunds the locked tokens to the sender if the bridge hasn't been completed.
+    /// Typically used for timeouts or if the user cancels before validator consensus.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `nonce` - The unique nonce identifying the bridge transaction.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), BridgeError>` - Returns `Ok(())` if the cancellation succeeds.
+    ///
+    /// # Errors
+    ///
+    /// * `NotFound` - If the bridge transaction does not exist.
+    /// * `AlreadyCompleted` - If the transaction has already been completed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// TeachLinkBridge::cancel_bridge(env, nonce);
+    /// ```
     pub fn cancel_bridge(env: Env, nonce: u64) -> Result<(), BridgeError> {
         bridge::Bridge::cancel_bridge(&env, nonce)
     }
 
+    /// Mark a bridge transaction as failed
+    ///
+    /// Records the reason for failure and allows for subsequent retries or refunds.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `nonce` - The unique nonce identifying the bridge transaction.
+    /// * `reason` - A bytes object describing why the transaction failed.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), BridgeError>` - Returns `Ok(())` if successful.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// TeachLinkBridge::mark_bridge_failed(env, nonce, reason);
+    /// ```
     pub fn mark_bridge_failed(env: Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
         bridge::Bridge::mark_bridge_failed(&env, nonce, reason)
     }
@@ -210,12 +335,40 @@ impl TeachLinkBridge {
 
     // ========== Admin Functions ==========
 
-    /// Add a validator (admin only)
+    /// Add a new validator to the bridge
+    ///
+    /// This function adds an address to the authorized list of validators.
+    /// Only the contract administrator can call this function.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `validator` - The address of the new validator.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// TeachLinkBridge::add_validator(env, validator_addr);
+    /// ```
     pub fn add_validator(env: Env, validator: Address) {
         let _ = bridge::Bridge::add_validator(&env, validator);
     }
 
-    /// Remove a validator (admin only)
+    /// Remove a validator from the bridge
+    ///
+    /// This function removes an address from the authorized list of validators.
+    /// Only the contract administrator can call this function.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `validator` - The address of the validator to remove.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// TeachLinkBridge::remove_validator(env, validator_addr);
+    /// ```
     pub fn remove_validator(env: Env, validator: Address) {
         let _ = bridge::Bridge::remove_validator(&env, validator);
     }
@@ -247,7 +400,25 @@ impl TeachLinkBridge {
 
     // ========== View Functions ==========
 
-    /// Get the bridge transaction by nonce
+    /// Get bridge transaction details by nonce
+    ///
+    /// Retrieves the status, amount, and other metadata for a specific bridge
+    /// transaction identified by its unique nonce.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `nonce` - The unique nonce of the bridge transaction.
+    ///
+    /// # Returns
+    ///
+    /// * `Option<BridgeTransaction>` - Returns the transaction if found, or `None`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let tx = TeachLinkBridge::get_bridge_transaction(env, nonce);
+    /// ```
     pub fn get_bridge_transaction(env: Env, nonce: u64) -> Option<BridgeTransaction> {
         bridge::Bridge::get_bridge_transaction(&env, nonce)
     }
