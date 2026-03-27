@@ -340,17 +340,17 @@ impl AtomicSwapManager {
 
     /// Verify hashlock against preimage
     fn verify_hashlock(env: &Env, preimage: &Bytes, hashlock: &Bytes) -> bool {
-        // In a real implementation, this would hash the preimage and compare
-        // For Soroban, we'd use the SDK's crypto functions
-        // This is a simplified placeholder
-
-        if preimage.len() == 0 {
+        if preimage.is_empty() {
             return false;
         }
 
-        // TODO: Implement actual SHA256 hashing
-        // For now, we'll do a simple length check as placeholder
-        hashlock.len() == HASH_LENGTH
+        // Hash the preimage
+        let hash_bytesn = env.crypto().sha256(preimage);
+        
+        // Convert BytesN<32> to Bytes for comparison
+        let expected_bytes: Bytes = hash_bytesn.into();
+
+        hashlock == &expected_bytes
     }
 
     /// Get swap count

@@ -152,7 +152,7 @@ impl ContentTokenization {
         .publish(env);
 
         // Record provenance (handled by provenance module)
-        // TODO: Implement provenance module
+        // FUTURE: Implement provenance module (tracked in TRACKING.md)
     }
 
     /// Get a content token by ID
@@ -176,7 +176,7 @@ impl ContentTokenization {
         if let Some(current_owner) = Self::get_owner(env, token_id) {
             owners.push_back(current_owner);
         }
-        // TODO: Add historical owners from provenance if needed
+        // FUTURE: Add historical owners from provenance if needed (tracked in TRACKING.md)
         owners
     }
 

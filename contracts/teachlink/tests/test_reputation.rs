@@ -23,7 +23,7 @@ fn test_reputation_flow() {
 
     let user = Address::generate(&env);
 
-    // TODO: Re-enable when reputation module is implemented
+    // FUTURE: Re-enable when reputation module is implemented (tracked in TRACKING.md)
     /*
     // 1. Test Initial Reputation
     let mut rep = client.get_user_reputation(&user);

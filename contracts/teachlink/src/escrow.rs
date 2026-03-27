@@ -5,7 +5,7 @@ use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
-// TODO: Implement insurance module
+// FUTURE: Implement insurance module (tracked in TRACKING.md)
 /*
 use crate::insurance::InsuranceManager;
 */
