@@ -272,23 +272,34 @@ docker run --rm -v $(pwd):/workspace teachlink-dev cargo build --release --targe
 
 ## Architecture
 
+For full architecture documentation including system diagrams, data flow diagrams, and component interaction maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+**High-level overview:**
+
 ```
-Client Apps
+Client Apps  (Web / Mobile / External dApps)
     |
     v
-Indexer / API Layer (optional)
+Indexer / API Layer  (TypeScript / NestJS — optional)
     |
     v
-Soroban Smart Contract (Rust)
+TeachLink Smart Contract  (Rust / Soroban)
+    ├── Bridge & Consensus  (bridge, bft_consensus, slashing, multichain, liquidity)
+    ├── Platform Features   (rewards, escrow, tokenization, reputation, assessment)
+    └── Operations          (emergency, audit, analytics, reporting, backup)
     |
     v
 Stellar Network
+    |
+    v
+External Blockchains  (via cross-chain bridge)
 ```
 
 Key project paths:
 
 - `contracts/teachlink`: Soroban smart contract source
-- `scripts/`: onboarding and deployment script
+- `docs/ARCHITECTURE.md`: Full architecture diagrams and data flows
+- `scripts/`: onboarding and deployment scripts
 
 ## Development Workflow
 
