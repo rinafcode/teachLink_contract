@@ -19,9 +19,7 @@ fn mint_sac_token(env: &Env, token: &Address, to: &Address, amount: i128) {
     );
 }
 
-fn setup_rewards_with_sac(
-    env: &Env,
-) -> (TeachLinkBridgeClient<'_>, Address, Address, Address) {
+fn setup_rewards_with_sac(env: &Env) -> (TeachLinkBridgeClient<'_>, Address, Address, Address) {
     let contract_id = env.register(TeachLinkBridge, ());
     let client = TeachLinkBridgeClient::new(env, &contract_id);
 
