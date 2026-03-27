@@ -1,5 +1,35 @@
 use soroban_sdk::{contracttype, Address, Bytes, String, Vec};
 
+/// RBAC Role Constants
+pub const ROLE_SUPER_ADMIN: u32 = 1;
+pub const ROLE_RISK_MANAGER: u32 = 2;
+pub const ROLE_POOL_MANAGER: u32 = 3;
+pub const ROLE_ORACLE_MANAGER: u32 = 4;
+
+/// Critical operation for multi-sig
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct CriticalOperation {
+    pub id: u32,
+    pub action: CriticalAction,
+    pub proposer: Address,
+    pub created_at: u64,
+    pub ready_at: u64,
+    pub executed: bool,
+}
+
+/// Actions that require multi-sig or timelocks
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CriticalAction {
+    UpdateRiskModelWeight(u32, u32), // weight_id, new_value
+    PausePool(u64),
+    UnpausePool(u64),
+    ChangeBasePremium(i128),
+    UpdateMultiSigSettings(u32),    // new_threshold
+    ContractUpgrade(soroban_sdk::BytesN<32>),
+}
+
 /// Risk assessment factors for insurance pricing
 #[contracttype]
 #[derive(Clone, Debug, PartialEq, Eq)]
