@@ -59,6 +59,16 @@ pub enum InsuranceError {
     ReinsuranceLimitExceeded = 548,
     ParametricConditionNotMet = 549,
     ReportGenerationFailed = 550,
+
+    // RBAC & Multi-sig Errors (551+)
+    UnauthorizedRole = 551,
+    TransferNotPending = 552,
+    TimelockNotExpired = 553,
+    NotASigner = 554,
+    AlreadyApproved = 555,
+    ThresholdNotMet = 556,
+    OperationExecuted = 557,
+    OperationNotFound = 558,
 }
 
 /// Result type alias for insurance operations
