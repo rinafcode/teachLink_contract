@@ -128,6 +128,7 @@ mod storage;
 mod tokenization;
 mod types;
 pub mod validation;
+pub mod property_based_tests;
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
