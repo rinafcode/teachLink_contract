@@ -3,6 +3,7 @@
 //! Bridge monitoring and analytics for bridge operations, validator performance, and chain metrics.
 
 use crate::errors::BridgeError;
+use crate::interfaces::AnalyticsPort;
 use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};
 use crate::types::{BridgeMetrics, ChainMetrics};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
@@ -417,5 +418,19 @@ impl AnalyticsManager {
         let current_time = env.ledger().timestamp();
 
         current_time - metrics.last_updated > METRICS_UPDATE_INTERVAL
+    }
+}
+
+impl AnalyticsPort for AnalyticsManager {
+    fn bridge_metrics(env: &Env) -> BridgeMetrics {
+        Self::get_bridge_metrics(env)
+    }
+
+    fn health_score(env: &Env) -> u32 {
+        Self::calculate_health_score(env)
+    }
+
+    fn top_chains_by_volume(env: &Env, max: u32) -> Vec<(u32, i128)> {
+        Self::get_top_chains_by_volume_bounded(env, max)
     }
 }

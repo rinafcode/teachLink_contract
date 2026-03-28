@@ -4,10 +4,8 @@
 //! collaboration comments, alert rules, and dashboard-ready aggregate analytics
 //! for visualization.
 
-use crate::analytics::AnalyticsManager;
-use crate::audit::AuditManager;
 use crate::errors::BridgeError;
-use crate::escrow_analytics::EscrowAnalyticsManager;
+use crate::interfaces::{AnalyticsPort, AuditPort, EscrowMetricsPort};
 use crate::events::{
     AlertTriggeredEvent, ReportCommentAddedEvent, ReportGeneratedEvent, ReportScheduledEvent,
 };
@@ -147,7 +145,7 @@ impl ReportingManager {
     }
 
     /// Generate a report snapshot (stores result, emits event)
-    pub fn generate_report_snapshot(
+    pub fn generate_report_snapshot<An: AnalyticsPort, Au: AuditPort, Em: EscrowMetricsPort>(
         env: &Env,
         generator: Address,
         template_id: u64,
@@ -159,7 +157,7 @@ impl ReportingManager {
         let template =
             Self::get_report_template(env, template_id).ok_or(BridgeError::InvalidInput)?;
 
-        let analytics = Self::get_dashboard_analytics(env);
+        let analytics = Self::get_dashboard_analytics::<An, Au, Em>(env);
         // Summary stored as placeholder; full data available via get_dashboard_analytics
         let _ = analytics;
         let summary = Bytes::new(env);
@@ -385,16 +383,16 @@ impl ReportingManager {
     }
 
     /// Evaluate alert rules and emit AlertTriggeredEvent if any threshold is breached
-    pub fn evaluate_alerts(env: &Env) -> Vec<u64> {
+    pub fn evaluate_alerts<An: AnalyticsPort, Em: EscrowMetricsPort>(env: &Env) -> Vec<u64> {
         let rules: Map<u64, AlertRule> = env
             .storage()
             .instance()
             .get(&ALERT_RULES)
             .unwrap_or_else(|| Map::new(env));
 
-        let bridge_metrics = AnalyticsManager::get_bridge_metrics(env);
-        let health = AnalyticsManager::calculate_health_score(env);
-        let escrow_metrics = EscrowAnalyticsManager::get_metrics(env);
+        let bridge_metrics = An::bridge_metrics(env);
+        let health = An::health_score(env);
+        let escrow_metrics = Em::get_metrics(env);
 
         let mut triggered = Vec::new(env);
         for (rule_id, rule) in rules.iter() {
@@ -446,11 +444,13 @@ impl ReportingManager {
     }
 
     /// Get dashboard-ready aggregate analytics for visualizations
-    pub fn get_dashboard_analytics(env: &Env) -> DashboardAnalytics {
-        let bridge_metrics = AnalyticsManager::get_bridge_metrics(env);
-        let health = AnalyticsManager::calculate_health_score(env);
-        let escrow_metrics = EscrowAnalyticsManager::get_metrics(env);
-        let audit_count = AuditManager::get_audit_count(env);
+    pub fn get_dashboard_analytics<An: AnalyticsPort, Au: AuditPort, Em: EscrowMetricsPort>(
+        env: &Env,
+    ) -> DashboardAnalytics {
+        let bridge_metrics = An::bridge_metrics(env);
+        let health = An::health_score(env);
+        let escrow_metrics = Em::get_metrics(env);
+        let audit_count = Au::get_count(env);
 
         let compliance_count: u32 = 0; // Could be extended to count ComplianceReports if stored by id range
 
