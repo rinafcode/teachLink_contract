@@ -13,4 +13,5 @@ export * from './report-usage.entity';
 export * from './alert-rule.entity';
 export * from './alert-log.entity';
 export * from './backup-manifest.entity';
+export * from './backup-verification.entity';
 export * from './recovery-record.entity';

@@ -2,6 +2,7 @@
 resolver = "2"
 members = [
   "contracts/teachlink",
+  "contracts/documentation",
 ]
 
 [workspace.package]
@@ -10,7 +11,7 @@ repository = "https://github.com/rinafcode/teachLink_contract"
 license = "MIT"
 
 [workspace.dependencies]
-soroban-sdk = "20.0.0"
+soroban-sdk = "25.3.0"
 
 [profile.release]
 opt-level = "z"
