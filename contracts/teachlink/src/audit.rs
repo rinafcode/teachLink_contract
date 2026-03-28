@@ -90,7 +90,7 @@ impl AuditManager {
         for i in (start_search..=audit_counter).rev() {
             if let Some(record) = Self::get_audit_record(env, i) {
                 if record.timestamp >= start_time && record.timestamp <= end_time {
-                    result.push_back(record);
+                    result.push_back(record.clone());
                 }
                 if record.timestamp < start_time {
                     break; // Since records are mostly ordered by time
