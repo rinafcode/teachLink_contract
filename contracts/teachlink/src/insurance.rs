@@ -1,4 +1,5 @@
 use crate::errors::EscrowError;
+use crate::interfaces::InsurancePort;
 use crate::storage::INSURANCE_POOL;
 use crate::types::InsurancePool;
 #[cfg(test)]
@@ -144,5 +145,15 @@ impl InsuranceManager {
             return 40;
         }
         10
+    }
+}
+
+impl InsurancePort for InsuranceManager {
+    fn calculate_premium(env: &Env, amount: i128) -> i128 {
+        Self::calculate_premium(env, amount)
+    }
+
+    fn pay_premium(env: &Env, payer: Address, amount: i128) -> Result<(), EscrowError> {
+        Self::pay_premium_internal(env, payer, amount)
     }
 }
