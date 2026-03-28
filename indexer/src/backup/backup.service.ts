@@ -2,7 +2,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { BackupManifestRecord, RecoveryRecordEntity } from '@database/entities';
+import {
+  BackupManifestRecord,
+  BackupVerificationRecord,
+  RecoveryRecordEntity,
+} from '@database/entities';
 import { RtoTier } from '@database/entities/backup-manifest.entity';
 
 /**
@@ -15,6 +19,8 @@ export class BackupService {
   constructor(
     @InjectRepository(BackupManifestRecord)
     private backupManifestRepo: Repository<BackupManifestRecord>,
+    @InjectRepository(BackupVerificationRecord)
+    private backupVerificationRepo: Repository<BackupVerificationRecord>,
     @InjectRepository(RecoveryRecordEntity)
     private recoveryRecordRepo: Repository<RecoveryRecordEntity>,
   ) {}
@@ -35,16 +41,84 @@ export class BackupService {
     });
   }
 
+  async getVerificationRecords(limit = 100, backupId?: string): Promise<BackupVerificationRecord[]> {
+    const qb = this.backupVerificationRepo
+      .createQueryBuilder('v')
+      .orderBy('v.verifiedAt', 'DESC')
+      .take(limit);
+    if (backupId) qb.andWhere('v.backupId = :backupId', { backupId });
+    return qb.getMany();
+  }
+
   /** RTO metrics: average recovery duration and success rate */
   async getRtoMetrics(): Promise<{ avgDurationSecs: number; successCount: number; totalCount: number }> {
     const records = await this.recoveryRecordRepo.find({ take: 500 });
     const total = records.length;
-    const successCount = records.filter((r) => r.success).length;
-    const sumSecs = records.reduce((acc, r) => acc + Number(r.recoveryDurationSecs), 0);
+    const successCount = records.filter((r: RecoveryRecordEntity) => r.success).length;
+    const sumSecs = records.reduce(
+      (acc: number, r: RecoveryRecordEntity) => acc + Number(r.recoveryDurationSecs),
+      0,
+    );
     return {
       avgDurationSecs: total > 0 ? Math.round(sumSecs / total) : 0,
       successCount,
       totalCount: total,
+    };
+  }
+
+  /**
+   * Integrity metrics for backup verification success monitoring.
+   * Success rate is based on valid verifications in the selected time window.
+   */
+  async getIntegrityMetrics(windowHours = 24): Promise<{
+    windowHours: number;
+    totalBackups: number;
+    totalVerifications: number;
+    validVerifications: number;
+    invalidVerifications: number;
+    verificationSuccessRate: number;
+    backupCoverageRate: number;
+  }> {
+    const nowSecs = Math.floor(Date.now() / 1000);
+    const windowStart = String(nowSecs - (windowHours * 60 * 60));
+
+    const backups = await this.backupManifestRepo
+      .createQueryBuilder('b')
+      .where('b.createdAt >= :windowStart', { windowStart })
+      .getMany();
+
+    const verifications = await this.backupVerificationRepo
+      .createQueryBuilder('v')
+      .where('v.verifiedAt >= :windowStart', { windowStart })
+      .getMany();
+
+    const totalBackups = backups.length;
+    const totalVerifications = verifications.length;
+    const validVerifications = verifications.filter((v: BackupVerificationRecord) => v.valid).length;
+    const invalidVerifications = totalVerifications - validVerifications;
+
+    const verifiedBackupIds = new Set(
+      verifications.map((v: BackupVerificationRecord) => v.backupId),
+    );
+    const verifiedBackupsInWindow = backups.filter(
+      (b: BackupManifestRecord) => verifiedBackupIds.has(b.backupId),
+    ).length;
+
+    const verificationSuccessRate = totalVerifications > 0
+      ? Number(((validVerifications / totalVerifications) * 100).toFixed(2))
+      : 0;
+    const backupCoverageRate = totalBackups > 0
+      ? Number(((verifiedBackupsInWindow / totalBackups) * 100).toFixed(2))
+      : 0;
+
+    return {
+      windowHours,
+      totalBackups,
+      totalVerifications,
+      validVerifications,
+      invalidVerifications,
+      verificationSuccessRate,
+      backupCoverageRate,
     };
   }
 
@@ -71,6 +145,9 @@ export class BackupService {
   /** Automated backup check: run periodically; off-chain should call contract create_backup with integrity hash */
   @Cron(CronExpression.EVERY_HOUR)
   async runBackupCheck(): Promise<void> {
-    this.logger.log('Backup check: consider triggering create_backup for any scheduled backups (off-chain).');
+    const metrics = await this.getIntegrityMetrics(24);
+    this.logger.log(
+      `Backup check 24h: backups=${metrics.totalBackups} verifications=${metrics.totalVerifications} valid=${metrics.validVerifications} invalid=${metrics.invalidVerifications} success_rate=${metrics.verificationSuccessRate}% coverage=${metrics.backupCoverageRate}%`,
+    );
   }
 }

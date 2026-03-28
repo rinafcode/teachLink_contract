@@ -75,6 +75,11 @@ The TeachLink Indexer monitors the Stellar blockchain for TeachLink contract eve
 - CourseCompletedEvent
 - ContributionRecordedEvent
 
+**Backup and DR Events:**
+- BackupCreatedEvent
+- BackupVerifiedEvent
+- RecoveryExecutedEvent
+
 ## Installation
 
 ### Prerequisites
@@ -238,6 +243,15 @@ await indexerService.backfillHistoricalData(startLedger, endLedger);
 await indexerService.startIndexing();
 await indexerService.stopIndexing();
 ```
+
+### Backup and DR API Endpoints
+
+- `GET /backup/manifests`
+- `GET /backup/verifications`
+- `GET /backup/integrity-metrics`
+- `GET /backup/recoveries`
+- `GET /backup/rto-metrics`
+- `GET /backup/audit-trail`
 
 ## Testing
 
