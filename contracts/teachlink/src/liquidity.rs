@@ -38,7 +38,6 @@ impl LiquidityManager {
             total_liquidity: 0,
             available_liquidity: 0,
             locked_liquidity: 0,
-            lp_providers: Map::new(env),
         };
 
         let mut pools: Map<u32, LiquidityPool> = env
@@ -87,8 +86,10 @@ impl LiquidityManager {
         pool.available_liquidity += amount;
 
         // Create or update LP position
-        let mut lp_positions: Map<Address, LPPosition> = pool.lp_providers;
-        let position = if let Some(mut existing) = lp_positions.get(provider.clone()) {
+        let position_key = crate::storage::DataKey::LPPoolProvider(chain_id, provider.clone());
+        let position = if let Some(mut existing) =
+            env.storage().instance().get::<_, LPPosition>(&position_key)
+        {
             existing.amount += amount;
             existing.share_percentage = ((existing.amount * 10000) / pool.total_liquidity) as u32;
             existing
@@ -102,8 +103,7 @@ impl LiquidityManager {
             }
         };
 
-        lp_positions.set(provider.clone(), position);
-        pool.lp_providers = lp_positions;
+        env.storage().instance().set(&position_key, &position);
 
         // Update pool storage
         pools.set(chain_id, pool);
@@ -145,9 +145,11 @@ impl LiquidityManager {
             .ok_or(BridgeError::DestinationChainNotSupported)?;
 
         // Get LP position
-        let mut lp_positions: Map<Address, LPPosition> = pool.lp_providers.clone();
-        let mut position = lp_positions
-            .get(provider.clone())
+        let position_key = crate::storage::DataKey::LPPoolProvider(chain_id, provider.clone());
+        let mut position = env
+            .storage()
+            .instance()
+            .get::<_, LPPosition>(&position_key)
             .ok_or(BridgeError::InvalidInput)?;
 
         if amount > position.amount {
@@ -162,16 +164,15 @@ impl LiquidityManager {
         position.rewards_earned += rewards;
 
         if position.amount == 0 {
-            lp_positions.remove(provider.clone());
+            env.storage().instance().remove(&position_key);
         } else {
             position.share_percentage = ((position.amount * 10000) / pool.total_liquidity) as u32;
-            lp_positions.set(provider.clone(), position.clone());
+            env.storage().instance().set(&position_key, &position);
         }
 
         // Update pool
         pool.total_liquidity -= amount;
         pool.available_liquidity -= amount;
-        pool.lp_providers = lp_positions;
 
         // Update pool storage
         pools.set(chain_id, pool);
@@ -410,11 +411,9 @@ impl LiquidityManager {
 
     /// Get LP position
     pub fn get_lp_position(env: &Env, chain_id: u32, provider: Address) -> Option<LPPosition> {
-        if let Some(pool) = Self::get_pool(env, chain_id) {
-            pool.lp_providers.get(provider)
-        } else {
-            None
-        }
+        env.storage()
+            .instance()
+            .get(&crate::storage::DataKey::LPPoolProvider(chain_id, provider))
     }
 
     /// Get available liquidity for a chain
