@@ -163,7 +163,10 @@ impl MultiChainManager {
 
         // Store each chain config separately
         for (chain_id, config) in chain_configs.iter() {
-            env.storage().instance().set(&crate::storage::DataKey::MultiChainAssetConfig(new_asset_counter, chain_id), &config);
+            env.storage().instance().set(
+                &crate::storage::DataKey::MultiChainAssetConfig(new_asset_counter, chain_id),
+                &config,
+            );
         }
 
         // Create multi-chain asset (chain_configs field removed)
@@ -264,7 +267,12 @@ impl MultiChainManager {
 
     /// Check if a chain is supported and active
     pub fn is_chain_active(env: &Env, chain_id: u32) -> bool {
-        if !env.storage().instance().get::<_, bool>(&crate::storage::DataKey::SupportedChain(chain_id)).unwrap_or(false) {
+        if !env
+            .storage()
+            .instance()
+            .get::<_, bool>(&crate::storage::DataKey::SupportedChain(chain_id))
+            .unwrap_or(false)
+        {
             return false;
         }
 
@@ -304,12 +312,19 @@ impl MultiChainManager {
 
     /// Get chain asset info for a specific chain
     pub fn get_chain_asset_info(env: &Env, asset_id: u64, chain_id: u32) -> Option<ChainAssetInfo> {
-        env.storage().instance().get(&crate::storage::DataKey::MultiChainAssetConfig(asset_id, chain_id))
+        env.storage()
+            .instance()
+            .get(&crate::storage::DataKey::MultiChainAssetConfig(
+                asset_id, chain_id,
+            ))
     }
 
     /// Get all supported chains
     pub fn get_supported_chains(env: &Env) -> Vec<u32> {
-        env.storage().instance().get(&crate::storage::SUPPORTED_CHAINS_LIST).unwrap_or_else(|| Vec::new(env))
+        env.storage()
+            .instance()
+            .get(&crate::storage::SUPPORTED_CHAINS_LIST)
+            .unwrap_or_else(|| Vec::new(env))
     }
 
     /// Get all active assets
@@ -391,14 +406,20 @@ mod tests {
     use soroban_sdk::{Address, Bytes, Env, Map};
 
     fn seed_basic_state(env: &Env, destination_asset_active: bool) {
-        env.storage().instance().set(&crate::storage::DataKey::SupportedChain(1), &true);
-        env.storage().instance().set(&crate::storage::DataKey::SupportedChain(2), &true);
-        
+        env.storage()
+            .instance()
+            .set(&crate::storage::DataKey::SupportedChain(1), &true);
+        env.storage()
+            .instance()
+            .set(&crate::storage::DataKey::SupportedChain(2), &true);
+
         // Seed lists
         let mut list = Vec::new(env);
         list.push_back(1);
         list.push_back(2);
-        env.storage().instance().set(&crate::storage::SUPPORTED_CHAINS_LIST, &list);
+        env.storage()
+            .instance()
+            .set(&crate::storage::SUPPORTED_CHAINS_LIST, &list);
 
         let chain1 = ChainConfig {
             chain_id: 1,
@@ -426,18 +447,24 @@ mod tests {
         env.storage().instance().set(&CHAIN_CONFIGS, &chain_configs);
 
         // Seed granular asset configs
-        env.storage().instance().set(&crate::storage::DataKey::MultiChainAssetConfig(1, 1), &ChainAssetInfo {
+        env.storage().instance().set(
+            &crate::storage::DataKey::MultiChainAssetConfig(1, 1),
+            &ChainAssetInfo {
                 chain_id: 1,
                 token_address: Bytes::from_slice(env, b"token-1"),
                 decimals: 7,
                 is_active: true,
-            });
-        env.storage().instance().set(&crate::storage::DataKey::MultiChainAssetConfig(1, 2), &ChainAssetInfo {
+            },
+        );
+        env.storage().instance().set(
+            &crate::storage::DataKey::MultiChainAssetConfig(1, 2),
+            &ChainAssetInfo {
                 chain_id: 2,
                 token_address: Bytes::from_slice(env, b"token-2"),
                 decimals: 7,
                 is_active: destination_asset_active,
-            });
+            },
+        );
 
         let asset = MultiChainAsset {
             asset_id: Bytes::from_slice(env, b"USDC"),
