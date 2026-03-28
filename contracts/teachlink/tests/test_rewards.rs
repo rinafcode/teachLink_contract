@@ -77,6 +77,7 @@ struct Setup {
     client: TeachLinkBridgeClient<'static>,
     token_client: TestTokenClient<'static>,
     token_id: Address,
+    #[allow(dead_code)]
     admin: Address,
     rewards_admin: Address,
     contract_id: Address,

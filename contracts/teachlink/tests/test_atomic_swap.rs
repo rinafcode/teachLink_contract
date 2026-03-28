@@ -5,7 +5,7 @@
 //! which need a real token contract; we test validation and state logic directly).
 
 use soroban_sdk::{testutils::Address as _, testutils::Ledger, Address, Bytes, Env};
-use teachlink_contract::{BridgeError, SwapStatus, TeachLinkBridge};
+use teachlink_contract::TeachLinkBridge;
 
 fn setup() -> (Env, Address) {
     let env = Env::default();
