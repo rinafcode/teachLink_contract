@@ -1,0 +1,168 @@
+{
+  "version": "1.0.0",
+  "description": "Gas benchmark regression thresholds for TeachLink contract operations",
+  "last_updated": "2026-03-28",
+  "thresholds": {
+    "contract_operations": {
+      "initialize": {
+        "max_instructions": 500000,
+        "max_memory_bytes": 50000,
+        "description": "Contract initialization"
+      },
+      "add_validator": {
+        "max_instructions": 200000,
+        "max_memory_bytes": 10000,
+        "description": "Adding a validator to bridge"
+      },
+      "add_supported_chain": {
+        "max_instructions": 200000,
+        "max_memory_bytes": 10000,
+        "description": "Adding a supported destination chain"
+      },
+      "set_bridge_fee": {
+        "max_instructions": 150000,
+        "max_memory_bytes": 5000,
+        "description": "Setting bridge transaction fee"
+      },
+      "read_query": {
+        "max_instructions": 100000,
+        "max_memory_bytes": 5000,
+        "description": "Read-only queries (get_token, get_nonce, etc.)"
+      }
+    },
+    "bridge_operations": {
+      "bridge_out": {
+        "max_instructions": 800000,
+        "max_memory_bytes": 50000,
+        "description": "Locking tokens for cross-chain bridge"
+      },
+      "complete_bridge": {
+        "max_instructions": 1000000,
+        "max_memory_bytes": 80000,
+        "description": "Completing a bridge transaction with validator signatures"
+      },
+      "cancel_bridge": {
+        "max_instructions": 500000,
+        "max_memory_bytes": 30000,
+        "description": "Cancelling a pending bridge transaction"
+      }
+    },
+    "performance_cache": {
+      "cache_hit": {
+        "max_instructions": 200000,
+        "max_memory_bytes": 20000,
+        "description": "Reading from performance cache (fresh)"
+      },
+      "cache_miss_compute": {
+        "max_instructions": 1500000,
+        "max_memory_bytes": 100000,
+        "description": "Computing bridge summary on cache miss"
+      },
+      "cache_invalidation": {
+        "max_instructions": 150000,
+        "max_memory_bytes": 5000,
+        "description": "Invalidating performance cache"
+      }
+    },
+    "consensus": {
+      "register_validator": {
+        "max_instructions": 500000,
+        "max_memory_bytes": 30000,
+        "description": "Registering a BFT consensus validator"
+      },
+      "create_proposal": {
+        "max_instructions": 400000,
+        "max_memory_bytes": 30000,
+        "description": "Creating a bridge proposal for consensus"
+      },
+      "vote_on_proposal": {
+        "max_instructions": 300000,
+        "max_memory_bytes": 20000,
+        "description": "Voting on a bridge proposal"
+      }
+    },
+    "tokenization": {
+      "mint_content_token": {
+        "max_instructions": 600000,
+        "max_memory_bytes": 50000,
+        "description": "Minting an educational content NFT"
+      },
+      "transfer_content_token": {
+        "max_instructions": 500000,
+        "max_memory_bytes": 30000,
+        "description": "Transferring content token ownership"
+      },
+      "update_metadata": {
+        "max_instructions": 400000,
+        "max_memory_bytes": 30000,
+        "description": "Updating content token metadata"
+      }
+    },
+    "rewards": {
+      "initialize_rewards": {
+        "max_instructions": 400000,
+        "max_memory_bytes": 20000,
+        "description": "Initializing the rewards system"
+      },
+      "fund_reward_pool": {
+        "max_instructions": 500000,
+        "max_memory_bytes": 20000,
+        "description": "Funding the reward pool"
+      },
+      "issue_reward": {
+        "max_instructions": 400000,
+        "max_memory_bytes": 20000,
+        "description": "Issuing rewards to a user"
+      },
+      "claim_rewards": {
+        "max_instructions": 600000,
+        "max_memory_bytes": 30000,
+        "description": "Claiming pending rewards"
+      }
+    },
+    "messaging": {
+      "send_packet": {
+        "max_instructions": 700000,
+        "max_memory_bytes": 50000,
+        "description": "Sending a cross-chain packet"
+      },
+      "deliver_packet": {
+        "max_instructions": 500000,
+        "max_memory_bytes": 30000,
+        "description": "Marking a packet as delivered"
+      }
+    },
+    "notifications": {
+      "send_notification": {
+        "max_instructions": 350000,
+        "max_memory_bytes": 20000,
+        "description": "Sending an in-app notification"
+      }
+    },
+    "mobile_platform": {
+      "initialize_mobile_profile": {
+        "max_instructions": 400000,
+        "max_memory_bytes": 30000,
+        "description": "Initializing user mobile profile"
+      }
+    },
+    "audit": {
+      "create_audit_record": {
+        "max_instructions": 400000,
+        "max_memory_bytes": 20000,
+        "description": "Creating an audit trail record"
+      }
+    },
+    "wasm_binary": {
+      "max_size_bytes": 307200,
+      "warning_size_bytes": 256000,
+      "description": "WASM binary size limit (300 KB)"
+    }
+  },
+  "regression_policy": {
+    "max_percentage_increase": 10,
+    "warning_percentage_increase": 5,
+    "fail_on_regression": true,
+    "baseline_file": "gas_baseline.json"
+  }
+}
