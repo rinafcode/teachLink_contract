@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { Module, NestModule } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { CorrelationIdMiddleware } from './middleware/correlation-id.middleware';
 import configuration from './config/configuration';
 import { DatabaseModule } from '@database/database.module';
 import { HorizonModule } from '@horizon/horizon.module';
@@ -32,4 +33,10 @@ import { PerformanceModule } from './performance/performance.module';
     PerformanceModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: any) {
+    consumer
+      .apply(CorrelationIdMiddleware)
+      .forRoutes('*');
+  }
+}

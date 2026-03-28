@@ -27,4 +27,9 @@ export default () => ({
     port: parseInt(process.env.PORT || '3000', 10),
     logLevel: process.env.LOG_LEVEL || 'debug',
   },
+  logging: {
+    level: process.env.LOG_LEVEL || 'info',
+    format: process.env.LOG_FORMAT || 'json',
+    prettyPrint: process.env.NODE_ENV === 'development' ? true : false,
+  },
 });

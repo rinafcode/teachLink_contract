@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Server, ServerApi } from '@stellar/stellar-sdk/lib/horizon';
+import { getCorrelationId } from '../../utils/async-storage';
 
 export interface ProcessedEvent {
   type: string;
@@ -35,9 +36,18 @@ export class HorizonService implements OnModuleInit {
       this.networkPassphrase = StellarSdk.Networks.TESTNET;
     }
 
-    this.logger.log(`Horizon service initialized for ${network} network`);
-    this.logger.log(`Horizon URL: ${horizonUrl}`);
-    this.logger.log(`Contract ID: ${this.contractId}`);
+    this.logger.log(`Horizon service initialized for ${network} network`, { 
+      correlationId: getCorrelationId() || 'unknown',
+      network 
+    });
+    this.logger.log(`Horizon URL: ${horizonUrl}`, { 
+      correlationId: getCorrelationId() || 'unknown',
+      horizonUrl 
+    });
+    this.logger.log(`Contract ID: ${this.contractId}`, { 
+      correlationId: getCorrelationId() || 'unknown',
+      contractId: this.contractId 
+    });
   }
 
   /**
@@ -48,7 +58,10 @@ export class HorizonService implements OnModuleInit {
     onEvent: (event: ProcessedEvent) => Promise<void>,
     onError?: (error: Error) => void,
   ): Promise<() => void> {
-    this.logger.log(`Starting event stream from ledger ${startLedger}`);
+    this.logger.log(`Starting event stream from ledger ${startLedger}`, { 
+      correlationId: getCorrelationId() || 'unknown',
+      startLedger 
+    });
 
     let cursor = startLedger === 'latest' ? 'now' : startLedger;
 
@@ -72,14 +85,22 @@ export class HorizonService implements OnModuleInit {
               }
             }
           } catch (error: any) {
-            this.logger.error(`Error processing operation: ${error.message}`, error.stack);
+            this.logger.error(`Error processing operation: ${error.message}`, { 
+              correlationId: getCorrelationId() || 'unknown',
+              error: error.message,
+              stack: error.stack 
+            });
             if (onError) {
               onError(error);
             }
           }
         },
         onerror: (error: any) => {
-          this.logger.error(`Stream error: ${error.message}`, error.stack);
+           this.logger.error(`Stream error: ${error.message}`, { 
+             correlationId: getCorrelationId() || 'unknown',
+             error: error.message,
+             stack: error.stack 
+           });
           if (onError) {
             onError(new Error(error.message || 'Stream error'));
           }
@@ -96,7 +117,11 @@ export class HorizonService implements OnModuleInit {
     startLedger: number,
     endLedger: number,
   ): Promise<ProcessedEvent[]> {
-    this.logger.log(`Fetching operations from ledger ${startLedger} to ${endLedger}`);
+    this.logger.log(`Fetching operations from ledger ${startLedger} to ${endLedger}`, { 
+      correlationId: getCorrelationId() || 'unknown',
+      startLedger,
+      endLedger 
+    });
 
     const allEvents: ProcessedEvent[] = [];
 

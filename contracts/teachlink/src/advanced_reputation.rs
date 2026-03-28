@@ -3,8 +3,8 @@
 //! This module implements sophisticated reputation algorithms with social proof,
 //! cross-platform aggregation, and external credit scoring integration.
 
-use crate::types::{UserReputation, Address, Bytes, Map, Vec, u64, u32};
-use soroban_sdk::{contracttype, contracterror, Env, Symbol, symbol_short, panic_with_error};
+use crate::types::{u32, u64, Address, Bytes, Map, UserReputation, Vec};
+use soroban_sdk::{contracterror, contracttype, panic_with_error, symbol_short, Env, Symbol};
 
 const ADVANCED_REPUTATION: Symbol = symbol_short!("adv_rep");
 const SOCIAL_PROOF: Symbol = symbol_short!("soc_proof");
@@ -218,9 +218,9 @@ pub enum TransactionStatus {
 pub struct ReputationAnalytics {
     pub user: Address,
     pub reputation_trend: Vec<u64>, // Historical scores
-    pub growth_rate: u64, // Basis points
-    pub volatility: u64, // Basis points
-    pub prediction: u64, // Predicted future score
+    pub growth_rate: u64,           // Basis points
+    pub volatility: u64,            // Basis points
+    pub prediction: u64,            // Predicted future score
     pub recommendations: Vec<ReputationRecommendation>,
     pub last_analyzed: u64,
 }
@@ -267,7 +267,7 @@ impl AdvancedReputationManager {
     /// Initialize advanced reputation system for a user
     pub fn initialize_user(env: &Env, user: Address) -> Result<(), AdvancedReputationError> {
         user.require_auth();
-        
+
         let base_rep = UserReputation {
             participation_score: 0,
             completion_rate: 0,
@@ -314,7 +314,7 @@ impl AdvancedReputationManager {
 
         Self::set_advanced_reputation(env, &user, &advanced_rep);
         Self::set_social_proof(env, &user, &social_proof);
-        
+
         Ok(())
     }
 
@@ -328,14 +328,14 @@ impl AdvancedReputationManager {
         comment: Bytes,
     ) -> Result<(), AdvancedReputationError> {
         endorser.require_auth();
-        
+
         if rating < 1 || rating > 5 {
             return Err(AdvancedReputationError::InvalidEndorsement);
         }
 
         let mut social_proof = Self::get_social_proof(env, &target_user);
         let endorser_rep = Self::calculate_reputation_score(env, &endorser);
-        
+
         let endorsement = Endorsement {
             endorser: endorser.clone(),
             skill_area: skill_area.clone(),
@@ -351,7 +351,7 @@ impl AdvancedReputationManager {
 
         Self::set_social_proof(env, &target_user, &social_proof);
         Self::update_composite_score(env, &target_user);
-        
+
         Ok(())
     }
 
@@ -366,9 +366,9 @@ impl AdvancedReputationManager {
         expires_at: u64,
     ) -> Result<(), AdvancedReputationError> {
         verifier.require_auth();
-        
+
         let mut social_proof = Self::get_social_proof(env, &target_user);
-        
+
         let verification = Verification {
             verifier: verifier.clone(),
             verification_type: verification_type.clone(),
@@ -383,7 +383,7 @@ impl AdvancedReputationManager {
 
         Self::set_social_proof(env, &target_user, &social_proof);
         Self::update_composite_score(env, &target_user);
-        
+
         Ok(())
     }
 
@@ -402,7 +402,7 @@ impl AdvancedReputationManager {
 
         Self::set_cross_platform_reputation(env, &user, &cross_platform);
         Self::update_composite_score(env, &user);
-        
+
         Ok(())
     }
 
@@ -431,7 +431,7 @@ impl AdvancedReputationManager {
 
         Self::set_external_credit_data(env, &user, &external_credit);
         Self::update_composite_score(env, &user);
-        
+
         Ok(())
     }
 
@@ -444,10 +444,10 @@ impl AdvancedReputationManager {
         duration: u64,
     ) -> Result<(), AdvancedReputationError> {
         user.require_auth();
-        
+
         let premium = Self::calculate_insurance_premium(coverage_amount, coverage_type);
         let mut advanced_rep = Self::get_advanced_reputation(env, &user);
-        
+
         // Check if user has sufficient reputation for insurance
         if advanced_rep.reputation_score < coverage_amount / 1000 {
             return Err(AdvancedReputationError::ReputationTooLow);
@@ -466,7 +466,7 @@ impl AdvancedReputationManager {
 
         advanced_rep.insurance_coverage = insurance;
         Self::set_advanced_reputation(env, &user, &advanced_rep);
-        
+
         Ok(())
     }
 
@@ -480,7 +480,7 @@ impl AdvancedReputationManager {
         conditions: Vec<Bytes>,
     ) -> Result<u64, AdvancedReputationError> {
         seller.require_auth();
-        
+
         let mut advanced_rep = Self::get_advanced_reputation(env, &seller);
         if advanced_rep.reputation_score < reputation_amount as u64 {
             return Err(AdvancedReputationError::InsufficientReputation);
@@ -501,7 +501,7 @@ impl AdvancedReputationManager {
         let mut marketplace = Self::get_reputation_marketplace(env);
         marketplace.reputation_listings.push_back(listing);
         Self::set_reputation_marketplace(env, &marketplace);
-        
+
         Ok(listing_id)
     }
 
@@ -523,14 +523,19 @@ impl AdvancedReputationManager {
             base_score * 40 + // 40% weight
             social_score * 25 + // 25% weight
             platform_score * 20 + // 20% weight
-            credit_score * 15 // 15% weight
+            credit_score * 15
+            // 15% weight
         ) / 100;
 
         // Apply boost factors
         let boosted_score = Self::apply_boost_factors(&advanced_rep.boost_factors, composite_score);
 
         // Apply time decay
-        let final_score = Self::apply_time_decay(boosted_score, advanced_rep.decay_factor, advanced_rep.last_updated);
+        let final_score = Self::apply_time_decay(
+            boosted_score,
+            advanced_rep.decay_factor,
+            advanced_rep.last_updated,
+        );
 
         advanced_rep.reputation_score = final_score;
         advanced_rep.reputation_tier = Self::calculate_reputation_tier(final_score);
@@ -608,7 +613,8 @@ impl AdvancedReputationManager {
             return 0;
         }
 
-        let on_time_ratio = (payment_history.on_time_payments * 1000) / payment_history.total_payments;
+        let on_time_ratio =
+            (payment_history.on_time_payments * 1000) / payment_history.total_payments;
         let streak_bonus = payment_history.payment_streak * 10;
 
         (on_time_ratio + streak_bonus).min(1000)
@@ -618,7 +624,8 @@ impl AdvancedReputationManager {
         let mut multiplier = 100u32; // Base multiplier (100%)
 
         for boost in boost_factors.iter() {
-            if boost.expires_at > 0 { // Active boost
+            if boost.expires_at > 0 {
+                // Active boost
                 multiplier += boost.multiplier;
             }
         }
@@ -630,8 +637,9 @@ impl AdvancedReputationManager {
         // Simple time decay - can be made more sophisticated
         let current_time = 1234567890; // Would use env.ledger().timestamp()
         let time_diff = current_time - last_updated;
-        
-        if time_diff > 86400 * 30 { // 30 days
+
+        if time_diff > 86400 * 30 {
+            // 30 days
             (score * decay_factor as u64) / 100
         } else {
             score
@@ -666,7 +674,12 @@ impl AdvancedReputationManager {
             .persistent()
             .get(&(ADVANCED_REPUTATION, user.clone()))
             .unwrap_or_else(|| {
-                panic_with_error!(env, AdvancedReputationError::UnauthorizedAccess)
+                log_and_panic!(
+                    env,
+                    AdvancedReputationError::UnauthorizedAccess,
+                    "Advanced reputation not found for user: {}",
+                    user
+                )
             })
     }
 
@@ -711,7 +724,11 @@ impl AdvancedReputationManager {
             })
     }
 
-    fn set_cross_platform_reputation(env: &Env, user: &Address, cross_platform: &CrossPlatformReputation) {
+    fn set_cross_platform_reputation(
+        env: &Env,
+        user: &Address,
+        cross_platform: &CrossPlatformReputation,
+    ) {
         env.storage()
             .persistent()
             .set(&(CROSS_PLATFORM_REP, user.clone()), cross_platform);

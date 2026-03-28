@@ -3,8 +3,8 @@
 //! This module implements AI-powered content quality assessment, plagiarism detection,
 //! community moderation, and quality scoring mechanisms.
 
-use crate::types::{Address, Bytes, Map, Vec, u64, u32};
-use soroban_sdk::{contracttype, contracterror, Env, Symbol, symbol_short, panic_with_error};
+use crate::types::{u32, u64, Address, Bytes, Map, Vec};
+use soroban_sdk::{contracterror, contracttype, panic_with_error, symbol_short, Env, Symbol};
 
 const CONTENT_QUALITY: Symbol = symbol_short!("content_qual");
 const PLAGIARISM_CHECK: Symbol = symbol_short!("plag_check");
@@ -33,14 +33,14 @@ pub struct ContentQualityAssessment {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QualityDimensions {
-    pub accuracy_score: u32, // Factual correctness
-    pub clarity_score: u32, // How clear and understandable
-    pub completeness_score: u32, // Coverage of topic
-    pub engagement_score: u64, // Basis points // How engaging/interactive
+    pub accuracy_score: u32,      // Factual correctness
+    pub clarity_score: u32,       // How clear and understandable
+    pub completeness_score: u32,  // Coverage of topic
+    pub engagement_score: u64,    // Basis points // How engaging/interactive
     pub accessibility_score: u32, // Accessibility compliance
-    pub technical_quality: u32, // Audio/video quality, formatting
-    pub educational_value: u32, // Learning effectiveness
-    pub originality_score: u32, // How original/unique
+    pub technical_quality: u32,   // Audio/video quality, formatting
+    pub educational_value: u32,   // Learning effectiveness
+    pub originality_score: u32,   // How original/unique
 }
 
 #[contracttype]
@@ -53,7 +53,7 @@ pub struct AIQualityAnalysis {
     pub structure_analysis: StructureAnalysis,
     pub multimedia_quality: MultimediaQuality,
     pub learning_objectives_alignment: u64, // Basis points
-    pub target_appropriateness: u64, // Basis points
+    pub target_appropriateness: u64,        // Basis points
     pub content_gaps: Vec<ContentGap>,
 }
 
@@ -159,7 +159,7 @@ pub struct ImageQualityMetrics {
     pub compression_quality: u32,
     pub color_accuracy: u32,
     pub noise_level: u32,
-    pub sharpness_score: u64, // Basis points
+    pub sharpness_score: u64,   // Basis points
     pub composition_score: u64, // Basis points
 }
 
@@ -167,9 +167,9 @@ pub struct ImageQualityMetrics {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct InteractiveElement {
     pub element_type: InteractiveType,
-    pub functionality_score: u64, // Basis points
+    pub functionality_score: u64,   // Basis points
     pub user_experience_score: u64, // Basis points
-    pub accessibility_score: u64, // Basis points
+    pub accessibility_score: u64,   // Basis points
     pub mobile_friendly: bool,
 }
 
@@ -300,7 +300,7 @@ pub struct SourceAnalysis {
     pub self_citations: u32,
     pub credible_sources: u32,
     pub source_diversity: u64, // Basis points
-    pub recency_score: u64, // Basis points
+    pub recency_score: u64,    // Basis points
 }
 
 #[contracttype]
@@ -308,7 +308,7 @@ pub struct SourceAnalysis {
 pub struct ParaphrasingAnalysis {
     pub sentence_structure_similarity: u64, // Basis points
     pub vocabulary_substitution_score: u64, // Basis points
-    pub idea_preservation_score: u64, // Basis points
+    pub idea_preservation_score: u64,       // Basis points
     pub is_sophisticated_paraphrasing: bool,
     pub detection_confidence: u64, // Basis points
 }
@@ -319,7 +319,7 @@ pub struct CitationAnalysis {
     pub total_citations: u32,
     pub proper_citations: u32,
     pub missing_citations: u32,
-    pub citation_format_score: u64, // Basis points
+    pub citation_format_score: u64,    // Basis points
     pub source_credibility_score: u64, // Basis points
 }
 
@@ -446,9 +446,9 @@ pub struct ModerationStats {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ModeratorPerformance {
     pub reviews_completed: u32,
-    pub accuracy_score: u64, // Basis points
-    pub consistency_score: u64, // Basis points
-    pub speed_score: u64, // Basis points
+    pub accuracy_score: u64,     // Basis points
+    pub consistency_score: u64,  // Basis points
+    pub speed_score: u64,        // Basis points
     pub community_feedback: u64, // Basis points
 }
 
@@ -521,7 +521,7 @@ pub struct QualityAnalytics {
 pub struct QualityTrend {
     pub period: TimePeriod,
     pub average_score: u64, // Basis points
-    pub median_score: u64, // Basis points
+    pub median_score: u64,  // Basis points
     pub score_distribution: Map<ScoreRange, u32>,
     pub content_volume: u32,
     pub improvement_rate: u64, // Basis points
@@ -562,7 +562,7 @@ pub struct CreatorQualityScore {
     pub creator: Address,
     pub overall_score: u64, // Basis points
     pub content_count: u32,
-    pub average_rating: u64, // Basis points
+    pub average_rating: u64,    // Basis points
     pub consistency_score: u64, // Basis points
     pub improvement_trend: u64, // Basis points
     pub specialty_areas: Vec<Bytes>,
@@ -571,11 +571,11 @@ pub struct CreatorQualityScore {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QualityDistribution {
-    pub excellent_content: u32, // 90-100
-    pub good_content: u32, // 75-89
-    pub average_content: u32, // 60-74
+    pub excellent_content: u32,     // 90-100
+    pub good_content: u32,          // 75-89
+    pub average_content: u32,       // 60-74
     pub below_average_content: u32, // 40-59
-    pub poor_content: u32, // 0-39
+    pub poor_content: u32,          // 0-39
 }
 
 #[contracttype]
@@ -602,9 +602,9 @@ pub enum OpportunityType {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct BenchmarkComparison {
-    pub platform_average: u64, // Basis points
-    pub industry_average: u64, // Basis points
-    pub top_quartile: u64, // Basis points
+    pub platform_average: u64,  // Basis points
+    pub industry_average: u64,  // Basis points
+    pub top_quartile: u64,      // Basis points
     pub relative_position: u64, // Basis points // 0-1 percentile
     pub gap_to_excellence: u64, // Basis points
     pub competitive_advantages: Vec<Bytes>,
@@ -613,7 +613,7 @@ pub struct BenchmarkComparison {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PredictiveQualityMetrics {
-    pub predicted_quality_score: u64, // Basis points
+    pub predicted_quality_score: u64,    // Basis points
     pub confidence_interval: (u64, u64), // Both as basis points
     pub risk_factors: Vec<QualityRiskFactor>,
     pub improvement_trajectory: Vec<PredictedImprovement>,
@@ -624,7 +624,7 @@ pub struct PredictiveQualityMetrics {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct QualityRiskFactor {
     pub factor_type: RiskFactorType,
-    pub probability: u64, // Basis points
+    pub probability: u64,     // Basis points
     pub impact_severity: u64, // Basis points
     pub mitigation_strategies: Vec<Bytes>,
 }
@@ -642,9 +642,9 @@ pub enum RiskFactorType {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PredictedImprovement {
-    pub timeframe: u64, // Days
+    pub timeframe: u64,            // Days
     pub expected_improvement: u64, // Basis points
-    pub confidence_level: u64, // Basis points
+    pub confidence_level: u64,     // Basis points
     pub required_actions: Vec<Bytes>,
 }
 
@@ -731,7 +731,7 @@ pub struct QualityIssue {
     pub issue_type: IssueType,
     pub description: Bytes,
     pub frequency: u32,
-    pub severity: u64, // Basis points
+    pub severity: u64,                    // Basis points
     pub affected_content_percentage: u64, // Basis points
 }
 
@@ -794,19 +794,20 @@ impl ContentQualityManager {
     ) -> Result<ContentQualityAssessment, ContentQualityError> {
         // Perform AI analysis
         let ai_analysis = Self::perform_ai_analysis(env, &content_data);
-        
+
         // Run automated quality checks
         let automated_checks = Self::run_automated_checks(env, &content_data);
-        
+
         // Calculate quality dimensions
-        let quality_dimensions = Self::calculate_quality_dimensions(&ai_analysis, &automated_checks);
-        
+        let quality_dimensions =
+            Self::calculate_quality_dimensions(&ai_analysis, &automated_checks);
+
         // Generate improvement suggestions
         let improvement_suggestions = Self::generate_improvement_suggestions(&quality_dimensions);
-        
+
         // Calculate overall score
         let overall_score = Self::calculate_overall_score(&quality_dimensions);
-        
+
         let assessment = ContentQualityAssessment {
             content_id,
             overall_score,
@@ -820,7 +821,7 @@ impl ContentQualityManager {
         };
 
         Self::set_quality_assessment(env, &content_id, &assessment);
-        
+
         Ok(assessment)
     }
 
@@ -835,10 +836,11 @@ impl ContentQualityManager {
         let source_analysis = Self::analyze_sources(&similarity_matches);
         let paraphrasing_detection = Self::detect_paraphrasing(&content_text);
         let citation_analysis = Self::analyze_citations(&content_text);
-        
-        let originality_score = Self::calculate_originality_score(&similarity_matches, &paraphrasing_detection);
+
+        let originality_score =
+            Self::calculate_originality_score(&similarity_matches, &paraphrasing_detection);
         let ai_generated_probability = Self::detect_ai_generated_content(&content_text);
-        
+
         let report = PlagiarismReport {
             content_id,
             originality_score,
@@ -852,7 +854,7 @@ impl ContentQualityManager {
         };
 
         Self::set_plagiarism_report(env, &content_id, &report);
-        
+
         Ok(report)
     }
 
@@ -876,7 +878,7 @@ impl ContentQualityManager {
         };
 
         Self::add_to_moderation_queue(env, &pending_review);
-        
+
         Ok(())
     }
 
@@ -888,7 +890,7 @@ impl ContentQualityManager {
         deadline: u64,
     ) -> Result<u64, ContentQualityError> {
         let current_assessment = Self::get_quality_assessment(env, &content_id);
-        
+
         if current_assessment.overall_score >= target_quality_score {
             return Err(ContentQualityError::QualityThresholdNotMet);
         }
@@ -899,7 +901,10 @@ impl ContentQualityManager {
             content_id,
             current_score: current_assessment.overall_score,
             target_score: target_quality_score,
-            improvement_actions: Self::generate_improvement_actions(&current_assessment, target_quality_score),
+            improvement_actions: Self::generate_improvement_actions(
+                &current_assessment,
+                target_quality_score,
+            ),
             deadline,
             status: ImprovementStatus::Active,
             created_at: env.ledger().timestamp(),
@@ -907,7 +912,7 @@ impl ContentQualityManager {
         };
 
         Self::set_improvement_plan(env, &plan_id, &improvement_plan);
-        
+
         Ok(plan_id)
     }
 
@@ -949,7 +954,7 @@ impl ContentQualityManager {
 
     fn run_automated_checks(env: &Env, content_data: &ContentData) -> Vec<AutomatedQualityCheck> {
         let mut checks = Vec::new(env);
-        
+
         // Grammar check
         checks.push_back(AutomatedQualityCheck {
             check_type: AutomatedCheckType::GrammarCheck,
@@ -958,7 +963,7 @@ impl ContentQualityManager {
             details: Bytes::from_slice(env, b"No grammar errors detected"),
             timestamp: env.ledger().timestamp(),
         });
-        
+
         // Spelling check
         checks.push_back(AutomatedQualityCheck {
             check_type: AutomatedCheckType::SpellingCheck,
@@ -967,11 +972,14 @@ impl ContentQualityManager {
             details: Bytes::from_slice(env, b"Potential spelling issues found"),
             timestamp: env.ledger().timestamp(),
         });
-        
+
         checks
     }
 
-    fn calculate_quality_dimensions(ai_analysis: &AIQualityAnalysis, automated_checks: &Vec<AutomatedQualityCheck>) -> QualityDimensions {
+    fn calculate_quality_dimensions(
+        ai_analysis: &AIQualityAnalysis,
+        automated_checks: &Vec<AutomatedQualityCheck>,
+    ) -> QualityDimensions {
         QualityDimensions {
             accuracy_score: 85,
             clarity_score: ai_analysis.readability_score,
@@ -985,16 +993,15 @@ impl ContentQualityManager {
     }
 
     fn calculate_overall_score(dimensions: &QualityDimensions) -> u32 {
-        let weighted_sum = 
-            dimensions.accuracy_score * 20 +
-            dimensions.clarity_score * 15 +
-            dimensions.completeness_score * 15 +
-            dimensions.engagement_score * 15 +
-            dimensions.accessibility_score * 10 +
-            dimensions.technical_quality * 10 +
-            dimensions.educational_value * 10 +
-            dimensions.originality_score * 5;
-        
+        let weighted_sum = dimensions.accuracy_score * 20
+            + dimensions.clarity_score * 15
+            + dimensions.completeness_score * 15
+            + dimensions.engagement_score * 15
+            + dimensions.accessibility_score * 10
+            + dimensions.technical_quality * 10
+            + dimensions.educational_value * 10
+            + dimensions.originality_score * 5;
+
         weighted_sum / 100
     }
 
@@ -1011,7 +1018,7 @@ impl ContentQualityManager {
             self_citations: 1,
             credible_sources: 3,
             source_diversity: 7000, // 70% as basis points
-            recency_score: 8000, // 80% as basis points
+            recency_score: 8000,    // 80% as basis points
         }
     }
 
@@ -1019,7 +1026,7 @@ impl ContentQualityManager {
         ParaphrasingAnalysis {
             sentence_structure_similarity: 3000, // 30% as basis points
             vocabulary_substitution_score: 4000, // 40% as basis points
-            idea_preservation_score: 9000, // 90% as basis points
+            idea_preservation_score: 9000,       // 90% as basis points
             is_sophisticated_paraphrasing: false,
             detection_confidence: 7500, // 75% as basis points
         }
@@ -1035,11 +1042,14 @@ impl ContentQualityManager {
         }
     }
 
-    fn calculate_originality_score(matches: &Vec<SimilarityMatch>, paraphrasing: &ParaphrasingAnalysis) -> u64 {
+    fn calculate_originality_score(
+        matches: &Vec<SimilarityMatch>,
+        paraphrasing: &ParaphrasingAnalysis,
+    ) -> u64 {
         let base_score = 100;
         let similarity_penalty = matches.iter().map(|m| m.similarity_percentage as u64).sum();
         let paraphrasing_penalty = (paraphrasing.sentence_structure_similarity * 50) / 10000;
-        
+
         (base_score - similarity_penalty - paraphrasing_penalty).max(0)
     }
 
@@ -1048,14 +1058,20 @@ impl ContentQualityManager {
         1500 // 15% probability as basis points
     }
 
-    fn generate_plagiarism_recommendations(originality_score: &u64) -> Vec<PlagiarismRecommendation> {
+    fn generate_plagiarism_recommendations(
+        originality_score: &u64,
+    ) -> Vec<PlagiarismRecommendation> {
         Vec::new(&Env::default()) // Would generate based on score
     }
 
     fn calculate_moderation_priority(flags: &Vec<AutoModerationFlag>) -> ModerationPriority {
-        let has_critical = flags.iter().any(|f| matches!(f.severity, FlagSeverity::Critical));
-        let has_high = flags.iter().any(|f| matches!(f.severity, FlagSeverity::Error));
-        
+        let has_critical = flags
+            .iter()
+            .any(|f| matches!(f.severity, FlagSeverity::Critical));
+        let has_high = flags
+            .iter()
+            .any(|f| matches!(f.severity, FlagSeverity::Error));
+
         if has_critical {
             ModerationPriority::Critical
         } else if has_high {
@@ -1065,11 +1081,16 @@ impl ContentQualityManager {
         }
     }
 
-    fn generate_improvement_actions(assessment: &ContentQualityAssessment, target_score: u32) -> Vec<ImprovementAction> {
+    fn generate_improvement_actions(
+        assessment: &ContentQualityAssessment,
+        target_score: u32,
+    ) -> Vec<ImprovementAction> {
         Vec::new(&Env::default()) // Would generate specific actions
     }
 
-    fn generate_improvement_suggestions(dimensions: &QualityDimensions) -> Vec<ImprovementSuggestion> {
+    fn generate_improvement_suggestions(
+        dimensions: &QualityDimensions,
+    ) -> Vec<ImprovementSuggestion> {
         Vec::new(&Env::default()) // Would generate based on dimension scores
     }
 
@@ -1085,7 +1106,14 @@ impl ContentQualityManager {
         env.storage()
             .persistent()
             .get(&(CONTENT_QUALITY, content_id.clone()))
-            .unwrap_or_else(|| panic_with_error!(env, ContentQualityError::ContentNotFound))
+            .unwrap_or_else(|| {
+                log_and_panic!(
+                    env,
+                    ContentQualityError::ContentNotFound,
+                    "Quality assessment not found for content: {}",
+                    content_id
+                )
+            })
     }
 
     fn set_plagiarism_report(env: &Env, content_id: &u64, report: &PlagiarismReport) {
@@ -1096,9 +1124,7 @@ impl ContentQualityManager {
 
     fn add_to_moderation_queue(env: &Env, review: &PendingReview) {
         let key = (MODERATION_QUEUE, review.content_id);
-        env.storage()
-            .persistent()
-            .set(&key, review);
+        env.storage().persistent().set(&key, review);
     }
 
     fn set_improvement_plan(env: &Env, plan_id: &u64, plan: &ContentImprovementPlan) {
