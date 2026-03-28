@@ -49,7 +49,10 @@ impl AuditManager {
         };
 
         // Store record in persistent storage
-        env.storage().persistent().set(&crate::storage::DataKey::AuditRecord(audit_counter), &record);
+        env.storage().persistent().set(
+            &crate::storage::DataKey::AuditRecord(audit_counter),
+            &record,
+        );
         env.storage().instance().set(&AUDIT_COUNTER, &audit_counter);
 
         // Emit event
@@ -66,7 +69,9 @@ impl AuditManager {
 
     /// Get audit record by ID
     pub fn get_audit_record(env: &Env, record_id: u64) -> Option<AuditRecord> {
-        env.storage().persistent().get(&crate::storage::DataKey::AuditRecord(record_id))
+        env.storage()
+            .persistent()
+            .get(&crate::storage::DataKey::AuditRecord(record_id))
     }
 
     /// Get recent audit records by time range (bounded search for gas efficiency)
@@ -77,9 +82,9 @@ impl AuditManager {
     ) -> Vec<AuditRecord> {
         let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
         let mut result = Vec::new(env);
-        
+
         // Search back from newest records to limit gas consumption
-        let max_search: u64 = 500; 
+        let max_search: u64 = 500;
         let start_search = audit_counter.saturating_sub(max_search).max(1);
 
         for i in (start_search..=audit_counter).rev() {
@@ -174,7 +179,10 @@ impl AuditManager {
 
         // Store performance counts granularly
         for (validator, count) in validator_performance.iter() {
-            env.storage().instance().set(&crate::storage::DataKey::ReportValidatorPerf(report_id, validator), &count);
+            env.storage().instance().set(
+                &crate::storage::DataKey::ReportValidatorPerf(report_id, validator),
+                &count,
+            );
         }
 
         // Store report
@@ -190,15 +198,22 @@ impl AuditManager {
     }
 
     pub fn get_compliance_report(env: &Env, report_id: u64) -> Option<ComplianceReport> {
-        env.storage().instance().get(&crate::storage::DataKey::AuditRecord(report_id)) // Wait, I should use COMPLIANCE_REPORTS Map as small but only if the struct is small. 
-        // Actually, let's just keep the reports in a Map but they no longer have the nested validator Map.
-        let reports: Map<u64, ComplianceReport> = env.storage().instance().get(&COMPLIANCE_REPORTS).unwrap_or_else(|| Map::new(env));
+        let reports: Map<u64, ComplianceReport> = env
+            .storage()
+            .instance()
+            .get(&COMPLIANCE_REPORTS)
+            .unwrap_or_else(|| Map::new(env));
         reports.get(report_id)
     }
 
     /// Get validator performance for a report
     pub fn get_validator_performance(env: &Env, report_id: u64, validator: Address) -> u32 {
-        env.storage().instance().get(&crate::storage::DataKey::ReportValidatorPerf(report_id, validator)).unwrap_or(0)
+        env.storage()
+            .instance()
+            .get(&crate::storage::DataKey::ReportValidatorPerf(
+                report_id, validator,
+            ))
+            .unwrap_or(0)
     }
 
     /// Get total audit record count
@@ -294,11 +309,15 @@ impl AuditManager {
         for i in 1..=audit_counter {
             if let Some(record) = Self::get_audit_record(env, i) {
                 if record.timestamp < before_timestamp {
-                    env.storage().persistent().remove(&crate::storage::DataKey::AuditRecord(i));
+                    env.storage()
+                        .persistent()
+                        .remove(&crate::storage::DataKey::AuditRecord(i));
                     cleared_count += 1;
                 }
             }
-            if cleared_count > 100 { break; } // Bound gas
+            if cleared_count > 100 {
+                break;
+            } // Bound gas
         }
 
         Ok(cleared_count)

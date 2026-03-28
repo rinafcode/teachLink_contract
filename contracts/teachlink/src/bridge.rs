@@ -125,9 +125,16 @@ impl Bridge {
         };
 
         // Store bridge transaction and metadata
-        env.storage().persistent().set(&crate::storage::DataKey::BridgeTx(nonce), &bridge_tx);
-        env.storage().persistent().set(&crate::storage::DataKey::BridgeRetryCount(nonce), &0u32);
-        env.storage().persistent().set(&crate::storage::DataKey::BridgeLastRetry(nonce), &env.ledger().timestamp());
+        env.storage()
+            .persistent()
+            .set(&crate::storage::DataKey::BridgeTx(nonce), &bridge_tx);
+        env.storage()
+            .persistent()
+            .set(&crate::storage::DataKey::BridgeRetryCount(nonce), &0u32);
+        env.storage().persistent().set(
+            &crate::storage::DataKey::BridgeLastRetry(nonce),
+            &env.ledger().timestamp(),
+        );
 
         // Emit events
         BridgeInitiatedEvent {
@@ -214,7 +221,9 @@ impl Bridge {
         }
         .publish(env);
 
-        env.storage().persistent().remove(&crate::storage::DataKey::BridgeTx(message.nonce));
+        env.storage()
+            .persistent()
+            .remove(&crate::storage::DataKey::BridgeTx(message.nonce));
 
         Self::clear_bridge_retry_metadata(env, message.nonce);
 
@@ -226,17 +235,26 @@ impl Bridge {
             return Err(BridgeError::InvalidInput);
         }
 
-        if !env.storage().persistent().has(&crate::storage::DataKey::BridgeTx(nonce)) {
+        if !env
+            .storage()
+            .persistent()
+            .has(&crate::storage::DataKey::BridgeTx(nonce))
+        {
             return Err(BridgeError::BridgeTransactionNotFound);
         }
 
-        env.storage().persistent().set(&crate::storage::DataKey::BridgeFailure(nonce), &reason);
+        env.storage()
+            .persistent()
+            .set(&crate::storage::DataKey::BridgeFailure(nonce), &reason);
 
         Ok(())
     }
 
     pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
-        let bridge_tx = env.storage().persistent().get::<_, BridgeTransaction>(&crate::storage::DataKey::BridgeTx(nonce))
+        let bridge_tx = env
+            .storage()
+            .persistent()
+            .get::<_, BridgeTransaction>(&crate::storage::DataKey::BridgeTx(nonce))
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
         let current_time = env.ledger().timestamp();
@@ -244,12 +262,20 @@ impl Bridge {
             return Err(BridgeError::PacketTimeout);
         }
 
-        let retry_count = env.storage().persistent().get::<_, u32>(&crate::storage::DataKey::BridgeRetryCount(nonce)).unwrap_or(0);
+        let retry_count = env
+            .storage()
+            .persistent()
+            .get::<_, u32>(&crate::storage::DataKey::BridgeRetryCount(nonce))
+            .unwrap_or(0);
         if retry_count >= MAX_BRIDGE_RETRY_ATTEMPTS {
             return Err(BridgeError::RetryLimitExceeded);
         }
 
-        let last_retry_at = env.storage().persistent().get::<_, u64>(&crate::storage::DataKey::BridgeLastRetry(nonce)).unwrap_or(bridge_tx.timestamp);
+        let last_retry_at = env
+            .storage()
+            .persistent()
+            .get::<_, u64>(&crate::storage::DataKey::BridgeLastRetry(nonce))
+            .unwrap_or(bridge_tx.timestamp);
 
         let backoff_multiplier = 1u64 << retry_count;
         let retry_delay = BRIDGE_RETRY_DELAY_BASE_SECONDS.saturating_mul(backoff_multiplier);
@@ -260,9 +286,17 @@ impl Bridge {
         }
 
         let updated_retry_count = retry_count + 1;
-        env.storage().persistent().set(&crate::storage::DataKey::BridgeRetryCount(nonce), &updated_retry_count);
-        env.storage().persistent().set(&crate::storage::DataKey::BridgeLastRetry(nonce), &current_time);
-        env.storage().persistent().remove(&crate::storage::DataKey::BridgeFailure(nonce));
+        env.storage().persistent().set(
+            &crate::storage::DataKey::BridgeRetryCount(nonce),
+            &updated_retry_count,
+        );
+        env.storage().persistent().set(
+            &crate::storage::DataKey::BridgeLastRetry(nonce),
+            &current_time,
+        );
+        env.storage()
+            .persistent()
+            .remove(&crate::storage::DataKey::BridgeFailure(nonce));
 
         Ok(updated_retry_count)
     }
@@ -272,12 +306,18 @@ impl Bridge {
     /// - nonce: The nonce of the bridge transaction to cancel
     pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         // Get bridge transaction
-        let bridge_tx = env.storage().persistent().get::<_, BridgeTransaction>(&crate::storage::DataKey::BridgeTx(nonce))
+        let bridge_tx = env
+            .storage()
+            .persistent()
+            .get::<_, BridgeTransaction>(&crate::storage::DataKey::BridgeTx(nonce))
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
         // Allow refunds for timed-out or explicitly failed transactions
         let elapsed = env.ledger().timestamp().saturating_sub(bridge_tx.timestamp);
-        let has_failed = env.storage().persistent().has(&crate::storage::DataKey::BridgeFailure(nonce));
+        let has_failed = env
+            .storage()
+            .persistent()
+            .has(&crate::storage::DataKey::BridgeFailure(nonce));
         if elapsed < BRIDGE_TIMEOUT_SECONDS && !has_failed {
             return Err(BridgeError::TimeoutNotReached);
         }
@@ -298,7 +338,9 @@ impl Bridge {
         );
 
         // Remove from bridge transactions
-        env.storage().persistent().remove(&crate::storage::DataKey::BridgeTx(nonce));
+        env.storage()
+            .persistent()
+            .remove(&crate::storage::DataKey::BridgeTx(nonce));
 
         Self::clear_bridge_retry_metadata(env, nonce);
 
@@ -310,9 +352,15 @@ impl Bridge {
     }
 
     fn clear_bridge_retry_metadata(env: &Env, nonce: u64) {
-        env.storage().persistent().remove(&crate::storage::DataKey::BridgeRetryCount(nonce));
-        env.storage().persistent().remove(&crate::storage::DataKey::BridgeLastRetry(nonce));
-        env.storage().persistent().remove(&crate::storage::DataKey::BridgeFailure(nonce));
+        env.storage()
+            .persistent()
+            .remove(&crate::storage::DataKey::BridgeRetryCount(nonce));
+        env.storage()
+            .persistent()
+            .remove(&crate::storage::DataKey::BridgeLastRetry(nonce));
+        env.storage()
+            .persistent()
+            .remove(&crate::storage::DataKey::BridgeFailure(nonce));
     }
 
     // ========== Admin Functions ==========
@@ -323,13 +371,22 @@ impl Bridge {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
-        env.storage().instance().set(&crate::storage::DataKey::Validator(validator.clone()), &true);
-        
+        env.storage().instance().set(
+            &crate::storage::DataKey::Validator(validator.clone()),
+            &true,
+        );
+
         // Maintain list
-        let mut list: Vec<Address> = env.storage().instance().get(&crate::storage::VALIDATORS_LIST).unwrap_or_else(|| Vec::new(env));
+        let mut list: Vec<Address> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::VALIDATORS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         if !list.contains(&validator) {
             list.push_back(validator);
-            env.storage().instance().set(&crate::storage::VALIDATORS_LIST, &list);
+            env.storage()
+                .instance()
+                .set(&crate::storage::VALIDATORS_LIST, &list);
         }
 
         Ok(())
@@ -341,13 +398,22 @@ impl Bridge {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
-        env.storage().instance().set(&crate::storage::DataKey::Validator(validator.clone()), &false);
-        
+        env.storage().instance().set(
+            &crate::storage::DataKey::Validator(validator.clone()),
+            &false,
+        );
+
         // Remove from list
-        let mut list: Vec<Address> = env.storage().instance().get(&crate::storage::VALIDATORS_LIST).unwrap_or_else(|| Vec::new(env));
+        let mut list: Vec<Address> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::VALIDATORS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         if let Some(pos) = list.iter().position(|v| v == validator) {
             list.remove(pos as u32);
-            env.storage().instance().set(&crate::storage::VALIDATORS_LIST, &list);
+            env.storage()
+                .instance()
+                .set(&crate::storage::VALIDATORS_LIST, &list);
         }
 
         Ok(())
@@ -359,13 +425,21 @@ impl Bridge {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
-        env.storage().instance().set(&crate::storage::DataKey::SupportedChain(chain_id), &true);
-        
+        env.storage()
+            .instance()
+            .set(&crate::storage::DataKey::SupportedChain(chain_id), &true);
+
         // Maintain list
-        let mut list: Vec<u32> = env.storage().instance().get(&crate::storage::SUPPORTED_CHAINS_LIST).unwrap_or_else(|| Vec::new(env));
+        let mut list: Vec<u32> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::SUPPORTED_CHAINS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         if !list.contains(&chain_id) {
             list.push_back(chain_id);
-            env.storage().instance().set(&crate::storage::SUPPORTED_CHAINS_LIST, &list);
+            env.storage()
+                .instance()
+                .set(&crate::storage::SUPPORTED_CHAINS_LIST, &list);
         }
 
         Ok(())
@@ -377,13 +451,21 @@ impl Bridge {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
-        env.storage().instance().set(&crate::storage::DataKey::SupportedChain(chain_id), &false);
-        
+        env.storage()
+            .instance()
+            .set(&crate::storage::DataKey::SupportedChain(chain_id), &false);
+
         // Remove from list
-        let mut list: Vec<u32> = env.storage().instance().get(&crate::storage::SUPPORTED_CHAINS_LIST).unwrap_or_else(|| Vec::new(env));
+        let mut list: Vec<u32> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::SUPPORTED_CHAINS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         if let Some(pos) = list.iter().position(|c| c == chain_id) {
             list.remove(pos as u32);
-            env.storage().instance().set(&crate::storage::SUPPORTED_CHAINS_LIST, &list);
+            env.storage()
+                .instance()
+                .set(&crate::storage::SUPPORTED_CHAINS_LIST, &list);
         }
 
         Ok(())
@@ -434,7 +516,9 @@ impl Bridge {
 
     /// Get the bridge transaction by nonce
     pub fn get_bridge_transaction(env: &Env, nonce: u64) -> Option<BridgeTransaction> {
-        env.storage().persistent().get(&crate::storage::DataKey::BridgeTx(nonce))
+        env.storage()
+            .persistent()
+            .get(&crate::storage::DataKey::BridgeTx(nonce))
     }
 
     /// Check if a chain is supported
@@ -505,7 +589,9 @@ mod tests {
             timestamp,
         };
 
-        env.storage().persistent().set(&crate::storage::DataKey::BridgeTx(nonce), &tx);
+        env.storage()
+            .persistent()
+            .set(&crate::storage::DataKey::BridgeTx(nonce), &tx);
     }
 
     #[test]
@@ -530,9 +616,14 @@ mod tests {
             env.storage().instance().set(&TOKEN, &token);
             env.storage().instance().set(&MIN_VALIDATORS, &1u32);
 
-            env.storage().instance().set(&crate::storage::DataKey::Validator(validator.clone()), &true);
+            env.storage().instance().set(
+                &crate::storage::DataKey::Validator(validator.clone()),
+                &true,
+            );
 
-            env.storage().persistent().set(&crate::storage::DataKey::ProcessedNonce(7), &true);
+            env.storage()
+                .persistent()
+                .set(&crate::storage::DataKey::ProcessedNonce(7), &true);
 
             let message = CrossChainMessage {
                 source_chain: 1,

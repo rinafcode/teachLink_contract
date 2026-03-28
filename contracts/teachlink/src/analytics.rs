@@ -114,7 +114,9 @@ impl AnalyticsManager {
             last_updated: env.ledger().timestamp(),
         };
 
-        env.storage().instance().set(&crate::storage::DataKey::ChainMetrics(chain_id), &metrics);
+        env.storage()
+            .instance()
+            .set(&crate::storage::DataKey::ChainMetrics(chain_id), &metrics);
 
         Ok(())
     }
@@ -127,14 +129,18 @@ impl AnalyticsManager {
         is_incoming: bool,
         fee: i128,
     ) -> Result<(), BridgeError> {
-        let mut metrics = env.storage().instance().get::<_, ChainMetrics>(&crate::storage::DataKey::ChainMetrics(chain_id)).unwrap_or(ChainMetrics {
-            chain_id,
-            volume_in: 0,
-            volume_out: 0,
-            transaction_count: 0,
-            average_fee: 0,
-            last_updated: env.ledger().timestamp(),
-        });
+        let mut metrics = env
+            .storage()
+            .instance()
+            .get::<_, ChainMetrics>(&crate::storage::DataKey::ChainMetrics(chain_id))
+            .unwrap_or(ChainMetrics {
+                chain_id,
+                volume_in: 0,
+                volume_out: 0,
+                transaction_count: 0,
+                average_fee: 0,
+                last_updated: env.ledger().timestamp(),
+            });
 
         // Update volume
         if is_incoming {
@@ -157,7 +163,9 @@ impl AnalyticsManager {
 
         metrics.last_updated = env.ledger().timestamp();
 
-        env.storage().instance().set(&crate::storage::DataKey::ChainMetrics(chain_id), &metrics);
+        env.storage()
+            .instance()
+            .set(&crate::storage::DataKey::ChainMetrics(chain_id), &metrics);
 
         Ok(())
     }
@@ -171,15 +179,21 @@ impl AnalyticsManager {
     ) -> Result<(), BridgeError> {
         let key = crate::storage::DataKey::DailyVolume(day_timestamp, chain_id);
         let current_volume = env.storage().instance().get(&key).unwrap_or(0i128);
-        env.storage().instance().set(&key, &(current_volume + volume));
+        env.storage()
+            .instance()
+            .set(&key, &(current_volume + volume));
 
         Ok(())
     }
 
     /// Get daily volume
     pub fn get_daily_volume(env: &Env, day_timestamp: u64, chain_id: u32) -> i128 {
-        env.storage().instance()
-            .get(&crate::storage::DataKey::DailyVolume(day_timestamp, chain_id))
+        env.storage()
+            .instance()
+            .get(&crate::storage::DataKey::DailyVolume(
+                day_timestamp,
+                chain_id,
+            ))
             .unwrap_or(0i128)
     }
 
@@ -200,12 +214,18 @@ impl AnalyticsManager {
 
     /// Get chain metrics
     pub fn get_chain_metrics(env: &Env, chain_id: u32) -> Option<ChainMetrics> {
-        env.storage().instance().get(&crate::storage::DataKey::ChainMetrics(chain_id))
+        env.storage()
+            .instance()
+            .get(&crate::storage::DataKey::ChainMetrics(chain_id))
     }
 
     /// Get all chain metrics
     pub fn get_all_chain_metrics(env: &Env) -> Vec<ChainMetrics> {
-        let chains: Vec<u32> = env.storage().instance().get(&crate::storage::SUPPORTED_CHAINS_LIST).unwrap_or_else(|| Vec::new(env));
+        let chains: Vec<u32> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::SUPPORTED_CHAINS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         let mut result = Vec::new(env);
         for chain_id in chains.iter() {
             if let Some(metrics) = Self::get_chain_metrics(env, chain_id) {
@@ -252,7 +272,11 @@ impl AnalyticsManager {
 
     /// Get top chains by volume with bounded iteration (for performance cache).
     pub fn get_top_chains_by_volume_bounded(env: &Env, limit: u32) -> Vec<(u32, i128)> {
-        let chains_list: Vec<u32> = env.storage().instance().get(&crate::storage::SUPPORTED_CHAINS_LIST).unwrap_or_else(|| Vec::new(env));
+        let chains_list: Vec<u32> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::SUPPORTED_CHAINS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         let mut chains: Vec<(u32, i128)> = Vec::new(env);
         let mut count = 0u32;
         for chain_id in chains_list.iter() {
@@ -290,7 +314,11 @@ impl AnalyticsManager {
 
     /// Get top chains by volume (unbounded; use get_top_chains_by_volume_bounded for caching).
     pub fn get_top_chains_by_volume(env: &Env, limit: u32) -> Vec<(u32, i128)> {
-        let chains_list: Vec<u32> = env.storage().instance().get(&crate::storage::SUPPORTED_CHAINS_LIST).unwrap_or_else(|| Vec::new(env));
+        let chains_list: Vec<u32> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::SUPPORTED_CHAINS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         let mut chains: Vec<(u32, i128)> = Vec::new(env);
         for chain_id in chains_list.iter() {
             if let Some(metrics) = Self::get_chain_metrics(env, chain_id) {
