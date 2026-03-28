@@ -416,7 +416,14 @@ impl MobilePlatformManager {
         env.storage()
             .persistent()
             .get(&(MOBILE_PROFILE, user.clone()))
-            .unwrap_or_else(|| panic_with_error!(env, MobilePlatformError::DeviceNotSupported))
+            .unwrap_or_else(|| {
+                log_and_panic!(
+                    env,
+                    MobilePlatformError::DeviceNotSupported,
+                    "Mobile profile not found for user: {}",
+                    user
+                )
+            })
     }
 
     fn set_mobile_profile(env: &Env, user: &Address, profile: &MobileProfile) {

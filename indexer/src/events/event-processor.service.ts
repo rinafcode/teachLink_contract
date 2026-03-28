@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { getCorrelationId } from '../../utils/async-storage';
 import {
   BridgeTransaction,
   BridgeStatus,
@@ -62,10 +63,14 @@ export class EventProcessorService {
     private recoveryRecordRepo: Repository<RecoveryRecordEntity>,
   ) {}
 
-  async processEvent(event: ProcessedEvent): Promise<void> {
-    try {
-      const eventType = event.type;
-      this.logger.debug(`Processing event type: ${eventType}`);
+   async processEvent(event: ProcessedEvent): Promise<void> {
+     try {
+       const eventType = event.type;
+       const correlationId = getCorrelationId() || 'unknown';
+       this.logger.debug(`Processing event type: ${eventType}`, { 
+         correlationId,
+         eventType 
+       });
 
       switch (eventType) {
         // Bridge Events
@@ -189,7 +194,10 @@ export class EventProcessorService {
     });
 
     await this.bridgeTransactionRepo.save(bridgeTx);
-    this.logger.log(`Indexed DepositEvent for nonce ${data.nonce}`);
+       this.logger.log(`Indexed DepositEvent for nonce ${data.nonce}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         nonce: data.nonce 
+       });
   }
 
   private async handleReleaseEvent(event: ProcessedEvent): Promise<void> {
@@ -218,7 +226,10 @@ export class EventProcessorService {
       await this.bridgeTransactionRepo.save(bridgeTx);
     }
 
-    this.logger.log(`Indexed ReleaseEvent for nonce ${data.nonce}`);
+       this.logger.log(`Indexed ReleaseEvent for nonce ${data.nonce}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         nonce: data.nonce 
+       });
   }
 
   private async handleBridgeInitiatedEvent(event: ProcessedEvent): Promise<void> {
@@ -238,7 +249,10 @@ export class EventProcessorService {
     });
 
     await this.bridgeTransactionRepo.save(bridgeTx);
-    this.logger.log(`Indexed BridgeInitiatedEvent for nonce ${data.nonce}`);
+       this.logger.log(`Indexed BridgeInitiatedEvent for nonce ${data.nonce}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         nonce: data.nonce 
+       });
   }
 
   private async handleBridgeCompletedEvent(event: ProcessedEvent): Promise<void> {
@@ -251,7 +265,10 @@ export class EventProcessorService {
     if (bridgeTx) {
       bridgeTx.status = BridgeStatus.COMPLETED;
       await this.bridgeTransactionRepo.save(bridgeTx);
-      this.logger.log(`Indexed BridgeCompletedEvent for nonce ${data.nonce}`);
+       this.logger.log(`Indexed BridgeCompletedEvent for nonce ${data.nonce}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         nonce: data.nonce 
+       });
     }
   }
 
@@ -270,7 +287,10 @@ export class EventProcessorService {
     });
 
     await this.rewardRepo.save(reward);
-    this.logger.log(`Indexed RewardIssuedEvent for ${data.recipient}`);
+       this.logger.log(`Indexed RewardIssuedEvent for ${data.recipient}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         recipient: data.recipient 
+       });
   }
 
   private async handleRewardClaimedEvent(event: ProcessedEvent): Promise<void> {
@@ -291,7 +311,10 @@ export class EventProcessorService {
       await this.rewardRepo.save(reward);
     }
 
-    this.logger.log(`Indexed RewardClaimedEvent for ${data.user}`);
+       this.logger.log(`Indexed RewardClaimedEvent for ${data.user}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         user: data.user 
+       });
   }
 
   private async handleRewardPoolFundedEvent(event: ProcessedEvent): Promise<void> {
@@ -322,7 +345,10 @@ export class EventProcessorService {
     }
 
     await this.rewardPoolRepo.save(pool);
-    this.logger.log(`Indexed RewardPoolFundedEvent from ${data.funder}`);
+       this.logger.log(`Indexed RewardPoolFundedEvent from ${data.funder}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         funder: data.funder 
+       });
   }
 
   // Escrow Event Handlers
@@ -344,7 +370,10 @@ export class EventProcessorService {
     });
 
     await this.escrowRepo.save(escrow);
-    this.logger.log(`Indexed EscrowCreatedEvent for escrow ${escrowData.id}`);
+       this.logger.log(`Indexed EscrowCreatedEvent for escrow ${escrowData.id}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         escrowId: escrowData.id 
+       });
   }
 
   private async handleEscrowApprovedEvent(event: ProcessedEvent): Promise<void> {
@@ -365,7 +394,10 @@ export class EventProcessorService {
       }
 
       await this.escrowRepo.save(escrow);
-      this.logger.log(`Indexed EscrowApprovedEvent for escrow ${data.escrow_id}`);
+       this.logger.log(`Indexed EscrowApprovedEvent for escrow ${data.escrow_id}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         escrowId: data.escrow_id 
+       });
     }
   }
 
@@ -381,7 +413,10 @@ export class EventProcessorService {
       escrow.completedAtLedger = event.ledger;
       escrow.completedTxHash = event.txHash;
       await this.escrowRepo.save(escrow);
-      this.logger.log(`Indexed EscrowReleasedEvent for escrow ${data.escrow_id}`);
+       this.logger.log(`Indexed EscrowReleasedEvent for escrow ${data.escrow_id}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         escrowId: data.escrow_id 
+       });
     }
   }
 
@@ -397,7 +432,10 @@ export class EventProcessorService {
       escrow.completedAtLedger = event.ledger;
       escrow.completedTxHash = event.txHash;
       await this.escrowRepo.save(escrow);
-      this.logger.log(`Indexed EscrowRefundedEvent for escrow ${data.escrow_id}`);
+       this.logger.log(`Indexed EscrowRefundedEvent for escrow ${data.escrow_id}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         escrowId: data.escrow_id 
+       });
     }
   }
 
@@ -413,7 +451,10 @@ export class EventProcessorService {
       escrow.disputeReason = data.reason;
       escrow.disputer = data.disputer;
       await this.escrowRepo.save(escrow);
-      this.logger.log(`Indexed EscrowDisputedEvent for escrow ${data.escrow_id}`);
+       this.logger.log(`Indexed EscrowDisputedEvent for escrow ${data.escrow_id}`, { 
+         correlationId: getCorrelationId() || 'unknown',
+         escrowId: data.escrow_id 
+       });
     }
   }
 

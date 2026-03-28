@@ -2,7 +2,17 @@
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
 
-use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, Symbol, Vec};
+use core::fmt;
+use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Env, Map, String, Symbol, Vec};
+
+/// Log an error message before panicking with the given error
+#[macro_export]
+macro_rules! log_and_panic {
+    ($env:expr, $error:expr, $( $arg:tt )*) => {{
+        $env.log(&format!("[ERROR] {}", format!( $( $arg )* )));
+        panic_with_error!($env, $error)
+    }};
+}
 
 // Include notification types
 pub use crate::notification_types::*;

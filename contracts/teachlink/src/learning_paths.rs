@@ -3,8 +3,8 @@
 //! This module implements sophisticated learning path generation using AI analysis
 //! of user goals, learning styles, and performance data.
 
-use crate::types::{Address, Bytes, Map, Vec, u64, u32};
-use soroban_sdk::{contracttype, contracterror, Env, Symbol, symbol_short, panic_with_error};
+use crate::types::{u32, u64, Address, Bytes, Map, Vec};
+use soroban_sdk::{contracterror, contracttype, panic_with_error, symbol_short, Env, Symbol};
 
 const LEARNING_PATHS: Symbol = symbol_short!("learn_path");
 const AI_ANALYTICS: Symbol = symbol_short!("ai_analytics");
@@ -219,9 +219,9 @@ pub enum AdaptationReason {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ProgressTracking {
-    pub overall_progress: u32, // 0-100
+    pub overall_progress: u32,          // 0-100
     pub module_progress: Map<u64, u32>, // Module ID -> Progress
-    pub time_spent: u64, // Total time in minutes
+    pub time_spent: u64,                // Total time in minutes
     pub milestones_completed: u32,
     pub milestones_total: u32,
     pub streak_days: u32,
@@ -232,7 +232,7 @@ pub struct ProgressTracking {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct EngagementMetrics {
-    pub login_frequency: u32, // Per week
+    pub login_frequency: u32,      // Per week
     pub content_interactions: u32, // Per session
     pub discussion_participation: u32,
     pub peer_interactions: u32,
@@ -296,9 +296,9 @@ pub struct SkillGap {
 pub struct OptimizationSuggestion {
     pub suggestion_type: SuggestionType,
     pub description: Bytes,
-    pub expected_improvement: u64, // Basis points
+    pub expected_improvement: u64,  // Basis points
     pub implementation_effort: u32, // 1-10
-    pub urgency: u32, // 1-10
+    pub urgency: u32,               // 1-10
 }
 
 #[contracttype]
@@ -315,7 +315,7 @@ pub enum SuggestionType {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PeerComparison {
-    pub percentile_rank: u32, // 0-100
+    pub percentile_rank: u32,        // 0-100
     pub similar_users_progress: u64, // Basis points
     pub top_performers_average: u64, // Basis points
     pub improvement_opportunities: Vec<Bytes>,
@@ -386,7 +386,7 @@ pub enum GroupActivityType {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CollaborationMetrics {
     pub participation_rate: u64, // Basis points
-    pub synergy_score: u64, // Basis points
+    pub synergy_score: u64,      // Basis points
     pub knowledge_sharing: u32,
     pub conflict_resolution: u32,
     pub group_performance: u64, // Basis points
@@ -459,7 +459,7 @@ impl LearningPathManager {
 
         let path_id = env.ledger().sequence();
         let ai_analysis = Self::analyze_user_profile(env, &user, &goals, &profile);
-        
+
         let learning_path = LearningPath {
             id: path_id,
             user: user.clone(),
@@ -492,7 +492,8 @@ impl LearningPathManager {
             },
             analytics: PathAnalytics {
                 completion_predictions: CompletionPrediction {
-                    estimated_completion_date: env.ledger().timestamp() + ai_analysis.estimated_duration * 3600,
+                    estimated_completion_date: env.ledger().timestamp()
+                        + ai_analysis.estimated_duration * 3600,
                     confidence_level: ai_analysis.confidence_level,
                     risk_factors: ai_analysis.risk_factors,
                     success_probability: ai_analysis.success_probability,
@@ -508,12 +509,16 @@ impl LearningPathManager {
                     improvement_opportunities: Vec::new(env),
                 },
                 career_alignment: CareerAlignment {
-                    target_career: goals.get(0).unwrap_or(&LearningGoal {
-                        title: Bytes::from_slice(env, b"General Learning"),
-                        description: Bytes::from_slice(env, b""),
-                        target_date: 0,
-                        priority: 1,
-                    }).title.clone(),
+                    target_career: goals
+                        .get(0)
+                        .unwrap_or(&LearningGoal {
+                            title: Bytes::from_slice(env, b"General Learning"),
+                            description: Bytes::from_slice(env, b""),
+                            target_date: 0,
+                            priority: 1,
+                        })
+                        .title
+                        .clone(),
                     alignment_score: 0.0,
                     missing_skills: Vec::new(env),
                     market_demand: 0.0,
@@ -528,7 +533,7 @@ impl LearningPathManager {
 
         Self::set_learning_path(env, &path_id, &learning_path);
         Self::set_user_goals(env, &user, &goals);
-        
+
         Ok(path_id)
     }
 
@@ -552,7 +557,7 @@ impl LearningPathManager {
 
         learning_path.last_updated = env.ledger().timestamp();
         Self::set_learning_path(env, &path_id, &learning_path);
-        
+
         Ok(())
     }
 
@@ -587,7 +592,7 @@ impl LearningPathManager {
         };
 
         Self::set_collaborative_path(env, &path_id, &collaborative_path);
-        
+
         Ok(path_id)
     }
 
@@ -600,7 +605,7 @@ impl LearningPathManager {
         issuer: Address,
     ) -> Result<PathCertification, LearningPathError> {
         let learning_path = Self::get_learning_path(env, &path_id);
-        
+
         if learning_path.user != user {
             return Err(LearningPathError::UnauthorizedAccess);
         }
@@ -623,7 +628,7 @@ impl LearningPathManager {
         };
 
         Self::set_certification(env, &certification);
-        
+
         Ok(certification)
     }
 
@@ -638,7 +643,10 @@ impl LearningPathManager {
         // Simulated AI analysis - in real implementation, this would call ML models
         AIAnalysisResult {
             recommended_title: Bytes::from_slice(env, b"Personalized Learning Journey"),
-            recommended_description: Bytes::from_slice(env, b"AI-optimized learning path based on your goals and preferences"),
+            recommended_description: Bytes::from_slice(
+                env,
+                b"AI-optimized learning path based on your goals and preferences",
+            ),
             estimated_duration: Self::estimate_duration(goals, profile),
             recommended_difficulty: Self::recommend_difficulty(profile),
             confidence_level: 0.85,
@@ -656,7 +664,7 @@ impl LearningPathManager {
             PacePreference::Slow => 1.5,
             PacePreference::Adaptive => 1.0,
         };
-        
+
         (base_hours as f64 * pace_multiplier as f64) as u64
     }
 
@@ -667,11 +675,17 @@ impl LearningPathManager {
 
     // ========== Helper Functions ==========
 
-    fn generate_objectives(goals: &Vec<LearningGoal>, analysis: &AIAnalysisResult) -> Vec<LearningObjective> {
+    fn generate_objectives(
+        goals: &Vec<LearningGoal>,
+        analysis: &AIAnalysisResult,
+    ) -> Vec<LearningObjective> {
         Vec::new(&Env::default()) // Would generate based on goals
     }
 
-    fn generate_content_modules(analysis: &AIAnalysisResult, profile: &UserProfile) -> Vec<ContentModule> {
+    fn generate_content_modules(
+        analysis: &AIAnalysisResult,
+        profile: &UserProfile,
+    ) -> Vec<ContentModule> {
         Vec::new(&Env::default()) // Would generate based on analysis
     }
 
@@ -691,7 +705,10 @@ impl LearningPathManager {
         }
     }
 
-    fn analyze_performance(performance_data: &PerformanceData, user_feedback: &Option<Bytes>) -> PathAdaptation {
+    fn analyze_performance(
+        performance_data: &PerformanceData,
+        user_feedback: &Option<Bytes>,
+    ) -> PathAdaptation {
         PathAdaptation {
             timestamp: 1234567890,
             reason: AdaptationReason::AIRecommendation,
@@ -702,7 +719,9 @@ impl LearningPathManager {
     }
 
     fn apply_adaptations(env: &Env, learning_path: &mut LearningPath, adaptation: &PathAdaptation) {
-        learning_path.adaptation_history.push_back(adaptation.clone());
+        learning_path
+            .adaptation_history
+            .push_back(adaptation.clone());
         learning_path.last_updated = env.ledger().timestamp();
     }
 
@@ -737,7 +756,14 @@ impl LearningPathManager {
         env.storage()
             .persistent()
             .get(&(LEARNING_PATHS, path_id.clone()))
-            .unwrap_or_else(|| panic_with_error!(env, LearningPathError::InvalidPath))
+            .unwrap_or_else(|| {
+                log_and_panic!(
+                    env,
+                    LearningPathError::InvalidPath,
+                    "Learning path not found: {}",
+                    path_id
+                )
+            })
     }
 
     fn set_learning_path(env: &Env, path_id: &u64, learning_path: &LearningPath) {
@@ -798,7 +824,7 @@ pub struct AIAnalysisResult {
     pub recommended_description: Bytes,
     pub estimated_duration: u64,
     pub recommended_difficulty: DifficultyLevel,
-    pub confidence_level: u64, // Basis points
+    pub confidence_level: u64,    // Basis points
     pub success_probability: u64, // Basis points
     pub risk_factors: Vec<RiskFactor>,
 }

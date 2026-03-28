@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { HorizonService, ProcessedEvent } from '@horizon/horizon.service';
 import { EventProcessorService } from '@events/event-processor.service';
 import { IndexerState } from '@database/entities';
+import { getCorrelationId } from '../../utils/async-storage';
 
 @Injectable()
 export class IndexerService implements OnModuleInit, OnModuleDestroy {
@@ -22,19 +23,25 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
     private indexerStateRepo: Repository<IndexerState>,
   ) {}
 
-  async onModuleInit() {
-    this.logger.log('Initializing TeachLink Indexer Service');
-    await this.startIndexing();
-  }
+   async onModuleInit() {
+     this.logger.log('Initializing TeachLink Indexer Service', { 
+       correlationId: getCorrelationId() || 'unknown' 
+     });
+     await this.startIndexing();
+   }
 
-  async onModuleDestroy() {
-    this.logger.log('Shutting down TeachLink Indexer Service');
-    await this.stopIndexing();
-  }
+   async onModuleDestroy() {
+     this.logger.log('Shutting down TeachLink Indexer Service', { 
+       correlationId: getCorrelationId() || 'unknown' 
+     });
+     await this.stopIndexing();
+   }
 
   async startIndexing(): Promise<void> {
     if (this.isRunning) {
-      this.logger.warn('Indexer is already running');
+       this.logger.warn('Indexer is already running', { 
+         correlationId: getCorrelationId() || 'unknown' 
+       });
       return;
     }
 

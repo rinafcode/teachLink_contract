@@ -34,7 +34,9 @@
     "@stellar/stellar-sdk": "^11.3.0",
     "axios": "^1.6.5",
     "cache-manager": "^5.4.0",
+    "nestjs-pino": "^4.6.1",
     "pg": "^8.11.3",
+    "pino-http": "^11.0.0",
     "reflect-metadata": "^0.1.14",
     "rxjs": "^7.8.1",
     "typeorm": "^0.3.19"
