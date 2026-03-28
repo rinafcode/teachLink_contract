@@ -287,7 +287,10 @@ fn test_consensus_reached_executes_proposal() {
     assert!(client.is_consensus_reached(&proposal_id));
 
     let proposal = client.get_proposal(&proposal_id).unwrap();
-    assert_eq!(proposal.status, teachlink_contract::ProposalStatus::Approved);
+    assert_eq!(
+        proposal.status,
+        teachlink_contract::ProposalStatus::Approved
+    );
 }
 
 #[test]

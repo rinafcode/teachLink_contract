@@ -101,14 +101,8 @@ fn test_initiate_swap_self_swap_fails() {
     let hashlock = Bytes::from_slice(&env, &[0xaa; 32]);
 
     let result = client.try_initiate_atomic_swap(
-        &user,
-        &token_a,
-        &100i128,
-        &user, // same as initiator
-        &token_b,
-        &100i128,
-        &hashlock,
-        &3600u64,
+        &user, &token_a, &100i128, &user, // same as initiator
+        &token_b, &100i128, &hashlock, &3600u64,
     );
     assert!(result.is_err());
 }

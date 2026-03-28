@@ -90,12 +90,8 @@ fn test_slash_double_vote() {
     let slasher = register_validator(&env, &client, MIN_STAKE);
     let evidence = Bytes::from_slice(&env, b"proof");
 
-    let slashed = client.slash_validator(
-        &validator,
-        &SlashingReason::DoubleVote,
-        &evidence,
-        &slasher,
-    );
+    let slashed =
+        client.slash_validator(&validator, &SlashingReason::DoubleVote, &evidence, &slasher);
 
     // 50% of MIN_STAKE
     assert_eq!(slashed, MIN_STAKE / 2);
@@ -160,12 +156,8 @@ fn test_slash_unregistered_validator_fails() {
     let slasher = register_validator(&env, &client, MIN_STAKE);
     let evidence = Bytes::from_slice(&env, b"proof");
 
-    let result = client.try_slash_validator(
-        &unknown,
-        &SlashingReason::DoubleVote,
-        &evidence,
-        &slasher,
-    );
+    let result =
+        client.try_slash_validator(&unknown, &SlashingReason::DoubleVote, &evidence, &slasher);
     assert_eq!(result, Err(Ok(BridgeError::ValidatorNotActive)));
 }
 
@@ -176,12 +168,8 @@ fn test_slashed_amount_goes_to_reward_pool() {
     let slasher = register_validator(&env, &client, MIN_STAKE);
     let evidence = Bytes::from_slice(&env, b"proof");
 
-    let slashed = client.slash_validator(
-        &validator,
-        &SlashingReason::Inactivity,
-        &evidence,
-        &slasher,
-    );
+    let slashed =
+        client.slash_validator(&validator, &SlashingReason::Inactivity, &evidence, &slasher);
 
     // 5% of MIN_STAKE
     assert_eq!(slashed, MIN_STAKE * 500 / 10000);
@@ -255,12 +243,7 @@ fn test_validator_info_updated_after_slash() {
     let slasher = register_validator(&env, &client, MIN_STAKE);
     let evidence = Bytes::from_slice(&env, b"proof");
 
-    client.slash_validator(
-        &validator,
-        &SlashingReason::DoubleVote,
-        &evidence,
-        &slasher,
-    );
+    client.slash_validator(&validator, &SlashingReason::DoubleVote, &evidence, &slasher);
 
     let info = client.get_validator_info(&validator).unwrap();
     assert_eq!(info.slashed_amount, MIN_STAKE / 2);

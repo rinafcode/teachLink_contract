@@ -236,17 +236,14 @@ fn test_log_bridge_operation() {
     let op = Address::generate(&env);
     let client = teachlink_contract::TeachLinkBridgeClient::new(&env, &cid);
 
-    let id = client.log_bridge_operation(
-        &true,
-        &op,
-        &500,
-        &1,
-        &Bytes::from_slice(&env, b"hash"),
-    );
+    let id = client.log_bridge_operation(&true, &op, &500, &1, &Bytes::from_slice(&env, b"hash"));
     assert_eq!(id, 1);
 
     let record = client.get_audit_record(&1).unwrap();
-    assert_eq!(record.operation_type, teachlink_contract::OperationType::BridgeOut);
+    assert_eq!(
+        record.operation_type,
+        teachlink_contract::OperationType::BridgeOut
+    );
 }
 
 #[test]

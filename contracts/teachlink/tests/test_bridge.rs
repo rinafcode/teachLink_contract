@@ -52,7 +52,10 @@ fn test_initialize_zero_validators_fails() {
     let fee = Address::generate(&env);
 
     let result = client.try_initialize(&token, &admin, &0, &fee);
-    assert_eq!(result, Err(Ok(BridgeError::MinimumValidatorsMustBeAtLeastOne)));
+    assert_eq!(
+        result,
+        Err(Ok(BridgeError::MinimumValidatorsMustBeAtLeastOne))
+    );
 }
 
 // ── Validators ─────────────────────────────────────────────────────
@@ -125,7 +128,10 @@ fn test_set_min_validators_zero_fails() {
     init_bridge(&env, &client);
 
     let result = client.try_set_min_validators(&0);
-    assert_eq!(result, Err(Ok(BridgeError::MinimumValidatorsMustBeAtLeastOne)));
+    assert_eq!(
+        result,
+        Err(Ok(BridgeError::MinimumValidatorsMustBeAtLeastOne))
+    );
 }
 
 // ── Fee Recipient ──────────────────────────────────────────────────
