@@ -6,6 +6,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { HorizonService, ProcessedEvent } from '@horizon/horizon.service';
 import { EventProcessorService } from '@events/event-processor.service';
 import { IndexerState } from '@database/entities';
+import { MetricsService } from '../performance/metrics.service';
 
 @Injectable()
 export class IndexerService implements OnModuleInit, OnModuleDestroy {
@@ -18,6 +19,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
     private horizonService: HorizonService,
     private eventProcessor: EventProcessorService,
     private configService: ConfigService,
+    private metricsService: MetricsService,
     @InjectRepository(IndexerState)
     private indexerStateRepo: Repository<IndexerState>,
   ) {}
@@ -68,9 +70,11 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
 
         await this.indexerStateRepo.save(state);
         this.logger.log(`Created new indexer state starting from ledger ${startLedger}`);
+        this.publishStateMetrics(state);
       } else {
         startLedger = state.lastProcessedLedger;
         this.logger.log(`Resuming indexing from ledger ${startLedger}`);
+        this.publishStateMetrics(state);
       }
 
       // Start streaming events
@@ -81,9 +85,23 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
       );
 
       this.logger.log('Indexer started successfully');
+      this.metricsService.updateIndexerState({
+        isRunning: true,
+        lastProcessedLedger: startLedger,
+        totalEventsProcessed: state.totalEventsProcessed,
+        totalErrors: state.totalErrors,
+        lastProcessedTimestamp: state.lastProcessedTimestamp || '0',
+      });
     } catch (error) {
       this.logger.error(`Failed to start indexer: ${error.message}`, error.stack);
       this.isRunning = false;
+      this.metricsService.updateIndexerState({
+        isRunning: false,
+        lastProcessedLedger: '0',
+        totalEventsProcessed: 0,
+        totalErrors: 0,
+        lastProcessedTimestamp: '0',
+      });
       throw error;
     }
   }
@@ -100,6 +118,11 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
       }
 
       this.isRunning = false;
+      const status = await this.getStatus();
+      this.metricsService.updateIndexerState({
+        ...status,
+        isRunning: false,
+      });
       this.logger.log('Indexer stopped successfully');
     } catch (error) {
       this.logger.error(`Error stopping indexer: ${error.message}`, error.stack);
@@ -124,6 +147,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
         state.lastProcessedTimestamp = event.timestamp;
         state.totalEventsProcessed += 1;
         await this.indexerStateRepo.save(state);
+        this.publishStateMetrics(state);
       }
     } catch (error) {
       this.logger.error(`Error handling event: ${error.message}`, error.stack);
@@ -145,6 +169,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
       if (state) {
         state.totalErrors += 1;
         await this.indexerStateRepo.save(state);
+        this.publishStateMetrics(state);
       }
     } catch (error) {
       this.logger.error(`Error updating error count: ${error.message}`);
@@ -220,10 +245,22 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
       totalErrors: status.totalErrors,
     });
 
+    this.metricsService.updateIndexerState(status);
+
     // Restart indexer if it's not running
     if (!this.isRunning) {
       this.logger.warn('Indexer is not running - attempting to restart');
       await this.startIndexing();
     }
+  }
+
+  private publishStateMetrics(state: IndexerState): void {
+    this.metricsService.updateIndexerState({
+      isRunning: this.isRunning,
+      lastProcessedLedger: state.lastProcessedLedger,
+      totalEventsProcessed: state.totalEventsProcessed,
+      totalErrors: state.totalErrors,
+      lastProcessedTimestamp: state.lastProcessedTimestamp || '0',
+    });
   }
 }

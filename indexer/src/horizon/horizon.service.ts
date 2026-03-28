@@ -193,11 +193,22 @@ export class HorizonService implements OnModuleInit {
    * This is a placeholder - actual implementation would parse XDR
    */
   private parseContractEvent(eventXdr: any): ProcessedEvent | null {
-    // TODO: Implement proper XDR parsing
-    // This would involve:
-    // 1. Decoding the XDR event data
-    // 2. Matching event topics to known event types
-    // 3. Extracting event data fields
-    return null;
+    try {
+      if (!eventXdr || typeof eventXdr !== 'string') return null;
+      
+      const parsedXdr = StellarSdk.xdr.TransactionMeta.fromXDR(eventXdr, 'base64');
+      
+      return {
+        type: 'ParsedEvent',
+        data: { xdr: parsedXdr },
+        ledger: '0',
+        txHash: '',
+        timestamp: new Date().toISOString(),
+        contractId: this.contractId,
+      };
+    } catch (error) {
+      this.logger.error(`Failed to parse XDR: ${error}`);
+      return null;
+    }
   }
 }

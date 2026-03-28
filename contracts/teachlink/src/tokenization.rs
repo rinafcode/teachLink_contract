@@ -172,7 +172,14 @@ impl ContentTokenization {
         .publish(env);
 
         // Record provenance (handled by provenance module)
-        // TODO: Implement provenance module
+        crate::provenance::ProvenanceTracker::record_transfer(
+            env,
+            token_id,
+            Some(from.clone()),
+            to.clone(),
+            crate::types::TransferType::Transfer,
+            notes,
+        );
     }
 
     /// Get a content token by ID
@@ -252,7 +259,14 @@ impl ContentTokenization {
         if let Some(current_owner) = Self::get_owner(env, token_id) {
             owners.push_back(current_owner);
         }
-        // TODO: Add historical owners from provenance if needed
+        // Add historical owners from provenance if needed
+        let provenance_records =
+            crate::provenance::ProvenanceTracker::get_provenance(env, token_id);
+        for record in provenance_records {
+            if !owners.contains(&record.to) {
+                owners.push_back(record.to);
+            }
+        }
         owners
     }
 

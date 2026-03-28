@@ -5,10 +5,7 @@ use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
-// TODO: Implement insurance module
-/*
 use crate::insurance::InsuranceManager;
-*/
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowSigner, EscrowStatus};
 use crate::validation::EscrowValidator;
@@ -66,6 +63,18 @@ impl EscrowManager {
                 amount.into_val(env),
             ],
         );
+
+        // Process insurance premium
+        if env
+            .storage()
+            .instance()
+            .has(&crate::storage::INSURANCE_POOL)
+        {
+            let premium = InsuranceManager::calculate_premium(env, amount);
+            if premium > 0 {
+                InsuranceManager::pay_premium_internal(env, depositor.clone(), premium)?;
+            }
+        }
 
         let mut escrow_count: u64 = env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0);
         escrow_count += 1;

@@ -21,6 +21,7 @@ export default () => ({
     pollInterval: parseInt(process.env.INDEXER_POLL_INTERVAL || '5000', 10),
     startLedger: process.env.INDEXER_START_LEDGER || 'latest',
     batchSize: parseInt(process.env.INDEXER_BATCH_SIZE || '100', 10),
+    staleAfterSeconds: parseInt(process.env.INDEXER_STALE_AFTER_SECONDS || '900', 10),
   },
   app: {
     nodeEnv: process.env.NODE_ENV || 'development',
