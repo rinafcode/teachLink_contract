@@ -100,10 +100,10 @@ mod bridge;
 mod emergency;
 mod errors;
 mod escrow;
-// mod advanced_reputation;
 mod escrow_analytics;
 mod events;
-// TODO: Implement governance module
+mod insurance;
+// FUTURE: Implement governance module (tracked in TRACKING.md)
 // mod governance;
 // mod learning_paths;
 mod liquidity;
@@ -113,14 +113,16 @@ mod multichain;
 mod notification;
 mod notification_events_basic;
 // mod content_quality;
-// mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
+// mod notification_tests; // FUTURE: Re-enable when testutils dependencies are resolved (tracked in TRACKING.md)
 mod backup;
 mod notification_types;
 mod performance;
+mod provenance;
 mod reporting;
+mod reputation;
 mod rewards;
+mod score;
 mod slashing;
-// mod social_events;
 mod social_learning;
 mod storage;
 mod tokenization;
@@ -140,15 +142,15 @@ pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
-    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowStatus,
-    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
-    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
-    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
-    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
-    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
-    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature, VisualizationDataPoint,
+    ContentTokenParameters, ContentType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
+    EscrowSigner, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
+    NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
+    NotificationTracking, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
+    RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot, ReportTemplate, ReportType,
+    ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus,
+    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
+    ValidatorReward, ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -1236,22 +1238,19 @@ impl TeachLinkBridge {
 
     // ========== Insurance Pool Functions ==========
 
-    // TODO: Implement insurance module
-    /*
     /// Initialize insurance pool
     pub fn initialize_insurance_pool(
         env: Env,
         token: Address,
         premium_rate: u32,
-    ) -> Result<(), BridgeError> {
+    ) -> Result<(), EscrowError> {
         insurance::InsuranceManager::initialize_pool(&env, token, premium_rate)
     }
 
     /// Fund insurance pool
-    pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
+    pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
         insurance::InsuranceManager::fund_pool(&env, funder, amount)
     }
-    */
 
     // ========== Escrow Analytics Functions ==========
 
@@ -1277,15 +1276,8 @@ impl TeachLinkBridge {
 
     // ========== Credit Scoring Functions (feat/credit_score) ==========
 
-    // TODO: Implement score module
-    /*
     /// Record course completion
-    pub fn record_course_completion(
-        env: Env,
-        user: Address,
-        course_id: u64,
-        points: u64,
-    ) {
+    pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
         let admin = bridge::Bridge::get_admin(&env);
         admin.require_auth();
         score::ScoreManager::record_course_completion(&env, user, course_id, points);
@@ -1308,7 +1300,7 @@ impl TeachLinkBridge {
     }
 
     /// Get user's courses
-    pub fn get_user_courses(env: Env, user: Address) -> Vec<types::Course> {
+    pub fn get_user_courses(env: Env, user: Address) -> Vec<u64> {
         score::ScoreManager::get_courses(&env, user)
     }
 
@@ -1316,12 +1308,9 @@ impl TeachLinkBridge {
     pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
         score::ScoreManager::get_contributions(&env, user)
     }
-    */
 
     // ========== Reputation Functions (main) ==========
 
-    // TODO: Implement missing modules
-    /*
     pub fn update_participation(env: Env, user: Address, points: u32) {
         reputation::update_participation(&env, user, points);
     }
@@ -1337,7 +1326,6 @@ impl TeachLinkBridge {
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
         reputation::get_reputation(&env, &user)
     }
-    */
 
     // ========== Content Tokenization Functions ==========
 
@@ -1355,8 +1343,7 @@ impl TeachLinkBridge {
             params.is_transferable,
             params.royalty_percentage,
         );
-        // TODO: Implement provenance module
-        // provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
+        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
         token_id
     }
 
@@ -1427,8 +1414,6 @@ impl TeachLinkBridge {
 
     // ========== Provenance Functions ==========
 
-    // TODO: Implement provenance module
-    /*
     /// Get full provenance history for a content token
     pub fn get_content_provenance(env: Env, token_id: u64) -> Vec<ProvenanceRecord> {
         provenance::ProvenanceTracker::get_provenance(&env, token_id)
@@ -1445,7 +1430,6 @@ impl TeachLinkBridge {
     pub fn verify_content_chain(env: &Env, token_id: u64) -> bool {
         provenance::ProvenanceTracker::verify_chain(env, token_id)
     }
-    */
 
     /// Get the creator of a content token
     #[must_use]
