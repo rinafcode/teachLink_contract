@@ -654,11 +654,7 @@ impl TeachLinkBridge {
     }
 
     /// Check circuit breaker for a transaction
-    pub fn check_circuit_breaker(
-        env: Env,
-        chain_id: u32,
-        amount: i128,
-    ) -> Result<(), BridgeError> {
+    pub fn check_circuit_breaker(env: Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
         emergency::EmergencyManager::check_circuit_breaker(&env, chain_id, amount)
     }
 
@@ -749,11 +745,7 @@ impl TeachLinkBridge {
     }
 
     /// Get audit records by time range
-    pub fn get_audit_records_by_time(
-        env: Env,
-        start_time: u64,
-        end_time: u64,
-    ) -> Vec<AuditRecord> {
+    pub fn get_audit_records_by_time(env: Env, start_time: u64, end_time: u64) -> Vec<AuditRecord> {
         audit::AuditManager::get_audit_records_by_time(&env, start_time, end_time)
     }
 
@@ -763,7 +755,11 @@ impl TeachLinkBridge {
     }
 
     /// Clear old audit records
-    pub fn clear_old_records(env: Env, before_timestamp: u64, admin: Address) -> Result<u32, BridgeError> {
+    pub fn clear_old_records(
+        env: Env,
+        before_timestamp: u64,
+        admin: Address,
+    ) -> Result<u32, BridgeError> {
         audit::AuditManager::clear_old_records(&env, before_timestamp, admin)
     }
 
@@ -776,7 +772,14 @@ impl TeachLinkBridge {
         chain_id: u32,
         tx_hash: Bytes,
     ) -> Result<u64, BridgeError> {
-        audit::AuditManager::log_bridge_operation(&env, is_outgoing, operator, amount, chain_id, tx_hash)
+        audit::AuditManager::log_bridge_operation(
+            &env,
+            is_outgoing,
+            operator,
+            amount,
+            chain_id,
+            tx_hash,
+        )
     }
 
     /// Log emergency operation

@@ -187,7 +187,10 @@ fn test_escrow_release_flow() {
     s.client.release_escrow(&id, &signer1);
 
     assert_eq!(s.token_client.balance(&s.beneficiary), 500);
-    assert_eq!(s.client.get_escrow(&id).unwrap().status, EscrowStatus::Released);
+    assert_eq!(
+        s.client.get_escrow(&id).unwrap().status,
+        EscrowStatus::Released
+    );
 }
 
 #[test]
@@ -198,11 +201,18 @@ fn test_escrow_dispute_and_resolve_refund() {
     let reason = Bytes::from_slice(&s.env, b"delay");
     s.client.dispute_escrow(&id, &s.beneficiary, &reason);
 
-    assert_eq!(s.client.get_escrow(&id).unwrap().status, EscrowStatus::Disputed);
+    assert_eq!(
+        s.client.get_escrow(&id).unwrap().status,
+        EscrowStatus::Disputed
+    );
 
-    s.client.resolve_escrow(&id, &s.arbitrator, &DisputeOutcome::RefundToDepositor);
+    s.client
+        .resolve_escrow(&id, &s.arbitrator, &DisputeOutcome::RefundToDepositor);
 
-    assert_eq!(s.client.get_escrow(&id).unwrap().status, EscrowStatus::Refunded);
+    assert_eq!(
+        s.client.get_escrow(&id).unwrap().status,
+        EscrowStatus::Refunded
+    );
     assert_eq!(s.token_client.balance(&s.depositor), 5000); // full refund
 }
 
@@ -213,9 +223,13 @@ fn test_escrow_dispute_and_resolve_release() {
 
     let reason = Bytes::from_slice(&s.env, b"quality");
     s.client.dispute_escrow(&id, &s.depositor, &reason);
-    s.client.resolve_escrow(&id, &s.arbitrator, &DisputeOutcome::ReleaseToBeneficiary);
+    s.client
+        .resolve_escrow(&id, &s.arbitrator, &DisputeOutcome::ReleaseToBeneficiary);
 
-    assert_eq!(s.client.get_escrow(&id).unwrap().status, EscrowStatus::Released);
+    assert_eq!(
+        s.client.get_escrow(&id).unwrap().status,
+        EscrowStatus::Released
+    );
     assert_eq!(s.token_client.balance(&s.beneficiary), 500);
 }
 
@@ -226,7 +240,10 @@ fn test_escrow_cancel_before_approvals() {
 
     s.client.cancel_escrow(&id, &s.depositor);
 
-    assert_eq!(s.client.get_escrow(&id).unwrap().status, EscrowStatus::Cancelled);
+    assert_eq!(
+        s.client.get_escrow(&id).unwrap().status,
+        EscrowStatus::Cancelled
+    );
     assert_eq!(s.token_client.balance(&s.depositor), 5000); // funds returned
 }
 
@@ -274,7 +291,10 @@ fn test_dispute_by_stranger_fails() {
     let reason = Bytes::from_slice(&s.env, b"fraud");
 
     let result = s.client.try_dispute_escrow(&id, &stranger, &reason);
-    assert_eq!(result, Err(Ok(EscrowError::OnlyDepositorOrBeneficiaryCanDispute)));
+    assert_eq!(
+        result,
+        Err(Ok(EscrowError::OnlyDepositorOrBeneficiaryCanDispute))
+    );
 }
 
 #[test]
@@ -285,7 +305,9 @@ fn test_resolve_by_wrong_arbitrator_fails() {
     s.client.dispute_escrow(&id, &s.depositor, &reason);
 
     let wrong_arb = Address::generate(&s.env);
-    let result = s.client.try_resolve_escrow(&id, &wrong_arb, &DisputeOutcome::RefundToDepositor);
+    let result = s
+        .client
+        .try_resolve_escrow(&id, &wrong_arb, &DisputeOutcome::RefundToDepositor);
     assert_eq!(result, Err(Ok(EscrowError::OnlyArbitratorCanResolve)));
 }
 
@@ -294,7 +316,9 @@ fn test_resolve_non_disputed_escrow_fails() {
     let s = setup_escrow();
     let id = create_basic_escrow(&s);
 
-    let result = s.client.try_resolve_escrow(&id, &s.arbitrator, &DisputeOutcome::RefundToDepositor);
+    let result =
+        s.client
+            .try_resolve_escrow(&id, &s.arbitrator, &DisputeOutcome::RefundToDepositor);
     assert_eq!(result, Err(Ok(EscrowError::EscrowNotInDispute)));
 }
 
