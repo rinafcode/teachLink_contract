@@ -1,19 +1,4 @@
-#![cfg(test)]
-<<<<<<< HEAD
-
-//! Tests for backup and disaster recovery system.
-//!
-//! When the contract impl is enabled, extend with:
-//! - create_backup, get_backup_manifest
-//! - verify_backup (valid / invalid hash)
-//! - schedule_backup, get_scheduled_backups
-//! - record_recovery, get_recovery_records
-//! - get_recent_backups
-
-use soroban_sdk::Env;
-
-use teachlink_contract::{RtoTier, TeachLinkBridge};
-=======
+﻿#![cfg(test)]
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::needless_pass_by_value)]
 #![allow(clippy::unreadable_literal)]
@@ -23,7 +8,6 @@ use teachlink_contract::{RtoTier, TeachLinkBridge};
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env};
 
 use teachlink_contract::{RtoTier, TeachLinkBridge, TeachLinkBridgeClient};
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
 #[test]
 fn test_contract_registers_with_backup_module() {
@@ -41,8 +25,6 @@ fn test_rto_tier_variants() {
     let _ = RtoTier::Standard;
     assert!(true);
 }
-<<<<<<< HEAD
-=======
 
 #[test]
 fn test_create_and_verify_backup_integrity() {
@@ -104,4 +86,3 @@ fn test_backup_scheduling_and_restore_records() {
     assert_eq!(recent_backups.len(), 1);
     assert_eq!(recent_backups.get(0).unwrap().backup_id, backup_id);
 }
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b

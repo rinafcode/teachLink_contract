@@ -4,16 +4,21 @@
 //! in the teachLink contract, including BFT consensus, assessment scoring,
 //! analytics calculations, and atomic swap operations.
 
+#[macro_use]
+extern crate std;
+
 use crate::bft_consensus::{BFTConsensus, MIN_VALIDATOR_STAKE};
-use crate::assessment::{AssessmentManager, QuestionType};
+use crate::assessment::{AssessmentError, AssessmentManager, Assessment, Question, QuestionType};
 use crate::analytics::AnalyticsManager;
 use crate::atomic_swap::{AtomicSwapManager, MIN_TIMELOCK, MAX_TIMELOCK, HASH_LENGTH};
-use crate::errors::{BridgeError, AssessmentError};
-use crate::types::{BridgeProposal, ConsensusState, ValidatorInfo, SwapStatus, Assessment, Question};
+use crate::errors::BridgeError;
+use crate::types::{BridgeProposal, ConsensusState, ValidatorInfo, SwapStatus};
 use proptest::prelude::*;
+use test_strategy::proptest;
 use quickcheck::{Arbitrary, Gen};
-use soroban_sdk::{Address, Env, Bytes, Map, Vec, Symbol};
+use soroban_sdk::{Address, Env, Bytes, Map, Symbol};
 use std::collections::HashMap;
+use std::vec::Vec;
 
 // Property-based test configuration
 const TEST_CASES: usize = 100;

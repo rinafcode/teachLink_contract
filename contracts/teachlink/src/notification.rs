@@ -1,16 +1,13 @@
-//! Comprehensive Notification System
+﻿//! Comprehensive Notification System
 //!
 //! This module implements a multi-channel notification system with personalization,
 //! scheduling, analytics, and intelligent delivery optimization.
 
 use crate::errors::BridgeError;
-<<<<<<< HEAD
-=======
 use crate::notification_events_basic::{
     NotificationDeliveredEvent, NotificationFailedEvent, NotificationPrefUpdatedEvent,
     NotificationScheduledEvent,
 };
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 use crate::storage::{
     NOTIFICATION_COUNTER, NOTIFICATION_LOGS, NOTIFICATION_PREFERENCES, NOTIFICATION_TEMPLATES,
     NOTIFICATION_TRACKING, SCHEDULED_NOTIFICATIONS, USER_NOTIFICATION_SETTINGS,
@@ -20,11 +17,7 @@ use crate::types::{
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
     UserNotificationSettings,
 };
-<<<<<<< HEAD
-use soroban_sdk::{vec, Address, Bytes, Env, IntoVal, Map, Vec};
-=======
 use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
 /// Notification delivery intervals (in seconds)
 pub const IMMEDIATE_DELIVERY: u64 = 0;
@@ -222,8 +215,6 @@ impl NotificationManager {
             .instance()
             .set(&NOTIFICATION_TRACKING, &tracking_map);
 
-<<<<<<< HEAD
-=======
         // Emit event
         NotificationScheduledEvent {
             notification_id,
@@ -232,7 +223,6 @@ impl NotificationManager {
             scheduled_time: schedule.scheduled_time,
         };
 
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         Ok(notification_id)
     }
 
@@ -356,15 +346,12 @@ impl NotificationManager {
             .instance()
             .set(&NOTIFICATION_PREFERENCES, &preference_map);
 
-<<<<<<< HEAD
-=======
         // Emit event
         NotificationPrefUpdatedEvent {
             user,
             updated_at: env.ledger().timestamp(),
         };
 
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         Ok(())
     }
 
@@ -465,11 +452,7 @@ impl NotificationManager {
         }
 
         // Return the first notification ID for simplicity
-<<<<<<< HEAD
-        if !notification_ids.is_empty() {
-=======
         if notification_ids.len() > 0 {
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             Ok(notification_ids.first().unwrap())
         } else {
             Err(BridgeError::InvalidInput)
@@ -652,11 +635,7 @@ impl NotificationManager {
         notification_id: u64,
         recipient: Address,
         channel: NotificationChannel,
-<<<<<<< HEAD
-        _content: NotificationContent,
-=======
         content: NotificationContent,
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
     ) -> Result<(), BridgeError> {
         // In a real implementation, this would integrate with external services
         // For now, we'll simulate delivery
@@ -672,17 +651,11 @@ impl NotificationManager {
 
         if let Some(mut tracking) = tracking_map.get(notification_id) {
             // Simulate delivery (90% success rate)
-<<<<<<< HEAD
-            let success = !current_time.is_multiple_of(10); // Simple pseudo-random
-=======
             let success = (current_time % 10) != 0; // Simple pseudo-random
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
             if success {
                 tracking.status = NotificationDeliveryStatus::Delivered;
                 tracking.delivered_at = current_time;
-<<<<<<< HEAD
-=======
 
                 // Emit success event
                 NotificationDeliveredEvent {
@@ -691,13 +664,10 @@ impl NotificationManager {
                     channel,
                     delivered_at: current_time,
                 };
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             } else {
                 tracking.status = NotificationDeliveryStatus::Failed;
                 tracking.error_message = Bytes::from_slice(env, b"Simulated delivery failure");
                 tracking.retry_count += 1;
-<<<<<<< HEAD
-=======
 
                 // Emit failure event
                 NotificationFailedEvent {
@@ -707,7 +677,6 @@ impl NotificationManager {
                     error: Bytes::from_slice(env, b"Simulated delivery failure"),
                     retry_count: tracking.retry_count,
                 };
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             }
 
             let mut tracking_map_mut = tracking_map;
@@ -727,15 +696,6 @@ impl NotificationManager {
     }
 
     fn personalize_content(
-<<<<<<< HEAD
-        _env: &Env,
-        template: &NotificationContent,
-        _variables: Map<Bytes, Bytes>,
-    ) -> NotificationContent {
-        // Simple template variable replacement - in a real implementation this would be more sophisticated
-        let subject = template.subject.clone();
-        let body = template.body.clone();
-=======
         env: &Env,
         template: &NotificationContent,
         variables: Map<Bytes, Bytes>,
@@ -743,7 +703,6 @@ impl NotificationManager {
         // Simple template variable replacement - in a real implementation this would be more sophisticated
         let mut subject = template.subject.clone();
         let mut body = template.body.clone();
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
         // For now, just return the original content since Soroban doesn't have string manipulation
         // In a real implementation, you'd use an external service or more complex byte manipulation
@@ -756,11 +715,7 @@ impl NotificationManager {
     }
 
     fn calculate_next_schedule(
-<<<<<<< HEAD
-        _env: &Env,
-=======
         env: &Env,
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         schedule: &NotificationSchedule,
         current_time: u64,
     ) -> Option<u64> {

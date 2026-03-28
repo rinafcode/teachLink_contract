@@ -1,17 +1,13 @@
-//! Cross-Chain Message Passing Module
+﻿//! Cross-Chain Message Passing Module
 //!
 //! This module implements guaranteed message delivery between chains
 //! with retry mechanisms and timeout handling.
 
 use crate::errors::BridgeError;
 use crate::events::{PacketDeliveredEvent, PacketFailedEvent, PacketSentEvent};
-<<<<<<< HEAD
-use crate::storage::{CROSS_CHAIN_PACKETS, MESSAGE_RECEIPTS, PACKET_COUNTER};
-=======
 use crate::storage::{
     CROSS_CHAIN_PACKETS, MESSAGE_RECEIPTS, PACKET_COUNTER, PACKET_LAST_RETRY, PACKET_RETRY_COUNTS,
 };
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 use crate::types::{CrossChainPacket, MessageReceipt, PacketStatus};
 use soroban_sdk::{Bytes, Env, Map, Vec};
 
@@ -84,8 +80,6 @@ impl MessagePassing {
             .instance()
             .set(&PACKET_COUNTER, &packet_counter);
 
-<<<<<<< HEAD
-=======
         let mut retry_counts: Map<u64, u32> = env
             .storage()
             .instance()
@@ -106,7 +100,6 @@ impl MessagePassing {
             .instance()
             .set(&PACKET_LAST_RETRY, &last_retry);
 
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         // Emit event
         PacketSentEvent {
             packet_id: packet_counter,
@@ -222,8 +215,6 @@ impl MessagePassing {
         // Only retry failed or timed out packets
         match packet.status {
             PacketStatus::Failed | PacketStatus::TimedOut => {
-<<<<<<< HEAD
-=======
                 let mut retry_counts: Map<u64, u32> = env
                     .storage()
                     .instance()
@@ -258,7 +249,6 @@ impl MessagePassing {
                     .instance()
                     .set(&PACKET_LAST_RETRY, &last_retry);
 
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
                 // Reset status to pending with new timeout
                 packet.status = PacketStatus::Retrying;
                 packet.timeout = env.ledger().timestamp() + DEFAULT_PACKET_TIMEOUT;
@@ -282,19 +272,11 @@ impl MessagePassing {
         let current_time = env.ledger().timestamp();
 
         for (packet_id, mut packet) in packets.iter() {
-<<<<<<< HEAD
-            if (packet.status == PacketStatus::Pending || packet.status == PacketStatus::Retrying)
-                && current_time > packet.timeout
-            {
-                packet.status = PacketStatus::TimedOut;
-                timed_out_packets.push_back(packet_id);
-=======
             if packet.status == PacketStatus::Pending || packet.status == PacketStatus::Retrying {
                 if current_time > packet.timeout {
                     packet.status = PacketStatus::TimedOut;
                     timed_out_packets.push_back(packet_id);
                 }
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             }
         }
 
@@ -379,8 +361,6 @@ impl MessagePassing {
         }
     }
 
-<<<<<<< HEAD
-=======
     pub fn get_packet_retry_count(env: &Env, packet_id: u64) -> u32 {
         let retry_counts: Map<u64, u32> = env
             .storage()
@@ -390,7 +370,6 @@ impl MessagePassing {
         retry_counts.get(packet_id).unwrap_or(0)
     }
 
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
     /// Get packet count
     pub fn get_packet_count(env: &Env) -> u64 {
         env.storage()
@@ -433,8 +412,6 @@ impl MessagePassing {
         result
     }
 }
-<<<<<<< HEAD
-=======
 
 #[cfg(test)]
 mod tests {
@@ -576,4 +553,3 @@ mod tests {
         assert_eq!(packet.status, PacketStatus::TimedOut);
     }
 }
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b

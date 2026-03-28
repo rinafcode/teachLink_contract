@@ -1,12 +1,8 @@
-use soroban_sdk::{Address, Bytes, Env, Vec};
+﻿use soroban_sdk::{Address, Bytes, Env, Vec};
 
 use crate::events::{ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent};
 use crate::storage::{CONTENT_TOKENS, OWNERSHIP, OWNER_TOKENS, TOKEN_COUNTER};
-<<<<<<< HEAD
-use crate::types::{ContentMetadata, ContentToken, ContentType};
-=======
 use crate::types::{ContentMetadata, ContentToken, ContentType, TransferType};
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
 pub struct ContentTokenization;
 
@@ -93,11 +89,7 @@ impl ContentTokenization {
     }
 
     /// Transfer ownership of a content token
-<<<<<<< HEAD
-    pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, _notes: Option<Bytes>) {
-=======
     pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, notes: Option<Bytes>) {
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         // Get the token
         let token: ContentToken = env
             .storage()
@@ -160,9 +152,6 @@ impl ContentTokenization {
         .publish(env);
 
         // Record provenance (handled by provenance module)
-<<<<<<< HEAD
-        // TODO: Implement provenance module
-=======
         crate::provenance::ProvenanceTracker::record_transfer(
             env,
             token_id,
@@ -171,7 +160,6 @@ impl ContentTokenization {
             crate::types::TransferType::Transfer,
             notes,
         );
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
     }
 
     /// Get a content token by ID
@@ -195,9 +183,6 @@ impl ContentTokenization {
         if let Some(current_owner) = Self::get_owner(env, token_id) {
             owners.push_back(current_owner);
         }
-<<<<<<< HEAD
-        // TODO: Add historical owners from provenance if needed
-=======
         // Add historical owners from provenance if needed
         let provenance_records =
             crate::provenance::ProvenanceTracker::get_provenance(env, token_id);
@@ -206,7 +191,6 @@ impl ContentTokenization {
                 owners.push_back(record.to);
             }
         }
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         owners
     }
 

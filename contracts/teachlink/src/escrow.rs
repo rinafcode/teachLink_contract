@@ -1,18 +1,11 @@
-use crate::arbitration::ArbitrationManager;
+﻿use crate::arbitration::ArbitrationManager;
 use crate::errors::EscrowError;
 use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
-<<<<<<< HEAD
-// TODO: Implement insurance module
-/*
 use crate::insurance::InsuranceManager;
-*/
-=======
-use crate::insurance::InsuranceManager;
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowSigner, EscrowStatus};
 use crate::validation::EscrowValidator;
@@ -59,8 +52,6 @@ impl EscrowManager {
             ],
         );
 
-<<<<<<< HEAD
-=======
         // Process insurance premium
         if env
             .storage()
@@ -73,7 +64,6 @@ impl EscrowManager {
             }
         }
 
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         let mut escrow_count: u64 = env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0);
         escrow_count += 1;
         env.storage().instance().set(&ESCROW_COUNT, &escrow_count);
@@ -346,16 +336,12 @@ impl EscrowManager {
     // ---------- Internal Helpers ----------
 
     fn get_signer_info(signers: &Vec<EscrowSigner>, signer_addr: &Address) -> Option<EscrowSigner> {
-<<<<<<< HEAD
-        signers.iter().find(|s| s.address == *signer_addr)
-=======
         for s in signers.iter() {
             if s.address == *signer_addr {
                 return Some(s);
             }
         }
         None
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
     }
 
     fn is_signer(signers: &Vec<EscrowSigner>, signer_addr: &Address) -> bool {

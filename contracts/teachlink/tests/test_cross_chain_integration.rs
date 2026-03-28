@@ -483,7 +483,7 @@ impl MessagePassingIntegrationTests {
     fn test_payload_too_large(env: &mut IntegrationTestEnv) {
         println!("Testing payload too large...");
         
-        let large_payload = vec![0u8; 100000];
+        let large_payload = std::vec![0u8; 100000];
         
         let message = CrossChainMessage {
             source_chain: 1,

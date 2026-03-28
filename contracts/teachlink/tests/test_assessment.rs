@@ -1,8 +1,5 @@
-<<<<<<< HEAD
-=======
-#![allow(clippy::needless_pass_by_value)]
+﻿#![allow(clippy::needless_pass_by_value)]
 
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, Map, Vec};
 use teachlink_contract::{
     AssessmentSettings, QuestionType, TeachLinkBridge, TeachLinkBridgeClient,

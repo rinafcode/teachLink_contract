@@ -1,10 +1,6 @@
-use crate::storage::ESCROW_ANALYTICS;
+﻿use crate::storage::ESCROW_ANALYTICS;
 use crate::types::EscrowMetrics;
-<<<<<<< HEAD
-use soroban_sdk::Env;
-=======
 use soroban_sdk::{Env, Map};
->>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
 pub struct EscrowAnalyticsManager;
 
