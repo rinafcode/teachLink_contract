@@ -1,10 +1,9 @@
 #![cfg(test)]
 #![allow(clippy::needless_pass_by_value)]
 
-// use soroban_sdk::{testutils::Address as _, Address, Env};
-// use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
+use soroban_sdk::{testutils::Address as _, Address, Env};
+use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
 
-/*
 #[test]
 fn test_reputation_flow() {
     let env = Env::default();
@@ -23,8 +22,6 @@ fn test_reputation_flow() {
 
     let user = Address::generate(&env);
 
-    // TODO: Re-enable when reputation module is implemented
-    /*
     // 1. Test Initial Reputation
     let mut rep = client.get_user_reputation(&user);
     assert_eq!(rep.total_courses_started, 0);
@@ -53,9 +50,7 @@ fn test_reputation_flow() {
     rep = client.get_user_reputation(&user);
     assert_eq!(rep.total_contributions, 2);
     assert_eq!(rep.contribution_quality, 4); // (5 + 3) / 2 = 4
-    */
 
     // For now, just test that the contract initializes successfully
     assert!(true); // Test passes
 }
-*/
