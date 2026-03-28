@@ -65,7 +65,12 @@ jobs:
           path: target/llvm-cov/html/
 
       - name: Run integration tests
-        run: cargo test --workspace --test integration_comprehensive
+        run: cargo test --workspace --test cross_chain_integration
+
+      - name: Run comprehensive integration tests
+        run: |
+          cd testing/integration
+          cargo test --lib
 
       - name: Security audit
         run: cargo audit --ignore RUSTSEC-2023-0052
