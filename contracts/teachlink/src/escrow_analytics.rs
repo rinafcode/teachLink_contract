@@ -5,6 +5,18 @@ use soroban_sdk::{Env, Map};
 pub struct EscrowAnalyticsManager;
 
 impl EscrowAnalyticsManager {
+    /// Standard API for update_creation
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_creation(...);
+    /// ```
     pub fn update_creation(env: &Env, amount: i128) {
         let mut metrics = Self::get_metrics(env);
         metrics.total_escrows += 1;
@@ -12,12 +24,36 @@ impl EscrowAnalyticsManager {
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
     }
 
+    /// Standard API for update_dispute
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_dispute(...);
+    /// ```
     pub fn update_dispute(env: &Env) {
         let mut metrics = Self::get_metrics(env);
         metrics.total_disputes += 1;
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
     }
 
+    /// Standard API for update_resolution
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_resolution(...);
+    /// ```
     pub fn update_resolution(env: &Env, resolution_time: u64) {
         let mut metrics = Self::get_metrics(env);
         metrics.total_resolved += 1;
@@ -34,6 +70,22 @@ impl EscrowAnalyticsManager {
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
     }
 
+    /// Standard API for get_metrics
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_metrics(...);
+    /// ```
     pub fn get_metrics(env: &Env) -> EscrowMetrics {
         env.storage()
             .instance()

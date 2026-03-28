@@ -31,6 +31,20 @@ pub struct LiquidityManager;
 
 impl LiquidityManager {
     /// Initialize liquidity pool for a chain
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize_pool(...);
+    /// ```
     pub fn initialize_pool(env: &Env, chain_id: u32, token: Address) -> Result<(), BridgeError> {
         let pool = LiquidityPool {
             chain_id,
@@ -53,6 +67,16 @@ impl LiquidityManager {
     }
 
     /// Add liquidity to a pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_liquidity(...);
+    /// ```
     pub fn add_liquidity(
         env: &Env,
         provider: Address,
@@ -122,6 +146,16 @@ impl LiquidityManager {
     }
 
     /// Remove liquidity from a pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // remove_liquidity(...);
+    /// ```
     pub fn remove_liquidity(
         env: &Env,
         provider: Address,
@@ -190,6 +224,20 @@ impl LiquidityManager {
     }
 
     /// Lock liquidity for a bridge transaction
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // lock_liquidity(...);
+    /// ```
     pub fn lock_liquidity(env: &Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
         if amount <= 0 {
             return Err(BridgeError::AmountMustBePositive);
@@ -222,6 +270,20 @@ impl LiquidityManager {
     }
 
     /// Unlock liquidity after bridge completion
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // unlock_liquidity(...);
+    /// ```
     pub fn unlock_liquidity(env: &Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
         if amount <= 0 {
             return Err(BridgeError::AmountMustBePositive);
@@ -249,6 +311,16 @@ impl LiquidityManager {
     }
 
     /// Calculate dynamic bridge fee
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // calculate_bridge_fee(...);
+    /// ```
     pub fn calculate_bridge_fee(
         env: &Env,
         chain_id: u32,
@@ -298,6 +370,16 @@ impl LiquidityManager {
     }
 
     /// Update fee structure
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_fee_structure(...);
+    /// ```
     pub fn update_fee_structure(
         env: &Env,
         base_fee: i128,
@@ -399,6 +481,20 @@ impl LiquidityManager {
     }
 
     /// Get pool information
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_pool(...);
+    /// ```
     pub fn get_pool(env: &Env, chain_id: u32) -> Option<LiquidityPool> {
         let pools: Map<u32, LiquidityPool> = env
             .storage()
@@ -409,6 +505,20 @@ impl LiquidityManager {
     }
 
     /// Get LP position
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_lp_position(...);
+    /// ```
     pub fn get_lp_position(env: &Env, chain_id: u32, provider: Address) -> Option<LPPosition> {
         if let Some(pool) = Self::get_pool(env, chain_id) {
             pool.lp_providers.get(provider)
@@ -418,6 +528,20 @@ impl LiquidityManager {
     }
 
     /// Get available liquidity for a chain
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_available_liquidity(...);
+    /// ```
     pub fn get_available_liquidity(env: &Env, chain_id: u32) -> i128 {
         if let Some(pool) = Self::get_pool(env, chain_id) {
             pool.available_liquidity
@@ -427,6 +551,20 @@ impl LiquidityManager {
     }
 
     /// Get fee structure
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_fee_structure(...);
+    /// ```
     pub fn get_fee_structure(env: &Env) -> BridgeFeeStructure {
         env.storage()
             .instance()
@@ -441,6 +579,20 @@ impl LiquidityManager {
     }
 
     /// Check if pool has sufficient liquidity
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // has_sufficient_liquidity(...);
+    /// ```
     pub fn has_sufficient_liquidity(env: &Env, chain_id: u32, amount: i128) -> bool {
         Self::get_available_liquidity(env, chain_id) >= amount
     }

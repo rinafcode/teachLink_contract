@@ -19,6 +19,16 @@ pub struct BackupManager;
 
 impl BackupManager {
     /// Create a backup manifest (authorized caller). Integrity hash is supplied by off-chain.
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_backup(...);
+    /// ```
     pub fn create_backup(
         env: &Env,
         creator: Address,
@@ -75,6 +85,20 @@ impl BackupManager {
     }
 
     /// Get backup manifest by id
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_backup_manifest(...);
+    /// ```
     pub fn get_backup_manifest(env: &Env, backup_id: u64) -> Option<BackupManifest> {
         let manifests: Map<u64, BackupManifest> = env
             .storage()
@@ -85,6 +109,16 @@ impl BackupManager {
     }
 
     /// Verify backup integrity (compare expected hash to stored). Emit event and audit.
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // verify_backup(...);
+    /// ```
     pub fn verify_backup(
         env: &Env,
         backup_id: u64,
@@ -118,6 +152,16 @@ impl BackupManager {
     }
 
     /// Schedule automated backup (owner auth)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // schedule_backup(...);
+    /// ```
     pub fn schedule_backup(
         env: &Env,
         owner: Address,
@@ -157,6 +201,20 @@ impl BackupManager {
     }
 
     /// Get scheduled backups for an owner
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_scheduled_backups(...);
+    /// ```
     pub fn get_scheduled_backups(env: &Env, owner: Address) -> Vec<BackupSchedule> {
         let schedules: Map<u64, BackupSchedule> = env
             .storage()
@@ -174,6 +232,16 @@ impl BackupManager {
     }
 
     /// Record a recovery execution (RTO tracking and audit trail)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // record_recovery(...);
+    /// ```
     pub fn record_recovery(
         env: &Env,
         backup_id: u64,
@@ -230,6 +298,20 @@ impl BackupManager {
     }
 
     /// Get recovery records (for audit trail and RTO reporting)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_recovery_records(...);
+    /// ```
     pub fn get_recovery_records(env: &Env, limit: u32) -> Vec<RecoveryRecord> {
         let counter: u64 = env.storage().instance().get(&RECOVERY_CNT).unwrap_or(0u64);
         let records: Map<u64, RecoveryRecord> = env
@@ -253,6 +335,20 @@ impl BackupManager {
     }
 
     /// Get recent backup manifests (for monitoring and compliance)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_recent_backups(...);
+    /// ```
     pub fn get_recent_backups(env: &Env, limit: u32) -> Vec<BackupManifest> {
         let counter: u64 = env
             .storage()

@@ -23,6 +23,20 @@ pub struct PerformanceManager;
 
 impl PerformanceManager {
     /// Returns cached bridge summary if present and fresh (within CACHE_TTL_SECS).
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_cached_summary(...);
+    /// ```
     pub fn get_cached_summary(env: &Env) -> Option<CachedBridgeSummary> {
         let ts: u64 = env.storage().instance().get(&PERF_TS)?;
         let now = env.ledger().timestamp();
@@ -33,6 +47,20 @@ impl PerformanceManager {
     }
 
     /// Computes bridge summary (health score + top chains), writes cache, emits event.
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // compute_and_cache_summary(...);
+    /// ```
     pub fn compute_and_cache_summary(env: &Env) -> Result<CachedBridgeSummary, BridgeError> {
         let health_score = analytics::AnalyticsManager::calculate_health_score(env);
         let top_chains =
@@ -54,6 +82,20 @@ impl PerformanceManager {
     }
 
     /// Returns cached summary if fresh; otherwise computes, caches, and returns.
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_or_compute_summary(...);
+    /// ```
     pub fn get_or_compute_summary(env: &Env) -> Result<CachedBridgeSummary, BridgeError> {
         if let Some(cached) = Self::get_cached_summary(env) {
             return Ok(cached);
@@ -62,6 +104,20 @@ impl PerformanceManager {
     }
 
     /// Invalidates performance cache (admin only). Emits PerfCacheInvalidatedEvent.
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // invalidate_cache(...);
+    /// ```
     pub fn invalidate_cache(env: &Env, admin: &Address) -> Result<(), BridgeError> {
         admin.require_auth();
         env.storage().instance().remove(&PERF_CACHE);

@@ -42,6 +42,20 @@ pub struct AddressValidator;
 
 impl AddressValidator {
     /// Validates address format and basic constraints
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_format(...);
+    /// ```
     pub fn validate_format(_env: &Env, _address: &Address) -> ValidationResult<()> {
         // In Soroban, Address format is validated at the SDK level
         // Additional validation can be added here if needed
@@ -50,6 +64,20 @@ impl AddressValidator {
     }
 
     /// Checks if address is blacklisted (placeholder for future implementation)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // check_blacklist(...);
+    /// ```
     pub fn check_blacklist(env: &Env, address: &Address) -> ValidationResult<()> {
         // TODO: Implement blacklist checking from storage
         // For now, we'll implement a basic check against known problematic addresses
@@ -67,6 +95,20 @@ impl AddressValidator {
     }
 
     /// Comprehensive address validation
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate(...);
+    /// ```
     pub fn validate(env: &Env, address: &Address) -> ValidationResult<()> {
         Self::validate_format(env, address)?;
         Self::check_blacklist(env, address)?;
@@ -79,6 +121,20 @@ pub struct NumberValidator;
 
 impl NumberValidator {
     /// Validates amount within allowed range
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_amount(...);
+    /// ```
     pub fn validate_amount(amount: i128) -> ValidationResult<()> {
         if amount < config::MIN_AMOUNT {
             return Err(ValidationError::InvalidAmountRange);
@@ -90,6 +146,20 @@ impl NumberValidator {
     }
 
     /// Validates signer count
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_signer_count(...);
+    /// ```
     #[allow(clippy::cast_possible_truncation)]
     pub fn validate_signer_count(count: usize) -> ValidationResult<()> {
         if count == 0 {
@@ -105,6 +175,20 @@ impl NumberValidator {
     }
 
     /// Validates threshold against signer count
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_threshold(...);
+    /// ```
     pub fn validate_threshold(threshold: u32, signer_count: u32) -> ValidationResult<()> {
         if threshold < config::MIN_THRESHOLD {
             return Err(ValidationError::InvalidThreshold);
@@ -116,6 +200,20 @@ impl NumberValidator {
     }
 
     /// Validates chain ID
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_chain_id(...);
+    /// ```
     pub fn validate_chain_id(chain_id: u32) -> ValidationResult<()> {
         if !(config::MIN_CHAIN_ID..=config::MAX_CHAIN_ID).contains(&chain_id) {
             return Err(ValidationError::InvalidChainId);
@@ -124,6 +222,20 @@ impl NumberValidator {
     }
 
     /// Validates timeout duration
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_timeout(...);
+    /// ```
     pub fn validate_timeout(timeout_seconds: u64) -> ValidationResult<()> {
         if timeout_seconds < config::MIN_TIMEOUT_SECONDS {
             return Err(ValidationError::InvalidTimeout);
@@ -140,6 +252,20 @@ pub struct StringValidator;
 
 impl StringValidator {
     /// Validates string length
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_length(...);
+    /// ```
     pub fn validate_length(string: &String, max_length: u32) -> ValidationResult<()> {
         if string.is_empty() {
             return Err(ValidationError::InvalidStringLength);
@@ -151,6 +277,20 @@ impl StringValidator {
     }
 
     /// Validates string contains only allowed characters
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_characters(...);
+    /// ```
     pub fn validate_characters(string: &String) -> ValidationResult<()> {
         // Allow alphanumeric, spaces, and basic punctuation
         let string_bytes = string.to_bytes();
@@ -183,6 +323,20 @@ impl StringValidator {
     }
 
     /// Comprehensive string validation
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate(...);
+    /// ```
     pub fn validate(string: &String, max_length: u32) -> ValidationResult<()> {
         Self::validate_length(string, max_length)?;
         Self::validate_characters(string)?;
@@ -195,6 +349,20 @@ pub struct BytesValidator;
 
 impl BytesValidator {
     /// Validates bytes length for cross-chain addresses
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_cross_chain_address(...);
+    /// ```
     pub fn validate_cross_chain_address(bytes: &Bytes) -> ValidationResult<()> {
         // Most blockchain addresses are 20-32 bytes
         if bytes.len() < 20 || bytes.len() > 32 {
@@ -204,6 +372,20 @@ impl BytesValidator {
     }
 
     /// Validates bytes for general use
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_length(...);
+    /// ```
     pub fn validate_length(bytes: &Bytes, min_len: u32, max_len: u32) -> ValidationResult<()> {
         if bytes.len() < min_len || bytes.len() > max_len {
             return Err(ValidationError::InvalidBytesLength);
@@ -217,6 +399,16 @@ pub struct CrossChainValidator;
 
 impl CrossChainValidator {
     /// Validates destination chain data
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_destination_data(...);
+    /// ```
     pub fn validate_destination_data(
         _env: &Env,
         chain_id: u32,
@@ -228,6 +420,16 @@ impl CrossChainValidator {
     }
 
     /// Validates cross-chain message structure
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_cross_chain_message(...);
+    /// ```
     pub fn validate_cross_chain_message(
         env: &Env,
         source_chain: u32,
@@ -248,6 +450,16 @@ pub struct EscrowValidator;
 
 impl EscrowValidator {
     /// Validates escrow creation parameters
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_create_escrow(...);
+    /// ```
     pub fn validate_create_escrow(
         env: &Env,
         depositor: &Address,
@@ -299,6 +511,20 @@ impl EscrowValidator {
     }
 
     /// Checks for duplicate signers in the list
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // check_duplicate_signers(...);
+    /// ```
     pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
         let mut seen = soroban_sdk::Map::new(&signers.env());
         for signer in signers.iter() {
@@ -311,6 +537,16 @@ impl EscrowValidator {
     }
 
     /// Validates escrow release conditions
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_release_conditions(...);
+    /// ```
     pub fn validate_release_conditions(
         escrow: &crate::types::Escrow,
         caller: &Address,
@@ -338,6 +574,20 @@ impl EscrowValidator {
     }
 
     /// Checks if caller is authorized to release escrow
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_authorized_caller(...);
+    /// ```
     pub fn is_authorized_caller(escrow: &crate::types::Escrow, caller: &Address) -> bool {
         if caller.clone() == escrow.depositor || caller.clone() == escrow.beneficiary {
             return true;
@@ -359,6 +609,16 @@ pub struct BridgeValidator;
 
 impl BridgeValidator {
     /// Validates bridge out parameters
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_bridge_out(...);
+    /// ```
     pub fn validate_bridge_out(
         env: &Env,
         from: &Address,
@@ -382,6 +642,16 @@ impl BridgeValidator {
     }
 
     /// Validates bridge completion parameters
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_bridge_completion(...);
+    /// ```
     pub fn validate_bridge_completion(
         env: &Env,
         message: &crate::types::CrossChainMessage,
@@ -412,6 +682,16 @@ pub struct RewardsValidator;
 
 impl RewardsValidator {
     /// Validates reward issuance parameters
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_reward_issuance(...);
+    /// ```
     pub fn validate_reward_issuance(
         env: &Env,
         recipient: &Address,
@@ -434,6 +714,16 @@ impl RewardsValidator {
     }
 
     /// Validates reward pool funding
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_pool_funding(...);
+    /// ```
     pub fn validate_pool_funding(
         env: &Env,
         funder: &Address,

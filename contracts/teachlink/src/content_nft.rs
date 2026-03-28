@@ -21,6 +21,18 @@ pub struct ContentNFT {
     pub created_at: u64,
 }
 
+/// Standard API for mint_content
+///
+/// # Arguments
+///
+/// * `env` - The environment (if applicable).
+///
+/// # Examples
+///
+/// ```rust
+/// // Example usage
+/// // mint_content(...);
+/// ```
 pub fn mint_content(
     creator: Address,
     metadata: ContentMetadata,

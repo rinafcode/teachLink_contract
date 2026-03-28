@@ -17,6 +17,18 @@ use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 pub struct EscrowManager;
 
 impl EscrowManager {
+    /// Standard API for create_escrow
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_escrow(...);
+    /// ```
     pub fn create_escrow(
         env: &Env,
         depositor: Address,
@@ -88,6 +100,18 @@ impl EscrowManager {
         Ok(escrow_count)
     }
 
+    /// Standard API for approve_release
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // approve_release(...);
+    /// ```
     pub fn approve_release(
         env: &Env,
         escrow_id: u64,
@@ -125,6 +149,22 @@ impl EscrowManager {
         Ok(escrow.approval_count)
     }
 
+    /// Standard API for release
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // release(...);
+    /// ```
     pub fn release(env: &Env, escrow_id: u64, caller: Address) -> Result<(), EscrowError> {
         caller.require_auth();
 
@@ -147,6 +187,22 @@ impl EscrowManager {
         Ok(())
     }
 
+    /// Standard API for refund
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // refund(...);
+    /// ```
     pub fn refund(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
 
@@ -180,6 +236,22 @@ impl EscrowManager {
         Ok(())
     }
 
+    /// Standard API for cancel
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // cancel(...);
+    /// ```
     pub fn cancel(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
 
@@ -202,6 +274,18 @@ impl EscrowManager {
         Ok(())
     }
 
+    /// Standard API for dispute
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // dispute(...);
+    /// ```
     pub fn dispute(
         env: &Env,
         escrow_id: u64,
@@ -238,6 +322,18 @@ impl EscrowManager {
         Ok(())
     }
 
+    /// Standard API for resolve
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // resolve(...);
+    /// ```
     pub fn resolve(
         env: &Env,
         escrow_id: u64,
@@ -291,6 +387,22 @@ impl EscrowManager {
         Ok(())
     }
 
+    /// Standard API for auto_check_dispute
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // auto_check_dispute(...);
+    /// ```
     pub fn auto_check_dispute(env: &Env, escrow_id: u64) -> Result<(), EscrowError> {
         let mut escrow = Self::load_escrow(env, escrow_id)?;
         if ArbitrationManager::check_stalled_escrow(env, &escrow) {
@@ -311,14 +423,62 @@ impl EscrowManager {
 
     // ---------- Views ----------
 
+    /// Standard API for get_escrow
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_escrow(...);
+    /// ```
     pub fn get_escrow(env: &Env, escrow_id: u64) -> Option<Escrow> {
         Self::load_escrows(env).get(escrow_id)
     }
 
+    /// Standard API for get_escrow_count
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_escrow_count(...);
+    /// ```
     pub fn get_escrow_count(env: &Env) -> u64 {
         env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0)
     }
 
+    /// Standard API for has_approved
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // has_approved(...);
+    /// ```
     pub fn has_approved(env: &Env, escrow_id: u64, signer: Address) -> bool {
         let key = EscrowApprovalKey { escrow_id, signer };
         env.storage().persistent().has(&key)
