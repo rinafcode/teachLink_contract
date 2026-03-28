@@ -2,14 +2,12 @@
 //!
 //! This module contains comprehensive tests for the notification system.
 
-use crate::notification::*;
-use crate::notification_types::*;
-use crate::storage::*;
-use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
-
 #[cfg(test)]
 pub mod notification_tests {
-    use super::*;
+    use crate::notification::*;
+    use crate::notification_types::*;
+    use crate::storage::*;
+    use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
 
     // Helper function to create test addresses
     fn create_test_address(env: &Env, id: u8) -> Address {
