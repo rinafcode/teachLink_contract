@@ -34,11 +34,7 @@ impl FaqManager {
 
         env.storage().instance().set(&id, &faq);
 
-        let count: u64 = env
-            .storage()
-            .instance()
-            .get(&DocKey::FaqCount)
-            .unwrap_or(0);
+        let count: u64 = env.storage().instance().get(&DocKey::FaqCount).unwrap_or(0);
         env.storage()
             .instance()
             .set(&DocKey::FaqCount, &(count + 1));
@@ -53,9 +49,6 @@ impl FaqManager {
 
     /// Return total number of FAQ entries stored.
     pub fn count(env: &Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&DocKey::FaqCount)
-            .unwrap_or(0)
+        env.storage().instance().get(&DocKey::FaqCount).unwrap_or(0)
     }
 }
