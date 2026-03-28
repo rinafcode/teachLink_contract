@@ -20,6 +20,16 @@ pub struct MultiChainManager;
 
 impl MultiChainManager {
     /// Add a new supported chain
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_chain(...);
+    /// ```
     pub fn add_chain(
         env: &Env,
         chain_id: u32,
@@ -88,6 +98,16 @@ impl MultiChainManager {
     }
 
     /// Update chain configuration
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_chain(...);
+    /// ```
     pub fn update_chain(
         env: &Env,
         chain_id: u32,
@@ -141,6 +161,16 @@ impl MultiChainManager {
     }
 
     /// Register a multi-chain asset
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // register_asset(...);
+    /// ```
     pub fn register_asset(
         env: &Env,
         asset_id: Bytes,
@@ -211,6 +241,16 @@ impl MultiChainManager {
     }
 
     /// Update asset status
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_asset_status(...);
+    /// ```
     pub fn update_asset_status(
         env: &Env,
         asset_id: u64,
@@ -232,6 +272,16 @@ impl MultiChainManager {
     }
 
     /// Update bridged amount for an asset
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_bridged_amount(...);
+    /// ```
     pub fn update_bridged_amount(
         env: &Env,
         asset_id: u64,
@@ -276,6 +326,20 @@ impl MultiChainManager {
     }
 
     /// Check if a chain is supported and active
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_chain_active(...);
+    /// ```
     pub fn is_chain_active(env: &Env, chain_id: u32) -> bool {
         let chains: Map<u32, bool> = env
             .storage()
@@ -302,6 +366,20 @@ impl MultiChainManager {
     }
 
     /// Get chain configuration
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_chain_config(...);
+    /// ```
     pub fn get_chain_config(env: &Env, chain_id: u32) -> Option<ChainConfig> {
         let chain_configs: Map<u32, ChainConfig> = env
             .storage()
@@ -312,6 +390,20 @@ impl MultiChainManager {
     }
 
     /// Get multi-chain asset
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_asset(...);
+    /// ```
     pub fn get_asset(env: &Env, asset_id: u64) -> Option<MultiChainAsset> {
         let assets: Map<u64, MultiChainAsset> = env
             .storage()
@@ -322,6 +414,20 @@ impl MultiChainManager {
     }
 
     /// Get chain asset info for a specific chain
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_chain_asset_info(...);
+    /// ```
     pub fn get_chain_asset_info(env: &Env, asset_id: u64, chain_id: u32) -> Option<ChainAssetInfo> {
         if let Some(asset) = Self::get_asset(env, asset_id) {
             asset.chain_configs.get(chain_id)
@@ -331,6 +437,20 @@ impl MultiChainManager {
     }
 
     /// Get all supported chains
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_supported_chains(...);
+    /// ```
     pub fn get_supported_chains(env: &Env) -> Vec<u32> {
         let chains: Map<u32, bool> = env
             .storage()
@@ -348,6 +468,20 @@ impl MultiChainManager {
     }
 
     /// Get all active assets
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_active_assets(...);
+    /// ```
     pub fn get_active_assets(env: &Env) -> Vec<u64> {
         let assets: Map<u64, MultiChainAsset> = env
             .storage()
@@ -365,6 +499,16 @@ impl MultiChainManager {
     }
 
     /// Validate cross-chain transfer
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // validate_cross_chain_transfer(...);
+    /// ```
     pub fn validate_cross_chain_transfer(
         env: &Env,
         source_chain: u32,

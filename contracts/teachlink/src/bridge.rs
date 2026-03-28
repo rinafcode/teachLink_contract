@@ -19,6 +19,16 @@ impl Bridge {
     /// - token: Address of the TeachLink token contract
     /// - admin: Address of the bridge administrator
     /// - min_validators: Minimum number of validators required for cross-chain verification
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize(...);
+    /// ```
     pub fn initialize(
         env: &Env,
         token: Address,
@@ -59,6 +69,16 @@ impl Bridge {
     /// - amount: Amount of tokens to bridge
     /// - destination_chain: Chain ID of the destination blockchain
     /// - destination_address: Address on the destination chain (encoded as bytes)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // bridge_out(...);
+    /// ```
     pub fn bridge_out(
         env: &Env,
         from: Address,
@@ -189,6 +209,16 @@ impl Bridge {
     /// This is called by validators after verifying the transaction on the source chain
     /// - message: Cross-chain message containing transaction details
     /// - validator_signatures: List of validator addresses that have verified this transaction
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // complete_bridge(...);
+    /// ```
     pub fn complete_bridge(
         env: &Env,
         message: CrossChainMessage,
@@ -272,6 +302,22 @@ impl Bridge {
         Ok(())
     }
 
+    /// Standard API for mark_bridge_failed
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // mark_bridge_failed(...);
+    /// ```
     pub fn mark_bridge_failed(env: &Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
         if reason.is_empty() {
             return Err(BridgeError::InvalidInput);
@@ -297,6 +343,22 @@ impl Bridge {
         Ok(())
     }
 
+    /// Standard API for retry_bridge
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // retry_bridge(...);
+    /// ```
     pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
         let bridge_txs: Map<u64, BridgeTransaction> = env
             .storage()
@@ -361,6 +423,20 @@ impl Bridge {
     /// Cancel a bridge transaction and refund locked tokens
     /// Only callable after a timeout period
     /// - nonce: The nonce of the bridge transaction to cancel
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // cancel_bridge(...);
+    /// ```
     pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         // Get bridge transaction
         let bridge_txs: Map<u64, BridgeTransaction> = env
@@ -409,6 +485,22 @@ impl Bridge {
         Ok(())
     }
 
+    /// Standard API for refund_bridge_transaction
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // refund_bridge_transaction(...);
+    /// ```
     pub fn refund_bridge_transaction(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         Self::cancel_bridge(env, nonce)
     }
@@ -446,6 +538,20 @@ impl Bridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_validator(...);
+    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -459,6 +565,20 @@ impl Bridge {
     }
 
     /// Remove a validator (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // remove_validator(...);
+    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -472,6 +592,20 @@ impl Bridge {
     }
 
     /// Add a supported destination chain (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_supported_chain(...);
+    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -485,6 +619,20 @@ impl Bridge {
     }
 
     /// Remove a supported destination chain (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // remove_supported_chain(...);
+    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -498,6 +646,20 @@ impl Bridge {
     }
 
     /// Set bridge fee (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_bridge_fee(...);
+    /// ```
     pub fn set_bridge_fee(env: &Env, fee: i128) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -512,6 +674,20 @@ impl Bridge {
     }
 
     /// Set fee recipient (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_fee_recipient(...);
+    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -523,6 +699,20 @@ impl Bridge {
     }
 
     /// Set minimum validators (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_min_validators(...);
+    /// ```
     pub fn set_min_validators(env: &Env, min_validators: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -541,6 +731,20 @@ impl Bridge {
     // ========== View Functions ==========
 
     /// Get the bridge transaction by nonce
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_bridge_transaction(...);
+    /// ```
     pub fn get_bridge_transaction(env: &Env, nonce: u64) -> Option<BridgeTransaction> {
         let bridge_txs: Map<u64, BridgeTransaction> = env
             .storage()
@@ -551,6 +755,20 @@ impl Bridge {
     }
 
     /// Check if a chain is supported
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_chain_supported(...);
+    /// ```
     pub fn is_chain_supported(env: &Env, chain_id: u32) -> bool {
         let chains: Map<u32, bool> = env
             .storage()
@@ -561,6 +779,20 @@ impl Bridge {
     }
 
     /// Check if an address is a validator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_validator(...);
+    /// ```
     pub fn is_validator(env: &Env, address: Address) -> bool {
         let validators: Map<Address, bool> = env
             .storage()
@@ -571,21 +803,77 @@ impl Bridge {
     }
 
     /// Get the current nonce
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_nonce(...);
+    /// ```
     pub fn get_nonce(env: &Env) -> u64 {
         env.storage().instance().get(&NONCE).unwrap_or(0u64)
     }
 
     /// Get the bridge fee
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_bridge_fee(...);
+    /// ```
     pub fn get_bridge_fee(env: &Env) -> i128 {
         env.storage().instance().get(&BRIDGE_FEE).unwrap_or(0i128)
     }
 
     /// Get the token address
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_token(...);
+    /// ```
     pub fn get_token(env: &Env) -> Address {
         env.storage().instance().get(&TOKEN).unwrap()
     }
 
     /// Get the admin address
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_admin(...);
+    /// ```
     pub fn get_admin(env: &Env) -> Address {
         env.storage().instance().get(&ADMIN).unwrap()
     }
