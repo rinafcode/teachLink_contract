@@ -23,6 +23,16 @@ pub struct AtomicSwapManager;
 
 impl AtomicSwapManager {
     /// Initiate an atomic swap
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initiate_swap(...);
+    /// ```
     pub fn initiate_swap(
         env: &Env,
         initiator: Address,
@@ -109,6 +119,16 @@ impl AtomicSwapManager {
     }
 
     /// Accept and complete an atomic swap (counterparty)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // accept_swap(...);
+    /// ```
     pub fn accept_swap(
         env: &Env,
         swap_id: u64,
@@ -201,6 +221,20 @@ impl AtomicSwapManager {
     }
 
     /// Refund a swap after timelock expires (initiator only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // refund_swap(...);
+    /// ```
     pub fn refund_swap(env: &Env, swap_id: u64, initiator: Address) -> Result<(), BridgeError> {
         initiator.require_auth();
 
@@ -259,6 +293,20 @@ impl AtomicSwapManager {
     }
 
     /// Get swap by ID
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_swap(...);
+    /// ```
     pub fn get_swap(env: &Env, swap_id: u64) -> Option<AtomicSwap> {
         let swaps: soroban_sdk::Map<u64, AtomicSwap> = env
             .storage()
@@ -269,6 +317,20 @@ impl AtomicSwapManager {
     }
 
     /// Get swaps by initiator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_swaps_by_initiator(...);
+    /// ```
     pub fn get_swaps_by_initiator(env: &Env, initiator: Address) -> Vec<u64> {
         let swaps: soroban_sdk::Map<u64, AtomicSwap> = env
             .storage()
@@ -286,6 +348,20 @@ impl AtomicSwapManager {
     }
 
     /// Get swaps by counterparty
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_swaps_by_counterparty(...);
+    /// ```
     pub fn get_swaps_by_counterparty(env: &Env, counterparty: Address) -> Vec<u64> {
         let swaps: soroban_sdk::Map<u64, AtomicSwap> = env
             .storage()
@@ -303,6 +379,20 @@ impl AtomicSwapManager {
     }
 
     /// Get active swaps (initiated but not completed)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_active_swaps(...);
+    /// ```
     pub fn get_active_swaps(env: &Env) -> Vec<u64> {
         let swaps: soroban_sdk::Map<u64, AtomicSwap> = env
             .storage()
@@ -320,6 +410,20 @@ impl AtomicSwapManager {
     }
 
     /// Get expired swaps
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_expired_swaps(...);
+    /// ```
     pub fn get_expired_swaps(env: &Env) -> Vec<u64> {
         let swaps: soroban_sdk::Map<u64, AtomicSwap> = env
             .storage()
@@ -354,11 +458,39 @@ impl AtomicSwapManager {
     }
 
     /// Get swap count
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_swap_count(...);
+    /// ```
     pub fn get_swap_count(env: &Env) -> u64 {
         env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64)
     }
 
     /// Check if swap is expired
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_swap_expired(...);
+    /// ```
     pub fn is_swap_expired(env: &Env, swap_id: u64) -> bool {
         if let Some(swap) = Self::get_swap(env, swap_id) {
             env.ledger().timestamp() > swap.timelock && swap.status == SwapStatus::Initiated
@@ -368,6 +500,20 @@ impl AtomicSwapManager {
     }
 
     /// Calculate swap rate (price ratio)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // calculate_swap_rate(...);
+    /// ```
     pub fn calculate_swap_rate(initiator_amount: i128, counterparty_amount: i128) -> f64 {
         if initiator_amount == 0 {
             return 0.0;

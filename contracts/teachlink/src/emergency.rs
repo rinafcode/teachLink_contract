@@ -20,6 +20,20 @@ pub struct EmergencyManager;
 
 impl EmergencyManager {
     /// Pause the entire bridge
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // pause_bridge(...);
+    /// ```
     pub fn pause_bridge(env: &Env, pauser: Address, reason: Bytes) -> Result<(), BridgeError> {
         pauser.require_auth();
 
@@ -64,6 +78,20 @@ impl EmergencyManager {
     }
 
     /// Resume the bridge
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // resume_bridge(...);
+    /// ```
     pub fn resume_bridge(env: &Env, resumer: Address) -> Result<(), BridgeError> {
         resumer.require_auth();
 
@@ -102,6 +130,16 @@ impl EmergencyManager {
     }
 
     /// Pause specific chains
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // pause_chains(...);
+    /// ```
     pub fn pause_chains(
         env: &Env,
         pauser: Address,
@@ -135,6 +173,16 @@ impl EmergencyManager {
     }
 
     /// Resume specific chains
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // resume_chains(...);
+    /// ```
     pub fn resume_chains(
         env: &Env,
         resumer: Address,
@@ -166,6 +214,16 @@ impl EmergencyManager {
     }
 
     /// Initialize circuit breaker for a chain
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize_circuit_breaker(...);
+    /// ```
     pub fn initialize_circuit_breaker(
         env: &Env,
         chain_id: u32,
@@ -195,6 +253,16 @@ impl EmergencyManager {
     }
 
     /// Check and update circuit breaker for a transaction
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // check_circuit_breaker(...);
+    /// ```
     pub fn check_circuit_breaker(
         env: &Env,
         chain_id: u32,
@@ -273,6 +341,16 @@ impl EmergencyManager {
     }
 
     /// Reset circuit breaker for a chain
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // reset_circuit_breaker(...);
+    /// ```
     pub fn reset_circuit_breaker(
         env: &Env,
         chain_id: u32,
@@ -303,6 +381,20 @@ impl EmergencyManager {
     }
 
     /// Check if bridge is paused
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_bridge_paused(...);
+    /// ```
     pub fn is_bridge_paused(env: &Env) -> bool {
         let emergency_state: EmergencyState = env
             .storage()
@@ -319,6 +411,20 @@ impl EmergencyManager {
     }
 
     /// Check if a chain is paused
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_chain_paused(...);
+    /// ```
     pub fn is_chain_paused(env: &Env, chain_id: u32) -> bool {
         let paused_chains: Map<u32, bool> = env
             .storage()
@@ -329,6 +435,20 @@ impl EmergencyManager {
     }
 
     /// Get emergency state
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_emergency_state(...);
+    /// ```
     pub fn get_emergency_state(env: &Env) -> EmergencyState {
         env.storage()
             .instance()
@@ -343,6 +463,20 @@ impl EmergencyManager {
     }
 
     /// Get circuit breaker state
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_circuit_breaker(...);
+    /// ```
     pub fn get_circuit_breaker(env: &Env, chain_id: u32) -> Option<CircuitBreaker> {
         let circuit_breakers: Map<u32, CircuitBreaker> = env
             .storage()
@@ -353,6 +487,20 @@ impl EmergencyManager {
     }
 
     /// Get all paused chains
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_paused_chains(...);
+    /// ```
     pub fn get_paused_chains(env: &Env) -> Vec<u32> {
         let paused_chains: Map<u32, bool> = env
             .storage()
@@ -370,6 +518,16 @@ impl EmergencyManager {
     }
 
     /// Update circuit breaker limits
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_circuit_breaker_limits(...);
+    /// ```
     pub fn update_circuit_breaker_limits(
         env: &Env,
         chain_id: u32,

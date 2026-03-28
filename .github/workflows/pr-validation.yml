@@ -196,7 +196,8 @@ jobs:
                 "$CLIPPY_CHECK" == "true" && \
                 "$TEST_CHECK" == "true" && \
                 "$BUILD_DEBUG_CHECK" == "true" && \
-                "$BUILD_WASM_CHECK" == "true" ]]; then
+                "$BUILD_WASM_CHECK" == "true" && \
+                "$DOCS_CHECK" == "true" ]]; then
             echo "✅ All required checks passed!"
             echo "can-merge=true" >> $GITHUB_OUTPUT
           else
@@ -230,16 +231,16 @@ jobs:
             ${canMerge ? '✅ **This PR is ready to merge!**' : '❌ **This PR is not ready to merge yet.'}
             
             ### 📋 Required Checks:
-            - **Code Formatting**: ${{ steps.fmt-check.outputs.fmt_check == 'true' ? '✅ Passed' : '❌ Failed' }}
-            - **Clippy Lints**: ${{ steps.clippy-check.outputs.clippy_check == 'true' ? '✅ Passed' : '❌ Failed' }}
-            - **Unit Tests**: ${{ steps.test-check.outputs.test_check == 'true' ? '✅ Passed' : '❌ Failed' }}
-            - **Debug Build**: ${{ steps.build-debug-check.outputs.build_debug_check == 'true' ? '✅ Passed' : '❌ Failed' }}
-            - **WASM Release Build**: ${{ steps.build-wasm-check.outputs.build_wasm_check == 'true' ? '✅ Passed' : '❌ Failed' }}
+            - **Code Formatting**: ${{ steps.fmt-check.outputs.fmt_check == 'true' && '✅ Passed' || '❌ Failed' }}
+            - **Clippy Lints**: ${{ steps.clippy-check.outputs.clippy_check == 'true' && '✅ Passed' || '❌ Failed' }}
+            - **Unit Tests**: ${{ steps.test-check.outputs.test_check == 'true' && '✅ Passed' || '❌ Failed' }}
+            - **Debug Build**: ${{ steps.build-debug-check.outputs.build_debug_check == 'true' && '✅ Passed' || '❌ Failed' }}
+            - **WASM Release Build**: ${{ steps.build-wasm-check.outputs.build_wasm_check == 'true' && '✅ Passed' || '❌ Failed' }}
+            - **Documentation**: ${{ steps.docs-check.outputs.docs_check == 'true' && '✅ Passed' || '❌ Failed' }}
             
             ### 📚 Optional Checks:
-            - **Documentation**: ${{ steps.docs-check.outputs.docs_check == 'true' ? '✅ Passed' : '❌ Failed' }}
-            - **Security Audit**: ${{ steps.security-check.outputs.security_check == 'true' ? '✅ Passed' : '⚠️ Issues Found' }}
-            - **Duplicate Dependencies**: ${{ steps.duplicate-check.outputs.duplicate_check == 'true' ? '✅ Passed' : '⚠️ Issues Found' }}
+            - **Security Audit**: ${{ steps.security-check.outputs.security_check == 'true' && '✅ Passed' || '⚠️ Issues Found' }}
+            - **Duplicate Dependencies**: ${{ steps.duplicate-check.outputs.duplicate_check == 'true' && '✅ Passed' || '⚠️ Issues Found' }}
             
             ${!canMerge ? `
             ### 🔧 How to Fix:
@@ -264,28 +265,28 @@ jobs:
               body: comment
             });
 
-  # 11. Set PR status
-  - name: Update PR status
-    if: always()
-    uses: actions/github-script@v7
-    with:
-      script: |
-        const canMerge = '${{ steps.check-results.outputs.can-merge }}' === 'true';
-        
-        await github.rest.repos.createCommitStatus({
-          owner: context.repo.owner,
-          repo: context.repo.repo,
-          sha: context.sha,
-          state: canMerge ? 'success' : 'failure',
-          target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
-          description: canMerge ? 'All checks passed - Ready to merge' : 'Some checks failed - Not ready to merge',
-          context: 'pr-validation'
-        });
+      # 11. Set PR status
+      - name: Update PR status
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const canMerge = '${{ steps.check-results.outputs.can-merge }}' === 'true';
+            
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha: context.sha,
+              state: canMerge ? 'success' : 'failure',
+              target_url: `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`,
+              description: canMerge ? 'All checks passed - Ready to merge' : 'Some checks failed - Not ready to merge',
+              context: 'pr-validation'
+            });
 
-  # 12. Branch protection enforcement
-  - name: Enforce branch protection
-    if: steps.check-results.outputs.can-merge == 'false'
-    run: |
-      echo "🚫 PR cannot be merged due to failed checks"
-      echo "Please fix all failing checks before this PR can be merged"
-      exit 1
+      # 12. Branch protection enforcement
+      - name: Enforce branch protection
+        if: steps.check-results.outputs.can-merge == 'false'
+        run: |
+          echo "🚫 PR cannot be merged due to failed checks"
+          echo "Please fix all failing checks before this PR can be merged"
+          exit 1
