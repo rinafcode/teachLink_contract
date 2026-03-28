@@ -40,13 +40,10 @@ impl BFTConsensus {
         }
 
         // Check if already registered
-        let validators: Map<Address, bool> = env
-            .storage()
-            .instance()
-            .get(&VALIDATORS)
-            .unwrap_or_else(|| Map::new(env));
-        if validators.get(validator.clone()).unwrap_or(false) {
-            return Err(BridgeError::AlreadyInitialized);
+        if env.storage().instance().has(&crate::storage::DataKey::Validator(validator.clone())) {
+             if env.storage().instance().get::<_, bool>(&crate::storage::DataKey::Validator(validator.clone())).unwrap_or(false) {
+                return Err(BridgeError::AlreadyInitialized);
+             }
         }
 
         // Create validator info
@@ -62,30 +59,17 @@ impl BFTConsensus {
             slashed_amount: 0,
         };
 
-        // Store validator info
-        let mut validator_infos: Map<Address, ValidatorInfo> = env
-            .storage()
-            .instance()
-            .get(&VALIDATOR_INFO)
-            .unwrap_or_else(|| Map::new(env));
-        validator_infos.set(validator.clone(), validator_info);
-        env.storage()
-            .instance()
-            .set(&VALIDATOR_INFO, &validator_infos);
+        // Store validator data
+        env.storage().instance().set(&crate::storage::DataKey::Validator(validator.clone()), &true);
+        env.storage().instance().set(&crate::storage::DataKey::ValidatorMetadata(validator.clone()), &validator_info);
+        env.storage().instance().set(&crate::storage::DataKey::ValidatorStake(validator.clone()), &stake);
 
-        // Store stake
-        let mut stakes: Map<Address, i128> = env
-            .storage()
-            .instance()
-            .get(&VALIDATOR_STAKES)
-            .unwrap_or_else(|| Map::new(env));
-        stakes.set(validator.clone(), stake);
-        env.storage().instance().set(&VALIDATOR_STAKES, &stakes);
-
-        // Add to validators list
-        let mut validators = validators;
-        validators.set(validator.clone(), true);
-        env.storage().instance().set(&VALIDATORS, &validators);
+        // Maintain list
+        let mut list: Vec<Address> = env.storage().instance().get(&crate::storage::VALIDATORS_LIST).unwrap_or_else(|| Vec::new(env));
+        if !list.contains(&validator) {
+            list.push_back(validator.clone());
+            env.storage().instance().set(&crate::storage::VALIDATORS_LIST, &list);
+        }
 
         // Update consensus state
         Self::update_consensus_state(env)?;
@@ -106,43 +90,24 @@ impl BFTConsensus {
         validator.require_auth();
 
         // Check if validator exists
-        let validators: Map<Address, bool> = env
-            .storage()
-            .instance()
-            .get(&VALIDATORS)
-            .unwrap_or_else(|| Map::new(env));
-        if !validators.get(validator.clone()).unwrap_or(false) {
+        if !env.storage().instance().get::<_, bool>(&crate::storage::DataKey::Validator(validator.clone())).unwrap_or(false) {
             return Err(BridgeError::InvalidValidatorSignature);
         }
 
         // Get stake
-        let stakes: Map<Address, i128> = env
-            .storage()
-            .instance()
-            .get(&VALIDATOR_STAKES)
-            .unwrap_or_else(|| Map::new(env));
-        let stake = stakes.get(validator.clone()).unwrap_or(0);
+        let stake = env.storage().instance().get::<_, i128>(&crate::storage::DataKey::ValidatorStake(validator.clone())).unwrap_or(0);
 
         // Remove validator
-        let mut validators = validators;
-        validators.set(validator.clone(), false);
-        env.storage().instance().set(&VALIDATORS, &validators);
+        env.storage().instance().set(&crate::storage::DataKey::Validator(validator.clone()), &false);
+        env.storage().instance().remove(&crate::storage::DataKey::ValidatorMetadata(validator.clone()));
+        env.storage().instance().remove(&crate::storage::DataKey::ValidatorStake(validator.clone()));
 
-        // Remove validator info
-        let mut validator_infos: Map<Address, ValidatorInfo> = env
-            .storage()
-            .instance()
-            .get(&VALIDATOR_INFO)
-            .unwrap_or_else(|| Map::new(env));
-        validator_infos.remove(validator.clone());
-        env.storage()
-            .instance()
-            .set(&VALIDATOR_INFO, &validator_infos);
-
-        // Remove stake
-        let mut stakes = stakes;
-        stakes.remove(validator.clone());
-        env.storage().instance().set(&VALIDATOR_STAKES, &stakes);
+        // Remove from list
+        let mut list: Vec<Address> = env.storage().instance().get(&crate::storage::VALIDATORS_LIST).unwrap_or_else(|| Vec::new(env));
+        if let Some(pos) = list.iter().position(|v| v == validator) {
+            list.remove(pos as u32);
+            env.storage().instance().set(&crate::storage::VALIDATORS_LIST, &list);
+        }
 
         // Update consensus state
         Self::update_consensus_state(env)?;
@@ -182,11 +147,10 @@ impl BFTConsensus {
 
         let required_votes = consensus_state.byzantine_threshold;
 
-        // Create proposal
+        // Create proposal (votes field removed from struct)
         let proposal = BridgeProposal {
             proposal_id: proposal_counter,
             message: message.clone(),
-            votes: Map::new(env),
             vote_count: 0,
             required_votes,
             status: ProposalStatus::Pending,
@@ -255,12 +219,13 @@ impl BFTConsensus {
         }
 
         // Check if validator already voted
-        if proposal.votes.get(validator.clone()).is_some() {
+        let vote_key = crate::storage::DataKey::ProposalVote(proposal_id, validator.clone());
+        if env.storage().instance().has(&vote_key) {
             return Err(BridgeError::ProposalAlreadyVoted);
         }
 
         // Record vote
-        proposal.votes.set(validator.clone(), approve);
+        env.storage().instance().set(&vote_key, &approve);
         if approve {
             proposal.vote_count += 1;
         }
@@ -332,26 +297,20 @@ impl BFTConsensus {
 
     /// Update the consensus state based on current validators
     fn update_consensus_state(env: &Env) -> Result<(), BridgeError> {
-        let validators: Map<Address, bool> = env
+        let validators: Vec<Address> = env
             .storage()
             .instance()
-            .get(&VALIDATORS)
-            .unwrap_or_else(|| Map::new(env));
-        let stakes: Map<Address, i128> = env
-            .storage()
-            .instance()
-            .get(&VALIDATOR_STAKES)
-            .unwrap_or_else(|| Map::new(env));
+            .get(&crate::storage::VALIDATORS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
 
         let mut total_stake: i128 = 0;
         let mut active_validators: u32 = 0;
 
-        for (validator, is_active) in validators.iter() {
-            if is_active {
+        for validator in validators.iter() {
+            if Self::is_active_validator(env, &validator) {
                 active_validators += 1;
-                if let Some(stake) = stakes.get(validator.clone()) {
-                    total_stake += stake;
-                }
+                let stake = env.storage().instance().get(&crate::storage::DataKey::ValidatorStake(validator.clone())).unwrap_or(0);
+                total_stake += stake;
             }
         }
 
@@ -399,22 +358,15 @@ impl BFTConsensus {
 
     /// Check if an address is an active validator
     pub fn is_active_validator(env: &Env, address: &Address) -> bool {
-        let validators: Map<Address, bool> = env
-            .storage()
+        env.storage()
             .instance()
-            .get(&VALIDATORS)
-            .unwrap_or_else(|| Map::new(env));
-        validators.get(address.clone()).unwrap_or(false)
+            .get(&crate::storage::DataKey::Validator(address.clone()))
+            .unwrap_or(false)
     }
 
     /// Get validator info
     pub fn get_validator_info(env: &Env, validator: Address) -> Option<ValidatorInfo> {
-        let validator_infos: Map<Address, ValidatorInfo> = env
-            .storage()
-            .instance()
-            .get(&VALIDATOR_INFO)
-            .unwrap_or_else(|| Map::new(env));
-        validator_infos.get(validator)
+        env.storage().instance().get(&crate::storage::DataKey::ValidatorMetadata(validator))
     }
 
     /// Get proposal by ID
@@ -442,15 +394,15 @@ impl BFTConsensus {
 
     /// Get all active validators
     pub fn get_active_validators(env: &Env) -> Vec<Address> {
-        let validators: Map<Address, bool> = env
+        let validators: Vec<Address> = env
             .storage()
             .instance()
-            .get(&VALIDATORS)
-            .unwrap_or_else(|| Map::new(env));
+            .get(&crate::storage::VALIDATORS_LIST)
+            .unwrap_or_else(|| Vec::new(env));
         let mut active = Vec::new(env);
-        for (validator, is_active) in validators.iter() {
-            if is_active {
-                active.push_back(validator.clone());
+        for validator in validators.iter() {
+            if Self::is_active_validator(env, &validator) {
+                active.push_back(validator);
             }
         }
         active

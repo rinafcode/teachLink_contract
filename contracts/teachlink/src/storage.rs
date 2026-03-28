@@ -139,3 +139,42 @@ pub const ONBOARDING_STATUS: Symbol = symbol_short!("onboard");
 pub const USER_FEEDBACK: Symbol = symbol_short!("feedback");
 pub const UX_EXPERIMENTS: Symbol = symbol_short!("ux_exp");
 pub const COMPONENT_CONFIG: Symbol = symbol_short!("comp_cfg");
+pub const SUPPORTED_CHAINS_LIST: Symbol = symbol_short!("ch_list");
+pub const VALIDATORS_LIST: Symbol = symbol_short!("val_list");
+
+/// Granular storage keys for optimized data access
+#[soroban_sdk::contracttype]
+pub enum DataKey {
+    /// Chain metrics by chain ID: (u32)
+    ChainMetrics(u32),
+    /// Daily volume: (day_timestamp, chain_id)
+    DailyVolume(u64, u32),
+    /// Validator vote on proposal: (proposal_id, validator_address)
+    ProposalVote(u64, soroban_sdk::Address),
+    /// Liquidity provider position: (chain_id, provider_address)
+    LPPoolProvider(u32, soroban_sdk::Address),
+    /// Multi-chain asset configuration: (asset_counter, chain_id)
+    MultiChainAssetConfig(u64, u32),
+    /// Validator performance in a compliance report: (report_id, validator_address)
+    ReportValidatorPerf(u64, soroban_sdk::Address),
+    /// Pending bridge transaction: (nonce)
+    BridgeTx(u64),
+    /// Bridge transaction retry count: (nonce)
+    BridgeRetryCount(u64),
+    /// Bridge transaction last retry timestamp: (nonce)
+    BridgeLastRetry(u64),
+    /// Bridge transaction failure reason: (nonce)
+    BridgeFailure(u64),
+    /// Validator active status: (address)
+    Validator(soroban_sdk::Address),
+    /// Validator metadata: (address)
+    ValidatorMetadata(soroban_sdk::Address),
+    /// Validator stake: (address)
+    ValidatorStake(soroban_sdk::Address),
+    /// Supported chain status: (chain_id)
+    SupportedChain(u32),
+    /// Processed bridge nonce (for replay protection): (nonce)
+    ProcessedNonce(u64),
+    /// Audit record: (record_id)
+    AuditRecord(u64),
+}
