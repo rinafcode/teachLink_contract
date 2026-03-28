@@ -1,8 +1,8 @@
-//! TeachLink Contract Types
+﻿//! TeachLink Contract Types
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
 
-use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, Symbol, Vec};
+use soroban_sdk::{contracttype, Address, Bytes, Map, String, Symbol, Vec};
 
 // Include notification types
 pub use crate::notification_types::*;

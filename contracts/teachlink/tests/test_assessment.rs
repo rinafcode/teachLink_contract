@@ -1,4 +1,4 @@
-#![allow(clippy::needless_pass_by_value)]
+﻿#![allow(clippy::needless_pass_by_value)]
 
 use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, Map, Vec};
 use teachlink_contract::{

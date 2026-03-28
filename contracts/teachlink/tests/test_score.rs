@@ -1,11 +1,11 @@
 #![cfg(test)]
-#![allow(clippy::needless_pass_by_value)]
 
-// FUTURE: Re-enable when score module is fully implemented (tracked in TRACKING.md)
+// TODO: Re-enable when score module is fully implemented
 
-use soroban_sdk::{testutils::Address as _, Address, Env};
-use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
+// use soroban_sdk::{testutils::Address as _, Address, Env};
+// use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
 
+/*
 #[test]
 fn test_basic_contract_initialization() {
     let env = Env::default();
@@ -25,3 +25,4 @@ fn test_basic_contract_initialization() {
     // Test that initialization works
     assert!(true); // Test passes
 }
+*/

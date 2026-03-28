@@ -1,4 +1,4 @@
-// Test file disabled due to contract implementation being commented out
+﻿// Test file disabled due to contract implementation being commented out
 // All tests pass when contract is fully implemented
 
 #![allow(clippy::needless_pass_by_value)]

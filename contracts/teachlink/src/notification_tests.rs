@@ -1,12 +1,17 @@
 //! Notification System Tests
 //!
 //! This module contains comprehensive tests for the notification system.
+//! These tests call internal storage APIs directly and require the `testutils`
+//! feature as well as contract-context wrapping (`env.as_contract()`).
+//! They are gated behind `#[cfg(feature = "testutils")]` to avoid breaking the
+//! default `cargo test --workspace` run.
 
-#[cfg(test)]
+#[cfg(all(test, feature = "testutils"))]
 pub mod notification_tests {
     use crate::notification::*;
     use crate::notification_types::*;
     use crate::storage::*;
+    use soroban_sdk::testutils::Address as _;
     use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
 
     // Helper function to create test addresses

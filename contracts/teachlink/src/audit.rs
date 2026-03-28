@@ -1,4 +1,4 @@
-//! Bridge Audit Trail and Compliance Module
+﻿//! Bridge Audit Trail and Compliance Module
 //!
 //! This module implements comprehensive audit logging and compliance reporting
 //! for regulatory requirements and operational transparency.

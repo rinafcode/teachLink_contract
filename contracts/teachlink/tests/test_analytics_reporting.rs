@@ -1,4 +1,4 @@
-#![cfg(test)]
+﻿#![cfg(test)]
 #![allow(clippy::assertions_on_constants)]
 #![allow(clippy::needless_pass_by_value)]
 #![allow(clippy::unreadable_literal)]

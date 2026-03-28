@@ -1,6 +1,3 @@
-#![allow(clippy::all)]
-#![allow(unused)]
-
 //! Enhanced Insurance Contract
 //!
 //! This contract implements a comprehensive decentralized insurance system with:
@@ -40,12 +37,6 @@
 //! - Transparent proposal process
 
 #![no_std]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::panic_in_result_fn)]
 
 mod errors;
 mod storage;
@@ -54,9 +45,7 @@ mod types;
 use crate::errors::InsuranceError;
 use crate::storage::*;
 use crate::types::*;
-use soroban_sdk::{
-    contract, contractimpl, contracttype, token, vec, Address, Bytes, Env, String, Vec,
-};
+use soroban_sdk::{contract, contractimpl, token, vec, Address, Bytes, Env, String, Vec};
 
 #[contract]
 pub struct EnhancedInsurance;
@@ -306,7 +295,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::RiskModelWeights)
-            .unwrap_or_else(RiskModelWeights::default);
+            .unwrap_or_default();
 
         let risk_score = Self::calculate_risk_score(&factors, &weights)?;
 
@@ -413,7 +402,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::RiskMultiplierRanges)
-            .unwrap_or_else(RiskMultiplierRanges::default);
+            .unwrap_or_default();
 
         let multiplier = if risk_score <= ranges.low_risk_max {
             ranges.low_risk_max
@@ -461,7 +450,7 @@ impl EnhancedInsurance {
             .get(&DataKey::Token)
             .ok_or(InsuranceError::NotInitialized)?;
         let token_client = token::Client::new(&env, &token_addr);
-        token_client.transfer(&user, &env.current_contract_address(), &final_premium);
+        token_client.transfer(&user, env.current_contract_address(), &final_premium);
 
         // Create policy
         let mut policy_count = env
@@ -628,7 +617,16 @@ impl EnhancedInsurance {
         threshold: i128,
         payout_amount: i128,
     ) -> Result<u64, InsuranceError> {
-        Self::check_role(&env, &admin, ROLE_RISK_MANAGER)?;
+        admin.require_auth();
+
+        if env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .is_none_or(|a: Address| a != admin)
+        {
+            return Err(InsuranceError::UnauthorizedGovernanceAction);
+        }
 
         let mut trigger_count = env
             .storage()
@@ -731,7 +729,16 @@ impl EnhancedInsurance {
         target_utilization: u32,
         risk_reserve_ratio: u32,
     ) -> Result<u64, InsuranceError> {
-        Self::check_role(&env, &admin, ROLE_POOL_MANAGER)?;
+        admin.require_auth();
+
+        if env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .is_none_or(|a: Address| a != admin)
+        {
+            return Err(InsuranceError::UnauthorizedGovernanceAction);
+        }
 
         let mut pool_count = env
             .storage()
@@ -780,7 +787,16 @@ impl EnhancedInsurance {
         partner: Address,
         allocation_percentage: u32,
     ) -> Result<(), InsuranceError> {
-        Self::check_role(&env, &admin, ROLE_POOL_MANAGER)?;
+        admin.require_auth();
+
+        if env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .is_none_or(|a: Address| a != admin)
+        {
+            return Err(InsuranceError::UnauthorizedGovernanceAction);
+        }
 
         let mut pool: OptimizedPool = env
             .storage()
@@ -953,7 +969,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::GovernanceParameters)
-            .unwrap_or_else(GovernanceParameters::default);
+            .unwrap_or_default();
 
         if balance < governance_params.proposal_threshold as i128 {
             return Err(InsuranceError::InsufficientTokenBalance);
@@ -1059,7 +1075,7 @@ impl EnhancedInsurance {
             .storage()
             .instance()
             .get(&DataKey::GovernanceParameters)
-            .unwrap_or_else(GovernanceParameters::default);
+            .unwrap_or_default();
 
         let total_votes = proposal.votes_for + proposal.votes_against;
         let quorum_met =
@@ -1282,7 +1298,16 @@ impl EnhancedInsurance {
         chain_id: Address,
         bridge_address: Address,
     ) -> Result<(), InsuranceError> {
-        Self::check_role(&env, &admin, ROLE_SUPER_ADMIN)?;
+        admin.require_auth();
+
+        if env
+            .storage()
+            .instance()
+            .get(&DataKey::Admin)
+            .is_none_or(|a: Address| a != admin)
+        {
+            return Err(InsuranceError::UnauthorizedGovernanceAction);
+        }
 
         env.storage()
             .instance()
@@ -1358,6 +1383,6 @@ impl EnhancedInsurance {
         env.storage()
             .instance()
             .get(&DataKey::GovernanceParameters)
-            .unwrap_or_else(GovernanceParameters::default)
+            .unwrap_or_default()
     }
 }

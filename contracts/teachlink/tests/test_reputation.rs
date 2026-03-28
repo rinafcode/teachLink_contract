@@ -1,4 +1,4 @@
-#![cfg(test)]
+﻿#![cfg(test)]
 #![allow(clippy::needless_pass_by_value)]
 
 use soroban_sdk::{testutils::Address as _, Address, Env};

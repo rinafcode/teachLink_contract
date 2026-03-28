@@ -1,4 +1,4 @@
-//! Cross-Chain Atomic Swap Module
+﻿//! Cross-Chain Atomic Swap Module
 //!
 //! This module implements atomic swap functionality for cross-chain token exchanges
 //! using hash time-locked contracts (HTLC).
@@ -45,7 +45,7 @@ impl AtomicSwapManager {
             return Err(BridgeError::InvalidHashlock);
         }
 
-        if timelock < MIN_TIMELOCK || timelock > MAX_TIMELOCK {
+        if !(MIN_TIMELOCK..=MAX_TIMELOCK).contains(&timelock) {
             return Err(BridgeError::InvalidInput);
         }
 

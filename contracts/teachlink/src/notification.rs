@@ -1,4 +1,4 @@
-//! Comprehensive Notification System
+﻿//! Comprehensive Notification System
 //!
 //! This module implements a multi-channel notification system with personalization,
 //! scheduling, analytics, and intelligent delivery optimization.
@@ -17,7 +17,7 @@ use crate::types::{
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
     UserNotificationSettings,
 };
-use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
+use soroban_sdk::{vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 /// Notification delivery intervals (in seconds)
 pub const IMMEDIATE_DELIVERY: u64 = 0;
@@ -221,7 +221,8 @@ impl NotificationManager {
             recipient: recipient.clone(),
             channel,
             scheduled_time: schedule.scheduled_time,
-        };
+        }
+        .publish(env);
 
         Ok(notification_id)
     }
@@ -350,7 +351,8 @@ impl NotificationManager {
         NotificationPrefUpdatedEvent {
             user,
             updated_at: env.ledger().timestamp(),
-        };
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -452,7 +454,7 @@ impl NotificationManager {
         }
 
         // Return the first notification ID for simplicity
-        if notification_ids.len() > 0 {
+        if !notification_ids.is_empty() {
             Ok(notification_ids.first().unwrap())
         } else {
             Err(BridgeError::InvalidInput)
@@ -651,7 +653,7 @@ impl NotificationManager {
 
         if let Some(mut tracking) = tracking_map.get(notification_id) {
             // Simulate delivery (90% success rate)
-            let success = (current_time % 10) != 0; // Simple pseudo-random
+            let success = !current_time.is_multiple_of(10); // Simple pseudo-random
 
             if success {
                 tracking.status = NotificationDeliveryStatus::Delivered;
@@ -663,7 +665,8 @@ impl NotificationManager {
                     recipient: recipient.clone(),
                     channel,
                     delivered_at: current_time,
-                };
+                }
+                .publish(env);
             } else {
                 tracking.status = NotificationDeliveryStatus::Failed;
                 tracking.error_message = Bytes::from_slice(env, b"Simulated delivery failure");
@@ -676,7 +679,8 @@ impl NotificationManager {
                     channel,
                     error: Bytes::from_slice(env, b"Simulated delivery failure"),
                     retry_count: tracking.retry_count,
-                };
+                }
+                .publish(env);
             }
 
             let mut tracking_map_mut = tracking_map;
@@ -701,8 +705,8 @@ impl NotificationManager {
         variables: Map<Bytes, Bytes>,
     ) -> NotificationContent {
         // Simple template variable replacement - in a real implementation this would be more sophisticated
-        let mut subject = template.subject.clone();
-        let mut body = template.body.clone();
+        let subject = template.subject.clone();
+        let body = template.body.clone();
 
         // For now, just return the original content since Soroban doesn't have string manipulation
         // In a real implementation, you'd use an external service or more complex byte manipulation

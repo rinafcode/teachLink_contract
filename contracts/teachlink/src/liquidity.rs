@@ -1,13 +1,13 @@
-//! Bridge Liquidity and AMM Module
+﻿//! Bridge Liquidity and AMM Module
 //!
 //! This module implements liquidity pool management and automated market making
 //! for optimizing bridge operations and dynamic fee pricing.
 
 use crate::errors::BridgeError;
 use crate::events::{FeeUpdatedEvent, LiquidityAddedEvent, LiquidityRemovedEvent};
-use crate::storage::{FEE_STRUCTURE, LIQUIDITY_POOLS, LP_POSITIONS};
+use crate::storage::{FEE_STRUCTURE, LIQUIDITY_POOLS};
 use crate::types::{BridgeFeeStructure, LPPosition, LiquidityPool};
-use soroban_sdk::{Address, Env, Map, Vec};
+use soroban_sdk::{Address, Env, Map};
 
 /// Base fee in basis points (0.1%)
 pub const BASE_FEE_BPS: i128 = 10;
@@ -304,7 +304,7 @@ impl LiquidityManager {
         dynamic_multiplier: u32,
         volume_discount_tiers: Map<u32, u32>,
     ) -> Result<(), BridgeError> {
-        if base_fee < MIN_FEE_BPS || base_fee > MAX_FEE_BPS {
+        if !(MIN_FEE_BPS..=MAX_FEE_BPS).contains(&base_fee) {
             return Err(BridgeError::FeeCannotBeNegative);
         }
 

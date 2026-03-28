@@ -1,5 +1,4 @@
-#![allow(clippy::all)]
-#![allow(unused)]
+#![no_std]
 
 //! TeachLink Smart Contract
 //!
@@ -77,17 +76,6 @@
 //! - Validator functions require validator authorization
 //! - Escrow functions require appropriate party authorization
 
-#![no_std]
-#![allow(clippy::unreadable_literal)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::trivially_copy_pass_by_ref)]
-#![allow(clippy::needless_borrow)]
-
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod analytics;
@@ -113,8 +101,8 @@ mod multichain;
 mod notification;
 mod notification_events_basic;
 // mod content_quality;
-mod notification_tests;
 mod backup;
+mod notification_tests;
 mod notification_types;
 mod performance;
 mod provenance;
@@ -128,6 +116,8 @@ mod storage;
 mod tokenization;
 mod types;
 pub mod validation;
+// Property-based tests require `--features testutils` and are run via scripts/run_property_tests.ps1
+#[cfg(all(test, feature = "testutils"))]
 pub mod property_based_tests;
 
 pub use crate::types::{
