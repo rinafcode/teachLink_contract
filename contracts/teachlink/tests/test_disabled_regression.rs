@@ -1,27 +1,27 @@
 //! Regression tests for disabled test files fix
-//! 
+//!
 //! This test ensures that previously disabled test files remain enabled
 //! and that the fixes continue to work in future updates.
 
 #![allow(clippy::assertions_on_constants)]
 
-use soroban_sdk::{Env, Address};
 use soroban_sdk::testutils::Address as _;
+use soroban_sdk::{Address, Env};
 
 /// Test that notification system tests are properly integrated
 #[test]
 fn test_notification_tests_integration() {
     let env = Env::default();
-    
+
     // This test verifies that the notification_tests module is properly included
     // and can be imported without issues
-    
+
     // Test that we can create basic notification structures
     let test_address = Address::generate(&env);
-    
+
     // Verify address generation works (basic functionality test)
     let _ = test_address; // address was created successfully
-    
+
     // This test will fail to compile if notification_tests module is not properly integrated
     // The mere fact that this test compiles and runs proves the integration works
 }
@@ -41,7 +41,7 @@ fn test_validation_tests_integration() {
 }
 
 /// Test that all previously disabled modules are now enabled
-#[test] 
+#[test]
 fn test_no_disabled_files_remain() {
     // Verify that the modules can be imported and their stateless functions work
     use teachlink_contract::validation::NumberValidator;
@@ -51,10 +51,10 @@ fn test_no_disabled_files_remain() {
 /// Test comprehensive validation coverage
 #[test]
 fn test_validation_comprehensive() {
-    use teachlink_contract::validation::{
-        NumberValidator, StringValidator, BytesValidator, config
-    };
     use soroban_sdk::Env;
+    use teachlink_contract::validation::{
+        config, BytesValidator, NumberValidator, StringValidator,
+    };
 
     let env = Env::default();
 

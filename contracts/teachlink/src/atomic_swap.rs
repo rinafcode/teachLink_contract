@@ -45,7 +45,7 @@ impl AtomicSwapManager {
             return Err(BridgeError::InvalidHashlock);
         }
 
-        if timelock < MIN_TIMELOCK || timelock > MAX_TIMELOCK {
+        if !(MIN_TIMELOCK..=MAX_TIMELOCK).contains(&timelock) {
             return Err(BridgeError::InvalidInput);
         }
 

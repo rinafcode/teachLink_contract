@@ -6,7 +6,7 @@
 use crate::errors::MobilePlatformError;
 use crate::types::*;
 use soroban_sdk::{
-    contracttype, panic_with_error, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
+    panic_with_error, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
 };
 
 const MOBILE_PROFILE: Symbol = symbol_short!("mob_prof");

@@ -336,12 +336,7 @@ impl EscrowManager {
     // ---------- Internal Helpers ----------
 
     fn get_signer_info(signers: &Vec<EscrowSigner>, signer_addr: &Address) -> Option<EscrowSigner> {
-        for s in signers.iter() {
-            if s.address == *signer_addr {
-                return Some(s);
-            }
-        }
-        None
+        signers.iter().find(|s| s.address == *signer_addr)
     }
 
     fn is_signer(signers: &Vec<EscrowSigner>, signer_addr: &Address) -> bool {

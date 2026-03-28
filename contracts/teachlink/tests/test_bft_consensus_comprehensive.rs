@@ -155,8 +155,7 @@ fn test_voting_success() {
     client.register_validator(&validator1, &(MIN_STAKE * 2));
     client.register_validator(&validator2, &(MIN_STAKE * 3));
 
-    let proposal_id =
-        client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
+    let proposal_id = client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
 
     // First vote succeeds
     client.vote_on_proposal(&validator1, &proposal_id, &true);
@@ -180,8 +179,7 @@ fn test_double_voting_rejected() {
     client.register_validator(&validator1, &(MIN_STAKE * 2));
     client.register_validator(&validator2, &(MIN_STAKE * 2));
 
-    let proposal_id =
-        client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
+    let proposal_id = client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
     client.vote_on_proposal(&validator1, &proposal_id, &true);
 
     // Voting again with the same validator should be rejected
@@ -213,8 +211,7 @@ fn test_inactive_validator_cannot_vote() {
     let recipient = Address::generate(&env);
     client.register_validator(&validator, &(MIN_STAKE * 2));
 
-    let proposal_id =
-        client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
+    let proposal_id = client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
 
     let result = client.try_vote_on_proposal(&non_validator, &proposal_id, &true);
     assert_eq!(result, Err(Ok(BridgeError::ValidatorNotActive)));
@@ -238,8 +235,7 @@ fn test_proposal_reaches_consensus() {
     client.register_validator(&validator3, &(MIN_STAKE * 2));
 
     // byzantine_threshold for 3 validators = (2*3)/3 + 1 = 3
-    let proposal_id =
-        client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
+    let proposal_id = client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
 
     client.vote_on_proposal(&validator1, &proposal_id, &true);
     client.vote_on_proposal(&validator2, &proposal_id, &true);
@@ -262,8 +258,7 @@ fn test_proposal_timeout() {
     let recipient = Address::generate(&env);
     client.register_validator(&validator, &(MIN_STAKE * 2));
 
-    let proposal_id =
-        client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
+    let proposal_id = client.create_bridge_proposal(&make_message(&env, &token, &recipient, 1));
 
     // Advance ledger past PROPOSAL_TIMEOUT (86_400 seconds)
     env.ledger().set(LedgerInfo {

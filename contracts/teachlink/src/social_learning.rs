@@ -11,12 +11,8 @@
 //! - Social gamification and recognition systems
 
 use soroban_sdk::{
-    contracterror, contracttype, panic_with_error, symbol_short, Address, Bytes, Env, IntoVal, Map,
-    String, Symbol, TryFromVal, Val, Vec,
+    contracterror, contracttype, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
 };
-
-use crate::storage::*;
-use crate::types::*;
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -838,7 +834,7 @@ impl SocialLearningManager {
         feedback: Bytes,
         criteria: Map<Bytes, u32>,
     ) -> Result<u64, SocialLearningError> {
-        if rating < 1 || rating > 5 {
+        if !(1..=5).contains(&rating) {
             return Err(SocialLearningError::InvalidRating);
         }
 

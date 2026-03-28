@@ -1,4 +1,4 @@
-﻿#![no_std]
+#![no_std]
 
 //! TeachLink Smart Contract
 //!
@@ -76,7 +76,6 @@
 //! - Validator functions require validator authorization
 //! - Escrow functions require appropriate party authorization
 
-
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod analytics;
@@ -102,8 +101,8 @@ mod multichain;
 mod notification;
 mod notification_events_basic;
 // mod content_quality;
-mod notification_tests;
 mod backup;
+mod notification_tests;
 mod notification_types;
 mod performance;
 mod provenance;
