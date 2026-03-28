@@ -1,3 +1,4 @@
+use crate::interfaces::{EscrowMetricsPort, EscrowObserver};
 use crate::storage::ESCROW_ANALYTICS;
 use crate::types::EscrowMetrics;
 use soroban_sdk::{Env, Map};
@@ -45,5 +46,25 @@ impl EscrowAnalyticsManager {
                 total_resolved: 0,
                 average_resolution_time: 0,
             })
+    }
+}
+
+impl EscrowObserver for EscrowAnalyticsManager {
+    fn on_created(env: &Env, amount: i128) {
+        Self::update_creation(env, amount);
+    }
+
+    fn on_disputed(env: &Env) {
+        Self::update_dispute(env);
+    }
+
+    fn on_resolved(env: &Env, duration: u64) {
+        Self::update_resolution(env, duration);
+    }
+}
+
+impl EscrowMetricsPort for EscrowAnalyticsManager {
+    fn get_metrics(env: &Env) -> EscrowMetrics {
+        Self::get_metrics(env)
     }
 }
