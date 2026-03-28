@@ -1,15 +1,28 @@
 [package]
 name = "teachlink-contract"
 version = "0.1.0"
-edition = "2021"
-license = "MIT"
-repository = "https://github.com/rinafcode/teachLink_contract"
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
-[dependencies]
-soroban-sdk = "20.0.0"
+[features]
+testutils = ["soroban-sdk/testutils"]
 
+[dependencies]
+soroban-sdk.workspace = true
+
+<<<<<<< HEAD
+=======
+[dev-dependencies]
+soroban-sdk = { workspace = true, features = ["testutils"] }
+proptest = "1.4"
+proptest-derive = "0.4"
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 [lints]
 workspace = true

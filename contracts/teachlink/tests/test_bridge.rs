@@ -1,6 +1,13 @@
 // Test file disabled due to contract implementation being commented out
 // All tests pass when contract is fully implemented
 
+<<<<<<< HEAD
+=======
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::too_many_lines)]
+
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 // use soroban_sdk::{testutils::Address as _, Address, Bytes, Env};
 // use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
 

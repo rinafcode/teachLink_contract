@@ -1,4 +1,10 @@
 #![cfg(test)]
+<<<<<<< HEAD
+=======
+#![allow(clippy::assertions_on_constants)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::unreadable_literal)]
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
 //! Tests for performance optimization and caching.
 //!

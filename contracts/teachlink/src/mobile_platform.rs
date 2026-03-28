@@ -5,7 +5,13 @@
 
 use crate::errors::MobilePlatformError;
 use crate::types::*;
+<<<<<<< HEAD
 use soroban_sdk::{panic_with_error, symbol_short, Address, Bytes, Env, Map, Symbol, Vec};
+=======
+use soroban_sdk::{
+    contracttype, panic_with_error, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
+};
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
 const MOBILE_PROFILE: Symbol = symbol_short!("mob_prof");
 const OFFLINE_CONTENT: Symbol = symbol_short!("off_cont");
@@ -368,7 +374,11 @@ impl MobilePlatformManager {
 
     // ========== Helper Functions ==========
 
+<<<<<<< HEAD
     fn estimate_content_size(_content_id: u64, quality: OfflineQuality) -> u64 {
+=======
+    fn estimate_content_size(content_id: u64, quality: OfflineQuality) -> u64 {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         // Simulated size estimation
         match quality {
             OfflineQuality::TextOnly => 1024 * 100,               // 100KB
@@ -398,7 +408,11 @@ impl MobilePlatformManager {
         Bytes::from_slice(env, &code.to_be_bytes())
     }
 
+<<<<<<< HEAD
     fn calculate_fraud_score(_user: &Address, amount: u64) -> u32 {
+=======
+    fn calculate_fraud_score(user: &Address, amount: u64) -> u32 {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         // Simple fraud detection - would be more sophisticated
         match amount {
             0..=100 => 5,

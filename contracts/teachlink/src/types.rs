@@ -2,7 +2,11 @@
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
 
+<<<<<<< HEAD
 use soroban_sdk::{contracttype, Address, Bytes, Map, String, Symbol, Vec};
+=======
+use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, Symbol, Vec};
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
 // Include notification types
 pub use crate::notification_types::*;

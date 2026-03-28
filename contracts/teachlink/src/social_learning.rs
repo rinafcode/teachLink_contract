@@ -11,9 +11,19 @@
 //! - Social gamification and recognition systems
 
 use soroban_sdk::{
+<<<<<<< HEAD
     contracterror, contracttype, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
 };
 
+=======
+    contracterror, contracttype, panic_with_error, symbol_short, Address, Bytes, Env, IntoVal, Map,
+    String, Symbol, TryFromVal, Val, Vec,
+};
+
+use crate::storage::*;
+use crate::types::*;
+
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct StudyGroup {
@@ -597,7 +607,11 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::StudyGroupNotFound)
     }
 
+<<<<<<< HEAD
     pub fn get_user_study_groups(env: &Env, _user: Address) -> Vec<u64> {
+=======
+    pub fn get_user_study_groups(env: &Env, user: Address) -> Vec<u64> {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         env.storage()
             .instance()
             .get(&USER_STUDY_GROUPS)
@@ -816,7 +830,11 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::WorkspaceNotFound)
     }
 
+<<<<<<< HEAD
     pub fn get_user_workspaces(env: &Env, _user: Address) -> Vec<u64> {
+=======
+    pub fn get_user_workspaces(env: &Env, user: Address) -> Vec<u64> {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         env.storage()
             .instance()
             .get(&USER_WORKSPACES)
@@ -834,7 +852,11 @@ impl SocialLearningManager {
         feedback: Bytes,
         criteria: Map<Bytes, u32>,
     ) -> Result<u64, SocialLearningError> {
+<<<<<<< HEAD
         if !(1u32..=5u32).contains(&rating) {
+=======
+        if rating < 1 || rating > 5 {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             return Err(SocialLearningError::InvalidRating);
         }
 
@@ -967,7 +989,11 @@ impl SocialLearningManager {
             })
     }
 
+<<<<<<< HEAD
     pub fn update_user_analytics(env: &Env, _user: Address, analytics: SocialAnalytics) {
+=======
+    pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         env.storage().instance().set(&SOCIAL_ANALYTICS, &analytics);
     }
 }

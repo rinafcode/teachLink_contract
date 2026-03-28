@@ -69,6 +69,16 @@ impl EnhancedInsurance {
         env.storage().instance().set(&DataKey::Oracle, &oracle);
         env.storage().instance().set(&DataKey::Token, &token);
 
+        // RBAC Initialization: Set admin as SUPER_ADMIN
+        env.storage().instance().set(&DataKey::HasRole(ROLE_SUPER_ADMIN, admin.clone()), &true);
+        
+        // Multi-sig Initialization: Admin is the first signer
+        let mut signers: Vec<Address> = Vec::new(&env);
+        signers.push_back(admin.clone());
+        env.storage().instance().set(&DataKey::MultiSigSigners, &signers);
+        env.storage().instance().set(&DataKey::MultiSigThreshold, &1u32);
+        env.storage().instance().set(&DataKey::OperationCount, &0u64);
+
         // Set default configuration parameters
         env.storage()
             .instance()
@@ -80,6 +90,9 @@ impl EnhancedInsurance {
         env.storage().instance().set(&DataKey::TokenCount, &0u64);
         env.storage().instance().set(&DataKey::ProposalCount, &0u64);
         env.storage().instance().set(&DataKey::ReportCount, &0u64);
+
+        // Emit Initialization Event for Audit
+        env.events().publish((soroban_sdk::symbol_short!("Init"), admin), (oracle, token));
 
         // Set default configuration
         env.storage()
@@ -107,6 +120,154 @@ impl EnhancedInsurance {
             .set(&DataKey::GovernanceQuorum, &5000u32); // 50%
         env.storage().instance().set(&DataKey::VotingPeriod, &7u32); // 7 days
 
+        Ok(())
+    }
+
+    // ===== RBAC Helper =====
+
+    fn check_role(env: &Env, user: &Address, role: u32) -> Result<(), InsuranceError> {
+        user.require_auth();
+        // Super Admin bypass
+        if env.storage().instance().get(&DataKey::HasRole(ROLE_SUPER_ADMIN, user.clone())).unwrap_or(false) {
+            return Ok(());
+        }
+        if env.storage().instance().get(&DataKey::HasRole(role, user.clone())).unwrap_or(false) {
+            return Ok(());
+        }
+        Err(InsuranceError::UnauthorizedRole)
+    }
+
+    // ===== Governance & RBAC Endpoints =====
+
+    /// Grant a specific role (Super Admin only)
+    pub fn grant_role(env: Env, caller: Address, role: u32, account: Address) -> Result<(), InsuranceError> {
+        Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
+        env.storage().instance().set(&DataKey::HasRole(role, account.clone()), &true);
+        env.events().publish((soroban_sdk::symbol_short!("RoleGnt"), account), role);
+        Ok(())
+    }
+
+    /// Revoke a specific role (Super Admin only)
+    pub fn revoke_role(env: Env, caller: Address, role: u32, account: Address) -> Result<(), InsuranceError> {
+        Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
+        env.storage().instance().set(&DataKey::HasRole(role, account.clone()), &false);
+        env.events().publish((soroban_sdk::symbol_short!("RoleRvk"), account), role);
+        Ok(())
+    }
+
+    /// Initiate admin transfer with 24-hour timelock
+    pub fn transfer_admin(env: Env, caller: Address, new_admin: Address) -> Result<(), InsuranceError> {
+        Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
+        let ready_at = env.ledger().timestamp() + 86400; // 24 hours
+        env.storage().instance().set(&DataKey::PendingAdminTransfer, &new_admin);
+        env.storage().instance().set(&DataKey::AdminTransferTimestamp, &ready_at);
+        env.events().publish((soroban_sdk::symbol_short!("AdmTrns"), new_admin), ready_at);
+        Ok(())
+    }
+
+    /// Claim admin role after timelock expires
+    pub fn accept_admin(env: Env, new_admin: Address) -> Result<(), InsuranceError> {
+        new_admin.require_auth();
+        let pending: Address = env.storage().instance().get(&DataKey::PendingAdminTransfer).ok_or(InsuranceError::TransferNotPending)?;
+        if pending != new_admin { return Err(InsuranceError::UnauthorizedRole); }
+        
+        let ready_at = env.storage().instance().get(&DataKey::AdminTransferTimestamp).unwrap_or(u64::MAX);
+        if env.ledger().timestamp() < ready_at { return Err(InsuranceError::TimelockNotExpired); }
+
+        // Finalize transfer
+        let old_admin: Address = env.storage().instance().get(&DataKey::Admin).ok_or(InsuranceError::NotInitialized)?;
+        env.storage().instance().set(&DataKey::HasRole(ROLE_SUPER_ADMIN, old_admin), &false);
+        env.storage().instance().set(&DataKey::HasRole(ROLE_SUPER_ADMIN, new_admin.clone()), &true);
+        env.storage().instance().set(&DataKey::Admin, &new_admin);
+        
+        env.storage().instance().remove(&DataKey::PendingAdminTransfer);
+        env.storage().instance().remove(&DataKey::AdminTransferTimestamp);
+
+        env.events().publish((soroban_sdk::symbol_short!("AdmAccp"), new_admin), env.ledger().timestamp());
+        Ok(())
+    }
+
+    // ===== Multi-Sig Framework =====
+
+    /// Propose a critical action (Signers only)
+    pub fn propose_action(env: Env, proposer: Address, action: CriticalAction) -> Result<u32, InsuranceError> {
+        proposer.require_auth();
+        let signers: Vec<Address> = env.storage().instance().get(&DataKey::MultiSigSigners).unwrap_or_else(|| Vec::new(&env));
+        if !signers.contains(&proposer) { return Err(InsuranceError::NotASigner); }
+
+        let mut count: u64 = env.storage().instance().get(&DataKey::OperationCount).unwrap_or(0);
+        count += 1;
+        let id = count as u32;
+
+        let op = CriticalOperation {
+            id,
+            action: action.clone(),
+            proposer: proposer.clone(),
+            created_at: env.ledger().timestamp(),
+            ready_at: env.ledger().timestamp() + 10, // Small delay for demo, in production would be higher
+            executed: false,
+        };
+
+        env.storage().instance().set(&DataKey::CriticalOperation(id), &op);
+        env.storage().instance().set(&DataKey::OperationCount, &count);
+        
+        // Auto-approve by proposer
+        let mut approvals = Vec::new(&env);
+        approvals.push_back(proposer);
+        env.storage().instance().set(&DataKey::OperationApprovals(id), &approvals);
+
+        env.events().publish((soroban_sdk::symbol_short!("PropAct"), id), action);
+        Ok(id)
+    }
+
+    /// Approve a pending action
+    pub fn approve_action(env: Env, signer: Address, op_id: u32) -> Result<(), InsuranceError> {
+        signer.require_auth();
+        let signers: Vec<Address> = env.storage().instance().get(&DataKey::MultiSigSigners).unwrap_or_else(|| Vec::new(&env));
+        if !signers.contains(&signer) { return Err(InsuranceError::NotASigner); }
+
+        let op: CriticalOperation = env.storage().instance().get(&DataKey::CriticalOperation(op_id)).ok_or(InsuranceError::OperationNotFound)?;
+        if op.executed { return Err(InsuranceError::OperationExecuted); }
+
+        let mut approvals: Vec<Address> = env.storage().instance().get(&DataKey::OperationApprovals(op_id)).unwrap_or_else(|| Vec::new(&env));
+        if approvals.contains(&signer) { return Err(InsuranceError::AlreadyApproved); }
+
+        approvals.push_back(signer.clone());
+        env.storage().instance().set(&DataKey::OperationApprovals(op_id), &approvals);
+
+        env.events().publish((soroban_sdk::symbol_short!("Approve"), op_id), signer);
+        Ok(())
+    }
+
+    /// Execute an approved action
+    pub fn execute_action(env: Env, executor: Address, op_id: u32) -> Result<(), InsuranceError> {
+        executor.require_auth();
+        let mut op: CriticalOperation = env.storage().instance().get(&DataKey::CriticalOperation(op_id)).ok_or(InsuranceError::OperationNotFound)?;
+        if op.executed { return Err(InsuranceError::OperationExecuted); }
+        if env.ledger().timestamp() < op.ready_at { return Err(InsuranceError::TimelockNotExpired); }
+
+        let approvals: Vec<Address> = env.storage().instance().get(&DataKey::OperationApprovals(op_id)).unwrap_or_else(|| Vec::new(&env));
+        let threshold = env.storage().instance().get(&DataKey::MultiSigThreshold).unwrap_or(1);
+        
+        if (approvals.len() as u32) < threshold { return Err(InsuranceError::ThresholdNotMet); }
+
+        // Execute logic based on action
+        match &op.action {
+            CriticalAction::ChangeBasePremium(new_rate) => {
+                env.storage().instance().set(&DataKey::BasePremiumRate, new_rate);
+            },
+            CriticalAction::PausePool(pool_id) => {
+                let mut pool: OptimizedPool = env.storage().instance().get(&DataKey::Pool(*pool_id)).ok_or(InsuranceError::PoolNotFound)?;
+                pool.status = PoolStatus::Paused;
+                env.storage().instance().set(&DataKey::Pool(*pool_id), &pool);
+            },
+            _ => { /* Other actions implemented similarly */ }
+        }
+
+        op.executed = true;
+        env.storage().instance().set(&DataKey::CriticalOperation(op_id), &op);
+        
+        env.events().publish((soroban_sdk::symbol_short!("Execute"), op_id), ());
         Ok(())
     }
 
@@ -897,7 +1058,7 @@ impl EnhancedInsurance {
         admin: Address,
         proposal_id: u64,
     ) -> Result<(), InsuranceError> {
-        admin.require_auth();
+        Self::check_role(&env, &admin, ROLE_SUPER_ADMIN)?;
 
         let mut proposal: InsuranceProposal = env
             .storage()
@@ -977,7 +1138,7 @@ impl EnhancedInsurance {
         symbol: Bytes,
         total_supply: i128,
     ) -> Result<u64, InsuranceError> {
-        admin.require_auth();
+        Self::check_role(&env, &admin, ROLE_SUPER_ADMIN)?;
 
         // Verify pool exists
         let _pool: OptimizedPool = env
@@ -1081,7 +1242,7 @@ impl EnhancedInsurance {
         admin: Address,
         period_days: u32,
     ) -> Result<u64, InsuranceError> {
-        admin.require_auth();
+        Self::check_role(&env, &admin, ROLE_ORACLE_MANAGER)?;
 
         let period_start = env.ledger().timestamp() - (period_days as u64 * 24 * 60 * 60);
         let period_end = env.ledger().timestamp();

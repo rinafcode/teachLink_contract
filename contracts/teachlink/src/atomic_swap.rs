@@ -45,7 +45,11 @@ impl AtomicSwapManager {
             return Err(BridgeError::InvalidHashlock);
         }
 
+<<<<<<< HEAD
         if !(MIN_TIMELOCK..=MAX_TIMELOCK).contains(&timelock) {
+=======
+        if timelock < MIN_TIMELOCK || timelock > MAX_TIMELOCK {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             return Err(BridgeError::InvalidInput);
         }
 
@@ -339,18 +343,32 @@ impl AtomicSwapManager {
     }
 
     /// Verify hashlock against preimage
+<<<<<<< HEAD
     fn verify_hashlock(_env: &Env, preimage: &Bytes, hashlock: &Bytes) -> bool {
         // In a real implementation, this would hash the preimage and compare
         // For Soroban, we'd use the SDK's crypto functions
         // This is a simplified placeholder
 
+=======
+    fn verify_hashlock(env: &Env, preimage: &Bytes, hashlock: &Bytes) -> bool {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         if preimage.is_empty() {
             return false;
         }
 
+<<<<<<< HEAD
         // TODO: Implement actual SHA256 hashing
         // For now, we'll do a simple length check as placeholder
         hashlock.len() == HASH_LENGTH
+=======
+        // Hash the preimage
+        let hash_bytesn = env.crypto().sha256(preimage);
+
+        // Convert BytesN<32> to Bytes for comparison
+        let expected_bytes: Bytes = hash_bytesn.into();
+
+        hashlock == &expected_bytes
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
     }
 
     /// Get swap count

@@ -1,9 +1,17 @@
 #![cfg(test)]
+<<<<<<< HEAD
 
 // use soroban_sdk::{testutils::Address as _, Address, Env};
 // use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
 
 /*
+=======
+#![allow(clippy::needless_pass_by_value)]
+
+use soroban_sdk::{testutils::Address as _, Address, Env};
+use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
+
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 #[test]
 fn test_reputation_flow() {
     let env = Env::default();
@@ -22,8 +30,11 @@ fn test_reputation_flow() {
 
     let user = Address::generate(&env);
 
+<<<<<<< HEAD
     // TODO: Re-enable when reputation module is implemented
     /*
+=======
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
     // 1. Test Initial Reputation
     let mut rep = client.get_user_reputation(&user);
     assert_eq!(rep.total_courses_started, 0);
@@ -52,9 +63,15 @@ fn test_reputation_flow() {
     rep = client.get_user_reputation(&user);
     assert_eq!(rep.total_contributions, 2);
     assert_eq!(rep.contribution_quality, 4); // (5 + 3) / 2 = 4
+<<<<<<< HEAD
     */
+=======
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 
     // For now, just test that the contract initializes successfully
     assert!(true); // Test passes
 }
+<<<<<<< HEAD
 */
+=======
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b

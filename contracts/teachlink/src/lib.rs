@@ -443,13 +443,16 @@ impl TeachLinkBridge {
             .get(&Self::FALLBACK_ENABLED)
             .unwrap_or(true)
     }
-}
 
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        // Empty test to satisfy CI
-        assert!(true);
+    /// Update user social analytics
+    pub fn update_user_analytics(
+        env: Env,
+        user: Address,
+        analytics: social_learning::SocialAnalytics,
+    ) {
+        social_learning::SocialLearningManager::update_user_analytics(&env, user, analytics);
     }
+
+    // Analytics function removed due to contracttype limitations
+    // Use internal notification manager for analytics
 }

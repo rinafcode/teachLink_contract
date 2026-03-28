@@ -7,6 +7,12 @@ use soroban_sdk::{
     contracterror, contracttype, symbol_short, Address, Bytes, Env, Map, Symbol, Vec,
 };
 
+<<<<<<< HEAD
+=======
+use crate::storage::*;
+use crate::types::*;
+
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
 pub enum AssessmentError {
@@ -310,7 +316,11 @@ impl AssessmentManager {
             }
         }
 
+<<<<<<< HEAD
         let performance_ratio = if !previous_scores.is_empty() {
+=======
+        let performance_ratio = if previous_scores.len() > 0 {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             (correct_count * 100) / previous_scores.len()
         } else {
             50 // Base difficulty
@@ -331,7 +341,15 @@ impl AssessmentManager {
         for q_id in assessment.questions.iter() {
             if !answered_ids.contains(q_id) {
                 if let Some(q) = questions_map.get(q_id) {
+<<<<<<< HEAD
                     let d_diff = q.difficulty.abs_diff(target_difficulty);
+=======
+                    let d_diff = if q.difficulty > target_difficulty {
+                        q.difficulty - target_difficulty
+                    } else {
+                        target_difficulty - q.difficulty
+                    };
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
                     if d_diff < min_diff {
                         min_diff = d_diff;
                         best_match = Some(q_id);
@@ -346,7 +364,11 @@ impl AssessmentManager {
     /// Basic Plagiarism Detection: Check if too many answers are identical to previous submissions
     fn detect_plagiarism(
         env: &Env,
+<<<<<<< HEAD
         _assessment_id: u64,
+=======
+        assessment_id: u64,
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         current_answers: &Map<u64, Bytes>,
     ) -> Option<bool> {
         // Implement a window-based or sampling-based check to avoid O(N) storage scan
@@ -387,7 +409,11 @@ impl AssessmentManager {
         Some(false)
     }
 
+<<<<<<< HEAD
     fn update_analytics(env: &Env, assessment_id: u64, score: u32, _max_score: u32) {
+=======
+    fn update_analytics(env: &Env, assessment_id: u64, score: u32, max_score: u32) {
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
         let analytics_key = symbol_short!("ASS_ANL");
         let mut assessments_analytics: Map<u64, AssessmentAnalytics> = env
             .storage()
@@ -476,9 +502,15 @@ impl AssessmentManager {
 
     /// Scheduling: Check if assessment is available at current time
     pub fn is_assessment_available(env: &Env, assessment_id: u64) -> bool {
+<<<<<<< HEAD
         if let Some(_assessment) = Self::get_assessment(env, assessment_id) {
             // Placeholder for start/end dates in settings
             let _now = env.ledger().timestamp();
+=======
+        if let Some(assessment) = Self::get_assessment(env, assessment_id) {
+            // Placeholder for start/end dates in settings
+            let now = env.ledger().timestamp();
+>>>>>>> 883874788426ad4ca0e91de987a6ceeea1da5f0b
             // Assume we add start_time/end_time to AssessmentSettings in future
             true
         } else {
