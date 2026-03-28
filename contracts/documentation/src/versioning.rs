@@ -9,10 +9,7 @@ pub struct Versioning;
 impl Versioning {
     /// Return the current documentation version.
     pub fn get(env: &Env) -> u32 {
-        env.storage()
-            .instance()
-            .get(&DocKey::Version)
-            .unwrap_or(1)
+        env.storage().instance().get(&DocKey::Version).unwrap_or(1)
     }
 
     /// Set a new documentation version.

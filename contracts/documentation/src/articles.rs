@@ -58,7 +58,13 @@ impl ArticleManager {
     }
 
     /// Update title, content, and tags of an existing article.
-    pub fn update(env: &Env, id: String, title: String, content: String, tags: Vec<String>) -> Article {
+    pub fn update(
+        env: &Env,
+        id: String,
+        title: String,
+        content: String,
+        tags: Vec<String>,
+    ) -> Article {
         let mut article: Article = env.storage().instance().get(&id).unwrap();
 
         article.title = title;
