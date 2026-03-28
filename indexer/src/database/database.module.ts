@@ -17,6 +17,7 @@ import {
   AlertRule,
   AlertLog,
   BackupManifestRecord,
+  BackupVerificationRecord,
   RecoveryRecordEntity,
 } from './entities';
 
@@ -47,6 +48,7 @@ import {
           AlertRule,
           AlertLog,
           BackupManifestRecord,
+          BackupVerificationRecord,
           RecoveryRecordEntity,
         ],
         synchronize: configService.get<boolean>('database.synchronize'),
@@ -70,6 +72,7 @@ import {
       AlertRule,
       AlertLog,
       BackupManifestRecord,
+      BackupVerificationRecord,
       RecoveryRecordEntity,
     ]),
   ],
