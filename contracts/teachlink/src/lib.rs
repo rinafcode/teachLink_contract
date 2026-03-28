@@ -140,9 +140,10 @@ pub use assessment::{
 pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
-    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
-    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    BackupSchedule, BridgeFeeStructure, BridgeMetrics, BridgeProposal, BridgeTransaction,
+    CachedBridgeSummary, ChainConfig, ChainMetrics, CircuitBreaker, ComplianceReport,
+    ConsensusState, ContentMetadata, ContentToken, ContentTokenParameters, ContentType,
+    Contribution, ContributionType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
     DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
     EscrowSigner, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
     NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
@@ -509,6 +510,16 @@ impl TeachLinkBridge {
         liquidity::LiquidityManager::get_available_liquidity(&env, chain_id)
     }
 
+    /// Get fee structure
+    pub fn get_fee_structure(env: Env) -> BridgeFeeStructure {
+        liquidity::LiquidityManager::get_fee_structure(&env)
+    }
+
+    /// Check if pool has sufficient liquidity
+    pub fn has_sufficient_liquidity(env: Env, chain_id: u32, amount: i128) -> bool {
+        liquidity::LiquidityManager::has_sufficient_liquidity(&env, chain_id, amount)
+    }
+
     // ========== Message Passing Functions ==========
 
     /// Send a cross-chain packet
@@ -642,6 +653,51 @@ impl TeachLinkBridge {
         emergency::EmergencyManager::get_emergency_state(&env)
     }
 
+    /// Check circuit breaker for a transaction
+    pub fn check_circuit_breaker(
+        env: Env,
+        chain_id: u32,
+        amount: i128,
+    ) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::check_circuit_breaker(&env, chain_id, amount)
+    }
+
+    /// Reset circuit breaker for a chain
+    pub fn reset_circuit_breaker(
+        env: Env,
+        chain_id: u32,
+        resetter: Address,
+    ) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::reset_circuit_breaker(&env, chain_id, resetter)
+    }
+
+    /// Get circuit breaker state
+    pub fn get_circuit_breaker(env: Env, chain_id: u32) -> Option<CircuitBreaker> {
+        emergency::EmergencyManager::get_circuit_breaker(&env, chain_id)
+    }
+
+    /// Get all paused chains
+    pub fn get_paused_chains(env: Env) -> Vec<u32> {
+        emergency::EmergencyManager::get_paused_chains(&env)
+    }
+
+    /// Update circuit breaker limits
+    pub fn update_circuit_breaker_limits(
+        env: Env,
+        chain_id: u32,
+        max_daily_volume: i128,
+        max_transaction_amount: i128,
+        updater: Address,
+    ) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::update_circuit_breaker_limits(
+            &env,
+            chain_id,
+            max_daily_volume,
+            max_transaction_amount,
+            updater,
+        )
+    }
+
     // ========== Audit and Compliance Functions ==========
 
     /// Create an audit record
@@ -672,6 +728,66 @@ impl TeachLinkBridge {
     /// Get compliance report
     pub fn get_compliance_report(env: Env, report_id: u64) -> Option<ComplianceReport> {
         audit::AuditManager::get_compliance_report(&env, report_id)
+    }
+
+    /// Get audit record count
+    pub fn get_audit_count(env: Env) -> u64 {
+        audit::AuditManager::get_audit_count(&env)
+    }
+
+    /// Get audit records by operation type
+    pub fn get_audit_records_by_type(
+        env: Env,
+        operation_type: types::OperationType,
+    ) -> Vec<AuditRecord> {
+        audit::AuditManager::get_audit_records_by_type(&env, operation_type)
+    }
+
+    /// Get audit records by operator
+    pub fn get_audit_records_by_operator(env: Env, operator: Address) -> Vec<AuditRecord> {
+        audit::AuditManager::get_audit_records_by_operator(&env, operator)
+    }
+
+    /// Get audit records by time range
+    pub fn get_audit_records_by_time(
+        env: Env,
+        start_time: u64,
+        end_time: u64,
+    ) -> Vec<AuditRecord> {
+        audit::AuditManager::get_audit_records_by_time(&env, start_time, end_time)
+    }
+
+    /// Get recent audit records
+    pub fn get_recent_audit_records(env: Env, count: u32) -> Vec<AuditRecord> {
+        audit::AuditManager::get_recent_audit_records(&env, count)
+    }
+
+    /// Clear old audit records
+    pub fn clear_old_records(env: Env, before_timestamp: u64, admin: Address) -> Result<u32, BridgeError> {
+        audit::AuditManager::clear_old_records(&env, before_timestamp, admin)
+    }
+
+    /// Log bridge operation
+    pub fn log_bridge_operation(
+        env: Env,
+        is_outgoing: bool,
+        operator: Address,
+        amount: i128,
+        chain_id: u32,
+        tx_hash: Bytes,
+    ) -> Result<u64, BridgeError> {
+        audit::AuditManager::log_bridge_operation(&env, is_outgoing, operator, amount, chain_id, tx_hash)
+    }
+
+    /// Log emergency operation
+    pub fn log_emergency_operation(
+        env: Env,
+        is_pause: bool,
+        operator: Address,
+        reason: Bytes,
+        tx_hash: Bytes,
+    ) -> Result<u64, BridgeError> {
+        audit::AuditManager::log_emergency_operation(&env, is_pause, operator, reason, tx_hash)
     }
 
     // ========== Atomic Swap Functions ==========
