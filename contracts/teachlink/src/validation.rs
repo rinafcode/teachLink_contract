@@ -79,8 +79,6 @@ impl AddressValidator {
     /// // check_blacklist(...);
     /// ```
     pub fn check_blacklist(env: &Env, address: &Address) -> ValidationResult<()> {
-        // TODO: Implement blacklist checking from storage
-        // For now, we'll implement a basic check against known problematic addresses
         let blacklist_key = soroban_sdk::symbol_short!("blacklist");
         let blacklist: Vec<Address> = env
             .storage()

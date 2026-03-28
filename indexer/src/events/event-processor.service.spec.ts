@@ -15,6 +15,10 @@ import {
   CourseCompletion,
   Contribution,
   RewardPool,
+  AlertLog,
+  BackupManifestRecord,
+  BackupVerificationRecord,
+  RecoveryRecordEntity,
 } from '@database/entities';
 import { ProcessedEvent } from '@horizon/horizon.service';
 
@@ -29,6 +33,7 @@ describe('EventProcessorService', () => {
   let courseCompletionRepo: Repository<CourseCompletion>;
   let contributionRepo: Repository<Contribution>;
   let rewardPoolRepo: Repository<RewardPool>;
+  let backupVerificationRepo: Repository<BackupVerificationRecord>;
 
   const createMockRepository = () => ({
     create: jest.fn((entity) => entity),
@@ -77,6 +82,22 @@ describe('EventProcessorService', () => {
           provide: getRepositoryToken(RewardPool),
           useValue: createMockRepository(),
         },
+        {
+          provide: getRepositoryToken(AlertLog),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(BackupManifestRecord),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(BackupVerificationRecord),
+          useValue: createMockRepository(),
+        },
+        {
+          provide: getRepositoryToken(RecoveryRecordEntity),
+          useValue: createMockRepository(),
+        },
       ],
     }).compile();
 
@@ -90,6 +111,7 @@ describe('EventProcessorService', () => {
     courseCompletionRepo = module.get(getRepositoryToken(CourseCompletion));
     contributionRepo = module.get(getRepositoryToken(Contribution));
     rewardPoolRepo = module.get(getRepositoryToken(RewardPool));
+    backupVerificationRepo = module.get(getRepositoryToken(BackupVerificationRecord));
   });
 
   it('should be defined', () => {
@@ -288,6 +310,34 @@ describe('EventProcessorService', () => {
       };
 
       await expect(service.processEvent(event)).resolves.not.toThrow();
+    });
+
+    it('should process BackupVerifiedEvent and persist verification record', async () => {
+      const event: ProcessedEvent = {
+        type: 'BackupVerifiedEvent',
+        data: {
+          backup_id: '99',
+          verified_by: 'GVERIFIER',
+          verified_at: '1234567890',
+          valid: true,
+        },
+        ledger: '107',
+        txHash: 'txhash-backup-verify',
+        timestamp: '1234567890',
+        contractId: 'CONTRACT_ID',
+      };
+
+      await service.processEvent(event);
+
+      expect(backupVerificationRepo.create).toHaveBeenCalledWith({
+        backupId: '99',
+        verifiedAt: '1234567890',
+        verifiedBy: 'GVERIFIER',
+        valid: true,
+        ledger: '107',
+        txHash: 'txhash-backup-verify',
+      });
+      expect(backupVerificationRepo.save).toHaveBeenCalled();
     });
 
     it('should propagate errors from repository operations', async () => {

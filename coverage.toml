@@ -1,0 +1,51 @@
+# Test Coverage Configuration
+
+# Minimum coverage thresholds
+MIN_COVERAGE_THRESHOLD = 80
+MIN_FUNCTION_COVERAGE = 85
+MIN_LINE_COVERAGE = 80
+MIN_BRANCH_COVERAGE = 75
+
+# Coverage tool configuration
+[coverage]
+tool = "llvm-cov"
+output_formats = ["html", "lcov", "json"]
+exclude_files = [
+    "tests/*",
+    "benches/*",
+    "examples/*",
+    "target/*",
+    "*/test_snapshots/*"
+]
+
+# Files to include in coverage analysis
+include_files = [
+    "src/**/*.rs"
+]
+
+# Coverage reporting
+[reporting]
+generate_html = true
+generate_xml = true
+generate_summary = true
+output_directory = "target/coverage"
+
+# Threshold enforcement
+[thresholds]
+enforce_min_coverage = true
+fail_build_below_threshold = true
+warning_threshold = 85
+error_threshold = 80
+
+# Integration test coverage
+[integration_tests]
+include_integration_coverage = true
+integration_test_pattern = "test_integration_*"
+separate_integration_report = true
+
+# Coverage badges and metrics
+[metrics]
+generate_badge = true
+badge_output = "coverage-badge.svg"
+track_trends = true
+trend_window = 30  # days
