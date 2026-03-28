@@ -36,12 +36,7 @@ fn test_create_and_verify_backup_integrity() {
     let admin = Address::generate(&env);
 
     let integrity_hash = Bytes::from_array(&env, &[1, 2, 3, 4, 5, 6, 7, 8]);
-    let backup_id = client.create_backup(
-        &admin,
-        &integrity_hash,
-        &RtoTier::Critical,
-        &42u64,
-    );
+    let backup_id = client.create_backup(&admin, &integrity_hash, &RtoTier::Critical, &42u64);
 
     let manifest = client.get_backup_manifest(&backup_id).unwrap();
     assert_eq!(manifest.backup_id, backup_id);
@@ -66,19 +61,10 @@ fn test_backup_scheduling_and_restore_records() {
     let admin = Address::generate(&env);
 
     let integrity_hash = Bytes::from_array(&env, &[11, 12, 13, 14, 15, 16, 17, 18]);
-    let backup_id = client.create_backup(
-        &admin,
-        &integrity_hash,
-        &RtoTier::High,
-        &7u64,
-    );
+    let backup_id = client.create_backup(&admin, &integrity_hash, &RtoTier::High, &7u64);
 
-    let schedule_id = client.schedule_backup(
-        &admin,
-        &1_800_000_000u64,
-        &3600u64,
-        &RtoTier::Standard,
-    );
+    let schedule_id =
+        client.schedule_backup(&admin, &1_800_000_000u64, &3600u64, &RtoTier::Standard);
     assert!(schedule_id > 0);
 
     let schedules = client.get_scheduled_backups(&admin);
