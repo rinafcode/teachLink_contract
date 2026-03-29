@@ -5,12 +5,12 @@
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Bytes, Env, Vec, Symbol, Map,
+    vec, Address, Bytes, Env, Map, Symbol, Vec,
 };
 
 use teachlink_contract::{
-    BridgeError, BridgeTransaction, BridgeParameters, TeachLinkBridge, TeachLinkBridgeClient,
-    ValidatorSignature, ChainConfiguration,
+    BridgeError, BridgeParameters, BridgeTransaction, ChainConfiguration, TeachLinkBridge,
+    TeachLinkBridgeClient, ValidatorSignature,
 };
 
 fn create_bridge_params(
@@ -73,7 +73,7 @@ fn test_bridge_transaction_validation() {
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
     let token = Address::generate(&env);
-    
+
     client.initialize(&admin, &3);
 
     // Test amount must be positive
@@ -101,7 +101,7 @@ fn test_validator_signature_validation() {
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
     let token = Address::generate(&env);
-    
+
     client.initialize(&admin, &3);
 
     let params = create_bridge_params(&env, 1, 2, token, 1000, user, 100);
@@ -110,7 +110,10 @@ fn test_validator_signature_validation() {
     // Test insufficient validator signatures
     let signatures = create_validator_signatures(&env, 2); // Less than required 3
     let result = client.try_complete_bridge(&tx_id, &signatures);
-    assert_eq!(result.error(), Some(Ok(BridgeError::InsufficientValidatorSignatures)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BridgeError::InsufficientValidatorSignatures))
+    );
 
     // Test sufficient signatures
     let signatures = create_validator_signatures(&env, 3);
@@ -139,11 +142,14 @@ fn test_chain_configuration() {
 
     // Test adding duplicate chain
     let result = client.try_add_chain_configuration(&chain_config);
-    assert_eq!(result.error(), Some(Ok(BridgeError::InvalidChainConfiguration)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BridgeError::InvalidChainConfiguration))
+    );
 
     // Test pausing chain
     client.pause_chain(&1);
-    
+
     // Test bridge to paused chain
     let user = Address::generate(&env);
     let token = Address::generate(&env);
@@ -161,7 +167,7 @@ fn test_nonce_handling() {
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
     let token = Address::generate(&env);
-    
+
     client.initialize(&admin, &3);
 
     // First transaction with nonce
@@ -183,7 +189,7 @@ fn test_emergency_controls() {
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
     let token = Address::generate(&env);
-    
+
     client.initialize(&admin, &3);
 
     // Test emergency pause
@@ -214,7 +220,7 @@ fn test_bridge_transaction_limits() {
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
     let token = Address::generate(&env);
-    
+
     client.initialize(&admin, &3);
 
     // Test very large amount (should succeed if within bounds)
@@ -240,7 +246,7 @@ fn test_bridge_transaction_query() {
     let admin = Address::generate(&env);
     let user = Address::generate(&env);
     let token = Address::generate(&env);
-    
+
     client.initialize(&admin, &3);
 
     // Create a transaction
@@ -255,5 +261,8 @@ fn test_bridge_transaction_query() {
 
     // Query non-existent transaction
     let result = client.try_get_bridge_transaction(&999999);
-    assert_eq!(result.error(), Some(Ok(BridgeError::BridgeTransactionNotFound)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BridgeError::BridgeTransactionNotFound))
+    );
 }
