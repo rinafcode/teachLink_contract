@@ -11,6 +11,9 @@ pub const SUPPORTED_CHAINS: Symbol = symbol_short!("chains");
 pub const ADMIN: Symbol = symbol_short!("admin");
 pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
+pub const BRIDGE_RETRY_COUNTS: Symbol = symbol_short!("br_rtryc");
+pub const BRIDGE_LAST_RETRY: Symbol = symbol_short!("br_lstry");
+pub const BRIDGE_FAILURES: Symbol = symbol_short!("br_fails");
 
 // ========== Advanced Bridge Storage Keys ==========
 
@@ -40,6 +43,8 @@ pub const FEE_STRUCTURE: Symbol = symbol_short!("fee_struc");
 pub const CROSS_CHAIN_PACKETS: Symbol = symbol_short!("packets");
 pub const PACKET_COUNTER: Symbol = symbol_short!("pkt_cnt");
 pub const MESSAGE_RECEIPTS: Symbol = symbol_short!("receipts");
+pub const PACKET_RETRY_COUNTS: Symbol = symbol_short!("pkt_rtrc");
+pub const PACKET_LAST_RETRY: Symbol = symbol_short!("pkt_lstry");
 
 // Emergency and Security Storage
 pub const EMERGENCY_STATE: Symbol = symbol_short!("emergency");

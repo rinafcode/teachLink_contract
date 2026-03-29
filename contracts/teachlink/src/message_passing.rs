@@ -5,7 +5,9 @@
 
 use crate::errors::BridgeError;
 use crate::events::{PacketDeliveredEvent, PacketFailedEvent, PacketSentEvent};
-use crate::storage::{CROSS_CHAIN_PACKETS, MESSAGE_RECEIPTS, PACKET_COUNTER};
+use crate::storage::{
+    CROSS_CHAIN_PACKETS, MESSAGE_RECEIPTS, PACKET_COUNTER, PACKET_LAST_RETRY, PACKET_RETRY_COUNTS,
+};
 use crate::types::{CrossChainPacket, MessageReceipt, PacketStatus};
 use crate::validation::NumberValidator;
 use soroban_sdk::{Bytes, Env, Map, Vec};
@@ -83,6 +85,26 @@ impl MessagePassing {
         env.storage()
             .instance()
             .set(&PACKET_COUNTER, &packet_counter);
+
+        let mut retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&PACKET_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        retry_counts.set(packet_counter, 0);
+        env.storage()
+            .instance()
+            .set(&PACKET_RETRY_COUNTS, &retry_counts);
+
+        let mut last_retry: Map<u64, u64> = env
+            .storage()
+            .instance()
+            .get(&PACKET_LAST_RETRY)
+            .unwrap_or_else(|| Map::new(env));
+        last_retry.set(packet_counter, env.ledger().timestamp());
+        env.storage()
+            .instance()
+            .set(&PACKET_LAST_RETRY, &last_retry);
 
         // Emit event
         PacketSentEvent {
@@ -199,6 +221,40 @@ impl MessagePassing {
         // Only retry failed or timed out packets
         match packet.status {
             PacketStatus::Failed | PacketStatus::TimedOut => {
+                let mut retry_counts: Map<u64, u32> = env
+                    .storage()
+                    .instance()
+                    .get(&PACKET_RETRY_COUNTS)
+                    .unwrap_or_else(|| Map::new(env));
+                let retry_count = retry_counts.get(packet_id).unwrap_or(0);
+                if retry_count >= MAX_RETRY_ATTEMPTS {
+                    return Err(BridgeError::RetryLimitExceeded);
+                }
+
+                let mut last_retry: Map<u64, u64> = env
+                    .storage()
+                    .instance()
+                    .get(&PACKET_LAST_RETRY)
+                    .unwrap_or_else(|| Map::new(env));
+                let last_retry_at = last_retry.get(packet_id).unwrap_or(0);
+                let backoff_multiplier = 1u64 << retry_count;
+                let retry_delay = RETRY_DELAY_BASE.saturating_mul(backoff_multiplier);
+                let next_allowed_retry = last_retry_at.saturating_add(retry_delay);
+
+                if env.ledger().timestamp() < next_allowed_retry {
+                    return Err(BridgeError::RetryBackoffActive);
+                }
+
+                let updated_retry_count = retry_count + 1;
+                retry_counts.set(packet_id, updated_retry_count);
+                env.storage()
+                    .instance()
+                    .set(&PACKET_RETRY_COUNTS, &retry_counts);
+                last_retry.set(packet_id, env.ledger().timestamp());
+                env.storage()
+                    .instance()
+                    .set(&PACKET_LAST_RETRY, &last_retry);
+
                 // Reset status to pending with new timeout
                 packet.status = PacketStatus::Retrying;
                 packet.timeout = env.ledger().timestamp() + DEFAULT_PACKET_TIMEOUT;
@@ -311,6 +367,15 @@ impl MessagePassing {
         }
     }
 
+    pub fn get_packet_retry_count(env: &Env, packet_id: u64) -> u32 {
+        let retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&PACKET_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        retry_counts.get(packet_id).unwrap_or(0)
+    }
+
     /// Get packet count
     pub fn get_packet_count(env: &Env) -> u64 {
         env.storage()
@@ -351,5 +416,146 @@ impl MessagePassing {
             }
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MessagePassing, DEFAULT_PACKET_TIMEOUT, RETRY_DELAY_BASE};
+    use crate::errors::BridgeError;
+    use crate::types::PacketStatus;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::Ledger;
+    use soroban_sdk::{Address, Bytes, Env};
+
+    fn set_time(env: &Env, timestamp: u64) {
+        env.ledger().with_mut(|ledger_info| {
+            ledger_info.timestamp = timestamp;
+        });
+    }
+
+    fn with_contract<T>(env: &Env, contract_id: &Address, f: impl FnOnce() -> T) -> T {
+        env.as_contract(contract_id, f)
+    }
+
+    #[test]
+    fn retry_respects_exponential_backoff() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_time(&env, 1_000);
+
+        let sender = Bytes::from_slice(&env, b"sender");
+        let recipient = Bytes::from_slice(&env, b"recipient");
+        let payload = Bytes::from_slice(&env, b"payload");
+
+        let packet_id = with_contract(&env, &contract_id, || {
+            MessagePassing::send_packet(&env, 1, 2, sender, recipient, payload, None)
+                .expect("packet should be created")
+        });
+
+        with_contract(&env, &contract_id, || {
+            MessagePassing::fail_packet(&env, packet_id, Bytes::from_slice(&env, b"relay error"))
+                .expect("packet should be marked failed")
+        });
+
+        let first_retry_early = with_contract(&env, &contract_id, || {
+            MessagePassing::retry_packet(&env, packet_id)
+        });
+        assert_eq!(first_retry_early, Err(BridgeError::RetryBackoffActive));
+
+        set_time(&env, 1_000 + RETRY_DELAY_BASE);
+        with_contract(&env, &contract_id, || {
+            MessagePassing::retry_packet(&env, packet_id).expect("retry should succeed after delay")
+        });
+        let retry_count = with_contract(&env, &contract_id, || {
+            MessagePassing::get_packet_retry_count(&env, packet_id)
+        });
+        assert_eq!(retry_count, 1);
+
+        let packet = with_contract(&env, &contract_id, || {
+            MessagePassing::get_packet(&env, packet_id).expect("packet should exist")
+        });
+        assert_eq!(packet.status, PacketStatus::Retrying);
+        assert_eq!(
+            packet.timeout,
+            env.ledger().timestamp() + DEFAULT_PACKET_TIMEOUT
+        );
+    }
+
+    #[test]
+    fn retry_fails_after_max_attempts() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_time(&env, 2_000);
+
+        let packet_id = with_contract(&env, &contract_id, || {
+            MessagePassing::send_packet(
+                &env,
+                1,
+                2,
+                Bytes::from_slice(&env, b"sender"),
+                Bytes::from_slice(&env, b"recipient"),
+                Bytes::from_slice(&env, b"payload"),
+                None,
+            )
+            .expect("packet should be created")
+        });
+
+        let mut now = 2_000u64;
+        for retry_count in 0..5u32 {
+            with_contract(&env, &contract_id, || {
+                MessagePassing::fail_packet(&env, packet_id, Bytes::from_slice(&env, b"transient"))
+                    .expect("packet should be failed before retry")
+            });
+            now += RETRY_DELAY_BASE * (1u64 << retry_count);
+            set_time(&env, now);
+            with_contract(&env, &contract_id, || {
+                MessagePassing::retry_packet(&env, packet_id)
+                    .expect("retry within limit should pass")
+            });
+        }
+
+        with_contract(&env, &contract_id, || {
+            MessagePassing::fail_packet(&env, packet_id, Bytes::from_slice(&env, b"final"))
+                .expect("packet should be failed before final retry")
+        });
+        set_time(&env, now + 100_000);
+
+        let retry_over_limit = with_contract(&env, &contract_id, || {
+            MessagePassing::retry_packet(&env, packet_id)
+        });
+        assert_eq!(retry_over_limit, Err(BridgeError::RetryLimitExceeded));
+    }
+
+    #[test]
+    fn check_timeouts_marks_packets_timed_out() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_time(&env, 5_000);
+
+        let packet_id = with_contract(&env, &contract_id, || {
+            MessagePassing::send_packet(
+                &env,
+                1,
+                2,
+                Bytes::from_slice(&env, b"sender"),
+                Bytes::from_slice(&env, b"recipient"),
+                Bytes::from_slice(&env, b"payload"),
+                Some(10),
+            )
+            .expect("packet should be created")
+        });
+
+        set_time(&env, 5_011);
+        let timed_out = with_contract(&env, &contract_id, || {
+            MessagePassing::check_timeouts(&env).expect("timeout check should succeed")
+        });
+        assert_eq!(timed_out.len(), 1);
+        assert_eq!(timed_out.get(0), Some(packet_id));
+
+        let packet = with_contract(&env, &contract_id, || {
+            MessagePassing::get_packet(&env, packet_id).expect("packet should exist")
+        });
+        assert_eq!(packet.status, PacketStatus::TimedOut);
     }
 }

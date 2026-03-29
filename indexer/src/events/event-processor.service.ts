@@ -17,6 +17,7 @@ import {
   RewardPool,
   AlertLog,
   BackupManifestRecord,
+  BackupVerificationRecord,
   RecoveryRecordEntity,
 } from '@database/entities';
 import { RtoTier } from '@database/entities/backup-manifest.entity';
@@ -58,6 +59,8 @@ export class EventProcessorService {
     private alertLogRepo: Repository<AlertLog>,
     @InjectRepository(BackupManifestRecord)
     private backupManifestRepo: Repository<BackupManifestRecord>,
+    @InjectRepository(BackupVerificationRecord)
+    private backupVerificationRepo: Repository<BackupVerificationRecord>,
     @InjectRepository(RecoveryRecordEntity)
     private recoveryRecordRepo: Repository<RecoveryRecordEntity>,
   ) {}
@@ -685,6 +688,15 @@ export class EventProcessorService {
 
   private async handleBackupVerifiedEvent(event: ProcessedEvent): Promise<void> {
     const data = event.data as { backup_id: string; verified_by: string; verified_at: string; valid: boolean };
+    const record = this.backupVerificationRepo.create({
+      backupId: data.backup_id,
+      verifiedAt: data.verified_at || event.timestamp || String(Math.floor(Date.now() / 1000)),
+      verifiedBy: data.verified_by,
+      valid: data.valid,
+      ledger: event.ledger,
+      txHash: event.txHash,
+    });
+    await this.backupVerificationRepo.save(record);
     this.logger.log(`Indexed BackupVerifiedEvent backup_id=${data.backup_id} valid=${data.valid}`);
   }
 

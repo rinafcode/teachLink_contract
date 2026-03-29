@@ -6,6 +6,7 @@ import { ReportType } from '@database/entities/dashboard-snapshot.entity';
 import { DashboardService, DashboardAnalyticsDto } from './dashboard.service';
 
 export type ExportFormat = 'json' | 'csv';
+type DashboardAnalyticsCsvKey = keyof DashboardAnalyticsDto;
 
 @Injectable()
 export class ReportExportService {
@@ -43,7 +44,7 @@ export class ReportExportService {
   }
 
   private toCsvSingle(d: DashboardAnalyticsDto): string {
-    const headers = [
+    const headers: DashboardAnalyticsCsvKey[] = [
       'bridgeHealthScore',
       'bridgeTotalVolume',
       'bridgeTotalTransactions',
@@ -58,7 +59,7 @@ export class ReportExportService {
       'auditRecordCount',
       'generatedAt',
     ];
-    const row = headers.map((h) => (d as Record<string, unknown>)[h]);
+    const row = headers.map((h) => d[h]);
     return [headers.join(','), row.join(',')].join('\n');
   }
 
