@@ -55,6 +55,8 @@ pub enum BridgeError {
     RetryLimitExceeded = 140,
     RetryBackoffActive = 141,
     BridgeTransactionFailed = 142,
+    IncompatibleInterfaceVersion = 143,
+    InvalidInterfaceVersionRange = 144,
 }
 
 /// Escrow module errors
