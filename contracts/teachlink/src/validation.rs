@@ -12,7 +12,7 @@ pub mod config {
     pub const MAX_STRING_LENGTH: u32 = 256;
     pub const MIN_CHAIN_ID: u32 = 1;
     pub const MAX_CHAIN_ID: u32 = 999999;
-    pub const MAX_ESROW_DESCRIPTION_LENGTH: u32 = 1000;
+    pub const MAX_ESCROW_DESCRIPTION_LENGTH: u32 = 1000;
     pub const MIN_TIMEOUT_SECONDS: u64 = 60; // 1 minute minimum
     pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum
 }
