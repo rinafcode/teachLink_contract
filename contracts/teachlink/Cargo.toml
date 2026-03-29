@@ -4,6 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+autotests = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -23,3 +24,7 @@ quickcheck_macros = "1.0"
 
 [lints]
 workspace = true
+
+[[test]]
+name = "cross_chain_integration"
+path = "tests/cross_chain_integration.rs"
