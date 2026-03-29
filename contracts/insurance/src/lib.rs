@@ -50,10 +50,12 @@
 mod errors;
 mod storage;
 mod types;
+mod di;
 
 use crate::errors::InsuranceError;
 use crate::storage::*;
 use crate::types::*;
+use crate::di::*;
 use soroban_sdk::{
     contract, contractimpl, contracttype, token, vec, Address, Bytes, Env, String, Vec,
 };
