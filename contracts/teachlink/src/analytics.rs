@@ -1,7 +1,6 @@
-//! Bridge Monitoring and Analytics Module
-//!
-//! This module implements comprehensive analytics and monitoring
-//! for bridge operations, validator performance, and chain metrics.
+#![no_std]
+
+//! Bridge monitoring and analytics for bridge operations, validator performance, and chain metrics.
 
 use crate::errors::BridgeError;
 use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};

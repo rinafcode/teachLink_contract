@@ -100,10 +100,10 @@ mod bridge;
 mod emergency;
 mod errors;
 mod escrow;
-// mod advanced_reputation;
 mod escrow_analytics;
 mod events;
-// TODO: Implement governance module
+mod insurance;
+// FUTURE: Implement governance module (tracked in TRACKING.md)
 // mod governance;
 // mod learning_paths;
 mod liquidity;
@@ -113,20 +113,22 @@ mod multichain;
 mod notification;
 mod notification_events_basic;
 // mod content_quality;
-// mod notification_tests; // TODO: Re-enable when testutils dependencies are resolved
+mod notification_tests;
 mod backup;
 mod notification_types;
 mod performance;
+mod provenance;
 mod reporting;
+mod reputation;
 mod rewards;
+mod score;
 mod slashing;
-// mod social_events;
 mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
 pub mod validation;
-mod validation_tests;
+pub mod property_based_tests;
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
@@ -141,15 +143,15 @@ pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
-    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowStatus,
-    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
-    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
-    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
-    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
-    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
-    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature, VisualizationDataPoint,
+    ContentTokenParameters, ContentType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
+    EscrowSigner, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
+    NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
+    NotificationTracking, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
+    RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot, ReportTemplate, ReportType,
+    ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus,
+    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
+    ValidatorReward, ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -195,6 +197,18 @@ impl TeachLinkBridge {
     /// Cancel a bridge transaction and refund locked tokens
     pub fn cancel_bridge(env: Env, nonce: u64) -> Result<(), BridgeError> {
         bridge::Bridge::cancel_bridge(&env, nonce)
+    }
+
+    pub fn mark_bridge_failed(env: Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
+        bridge::Bridge::mark_bridge_failed(&env, nonce, reason)
+    }
+
+    pub fn retry_bridge(env: Env, nonce: u64) -> Result<u32, BridgeError> {
+        bridge::Bridge::retry_bridge(&env, nonce)
+    }
+
+    pub fn refund_bridge_transaction(env: Env, nonce: u64) -> Result<(), BridgeError> {
+        bridge::Bridge::refund_bridge_transaction(&env, nonce)
     }
 
     // ========== Admin Functions ==========
@@ -519,6 +533,35 @@ impl TeachLinkBridge {
         )
     }
 
+    /// Mark a cross-chain packet as delivered
+    pub fn deliver_cross_chain_packet(
+        env: Env,
+        packet_id: u64,
+        gas_used: u64,
+        result: Bytes,
+    ) -> Result<(), BridgeError> {
+        message_passing::MessagePassing::deliver_packet(&env, packet_id, gas_used, result)
+    }
+
+    /// Mark a cross-chain packet as failed
+    pub fn fail_cross_chain_packet(
+        env: Env,
+        packet_id: u64,
+        reason: Bytes,
+    ) -> Result<(), BridgeError> {
+        message_passing::MessagePassing::fail_packet(&env, packet_id, reason)
+    }
+
+    /// Retry a failed or timed-out cross-chain packet
+    pub fn retry_cross_chain_packet(env: Env, packet_id: u64) -> Result<(), BridgeError> {
+        message_passing::MessagePassing::retry_packet(&env, packet_id)
+    }
+
+    /// Mark all expired packets as timed out and return packet IDs
+    pub fn check_cross_chain_timeouts(env: Env) -> Result<Vec<u64>, BridgeError> {
+        message_passing::MessagePassing::check_timeouts(&env)
+    }
+
     /// Get packet by ID
     pub fn get_packet(env: Env, packet_id: u64) -> Option<CrossChainPacket> {
         message_passing::MessagePassing::get_packet(&env, packet_id)
@@ -532,6 +575,11 @@ impl TeachLinkBridge {
     /// Verify packet delivery
     pub fn verify_packet_delivery(env: Env, packet_id: u64) -> bool {
         message_passing::MessagePassing::verify_delivery(&env, packet_id)
+    }
+
+    /// Get retry count for a packet
+    pub fn get_packet_retry_count(env: Env, packet_id: u64) -> u32 {
+        message_passing::MessagePassing::get_packet_retry_count(&env, packet_id)
     }
 
     // ========== Emergency Functions ==========
@@ -1191,22 +1239,19 @@ impl TeachLinkBridge {
 
     // ========== Insurance Pool Functions ==========
 
-    // TODO: Implement insurance module
-    /*
     /// Initialize insurance pool
     pub fn initialize_insurance_pool(
         env: Env,
         token: Address,
         premium_rate: u32,
-    ) -> Result<(), BridgeError> {
+    ) -> Result<(), EscrowError> {
         insurance::InsuranceManager::initialize_pool(&env, token, premium_rate)
     }
 
     /// Fund insurance pool
-    pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
+    pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
         insurance::InsuranceManager::fund_pool(&env, funder, amount)
     }
-    */
 
     // ========== Escrow Analytics Functions ==========
 
@@ -1232,15 +1277,8 @@ impl TeachLinkBridge {
 
     // ========== Credit Scoring Functions (feat/credit_score) ==========
 
-    // TODO: Implement score module
-    /*
     /// Record course completion
-    pub fn record_course_completion(
-        env: Env,
-        user: Address,
-        course_id: u64,
-        points: u64,
-    ) {
+    pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
         let admin = bridge::Bridge::get_admin(&env);
         admin.require_auth();
         score::ScoreManager::record_course_completion(&env, user, course_id, points);
@@ -1263,7 +1301,7 @@ impl TeachLinkBridge {
     }
 
     /// Get user's courses
-    pub fn get_user_courses(env: Env, user: Address) -> Vec<types::Course> {
+    pub fn get_user_courses(env: Env, user: Address) -> Vec<u64> {
         score::ScoreManager::get_courses(&env, user)
     }
 
@@ -1271,12 +1309,9 @@ impl TeachLinkBridge {
     pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
         score::ScoreManager::get_contributions(&env, user)
     }
-    */
 
     // ========== Reputation Functions (main) ==========
 
-    // TODO: Implement missing modules
-    /*
     pub fn update_participation(env: Env, user: Address, points: u32) {
         reputation::update_participation(&env, user, points);
     }
@@ -1292,7 +1327,6 @@ impl TeachLinkBridge {
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
         reputation::get_reputation(&env, &user)
     }
-    */
 
     // ========== Content Tokenization Functions ==========
 
@@ -1310,8 +1344,7 @@ impl TeachLinkBridge {
             params.is_transferable,
             params.royalty_percentage,
         );
-        // TODO: Implement provenance module
-        // provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
+        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
         token_id
     }
 
@@ -1382,8 +1415,6 @@ impl TeachLinkBridge {
 
     // ========== Provenance Functions ==========
 
-    // TODO: Implement provenance module
-    /*
     /// Get full provenance history for a content token
     pub fn get_content_provenance(env: Env, token_id: u64) -> Vec<ProvenanceRecord> {
         provenance::ProvenanceTracker::get_provenance(&env, token_id)
@@ -1400,7 +1431,6 @@ impl TeachLinkBridge {
     pub fn verify_content_chain(env: &Env, token_id: u64) -> bool {
         provenance::ProvenanceTracker::verify_chain(env, token_id)
     }
-    */
 
     /// Get the creator of a content token
     #[must_use]

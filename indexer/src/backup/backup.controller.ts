@@ -22,6 +22,21 @@ export class BackupController {
     return this.backupService.getRecoveryRecords(limit);
   }
 
+  @Get('verifications')
+  async getVerifications(
+    @Query('limit', new DefaultValuePipe(100), ParseIntPipe) limit?: number,
+    @Query('backupId') backupId?: string,
+  ) {
+    return this.backupService.getVerificationRecords(limit, backupId);
+  }
+
+  @Get('integrity-metrics')
+  async getIntegrityMetrics(
+    @Query('windowHours', new DefaultValuePipe(24), ParseIntPipe) windowHours?: number,
+  ) {
+    return this.backupService.getIntegrityMetrics(windowHours);
+  }
+
   @Get('rto-metrics')
   async getRtoMetrics() {
     return this.backupService.getRtoMetrics();
