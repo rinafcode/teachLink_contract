@@ -66,6 +66,16 @@ impl EnhancedInsurance {
     // ===== Initialization =====
 
     /// Initialize the enhanced insurance contract
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize(...);
+    /// ```
     pub fn initialize(
         env: Env,
         admin: Address,
@@ -150,7 +160,35 @@ impl EnhancedInsurance {
 
     // ===== Governance & RBAC Endpoints =====
 
-    /// Grant a specific role (Super Admin only)
+    /// Grant a specific role to an account
+    ///
+    /// This function gives a specific role to the target account. Only the super admin
+    /// can perform this action.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `caller` - The address of the caller (must be super admin).
+    /// * `role` - The role identifier to grant.
+    /// * `account` - The address of the account being granted the role.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), InsuranceError>` - Ok if the role was granted.
+    ///
+    /// # Errors
+    ///
+    /// * `UnauthorizedRole` - If the caller is not a super admin.
+    ///
+    /// # Events
+    ///
+    /// * `RoleGnt` - Emitted when a role is granted.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// EnhancedInsurance::grant_role(env, super_admin, ROLE_CLAIMS_MANAGER, manager_addr);
+    /// ```
     pub fn grant_role(env: Env, caller: Address, role: u32, account: Address) -> Result<(), InsuranceError> {
         Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
         env.storage().instance().set(&DataKey::HasRole(role, account.clone()), &true);
@@ -158,7 +196,35 @@ impl EnhancedInsurance {
         Ok(())
     }
 
-    /// Revoke a specific role (Super Admin only)
+    /// Revoke a specific role from an account
+    ///
+    /// This function removes a specific role from the target account. Only the super admin
+    /// can perform this action.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `caller` - The address of the caller (must be super admin).
+    /// * `role` - The role identifier to revoke.
+    /// * `account` - The address of the account having their role revoked.
+    ///
+    /// # Returns
+    ///
+    /// * `Result<(), InsuranceError>` - Ok if the role was revoked.
+    ///
+    /// # Errors
+    ///
+    /// * `UnauthorizedRole` - If the caller is not a super admin.
+    ///
+    /// # Events
+    ///
+    /// * `RoleRvk` - Emitted when a role is revoked.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// EnhancedInsurance::revoke_role(env, super_admin, ROLE_CLAIMS_MANAGER, manager_addr);
+    /// ```
     pub fn revoke_role(env: Env, caller: Address, role: u32, account: Address) -> Result<(), InsuranceError> {
         Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
         env.storage().instance().set(&DataKey::HasRole(role, account.clone()), &false);
@@ -167,6 +233,20 @@ impl EnhancedInsurance {
     }
 
     /// Initiate admin transfer with 24-hour timelock
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // transfer_admin(...);
+    /// ```
     pub fn transfer_admin(env: Env, caller: Address, new_admin: Address) -> Result<(), InsuranceError> {
         Self::check_role(&env, &caller, ROLE_SUPER_ADMIN)?;
         let ready_at = env.ledger().timestamp() + 86400; // 24 hours
@@ -177,6 +257,20 @@ impl EnhancedInsurance {
     }
 
     /// Claim admin role after timelock expires
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // accept_admin(...);
+    /// ```
     pub fn accept_admin(env: Env, new_admin: Address) -> Result<(), InsuranceError> {
         new_admin.require_auth();
         let pending: Address = env.storage().instance().get(&DataKey::PendingAdminTransfer).ok_or(InsuranceError::TransferNotPending)?;
@@ -201,6 +295,20 @@ impl EnhancedInsurance {
     // ===== Multi-Sig Framework =====
 
     /// Propose a critical action (Signers only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // propose_action(...);
+    /// ```
     pub fn propose_action(env: Env, proposer: Address, action: CriticalAction) -> Result<u32, InsuranceError> {
         proposer.require_auth();
         let signers: Vec<Address> = env.storage().instance().get(&DataKey::MultiSigSigners).unwrap_or_else(|| Vec::new(&env));
@@ -232,6 +340,20 @@ impl EnhancedInsurance {
     }
 
     /// Approve a pending action
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // approve_action(...);
+    /// ```
     pub fn approve_action(env: Env, signer: Address, op_id: u32) -> Result<(), InsuranceError> {
         signer.require_auth();
         let signers: Vec<Address> = env.storage().instance().get(&DataKey::MultiSigSigners).unwrap_or_else(|| Vec::new(&env));
@@ -251,6 +373,20 @@ impl EnhancedInsurance {
     }
 
     /// Execute an approved action
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // execute_action(...);
+    /// ```
     pub fn execute_action(env: Env, executor: Address, op_id: u32) -> Result<(), InsuranceError> {
         executor.require_auth();
         let mut op: CriticalOperation = env.storage().instance().get(&DataKey::CriticalOperation(op_id)).ok_or(InsuranceError::OperationNotFound)?;
@@ -285,6 +421,16 @@ impl EnhancedInsurance {
     // ===== Risk Assessment Module =====
 
     /// Create or update a user's risk profile
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_risk_profile(...);
+    /// ```
     pub fn create_risk_profile(
         env: Env,
         user: Address,
@@ -393,6 +539,20 @@ impl EnhancedInsurance {
     }
 
     /// Get risk profile for a user
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_risk_profile(...);
+    /// ```
     pub fn get_risk_profile(env: Env, user: Address) -> Option<RiskProfile> {
         let profile_id = env
             .storage()
@@ -404,6 +564,20 @@ impl EnhancedInsurance {
     }
 
     /// Get risk multiplier based on risk score
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_risk_multiplier(...);
+    /// ```
     pub fn get_risk_multiplier(env: Env, risk_score: u32) -> Result<u32, InsuranceError> {
         if risk_score > 100 {
             return Err(InsuranceError::RiskScoreOutOfRange);
@@ -429,6 +603,16 @@ impl EnhancedInsurance {
     // ===== Policy Management Module =====
 
     /// Purchase insurance policy with dynamic pricing
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // purchase_policy(...);
+    /// ```
     pub fn purchase_policy(
         env: Env,
         user: Address,
@@ -513,6 +697,16 @@ impl EnhancedInsurance {
     // ===== Claims Processing Module =====
 
     /// File an insurance claim with evidence
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // file_claim(...);
+    /// ```
     pub fn file_claim(
         env: Env,
         user: Address,
@@ -613,6 +807,20 @@ impl EnhancedInsurance {
     }
 
     /// Get claim information
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_claim(...);
+    /// ```
     pub fn get_claim(env: Env, claim_id: u64) -> Option<AdvancedClaim> {
         env.storage().instance().get(&DataKey::Claim(claim_id))
     }
@@ -620,6 +828,16 @@ impl EnhancedInsurance {
     // ===== Parametric Insurance Module =====
 
     /// Create parametric insurance trigger
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_parametric_trigger(...);
+    /// ```
     pub fn create_parametric_trigger(
         env: Env,
         admin: Address,
@@ -668,6 +886,16 @@ impl EnhancedInsurance {
     }
 
     /// Execute parametric trigger payout
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // execute_trigger(...);
+    /// ```
     pub fn execute_trigger(
         env: Env,
         trigger_id: u64,
@@ -724,6 +952,16 @@ impl EnhancedInsurance {
     // ===== Insurance Pool Optimization Module =====
 
     /// Create an optimized insurance pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_pool(...);
+    /// ```
     pub fn create_pool(
         env: Env,
         admin: Address,
@@ -773,6 +1011,16 @@ impl EnhancedInsurance {
     }
 
     /// Add reinsurance partner to pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_reinsurance_partner(...);
+    /// ```
     pub fn add_reinsurance_partner(
         env: Env,
         admin: Address,
@@ -813,6 +1061,16 @@ impl EnhancedInsurance {
     }
 
     /// Optimize pool utilization
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // optimize_pool_utilization(...);
+    /// ```
     pub fn optimize_pool_utilization(
         env: Env,
         pool_id: u64,
@@ -871,6 +1129,20 @@ impl EnhancedInsurance {
     // ===== Insurance Analytics Module =====
 
     /// Record daily metrics for analytics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // record_daily_metrics(...);
+    /// ```
     pub fn record_daily_metrics(env: Env) -> Result<(), InsuranceError> {
         let today = env.ledger().timestamp() / (24 * 60 * 60); // Unix days
         let yesterday = today - 1;
@@ -909,6 +1181,16 @@ impl EnhancedInsurance {
     }
 
     /// Generate actuarial report
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // generate_actuarial_report(...);
+    /// ```
     pub fn generate_actuarial_report(
         env: Env,
         days: u32,
@@ -922,6 +1204,20 @@ impl EnhancedInsurance {
     }
 
     /// Get daily metrics for a specific date
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_daily_metrics(...);
+    /// ```
     pub fn get_daily_metrics(env: Env, date: u64) -> Option<DailyMetrics> {
         let day = date / (24 * 60 * 60);
         env.storage().instance().get(&DataKey::DailyMetrics(day))
@@ -930,6 +1226,16 @@ impl EnhancedInsurance {
     // ===== Insurance Governance Module =====
 
     /// Create governance proposal
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_proposal(...);
+    /// ```
     pub fn create_proposal(
         env: Env,
         proposer: Address,
@@ -991,6 +1297,16 @@ impl EnhancedInsurance {
     }
 
     /// Vote on governance proposal
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // vote(...);
+    /// ```
     pub fn vote(
         env: Env,
         voter: Address,
@@ -1037,6 +1353,16 @@ impl EnhancedInsurance {
     }
 
     /// Execute passed proposal
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // execute_proposal(...);
+    /// ```
     pub fn execute_proposal(
         env: Env,
         admin: Address,
@@ -1114,6 +1440,16 @@ impl EnhancedInsurance {
     // ===== Insurance Tokenization Module =====
 
     /// Create insurance token representing pool shares
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_insurance_token(...);
+    /// ```
     pub fn create_insurance_token(
         env: Env,
         admin: Address,
@@ -1165,6 +1501,16 @@ impl EnhancedInsurance {
     }
 
     /// Transfer insurance tokens
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // transfer_tokens(...);
+    /// ```
     pub fn transfer_tokens(
         env: Env,
         from: Address,
@@ -1221,6 +1567,16 @@ impl EnhancedInsurance {
     // ===== Compliance and Reporting Module =====
 
     /// Generate compliance report
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // generate_compliance_report(...);
+    /// ```
     pub fn generate_compliance_report(
         env: Env,
         admin: Address,
@@ -1267,6 +1623,20 @@ impl EnhancedInsurance {
     }
 
     /// Get compliance report
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_compliance_report(...);
+    /// ```
     pub fn get_compliance_report(env: Env, report_id: u64) -> Option<ComplianceReport> {
         env.storage()
             .instance()
@@ -1276,6 +1646,16 @@ impl EnhancedInsurance {
     // ===== Cross-Chain Module =====
 
     /// Register cross-chain bridge
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // register_chain_bridge(...);
+    /// ```
     pub fn register_chain_bridge(
         env: Env,
         admin: Address,
@@ -1292,6 +1672,16 @@ impl EnhancedInsurance {
     }
 
     /// Create cross-chain insurance policy
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_cross_chain_policy(...);
+    /// ```
     pub fn create_cross_chain_policy(
         env: Env,
         user: Address,
@@ -1306,10 +1696,42 @@ impl EnhancedInsurance {
 
     // ===== View Functions =====
 
+    /// Standard API for get_policy
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_policy(...);
+    /// ```
     pub fn get_policy(env: Env, policy_id: u64) -> Option<InsurancePolicy> {
         env.storage().instance().get(&DataKey::Policy(policy_id))
     }
 
+    /// Standard API for get_active_policies
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_active_policies(...);
+    /// ```
     pub fn get_active_policies(env: Env, user: Address) -> Vec<u64> {
         env.storage()
             .instance()
@@ -1317,6 +1739,22 @@ impl EnhancedInsurance {
             .unwrap_or_else(|| Vec::new(&env))
     }
 
+    /// Standard API for get_pending_claims
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_pending_claims(...);
+    /// ```
     pub fn get_pending_claims(env: Env) -> Vec<u64> {
         env.storage()
             .instance()
@@ -1324,10 +1762,42 @@ impl EnhancedInsurance {
             .unwrap_or_else(|| Vec::new(&env))
     }
 
+    /// Standard API for get_pool
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_pool(...);
+    /// ```
     pub fn get_pool(env: Env, pool_id: u64) -> Option<OptimizedPool> {
         env.storage().instance().get(&DataKey::Pool(pool_id))
     }
 
+    /// Standard API for get_active_pools
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_active_pools(...);
+    /// ```
     pub fn get_active_pools(env: Env) -> Vec<u64> {
         env.storage()
             .instance()
@@ -1335,12 +1805,44 @@ impl EnhancedInsurance {
             .unwrap_or_else(|| Vec::new(&env))
     }
 
+    /// Standard API for get_insurance_token
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_insurance_token(...);
+    /// ```
     pub fn get_insurance_token(env: Env, token_id: u64) -> Option<InsuranceToken> {
         env.storage()
             .instance()
             .get(&DataKey::InsuranceToken(token_id))
     }
 
+    /// Standard API for get_token_balance
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_token_balance(...);
+    /// ```
     pub fn get_token_balance(env: Env, holder: Address, token_id: u64) -> i128 {
         env.storage()
             .instance()
@@ -1348,12 +1850,44 @@ impl EnhancedInsurance {
             .unwrap_or(0)
     }
 
+    /// Standard API for get_proposal
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_proposal(...);
+    /// ```
     pub fn get_proposal(env: Env, proposal_id: u64) -> Option<InsuranceProposal> {
         env.storage()
             .instance()
             .get(&DataKey::Proposal(proposal_id))
     }
 
+    /// Standard API for get_governance_parameters
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_governance_parameters(...);
+    /// ```
     pub fn get_governance_parameters(env: Env) -> GovernanceParameters {
         env.storage()
             .instance()

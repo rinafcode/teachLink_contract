@@ -1,7 +1,9 @@
 [workspace]
 resolver = "2"
 members = [
+  "contracts/community",
   "contracts/teachlink",
+  "contracts/insurance",
   "contracts/documentation",
 ]
 
@@ -16,6 +18,9 @@ soroban-sdk = "25.3.0"
 # Coverage and testing dependencies
 cargo-llvm-cov = "0.6"
 tarpaulin = "0.27"
+
+# Benchmark dependencies
+criterion = { version = "0.5", features = ["html_reports"] }
 
 [profile.release]
 opt-level = "z"
