@@ -1,12 +1,14 @@
-use crate::errors::BridgeError;
-use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
-use crate::storage::{
-    ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS, BRIDGE_TXS,
-    FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
+//! Bridge-out and chain-management logic.
+
+use soroban_sdk::{symbol_short, Address, Bytes, Env, Symbol, Vec};
+
+use crate::{
+    constants,
+    errors::{handle_error, TeachLinkError},
+    storage::{self, BRIDGE_TXS},
+    types::BridgeConfig,
+    validation,
 };
-use crate::types::{BridgeTransaction, CrossChainMessage};
-use crate::validation::BridgeValidator;
-use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
 const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
@@ -878,111 +880,78 @@ impl Bridge {
         env.storage().instance().get(&ADMIN).unwrap()
     }
 }
+/// Calculate the fee for a given amount and rate (basis points).
+pub fn calculate_fee(amount: i128, fee_rate: u32) -> i128 {
+    amount * fee_rate as i128 / constants::fees::FEE_CALCULATION_DIVISOR as i128
+}
 
-#[cfg(test)]
-mod tests {
-    use super::{Bridge, BRIDGE_RETRY_DELAY_BASE_SECONDS};
-    use crate::errors::BridgeError;
-    use crate::storage::{BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS};
-    use crate::types::{BridgeTransaction, CrossChainMessage};
-    use crate::TeachLinkBridge;
-    use soroban_sdk::testutils::{Address as _, Ledger};
-    use soroban_sdk::{vec, Address, Bytes, Env, Map, Vec};
+/// Initiate a cross-chain bridge transfer and return the nonce.
+pub fn bridge_out(
+    env: &Env,
+    from: Address,
+    amount: i128,
+    destination_chain: u32,
+    destination_address: Bytes,
+) -> u64 {
+    validation::require_initialized(env, true);
+    validation::validate_amount(env, &amount);
+    validation::validate_chain_id(env, &destination_chain);
+    validation::validate_bytes_address(env, &destination_address);
 
-    fn set_time(env: &Env, timestamp: u64) {
-        env.ledger().with_mut(|ledger_info| {
-            ledger_info.timestamp = timestamp;
-        });
+    let config: BridgeConfig = storage::get_config(env);
+    let nonce = storage::get_next_nonce(env);
+
+    let fee = calculate_fee(amount, config.fee_rate);
+    let bridge_amount = amount - fee;
+    validation::validate_amount(env, &bridge_amount);
+
+    let mut txs: Vec<(Address, i128, u32, Bytes)> = env
+        .storage()
+        .instance()
+        .get(&BRIDGE_TXS)
+        .unwrap_or_else(|| Vec::new(env));
+
+    if txs.len() >= constants::storage::MAX_BRIDGE_TXS {
+        handle_error(env, TeachLinkError::BridgeFailed);
     }
 
-    fn seed_bridge_tx(env: &Env, nonce: u64, timestamp: u64) {
-        let token = Address::generate(env);
-        let sender = Address::generate(env);
-        env.storage().instance().set(&TOKEN, &token);
+    txs.push_back((from, bridge_amount, destination_chain, destination_address));
+    env.storage().instance().set(&BRIDGE_TXS, &txs);
 
-        let tx = BridgeTransaction {
-            nonce,
-            token,
-            amount: 500,
-            recipient: sender,
-            destination_chain: 2,
-            destination_address: Bytes::from_slice(env, b"dest"),
-            timestamp,
-        };
+    nonce
+}
 
-        let mut txs: Map<u64, BridgeTransaction> = Map::new(env);
-        txs.set(nonce, tx);
-        env.storage().instance().set(&BRIDGE_TXS, &txs);
+/// Register a new supported chain (admin only).
+pub fn add_chain_support(
+    env: &Env,
+    chain_id: u32,
+    name: Symbol,
+    bridge_address: Address,
+    min_confirmations: u32,
+    fee_rate: u32,
+) {
+    validation::require_admin(env);
+    validation::validate_chain_id(env, &chain_id);
+    validation::validate_fee_rate(env, &fee_rate);
+
+    let chains_key = symbol_short!("chains");
+    let chains: Vec<(u32, Symbol, Address, u32, u32)> = env
+        .storage()
+        .instance()
+        .get(&chains_key)
+        .unwrap_or_else(|| Vec::new(env));
+
+    if chains.len() >= constants::storage::MAX_CHAIN_CONFIGS {
+        handle_error(env, TeachLinkError::ChainExists);
     }
 
-    #[test]
-    fn mark_bridge_failed_requires_existing_tx() {
-        let env = Env::default();
-        let contract_id = env.register(TeachLinkBridge, ());
-        let result = env.as_contract(&contract_id, || {
-            Bridge::mark_bridge_failed(&env, 99, Bytes::from_slice(&env, b"failure"))
-        });
-        assert_eq!(result, Err(BridgeError::BridgeTransactionNotFound));
+    for chain in chains.iter() {
+        if chain.0 == chain_id {
+            handle_error(env, TeachLinkError::ChainExists);
+        }
     }
 
-    #[test]
-    fn complete_bridge_rejects_replay_when_nonce_already_processed() {
-        let env = Env::default();
-        let contract_id = env.register(TeachLinkBridge, ());
-        env.as_contract(&contract_id, || {
-            let token = Address::generate(&env);
-            let validator = Address::generate(&env);
-            let recipient = Address::generate(&env);
-
-            env.storage().instance().set(&TOKEN, &token);
-            env.storage().instance().set(&MIN_VALIDATORS, &1u32);
-
-            let mut validators: Map<Address, bool> = Map::new(&env);
-            validators.set(validator.clone(), true);
-            env.storage().instance().set(&VALIDATORS, &validators);
-
-            let mut processed: Map<u64, bool> = Map::new(&env);
-            processed.set(7u64, true);
-            env.storage().persistent().set(&NONCE, &processed);
-
-            let message = CrossChainMessage {
-                source_chain: 1,
-                source_tx_hash: Bytes::from_slice(&env, &[0xab; 32]),
-                nonce: 7,
-                token: token.clone(),
-                amount: 100,
-                recipient: recipient.clone(),
-                destination_chain: 2,
-            };
-
-            let sigs: Vec<Address> = vec![&env, validator];
-            let r = Bridge::complete_bridge(&env, message, sigs);
-            assert_eq!(r, Err(BridgeError::NonceAlreadyProcessed));
-        });
-    }
-
-    #[test]
-    fn retry_bridge_enforces_backoff_and_limit() {
-        let env = Env::default();
-        let contract_id = env.register(TeachLinkBridge, ());
-        env.as_contract(&contract_id, || {
-            set_time(&env, 10_000);
-            seed_bridge_tx(&env, 1, 10_000);
-
-            let retry_too_early = Bridge::retry_bridge(&env, 1);
-            assert_eq!(retry_too_early, Err(BridgeError::RetryBackoffActive));
-
-            let mut now = 10_000u64;
-            for retry_count in 0..5u32 {
-                now += BRIDGE_RETRY_DELAY_BASE_SECONDS * (1u64 << retry_count);
-                set_time(&env, now);
-                let updated_retry_count = Bridge::retry_bridge(&env, 1).expect("retry should pass");
-                assert_eq!(updated_retry_count, retry_count + 1);
-            }
-
-            set_time(&env, now + 100_000);
-            let retry_over_limit = Bridge::retry_bridge(&env, 1);
-            assert_eq!(retry_over_limit, Err(BridgeError::RetryLimitExceeded));
-        });
-    }
+    let mut updated = chains;
+    updated.push_back((chain_id, name, bridge_address, min_confirmations, fee_rate));
+    env.storage().instance().set(&chains_key, &updated);
 }

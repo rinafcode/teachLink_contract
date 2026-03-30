@@ -1,41 +1,44 @@
-use crate::errors::EscrowError;
-use crate::types::EscrowSigner;
-use soroban_sdk::{Address, Bytes, Env, String, Vec};
+//! Input validation helpers used by contract entry points.
 
-/// Validation configuration constants
+use soroban_sdk::{Address, Bytes, Env, Vec, String, Map};
+
+use crate::{
+    constants,
+    errors::{handle_error, TeachLinkError, BridgeError, EscrowError, RewardsError},
+    storage::ADMIN,
+    types::{CrossChainMessage, Escrow, EscrowStatus, EscrowSigner},
+};
+
+// Mock config module for validation constants if not defined elsewhere
+// In a real scenario, these would come from crate::constants or crate::config
 pub mod config {
     pub const MIN_AMOUNT: i128 = 1;
-    pub const MAX_AMOUNT: i128 = i128::MAX / 2; // Prevent overflow
+    pub const MAX_AMOUNT: i128 = 1_000_000_000_000_000;
     pub const MIN_SIGNERS: u32 = 1;
-    pub const MAX_SIGNERS: u32 = 100;
+    pub const MAX_SIGNERS: u32 = 20;
     pub const MIN_THRESHOLD: u32 = 1;
-    pub const MAX_STRING_LENGTH: u32 = 256;
     pub const MIN_CHAIN_ID: u32 = 1;
-    pub const MAX_CHAIN_ID: u32 = 999999;
-    pub const MAX_ESROW_DESCRIPTION_LENGTH: u32 = 1000;
-    pub const MIN_TIMEOUT_SECONDS: u64 = 60; // 1 minute minimum
-    pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum
-}
-
-/// Validation errors
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub enum ValidationError {
-    InvalidAddressFormat,
-    BlacklistedAddress,
-    InvalidAmountRange,
-    InvalidSignerCount,
-    InvalidThreshold,
-    InvalidStringLength,
-    InvalidChainId,
-    InvalidTimeout,
-    EmptySignersList,
-    DuplicateSigners,
-    InvalidBytesLength,
-    InvalidCrossChainData,
+    pub const MAX_CHAIN_ID: u32 = 1000;
+    pub const MIN_TIMEOUT_SECONDS: u64 = 60;
+    pub const MAX_TIMEOUT_SECONDS: u64 = 604800; // 1 week
+    pub const MAX_STRING_LENGTH: u32 = 256;
 }
 
 /// Result type for validation operations
 pub type ValidationResult<T> = core::result::Result<T, ValidationError>;
+
+#[derive(Debug, PartialEq)]
+pub enum ValidationError {
+    BlacklistedAddress,
+    InvalidAmountRange,
+    EmptySignersList,
+    InvalidSignerCount,
+    InvalidThreshold,
+    InvalidChainId,
+    InvalidTimeout,
+    InvalidStringLength,
+    InvalidBytesLength,
+}
 
 /// Address validation utilities
 pub struct AddressValidator;
@@ -114,7 +117,25 @@ impl AddressValidator {
     }
 }
 
-/// Numerical validation utilities
+pub fn require_initialized(env: &Env, should_be: bool) {
+    let is_init = env.storage().instance().get::<_, Address>(&ADMIN).is_some();
+    if is_init != should_be {
+        handle_error(env, TeachLinkError::NotInitialized);
+    }
+}
+
+pub fn require_admin(env: &Env) {
+    let admin: Address = env
+        .storage()
+        .instance()
+        .get(&ADMIN)
+        .unwrap_or_else(|| handle_error(env, TeachLinkError::NotInitialized));
+    
+    if env.current_contract_address() != admin {
+        handle_error(env, TeachLinkError::Unauthorized);
+    }
+}
+
 pub struct NumberValidator;
 
 impl NumberValidator {
@@ -245,7 +266,6 @@ impl NumberValidator {
     }
 }
 
-/// String validation utilities
 pub struct StringValidator;
 
 impl StringValidator {
@@ -652,13 +672,12 @@ impl BridgeValidator {
     /// ```
     pub fn validate_bridge_completion(
         env: &Env,
-        message: &crate::types::CrossChainMessage,
+        message: &CrossChainMessage,
         validator_signatures: &Vec<Address>,
         min_validators: u32,
-    ) -> Result<(), crate::errors::BridgeError> {
-        // Validate validator signatures count
-        if validator_signatures.len() < min_validators {
-            return Err(crate::errors::BridgeError::InsufficientValidatorSignatures);
+    ) -> Result<(), BridgeError> {
+        if (validator_signatures.len() as u32) < min_validators {
+            return Err(BridgeError::InsufficientValidatorSignatures);
         }
 
         // Validate cross-chain message
@@ -734,5 +753,43 @@ impl RewardsValidator {
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
         Ok(())
+    if env.current_contract_address() != admin {
+        handle_error(env, TeachLinkError::Unauthorized);
+    }
+}
+
+pub fn validate_bytes_address(env: &Env, address: &Bytes) {
+    if address.len() == 0 {
+        handle_error(env, TeachLinkError::InvalidAddress);
+    }
+}
+
+pub fn validate_amount(env: &Env, amount: &i128) {
+    if *amount < constants::amounts::MIN_AMOUNT {
+        handle_error(env, TeachLinkError::InvalidAmount);
+    }
+}
+
+pub fn validate_chain_id(env: &Env, chain_id: &u32) {
+    if *chain_id < constants::chains::MIN_CHAIN_ID {
+        handle_error(env, TeachLinkError::InvalidChainId);
+    }
+}
+
+pub fn validate_fee_rate(env: &Env, fee_rate: &u32) {
+    if *fee_rate > constants::fees::MAX_FEE_RATE {
+        handle_error(env, TeachLinkError::FeeTooHigh);
+    }
+}
+
+pub fn validate_price(env: &Env, price: &i128) {
+    if *price <= 0 {
+        handle_error(env, TeachLinkError::InvalidPrice);
+    }
+}
+
+pub fn validate_confidence(env: &Env, confidence: &u32) {
+    if *confidence > constants::oracle::MAX_CONFIDENCE {
+        handle_error(env, TeachLinkError::InvalidConfidence);
     }
 }
