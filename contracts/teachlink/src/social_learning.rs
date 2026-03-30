@@ -413,6 +413,18 @@ pub struct SocialLearningManager;
 
 impl SocialLearningManager {
     // Study Group Management
+    /// Standard API for create_study_group
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_study_group(...);
+    /// ```
     pub fn create_study_group(
         env: &Env,
         creator: Address,
@@ -481,6 +493,18 @@ impl SocialLearningManager {
         Ok(group_id)
     }
 
+    /// Standard API for join_study_group
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // join_study_group(...);
+    /// ```
     pub fn join_study_group(
         env: &Env,
         user: Address,
@@ -527,6 +551,18 @@ impl SocialLearningManager {
         Ok(())
     }
 
+    /// Standard API for leave_study_group
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // leave_study_group(...);
+    /// ```
     pub fn leave_study_group(
         env: &Env,
         user: Address,
@@ -589,6 +625,22 @@ impl SocialLearningManager {
         Ok(())
     }
 
+    /// Standard API for get_study_group
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_study_group(...);
+    /// ```
     pub fn get_study_group(env: &Env, group_id: u64) -> Result<StudyGroup, SocialLearningError> {
         let groups: Map<u64, StudyGroup> = env
             .storage()
@@ -601,6 +653,22 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::StudyGroupNotFound)
     }
 
+    /// Standard API for get_user_study_groups
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_user_study_groups(...);
+    /// ```
     pub fn get_user_study_groups(env: &Env, user: Address) -> Vec<u64> {
         env.storage()
             .instance()
@@ -609,6 +677,18 @@ impl SocialLearningManager {
     }
 
     // Discussion Forum Management
+    /// Standard API for create_forum
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_forum(...);
+    /// ```
     pub fn create_forum(
         env: &Env,
         creator: Address,
@@ -650,6 +730,18 @@ impl SocialLearningManager {
         Ok(forum_id)
     }
 
+    /// Standard API for create_forum_post
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_forum_post(...);
+    /// ```
     pub fn create_forum_post(
         env: &Env,
         forum_id: u64,
@@ -721,6 +813,22 @@ impl SocialLearningManager {
         Ok(post_id)
     }
 
+    /// Standard API for get_forum
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_forum(...);
+    /// ```
     pub fn get_forum(env: &Env, forum_id: u64) -> Result<DiscussionForum, SocialLearningError> {
         let forums: Map<u64, DiscussionForum> = env
             .storage()
@@ -733,6 +841,22 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::ForumNotFound)
     }
 
+    /// Standard API for get_forum_post
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_forum_post(...);
+    /// ```
     pub fn get_forum_post(env: &Env, post_id: u64) -> Result<ForumPost, SocialLearningError> {
         let posts: Map<u64, ForumPost> = env
             .storage()
@@ -744,6 +868,18 @@ impl SocialLearningManager {
     }
 
     // Collaboration Workspace Management
+    /// Standard API for create_workspace
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_workspace(...);
+    /// ```
     pub fn create_workspace(
         env: &Env,
         creator: Address,
@@ -805,6 +941,18 @@ impl SocialLearningManager {
         Ok(workspace_id)
     }
 
+    /// Standard API for get_workspace
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_workspace(...);
+    /// ```
     pub fn get_workspace(
         env: &Env,
         workspace_id: u64,
@@ -820,6 +968,22 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::WorkspaceNotFound)
     }
 
+    /// Standard API for get_user_workspaces
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_user_workspaces(...);
+    /// ```
     pub fn get_user_workspaces(env: &Env, user: Address) -> Vec<u64> {
         env.storage()
             .instance()
@@ -828,6 +992,18 @@ impl SocialLearningManager {
     }
 
     // Peer Review System
+    /// Standard API for create_review
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_review(...);
+    /// ```
     pub fn create_review(
         env: &Env,
         reviewer: Address,
@@ -883,6 +1059,22 @@ impl SocialLearningManager {
         Ok(review_id)
     }
 
+    /// Standard API for get_review
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_review(...);
+    /// ```
     pub fn get_review(env: &Env, review_id: u64) -> Result<PeerReview, SocialLearningError> {
         let reviews: Map<u64, PeerReview> = env
             .storage()
@@ -896,6 +1088,18 @@ impl SocialLearningManager {
     }
 
     // Mentorship System
+    /// Standard API for create_mentorship_profile
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_mentorship_profile(...);
+    /// ```
     pub fn create_mentorship_profile(
         env: &Env,
         mentor: Address,
@@ -936,6 +1140,18 @@ impl SocialLearningManager {
         Ok(())
     }
 
+    /// Standard API for get_mentorship_profile
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_mentorship_profile(...);
+    /// ```
     pub fn get_mentorship_profile(
         env: &Env,
         mentor: Address,
@@ -952,6 +1168,22 @@ impl SocialLearningManager {
     }
 
     // Social Analytics
+    /// Standard API for get_user_analytics
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_user_analytics(...);
+    /// ```
     pub fn get_user_analytics(env: &Env, user: Address) -> SocialAnalytics {
         env.storage()
             .instance()
@@ -971,6 +1203,18 @@ impl SocialLearningManager {
             })
     }
 
+    /// Standard API for update_user_analytics
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_user_analytics(...);
+    /// ```
     pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) {
         env.storage().instance().set(&SOCIAL_ANALYTICS, &analytics);
     }

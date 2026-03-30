@@ -1,4 +1,5 @@
 use crate::errors::EscrowError;
+use crate::interfaces::ArbitrationPort;
 use crate::storage::{ARBITRATORS, ESCROWS};
 use crate::types::{ArbitratorProfile, Escrow, EscrowStatus};
 use soroban_sdk::{Address, Env, Map, String, Vec};
@@ -7,6 +8,20 @@ pub struct ArbitrationManager;
 
 impl ArbitrationManager {
     /// Register a new professional arbitrator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // register_arbitrator(...);
+    /// ```
     pub fn register_arbitrator(env: &Env, profile: ArbitratorProfile) -> Result<(), EscrowError> {
         profile.address.require_auth();
 
@@ -23,6 +38,16 @@ impl ArbitrationManager {
     }
 
     /// Update arbitrator profile
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_profile(...);
+    /// ```
     pub fn update_profile(
         env: &Env,
         address: Address,
@@ -49,6 +74,20 @@ impl ArbitrationManager {
     }
 
     /// Get arbitrator profile
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_arbitrator(...);
+    /// ```
     pub fn get_arbitrator(env: &Env, address: Address) -> Option<ArbitratorProfile> {
         let arbitrators: Map<Address, ArbitratorProfile> = env
             .storage()
@@ -59,6 +98,20 @@ impl ArbitrationManager {
     }
 
     /// Pick an active arbitrator for an escrow dispute
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // pick_arbitrator(...);
+    /// ```
     pub fn pick_arbitrator(env: &Env) -> Result<Address, EscrowError> {
         let arbitrators: Map<Address, ArbitratorProfile> = env
             .storage()
@@ -76,6 +129,20 @@ impl ArbitrationManager {
     }
 
     /// Automated dispute detection: check if an escrow has stalled
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // check_stalled_escrow(...);
+    /// ```
     pub fn check_stalled_escrow(env: &Env, escrow: &Escrow) -> bool {
         if escrow.status != EscrowStatus::Pending {
             return false;
@@ -93,6 +160,16 @@ impl ArbitrationManager {
     }
 
     /// Update reputation after a resolution
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_reputation(...);
+    /// ```
     pub fn update_reputation(
         env: &Env,
         arbitrator_addr: Address,
@@ -119,5 +196,24 @@ impl ArbitrationManager {
         arbitrators.set(arbitrator_addr, profile);
         env.storage().instance().set(&ARBITRATORS, &arbitrators);
         Ok(())
+    }
+}
+
+
+impl ArbitrationPort for ArbitrationManager {
+    fn pick_arbitrator(env: &Env) -> Result<Address, EscrowError> {
+        Self::pick_arbitrator(env)
+    }
+
+    fn check_stalled(env: &Env, escrow: &Escrow) -> bool {
+        Self::check_stalled_escrow(env, escrow)
+    }
+
+    fn record_resolution(
+        env: &Env,
+        arbitrator: Address,
+        success: bool,
+    ) -> Result<(), EscrowError> {
+        Self::update_reputation(env, arbitrator, success)
     }
 }
