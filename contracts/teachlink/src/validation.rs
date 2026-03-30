@@ -27,12 +27,6 @@ pub fn require_admin(env: &Env) {
     }
 }
 
-pub fn validate_address(env: &Env, address: &Address) {
-    if address.to_string().is_empty() {
-        handle_error(env, TeachLinkError::InvalidAddress);
-    }
-}
-
 pub fn validate_bytes_address(env: &Env, address: &Bytes) {
     if address.len() == 0 {
         handle_error(env, TeachLinkError::InvalidAddress);

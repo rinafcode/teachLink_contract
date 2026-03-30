@@ -63,11 +63,6 @@ pub fn add_chain_support(
     validation::require_admin(env);
     validation::validate_chain_id(env, &chain_id);
     validation::validate_fee_rate(env, &fee_rate);
-    validation::validate_address(env, &bridge_address);
-
-    if name.to_string().len() > constants::chains::MAX_CHAIN_NAME_LENGTH as usize {
-        handle_error(env, TeachLinkError::InvalidAddress);
-    }
 
     let chains_key = symbol_short!("chains");
     let chains: Vec<(u32, Symbol, Address, u32, u32)> = env

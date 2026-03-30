@@ -1,8 +1,11 @@
 //! Shared data types used across the TeachLink contract.
 
+use soroban_sdk::contracttype;
+
 use crate::constants;
 
 /// Runtime configuration for bridge parameters.
+#[contracttype]
 #[derive(Clone, Debug)]
 pub struct BridgeConfig {
     pub fee_rate: u32,
