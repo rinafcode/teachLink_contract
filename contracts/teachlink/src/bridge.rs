@@ -371,23 +371,9 @@ impl Bridge {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
-        env.storage().instance().set(
-            &crate::storage::DataKey::Validator(validator.clone()),
-            &true,
-        );
-
-        // Maintain list
-        let mut list: Vec<Address> = env
-            .storage()
-            .instance()
-            .get(&crate::storage::VALIDATORS_LIST)
-            .unwrap_or_else(|| Vec::new(env));
-        if !list.contains(&validator) {
-            list.push_back(validator);
-            env.storage()
-                .instance()
-                .set(&crate::storage::VALIDATORS_LIST, &list);
-        }
+        // Centralize validator flag/list maintenance
+        crate::validator_utils::set_validator_flag(env, &validator, true);
+        crate::validator_utils::add_validator_to_list(env, &validator);
 
         Ok(())
     }
@@ -398,23 +384,9 @@ impl Bridge {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
-        env.storage().instance().set(
-            &crate::storage::DataKey::Validator(validator.clone()),
-            &false,
-        );
-
-        // Remove from list
-        let mut list: Vec<Address> = env
-            .storage()
-            .instance()
-            .get(&crate::storage::VALIDATORS_LIST)
-            .unwrap_or_else(|| Vec::new(env));
-        if let Some(pos) = list.iter().position(|v| v == validator) {
-            list.remove(pos as u32);
-            env.storage()
-                .instance()
-                .set(&crate::storage::VALIDATORS_LIST, &list);
-        }
+        // Centralize validator flag/list maintenance
+        crate::validator_utils::set_validator_flag(env, &validator, false);
+        crate::validator_utils::remove_validator_from_list(env, &validator);
 
         Ok(())
     }

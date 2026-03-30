@@ -136,7 +136,12 @@ mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
+pub mod validator_utils;
 pub mod validation;
+// Property-based tests are heavy and depend on dev-only crates. Only
+// compile them when the `proptest` feature is enabled to avoid pulling
+// these test-only dependencies into normal builds.
+#[cfg(feature = "proptest")]
 pub mod property_based_tests;
 
 pub use crate::types::{
