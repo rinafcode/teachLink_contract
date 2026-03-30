@@ -778,6 +778,16 @@ impl TeachLinkBridge {
         performance::PerformanceManager::invalidate_cache(&env, &admin)
     }
 
+    /// Get performance cache statistics: hits, misses, hit_rate
+    pub fn get_performance_cache_stats(env: Env) -> soroban_sdk::Map<soroban_sdk::Bytes, i128> {
+        performance::PerformanceManager::get_cache_stats(&env)
+    }
+
+    /// Reset performance cache statistics (admin only).
+    pub fn reset_performance_cache_stats(env: Env, admin: Address) -> Result<(), BridgeError> {
+        performance::PerformanceManager::reset_cache_stats(&env, &admin)
+    }
+
     // ========== Advanced Analytics & Reporting Functions ==========
 
     /// Get dashboard-ready aggregate analytics for visualizations
