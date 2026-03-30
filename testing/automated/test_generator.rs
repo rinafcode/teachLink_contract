@@ -85,7 +85,7 @@ fn test_{}() {{
     let env = Env::default();
     env.mock_all_auths();
     
-    // TODO: Implement test for {}
+    // Insert test implementation for {} here
     assert!(true);
 }}
 "#,
@@ -156,7 +156,7 @@ fn test_{}() {{
         return;
     }}
     
-    // TODO: Parse data and call {}
+    // Insert logic to parse data and call {}
 }});
 "#,
             method.name, method.name
