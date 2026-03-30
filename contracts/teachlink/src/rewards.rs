@@ -12,6 +12,16 @@ pub struct Rewards;
 
 impl Rewards {
     /// Initialize the rewards system
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize_rewards(...);
+    /// ```
     pub fn initialize_rewards(
         env: &Env,
         token: Address,
@@ -33,6 +43,22 @@ impl Rewards {
     // Pool Management
     // ==========================
 
+    /// Standard API for fund_reward_pool
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // fund_reward_pool(...);
+    /// ```
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
         funder.require_auth();
 
@@ -66,6 +92,16 @@ impl Rewards {
     }
 
     /// Issue rewards to a user
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // issue_reward(...);
+    /// ```
     pub fn issue_reward(
         env: &Env,
         recipient: Address,
@@ -126,6 +162,22 @@ impl Rewards {
     // Claiming
     // ==========================
 
+    /// Standard API for claim_rewards
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // claim_rewards(...);
+    /// ```
     pub fn claim_rewards(env: &Env, user: Address) -> Result<(), RewardsError> {
         user.require_auth();
 
@@ -187,6 +239,16 @@ impl Rewards {
     // ==========================
 
     /// Set reward rate for a specific reward type
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_reward_rate(...);
+    /// ```
     pub fn set_reward_rate(
         env: &Env,
         reward_type: String,
@@ -212,6 +274,18 @@ impl Rewards {
         Ok(())
     }
 
+    /// Standard API for update_rewards_admin
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_rewards_admin(...);
+    /// ```
     pub fn update_rewards_admin(env: &Env, new_admin: Address) {
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
@@ -223,14 +297,62 @@ impl Rewards {
     // View Functions
     // ==========================
 
+    /// Standard API for get_user_rewards
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_user_rewards(...);
+    /// ```
     pub fn get_user_rewards(env: &Env, user: Address) -> Option<UserReward> {
         env.storage().persistent().get(&(USER_REWARDS, user))
     }
 
+    /// Standard API for get_reward_pool_balance
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_reward_pool_balance(...);
+    /// ```
     pub fn get_reward_pool_balance(env: &Env) -> i128 {
         env.storage().instance().get(&REWARD_POOL).unwrap_or(0)
     }
 
+    /// Standard API for get_total_rewards_issued
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_total_rewards_issued(...);
+    /// ```
     pub fn get_total_rewards_issued(env: &Env) -> i128 {
         env.storage()
             .instance()
@@ -238,12 +360,44 @@ impl Rewards {
             .unwrap_or(0)
     }
 
+    /// Standard API for get_reward_rate
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_reward_rate(...);
+    /// ```
     pub fn get_reward_rate(env: &Env, reward_type: String) -> Option<RewardRate> {
         env.storage()
             .persistent()
             .get(&(REWARD_RATES, reward_type))
     }
 
+    /// Standard API for get_rewards_admin
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_rewards_admin(...);
+    /// ```
     pub fn get_rewards_admin(env: &Env) -> Address {
         env.storage().instance().get(&REWARDS_ADMIN).unwrap()
     }

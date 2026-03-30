@@ -21,6 +21,16 @@ impl ContentTokenization {
     }
 
     /// Mint a new educational content token
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // mint(...);
+    /// ```
     pub fn mint(
         env: &Env,
         creator: Address,
@@ -90,13 +100,7 @@ impl ContentTokenization {
     }
 
     /// Transfer ownership of a content token
-    pub fn transfer<P: ProvenancePort>(
-        env: &Env,
-        from: Address,
-        to: Address,
-        token_id: u64,
-        notes: Option<Bytes>,
-    ) {
+
         // Get the token
         let token: ContentToken = env
             .storage()
@@ -170,22 +174,64 @@ impl ContentTokenization {
     }
 
     /// Get a content token by ID
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_token(...);
+    /// ```
     pub fn get_token(env: &Env, token_id: u64) -> Option<ContentToken> {
         env.storage().persistent().get(&(CONTENT_TOKENS, token_id))
     }
 
     /// Get the owner of a token
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_owner(...);
+    /// ```
     pub fn get_owner(env: &Env, token_id: u64) -> Option<Address> {
         env.storage().persistent().get(&(OWNERSHIP, token_id))
     }
 
     /// Get the creator of a token
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_creator(...);
+    /// ```
     pub fn get_creator(env: &Env, token_id: u64) -> Option<Address> {
         Self::get_token(env, token_id).map(|token| token.metadata.creator)
     }
 
     /// Get all owners of a token (current and historical)
-    pub fn get_all_owners<P: ProvenancePort>(env: &Env, token_id: u64) -> Vec<Address> {
+
         let mut owners = Vec::new(env);
         if let Some(current_owner) = Self::get_owner(env, token_id) {
             owners.push_back(current_owner);
@@ -201,11 +247,39 @@ impl ContentTokenization {
     }
 
     /// Check if an address owns a token
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_owner(...);
+    /// ```
     pub fn is_owner(env: &Env, token_id: u64, address: Address) -> bool {
         Self::get_owner(env, token_id).is_some_and(|owner| owner == address)
     }
 
     /// Get all tokens owned by an address
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_owner_tokens(...);
+    /// ```
     pub fn get_owner_tokens(env: &Env, owner: Address) -> Vec<u64> {
         env.storage()
             .persistent()
@@ -214,6 +288,20 @@ impl ContentTokenization {
     }
 
     /// Get the total number of tokens minted
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_token_count(...);
+    /// ```
     pub fn get_token_count(env: &Env) -> u64 {
         env.storage()
             .persistent()
@@ -222,6 +310,16 @@ impl ContentTokenization {
     }
 
     /// Update token metadata (only by owner)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_metadata(...);
+    /// ```
     pub fn update_metadata(
         env: &Env,
         owner: Address,
@@ -266,6 +364,16 @@ impl ContentTokenization {
     }
 
     /// Set transferability of a token (only by owner)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_transferable(...);
+    /// ```
     pub fn set_transferable(env: &Env, owner: Address, token_id: u64, transferable: bool) {
         let mut token: ContentToken = env
             .storage()
