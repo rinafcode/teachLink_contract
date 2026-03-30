@@ -1,0 +1,102 @@
+groups:
+  - name: teachlink-indexer-critical
+    rules:
+      - alert: TeachLinkIndexerDown
+        expr: up{job="teachlink-indexer"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer metrics endpoint is down
+          description: Prometheus has been unable to scrape the indexer for at least 2 minutes.
+
+      - alert: TeachLinkIndexerHealthcheckFailed
+        expr: probe_success{job="teachlink-indexer-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer health probe is failing
+          description: The load-balancer style health endpoint has failed for at least 2 minutes.
+
+      - alert: TeachLinkIndexerDatabaseUnavailable
+        expr: teachlink_indexer_dependency_up{dependency="database"} == 0 or pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: Indexer database connectivity is failing
+          description: The indexer or exporter cannot reach PostgreSQL.
+
+      - alert: TeachLinkIndexerHorizonUnavailable
+        expr: teachlink_indexer_dependency_up{dependency="horizon"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: horizon
+        annotations:
+          summary: Stellar Horizon dependency is unavailable
+          description: The indexer health check cannot reach Horizon for at least 5 minutes.
+
+      - alert: TeachLinkIndexerStaleProcessing
+        expr: teachlink_indexer_ledger_lag_seconds > 900
+        for: 10m
+        labels:
+          severity: critical
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer is stale
+          description: No event has been processed within the last 15 minutes.
+
+  - name: teachlink-indexer-warning
+    rules:
+      - alert: TeachLinkIndexerHighHttpErrorRate
+        expr: |
+          sum(rate(teachlink_indexer_http_requests_total{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(teachlink_indexer_http_requests_total[5m])), 1)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer is returning elevated 5xx responses
+          description: More than 5% of HTTP requests have been failing for 10 minutes.
+
+      - alert: TeachLinkIndexerHighLatency
+        expr: |
+          rate(teachlink_indexer_http_request_duration_seconds_sum[5m])
+          /
+          clamp_min(rate(teachlink_indexer_http_request_duration_seconds_count[5m]), 1)
+          > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer API latency is elevated
+          description: Average HTTP latency has stayed above 1 second for 10 minutes.
+
+      - alert: TeachLinkGrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: grafana
+        annotations:
+          summary: Grafana is unavailable
+          description: Grafana has not been scrapeable for at least 5 minutes.
+
+      - alert: TeachLinkAlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: alertmanager
+        annotations:
+          summary: Alertmanager is unavailable
+          description: Alertmanager has not been scrapeable for at least 5 minutes.
