@@ -101,6 +101,16 @@ pub struct AssessmentManager;
 
 impl AssessmentManager {
     /// Create a new assessment
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_assessment(...);
+    /// ```
     pub fn create_assessment(
         env: &Env,
         creator: Address,
@@ -142,6 +152,16 @@ impl AssessmentManager {
     }
 
     /// Add a question to the pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_question(...);
+    /// ```
     pub fn add_question(
         env: &Env,
         creator: Address,
@@ -181,6 +201,16 @@ impl AssessmentManager {
     }
 
     /// Submit an assessment for grading
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // submit_assessment(...);
+    /// ```
     pub fn submit_assessment(
         env: &Env,
         student: Address,
@@ -279,6 +309,16 @@ impl AssessmentManager {
     }
 
     /// Adaptive question selection logic
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_next_adaptive_question(...);
+    /// ```
     pub fn get_next_adaptive_question(
         env: &Env,
         assessment_id: u64,
@@ -426,11 +466,39 @@ impl AssessmentManager {
             .set(&analytics_key, &assessments_analytics);
     }
 
+    /// Standard API for get_assessment
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_assessment(...);
+    /// ```
     pub fn get_assessment(env: &Env, id: u64) -> Option<Assessment> {
         let assessments: Map<u64, Assessment> = env.storage().instance().get(&ASSESSMENTS)?;
         assessments.get(id)
     }
 
+    /// Standard API for get_submission
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_submission(...);
+    /// ```
     pub fn get_submission(
         env: &Env,
         student: Address,
@@ -442,6 +510,16 @@ impl AssessmentManager {
     }
 
     /// Proctoring: Record a violation during the session
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // report_proctoring_violation(...);
+    /// ```
     pub fn report_proctoring_violation(
         env: &Env,
         student: Address,
@@ -464,6 +542,16 @@ impl AssessmentManager {
     }
 
     /// Accessibility: Set accommodation for a student (e.g., extra time)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_accommodation(...);
+    /// ```
     pub fn set_accommodation(
         env: &Env,
         admin: Address,
@@ -482,6 +570,20 @@ impl AssessmentManager {
     }
 
     /// Scheduling: Check if assessment is available at current time
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_assessment_available(...);
+    /// ```
     pub fn is_assessment_available(env: &Env, assessment_id: u64) -> bool {
         if let Some(assessment) = Self::get_assessment(env, assessment_id) {
             // Placeholder for start/end dates in settings
