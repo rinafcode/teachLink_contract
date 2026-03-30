@@ -787,6 +787,16 @@ pub struct ContentQualityManager;
 
 impl ContentQualityManager {
     /// Assess content quality using AI and automated checks
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // assess_content_quality(...);
+    /// ```
     pub fn assess_content_quality(
         env: &Env,
         content_id: u64,
@@ -825,6 +835,16 @@ impl ContentQualityManager {
     }
 
     /// Check content for plagiarism
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // check_plagiarism(...);
+    /// ```
     pub fn check_plagiarism(
         env: &Env,
         content_id: u64,
@@ -857,6 +877,16 @@ impl ContentQualityManager {
     }
 
     /// Submit content for community moderation
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // submit_for_moderation(...);
+    /// ```
     pub fn submit_for_moderation(
         env: &Env,
         content_id: u64,
@@ -881,6 +911,16 @@ impl ContentQualityManager {
     }
 
     /// Create quality improvement plan
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_improvement_plan(...);
+    /// ```
     pub fn create_improvement_plan(
         env: &Env,
         content_id: u64,

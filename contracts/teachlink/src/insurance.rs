@@ -1,4 +1,5 @@
 use crate::errors::EscrowError;
+use crate::interfaces::InsurancePort;
 use crate::storage::INSURANCE_POOL;
 use crate::types::InsurancePool;
 #[cfg(test)]
@@ -9,6 +10,16 @@ pub struct InsuranceManager;
 
 impl InsuranceManager {
     /// Initialize the insurance pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize_pool(...);
+    /// ```
     pub fn initialize_pool(
         env: &Env,
         token: Address,
@@ -26,6 +37,20 @@ impl InsuranceManager {
     }
 
     /// Fund the insurance pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // fund_pool(...);
+    /// ```
     pub fn fund_pool(env: &Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
         funder.require_auth();
         let mut pool: InsurancePool = env
@@ -51,6 +76,20 @@ impl InsuranceManager {
     }
 
     /// Calculate insurance premium for an escrow amount
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // calculate_premium(...);
+    /// ```
     pub fn calculate_premium(env: &Env, amount: i128) -> i128 {
         let pool: InsurancePool =
             env.storage()
@@ -68,12 +107,40 @@ impl InsuranceManager {
     }
 
     /// Pay premium and add to pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // pay_premium(...);
+    /// ```
     pub fn pay_premium(env: &Env, user: Address, amount: i128) -> Result<(), EscrowError> {
         user.require_auth();
         Self::pay_premium_internal(env, user, amount)
     }
 
     /// Internal: Pay premium and add to pool (no auth check)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // pay_premium_internal(...);
+    /// ```
     pub fn pay_premium_internal(env: &Env, user: Address, amount: i128) -> Result<(), EscrowError> {
         let mut pool: InsurancePool = env
             .storage()
@@ -98,6 +165,16 @@ impl InsuranceManager {
     }
 
     /// Process an insurance claim
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // process_claim(...);
+    /// ```
     pub fn process_claim(
         env: &Env,
         recipient: Address,
@@ -135,6 +212,20 @@ impl InsuranceManager {
     }
 
     /// Risk assessment for an escrow
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // assess_risk(...);
+    /// ```
     pub fn assess_risk(env: &Env, escrow_id: u64, amount: i128) -> u32 {
         // Simple risk assessment: score 0-100
         // Higher amount = higher risk
@@ -144,5 +235,15 @@ impl InsuranceManager {
             return 40;
         }
         10
+    }
+}
+
+impl InsurancePort for InsuranceManager {
+    fn calculate_premium(env: &Env, amount: i128) -> i128 {
+        Self::calculate_premium(env, amount)
+    }
+
+    fn pay_premium(env: &Env, payer: Address, amount: i128) -> Result<(), EscrowError> {
+        Self::pay_premium_internal(env, payer, amount)
     }
 }

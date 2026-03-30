@@ -7,8 +7,12 @@ pub mod notification_tests {
     use crate::notification::*;
     use crate::notification_types::*;
     use crate::storage::*;
+<<<<<<< HEAD
     use soroban_sdk::testutils::Address as _;
     use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
+=======
+    use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, Map, String, Vec};
+>>>>>>> main
 
     // Helper function to create test addresses
     fn create_test_address(env: &Env, id: u8) -> Address {

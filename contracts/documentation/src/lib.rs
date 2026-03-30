@@ -1,82 +1,61 @@
 //! TeachLink Documentation Contract
 //!
-//! A smart contract for managing documentation, knowledge base articles,
-//! FAQs, tutorials, and community-contributed content.
+//! Manages documentation articles, FAQs, and versioning for the TeachLink platform.
+//! Functionality is split across focused modules:
+//!
+//! - [`types`]      — shared data structures
+//! - [`storage`]    — storage key definitions
+//! - [`articles`]   — article CRUD and analytics
+//! - [`faq`]        — FAQ CRUD
+//! - [`versioning`] — global documentation versioning
 
 #![no_std]
 
-use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec};
+use soroban_sdk::{contract, contractimpl, Address, Env, String, Vec};
 
-/// Documentation category types
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum DocCategory {
-    Guide,
-    ApiReference,
-    Tutorial,
-    Faq,
-    KnowledgeBase,
-    Troubleshooting,
-}
+mod articles;
+mod faq;
+mod storage;
+mod types;
+mod versioning;
 
-/// Content visibility levels
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub enum Visibility {
-    Public,
-    Community,
-    Private,
-}
+pub use types::*;
 
-/// A documentation article
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Article {
-    pub id: String,
-    pub title: String,
-    pub content: String,
-    pub category: DocCategory,
-    pub language: String,
-    pub version: u32,
-    pub author: Address,
-    pub visibility: Visibility,
-    pub tags: Vec<String>,
-    pub created_at: u64,
-    pub updated_at: u64,
-    pub view_count: u64,
-    pub helpful_count: u64,
-}
-
-/// A FAQ entry
-#[contracttype]
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct FaqEntry {
-    pub id: String,
-    pub question: String,
-    pub answer: String,
-    pub category: String,
-    pub language: String,
-    pub author: Address,
-    pub created_at: u64,
-    pub updated_at: u64,
-    pub helpful_count: u64,
-}
-
-/// Documentation contract storage keys
-#[contracttype]
-enum DocKey {
-    ArticleCount,
-    FaqCount,
-    Version,
-}
-
-/// Main documentation contract
+/// Main documentation contract — delegates to focused sub-modules.
 #[contract]
 pub struct DocumentationContract;
 
 #[contractimpl]
 impl DocumentationContract {
     /// Create a new documentation article
+    ///
+    /// Creates and stores a new article with the given parameters, incrementing
+    /// the article count tracker.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `id` - Unique identifier for the article.
+    /// * `title` - Title of the article.
+    /// * `content` - Main content of the article.
+    /// * `category` - The `DocCategory` enum variant.
+    /// * `language` - Language code (e.g. "en").
+    /// * `tags` - List of string tags for searching.
+    /// * `visibility` - Public, Community, or Private visibility.
+    /// * `author` - The address of the content creator.
+    ///
+    /// # Returns
+    ///
+    /// * `Article` - The newly created article.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let article = DocumentationContract::create_article(env, id, title, content, category, lang, tags, vis, author);
+    /// ```
+    // ── Articles ──────────────────────────────────────────────────────────────
+
+    /// Create a new documentation article.
     pub fn create_article(
         env: Env,
         id: String,
@@ -88,46 +67,57 @@ impl DocumentationContract {
         visibility: Visibility,
         author: Address,
     ) -> Article {
-        let timestamp = env.ledger().timestamp();
-        let exists = env.storage().instance().has(&id);
-
-        let article = Article {
-            id: id.clone(),
-            title,
-            content,
-            category,
-            language,
-            version: 1,
-            author,
-            visibility,
-            tags,
-            created_at: timestamp,
-            updated_at: timestamp,
-            view_count: 0,
-            helpful_count: 0,
-        };
-
-        env.storage().instance().set(&id, &article);
-
-        if !exists {
-            // Increment article count for new IDs only.
-            let count_key = DocKey::ArticleCount;
-            let current_count: u64 = env.storage().instance().get(&count_key).unwrap_or(0);
-            let next_count = current_count
-                .checked_add(1)
-                .expect("documentation article count overflow");
-            env.storage().instance().set(&count_key, &next_count);
-        }
-
-        article
+        articles::ArticleManager::create(
+            &env, id, title, content, category, language, tags, visibility, author,
+        )
     }
 
     /// Get an article by ID
+    ///
+    /// Retrieves a documentation article using its unique ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `id` - The unique identifier of the article.
+    ///
+    /// # Returns
+    ///
+    /// * `Article` - The requested article.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let article = DocumentationContract::get_article(env, id);
+    /// ```
+    /// Get an article by ID.
     pub fn get_article(env: Env, id: String) -> Article {
-        env.storage().instance().get(&id).unwrap()
+        articles::ArticleManager::get(&env, id)
     }
 
     /// Update an existing article
+    ///
+    /// Modifies an article's title, content, and tags while incrementing
+    /// its version number and updating the modification timestamp.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `id` - The ID of the article to update.
+    /// * `title` - New title.
+    /// * `content` - New content.
+    /// * `tags` - New list of tags.
+    ///
+    /// # Returns
+    ///
+    /// * `Article` - The updated article.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let updated = DocumentationContract::update_article(env, id, new_title, new_content, new_tags);
+    /// ```
+    /// Update title, content, and tags of an existing article.
     pub fn update_article(
         env: Env,
         id: String,
@@ -135,45 +125,78 @@ impl DocumentationContract {
         content: String,
         tags: Vec<String>,
     ) -> Article {
-        let mut article: Article = env.storage().instance().get(&id).unwrap();
-
-        article.title = title;
-        article.content = content;
-        article.tags = tags;
-        article.version = article
-            .version
-            .checked_add(1)
-            .expect("documentation article version overflow");
-        article.updated_at = env.ledger().timestamp();
-
-        env.storage().instance().set(&id, &article);
-
-        article
+        articles::ArticleManager::update(&env, id, title, content, tags)
     }
 
     /// Record a view for analytics
+    ///
+    /// Increments the view count of a specific article.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `article_id` - The ID of the article viewed.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// DocumentationContract::record_view(env, article_id);
+    /// ```
+    /// Record a view for analytics.
     pub fn record_view(env: Env, article_id: String) {
-        let mut article: Article = env.storage().instance().get(&article_id).unwrap();
-        article.view_count = article
-            .view_count
-            .checked_add(1)
-            .expect("documentation article view count overflow");
-
-        env.storage().instance().set(&article_id, &article);
+        articles::ArticleManager::record_view(&env, article_id);
     }
 
     /// Record that a user found an article helpful
+    ///
+    /// Increments the helpful count of a specific article.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `article_id` - The ID of the article found helpful.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// DocumentationContract::mark_helpful(env, article_id);
+    /// ```
+    /// Mark an article as helpful.
     pub fn mark_helpful(env: Env, article_id: String) {
-        let mut article: Article = env.storage().instance().get(&article_id).unwrap();
-        article.helpful_count = article
-            .helpful_count
-            .checked_add(1)
-            .expect("documentation article helpful count overflow");
-
-        env.storage().instance().set(&article_id, &article);
+        articles::ArticleManager::mark_helpful(&env, article_id);
     }
 
+    
+    /// Return total article count.
+    pub fn get_article_count(env: Env) -> u64 {
+        articles::ArticleManager::count(&env)
+    }
+
+    // ── FAQ ───────────────────────────────────────────────────────────────────
+
     /// Create a new FAQ entry
+    ///
+    /// Stores a new question and answer pair under a specific category.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `id` - Unique identifier for the FAQ.
+    /// * `question` - The FAQ question.
+    /// * `answer` - The FAQ answer.
+    /// * `category` - The category grouping for the FAQ.
+    /// * `language` - Language code.
+    /// * `author` - The address of the FAQ author.
+    ///
+    /// # Returns
+    ///
+    /// * `FaqEntry` - The newly created FAQ entry.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let faq = DocumentationContract::create_faq(env, id, q, a, cat, lang, author);
+    /// ```
     pub fn create_faq(
         env: Env,
         id: String,
@@ -183,49 +206,78 @@ impl DocumentationContract {
         language: String,
         author: Address,
     ) -> FaqEntry {
-        let timestamp = env.ledger().timestamp();
-        let exists = env.storage().instance().has(&id);
-
-        let faq = FaqEntry {
-            id: id.clone(),
-            question,
-            answer,
-            category,
-            language,
-            author,
-            created_at: timestamp,
-            updated_at: timestamp,
-            helpful_count: 0,
-        };
-
-        env.storage().instance().set(&id, &faq);
-
-        if !exists {
-            // Increment FAQ count for new IDs only.
-            let count_key = DocKey::FaqCount;
-            let current_count: u64 = env.storage().instance().get(&count_key).unwrap_or(0);
-            let next_count = current_count
-                .checked_add(1)
-                .expect("documentation faq count overflow");
-            env.storage().instance().set(&count_key, &next_count);
-        }
-
-        faq
+        faq::FaqManager::create(&env, id, question, answer, category, language, author)
     }
 
     /// Get FAQ by ID
+    ///
+    /// Retrieves a specific FAQ entry by its ID.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `id` - The unique identifier of the FAQ.
+    ///
+    /// # Returns
+    ///
+    /// * `FaqEntry` - The requested FAQ entry.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let faq = DocumentationContract::get_faq(env, id);
+    /// ```
     pub fn get_faq(env: Env, id: String) -> FaqEntry {
-        env.storage().instance().get(&id).unwrap()
+        faq::FaqManager::get(&env, id)
     }
 
+    
+    /// Return total FAQ count.
+    pub fn get_faq_count(env: Env) -> u64 {
+        faq::FaqManager::count(&env)
+    }
+
+    // ── Search (placeholder) ──────────────────────────────────────────────────
+
     /// Search articles by keyword (simplified implementation)
+    ///
+    /// Returns a list of articles matching the search query.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `_query` - The string query to search for.
+    ///
+    /// # Returns
+    ///
+    /// * `Vec<Article>` - List of matching articles.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let results = DocumentationContract::search_articles(env, query);
+    /// ```
     pub fn search_articles(env: Env, _query: String) -> Vec<Article> {
-        // In a full implementation, this would search through articles
-        // For now, return empty vector as placeholder
         Vec::new(&env)
     }
 
     /// Get total article count
+    ///
+    /// Returns the total number of articles stored in the contract.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    ///
+    /// * `u64` - Number of articles.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let count = DocumentationContract::get_article_count(env);
+    /// ```
     pub fn get_article_count(env: Env) -> u64 {
         env.storage()
             .instance()
@@ -234,18 +286,63 @@ impl DocumentationContract {
     }
 
     /// Get total FAQ count
+    ///
+    /// Returns the total number of FAQ entries stored in the contract.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    ///
+    /// * `u64` - Number of FAQ entries.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let count = DocumentationContract::get_faq_count(env);
+    /// ```
     pub fn get_faq_count(env: Env) -> u64 {
         env.storage().instance().get(&DocKey::FaqCount).unwrap_or(0)
     }
 
     /// Get current documentation version
+    ///
+    /// Retrieves the overall version number of the knowledge base.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    ///
+    /// # Returns
+    ///
+    /// * `u32` - The current global documentation version.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// let version = DocumentationContract::get_version(env);
+    /// ```
     pub fn get_version(env: Env) -> u32 {
-        env.storage().instance().get(&DocKey::Version).unwrap_or(1)
+        versioning::Versioning::get(&env)
     }
 
     /// Update documentation version
+    ///
+    /// Sets a new overall version number for the entire knowledge base.
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The Soroban environment.
+    /// * `version` - The new version number.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// DocumentationContract::update_version(env, 2);
+    /// ```
     pub fn update_version(env: Env, version: u32) {
-        env.storage().instance().set(&DocKey::Version, &version);
+        versioning::Versioning::update(&env, version);
     }
 }
 
