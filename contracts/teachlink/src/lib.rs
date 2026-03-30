@@ -25,6 +25,9 @@
 //! - **Provenance Tracking**: Full chain-of-custody for content tokens
 //! - **User Reputation**: Track user participation, completion rates, and contribution quality
 //! - **Credit Scoring**: Calculate user credit scores based on courses and contributions
+//! - **Role-Based Access Control**: Manage user roles and permissions across the platform
+//! - **Appointment Booking Escrow**: Secure payment handling for teaching appointments
+//! - **Data Access Audit**: Comprehensive logging of patient data access for compliance
 //!
 //! # Contract Modules
 //!
@@ -49,6 +52,9 @@
 //! | [`provenance`] | Ownership history tracking for content tokens |
 //! | [`reputation`] | User reputation scoring system |
 //! | [`score`] | Credit score calculation from activities |
+//! | [`rbac`] | Role-based access control for user permissions |
+//! | [`appointment_escrow`] | Secure appointment booking with escrow payments |
+//! | [`data_access_audit`] | Comprehensive audit logging for data access |
 //!
 //! # Quick Start
 //!
@@ -91,12 +97,14 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod analytics;
+mod appointment_escrow;
 mod arbitration;
 mod assessment;
 mod atomic_swap;
 mod audit;
 mod bft_consensus;
 mod bridge;
+mod data_access_audit;
 mod emergency;
 mod errors;
 mod escrow;
@@ -114,6 +122,7 @@ mod notification;
 mod notification_events_basic;
 // mod content_quality;
 mod notification_tests;
+mod rbac;
 mod backup;
 mod notification_types;
 mod performance;
@@ -135,10 +144,13 @@ pub use crate::types::{
     LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
     OnboardingStage, OnboardingStatus, ThemePreference, UserFeedback, VideoQuality,
 };
+pub use appointment_escrow::{Appointment, AppointmentEscrowContract, AppointmentStatus};
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
+pub use data_access_audit::{AccessLog, DataAccessAuditContract};
 pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use rbac::{RbacContract, Role};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
