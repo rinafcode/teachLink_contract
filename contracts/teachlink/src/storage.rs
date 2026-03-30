@@ -59,11 +59,18 @@ pub const COMPLIANCE_REPORTS: Symbol = symbol_short!("compl_rep");
 // Atomic Swap Storage
 pub const ATOMIC_SWAPS: Symbol = symbol_short!("swaps");
 pub const SWAP_COUNTER: Symbol = symbol_short!("swap_cnt");
+// Index storage for atomic swaps
+pub const SWAPS_BY_INITIATOR: Symbol = symbol_short!("swp_init");
+pub const SWAPS_BY_COUNTERPARTY: Symbol = symbol_short!("swp_cnty");
+pub const SWAPS_BY_STATUS: Symbol = symbol_short!("swp_stat");
 
 // Analytics Storage
 pub const BRIDGE_METRICS: Symbol = symbol_short!("metrics");
 pub const CHAIN_METRICS: Symbol = symbol_short!("ch_mets");
 pub const DAILY_VOLUMES: Symbol = symbol_short!("daily_vol");
+// Indexed storage for analytics
+pub const CHAIN_VOLUME_INDEX: Symbol = symbol_short!("chn_vol_i");
+pub const CHAIN_METRICS_INDEX: Symbol = symbol_short!("chn_met_i");
 
 // Storage keys for the rewards system
 pub const REWARDS_ADMIN: Symbol = symbol_short!("rwd_admin");
