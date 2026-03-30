@@ -3,7 +3,7 @@
 //! Bridge monitoring and analytics for bridge operations, validator performance, and chain metrics.
 
 use crate::errors::BridgeError;
-use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};
+use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES, CHAIN_VOLUME_INDEX, CHAIN_METRICS_INDEX};
 use crate::types::{BridgeMetrics, ChainMetrics};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
@@ -122,6 +122,15 @@ impl AnalyticsManager {
         chain_metrics.set(chain_id, metrics);
         env.storage().instance().set(&CHAIN_METRICS, &chain_metrics);
 
+        // Initialize volume index for this chain
+        let mut volume_index: Map<u32, i128> = env
+            .storage()
+            .instance()
+            .get(&CHAIN_VOLUME_INDEX)
+            .unwrap_or_else(|| Map::new(env));
+        volume_index.set(chain_id, 0i128);
+        env.storage().instance().set(&CHAIN_VOLUME_INDEX, &volume_index);
+
         Ok(())
     }
 
@@ -171,6 +180,16 @@ impl AnalyticsManager {
 
         chain_metrics.set(chain_id, metrics);
         env.storage().instance().set(&CHAIN_METRICS, &chain_metrics);
+
+        // Update volume index
+        let mut volume_index: Map<u32, i128> = env
+            .storage()
+            .instance()
+            .get(&CHAIN_VOLUME_INDEX)
+            .unwrap_or_else(|| Map::new(env));
+        let current_total = volume_index.get(chain_id).unwrap_or(0i128);
+        volume_index.set(chain_id, current_total + volume);
+        env.storage().instance().set(&CHAIN_VOLUME_INDEX, &volume_index);
 
         Ok(())
     }
@@ -281,80 +300,57 @@ impl AnalyticsManager {
     /// Max chains to iterate when building top-by-volume (gas bound).
     const MAX_CHAINS_ITER: u32 = 50;
 
-    /// Get top chains by volume with bounded iteration (for performance cache).
+    /// Get top chains by volume with bounded iteration using indexed lookup
     pub fn get_top_chains_by_volume_bounded(env: &Env, limit: u32) -> Vec<(u32, i128)> {
-        let chain_metrics: Map<u32, ChainMetrics> = env
+        let volume_index: Map<u32, i128> = env
             .storage()
             .instance()
-            .get(&CHAIN_METRICS)
+            .get(&CHAIN_VOLUME_INDEX)
             .unwrap_or_else(|| Map::new(env));
 
         let mut chains: Vec<(u32, i128)> = Vec::new(env);
         let mut count = 0u32;
-        for (chain_id, metrics) in chain_metrics.iter() {
+        for (chain_id, volume) in volume_index.iter() {
             if count >= Self::MAX_CHAINS_ITER {
                 break;
             }
             count += 1;
-            let total_volume = metrics.volume_in + metrics.volume_out;
-            chains.push_back((chain_id, total_volume));
+            chains.push_back((chain_id, volume));
         }
 
-        let len = chains.len();
-        for i in 0..len {
-            for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
-                if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
-                }
-            }
-        }
+        // Efficient sort using built-in sorting
+        chains.sort_by(|a, b| b.1.cmp(&a.1));
 
         let mut result = Vec::new(env);
         for i in 0..limit.min(chains.len()) {
             if let Some(chain) = chains.get(i) {
-                result.push_back(chain);
+                result.push_back(*chain);
             }
         }
         result
     }
 
-    /// Get top chains by volume (unbounded; use get_top_chains_by_volume_bounded for caching).
+    /// Get top chains by volume using indexed lookup (O(n log n) instead of O(n²))
     pub fn get_top_chains_by_volume(env: &Env, limit: u32) -> Vec<(u32, i128)> {
-        let chain_metrics: Map<u32, ChainMetrics> = env
+        let volume_index: Map<u32, i128> = env
             .storage()
             .instance()
-            .get(&CHAIN_METRICS)
+            .get(&CHAIN_VOLUME_INDEX)
             .unwrap_or_else(|| Map::new(env));
 
         let mut chains: Vec<(u32, i128)> = Vec::new(env);
-        for (chain_id, metrics) in chain_metrics.iter() {
-            let total_volume = metrics.volume_in + metrics.volume_out;
-            chains.push_back((chain_id, total_volume));
+        for (chain_id, volume) in volume_index.iter() {
+            chains.push_back((chain_id, volume));
         }
 
-        // Simple bubble sort (for small datasets)
-        let len = chains.len();
-        for i in 0..len {
-            for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
-                if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
-                }
-            }
-        }
+        // Efficient sort using built-in sorting (O(n log n))
+        chains.sort_by(|a, b| b.1.cmp(&a.1));
 
         // Return top N
         let mut result = Vec::new(env);
         for i in 0..limit.min(chains.len()) {
             if let Some(chain) = chains.get(i) {
-                result.push_back(chain);
+                result.push_back(*chain);
             }
         }
         result
