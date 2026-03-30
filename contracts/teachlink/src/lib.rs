@@ -19,11 +19,15 @@ pub mod storage;
 pub mod types;
 pub mod validation;
 
+#[cfg(not(test))]
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Symbol, Vec};
 
+#[cfg(not(test))]
 use storage::{ADMIN, BRIDGE_TXS, CONFIG, FALLBACK_ENABLED};
+#[cfg(not(test))]
 use types::BridgeConfig;
-use validation::{require_admin, require_initialized, validate_address, validate_fee_rate};
+#[cfg(not(test))]
+use validation::{require_admin, require_initialized, validate_fee_rate};
 
 #[cfg(not(test))]
 #[contract]
@@ -34,13 +38,14 @@ impl TeachLinkBridge {
     /// Initialize the contract with an admin address.
     pub fn initialize(env: Env, admin: Address) {
         require_initialized(&env, false);
-        validate_address(&env, &admin);
 
         let config = BridgeConfig::default();
         env.storage().instance().set(&ADMIN, &admin);
         env.storage().instance().set(&storage::NONCE, &0u64);
         env.storage().instance().set(&FALLBACK_ENABLED, &config.fallback_enabled);
-        env.storage().instance().set(&BRIDGE_TXS, &Vec::<(Address, i128, u32, Bytes)>::new(&env));
+        env.storage()
+            .instance()
+            .set(&BRIDGE_TXS, &Vec::<(Address, i128, u32, Bytes)>::new(&env));
         env.storage().instance().set(&storage::ERROR_COUNT, &0u64);
         env.storage().instance().set(&CONFIG, &config);
     }
@@ -65,7 +70,14 @@ impl TeachLinkBridge {
         min_confirmations: u32,
         fee_rate: u32,
     ) {
-        bridge::add_chain_support(&env, chain_id, name, bridge_address, min_confirmations, fee_rate);
+        bridge::add_chain_support(
+            &env,
+            chain_id,
+            name,
+            bridge_address,
+            min_confirmations,
+            fee_rate,
+        );
     }
 
     /// Submit an oracle price update (authorized oracles only).
@@ -94,6 +106,7 @@ impl TeachLinkBridge {
 
     // ── Queries ──────────────────────────────────────────────────────────────
 
+    /// Get a bridge transaction by index.
     pub fn get_bridge_tx(env: Env, index: u32) -> Option<(Address, i128, u32, Bytes)> {
         let txs: Vec<(Address, i128, u32, Bytes)> = env
             .storage()
@@ -103,14 +116,20 @@ impl TeachLinkBridge {
         txs.get(index)
     }
 
+    /// Get the current bridge configuration.
     pub fn get_config(env: Env) -> BridgeConfig {
         storage::get_config(&env)
     }
 
+    /// Check whether the fallback mechanism is enabled.
     pub fn is_fallback_enabled(env: Env) -> bool {
-        env.storage().instance().get(&FALLBACK_ENABLED).unwrap_or(true)
+        env.storage()
+            .instance()
+            .get(&FALLBACK_ENABLED)
+            .unwrap_or(true)
     }
 
+    /// Get the total error count.
     pub fn get_error_stats(env: Env) -> u64 {
         env.storage()
             .instance()
