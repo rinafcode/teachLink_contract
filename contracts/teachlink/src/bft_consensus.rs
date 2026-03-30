@@ -68,11 +68,8 @@ impl BFTConsensus {
             slashed_amount: 0,
         };
 
-        // Store validator data
-        env.storage().instance().set(
-            &crate::storage::DataKey::Validator(validator.clone()),
-            &true,
-        );
+        // Store validator data and maintain list/flag via utilities
+        crate::validator_utils::set_validator_flag(env, &validator, true);
         env.storage().instance().set(
             &crate::storage::DataKey::ValidatorMetadata(validator.clone()),
             &validator_info,
@@ -81,19 +78,7 @@ impl BFTConsensus {
             &crate::storage::DataKey::ValidatorStake(validator.clone()),
             &stake,
         );
-
-        // Maintain list
-        let mut list: Vec<Address> = env
-            .storage()
-            .instance()
-            .get(&crate::storage::VALIDATORS_LIST)
-            .unwrap_or_else(|| Vec::new(env));
-        if !list.contains(&validator) {
-            list.push_back(validator.clone());
-            env.storage()
-                .instance()
-                .set(&crate::storage::VALIDATORS_LIST, &list);
-        }
+        crate::validator_utils::add_validator_to_list(env, &validator);
 
         // Update consensus state
         Self::update_consensus_state(env)?;
@@ -130,11 +115,8 @@ impl BFTConsensus {
             .get::<_, i128>(&crate::storage::DataKey::ValidatorStake(validator.clone()))
             .unwrap_or(0);
 
-        // Remove validator
-        env.storage().instance().set(
-            &crate::storage::DataKey::Validator(validator.clone()),
-            &false,
-        );
+        // Remove validator and update list/flag via utilities
+        crate::validator_utils::set_validator_flag(env, &validator, false);
         env.storage()
             .instance()
             .remove(&crate::storage::DataKey::ValidatorMetadata(
@@ -143,19 +125,7 @@ impl BFTConsensus {
         env.storage()
             .instance()
             .remove(&crate::storage::DataKey::ValidatorStake(validator.clone()));
-
-        // Remove from list
-        let mut list: Vec<Address> = env
-            .storage()
-            .instance()
-            .get(&crate::storage::VALIDATORS_LIST)
-            .unwrap_or_else(|| Vec::new(env));
-        if let Some(pos) = list.iter().position(|v| v == validator) {
-            list.remove(pos as u32);
-            env.storage()
-                .instance()
-                .set(&crate::storage::VALIDATORS_LIST, &list);
-        }
+        crate::validator_utils::remove_validator_from_list(env, &validator);
 
         // Update consensus state
         Self::update_consensus_state(env)?;
@@ -345,42 +315,8 @@ impl BFTConsensus {
 
     /// Update the consensus state based on current validators
     fn update_consensus_state(env: &Env) -> Result<(), BridgeError> {
-        let validators: Vec<Address> = env
-            .storage()
-            .instance()
-            .get(&crate::storage::VALIDATORS_LIST)
-            .unwrap_or_else(|| Vec::new(env));
-
-        let mut total_stake: i128 = 0;
-        let mut active_validators: u32 = 0;
-
-        for validator in validators.iter() {
-            if Self::is_active_validator(env, &validator) {
-                active_validators += 1;
-                let stake = env
-                    .storage()
-                    .instance()
-                    .get(&crate::storage::DataKey::ValidatorStake(validator.clone()))
-                    .unwrap_or(0);
-                total_stake += stake;
-            }
-        }
-
-        // Byzantine threshold: 2f+1 where n = 3f+1
-        // For n validators, we need ceil(2n/3) + 1 for BFT
-        let byzantine_threshold = if active_validators > 0 {
-            ((2 * active_validators) / 3) + 1
-        } else {
-            1
-        };
-
-        let consensus_state = ConsensusState {
-            total_stake,
-            active_validators,
-            byzantine_threshold,
-            last_consensus_round: env.ledger().timestamp(),
-        };
-
+        // Delegate computation to shared utility, then persist
+        let consensus_state = crate::validator_utils::compute_consensus_state(env);
         env.storage()
             .instance()
             .set(&CONSENSUS_STATE, &consensus_state);
