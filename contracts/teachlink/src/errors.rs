@@ -67,6 +67,7 @@ pub enum EscrowError {
     RefundTimeMustBeInFuture = 203,
     RefundTimeMustBeAfterReleaseTime = 204,
     DuplicateSigner = 205,
+    DuplicateSigners = 205,  // Alias for consistency
     SignerNotAuthorized = 206,
     SignerAlreadyApproved = 207,
     CallerNotAuthorized = 208,
@@ -83,6 +84,10 @@ pub enum EscrowError {
     EscrowNotPending = 219,
     EscrowNotFound = 220,
     ArbitratorNotAuthorized = 221,
+    InvalidBeneficiary = 222,
+    InvalidToken = 223,
+    InvalidArbitrator = 224,
+    DepositorCannotBeBeneficiary = 225,
 }
 
 /// Rewards module errors

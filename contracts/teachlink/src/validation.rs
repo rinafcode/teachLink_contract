@@ -298,6 +298,68 @@ impl EscrowValidator {
 
     /// Checks for duplicate signers in the list
     pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
+        let mut seen_addresses: Vec<Address> = Vec::new(&soroban_sdk::Env::current());
+        
+        for signer in signers.iter() {
+            if seen_addresses.iter().any(|addr| addr == &signer.address) {
+                return Err(EscrowError::DuplicateSigners);
+            }
+            seen_addresses.push_back(signer.address.clone());
+        }
+        
+        Ok(())
+    }
+
+    /// Validates EscrowParameters struct (refactored from individual parameters)
+    pub fn validate_escrow_parameters(
+        env: &Env,
+        params: &crate::types::EscrowParameters,
+    ) -> Result<(), EscrowError> {
+        // Validate addresses
+        AddressValidator::validate(env, &params.depositor)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, &params.beneficiary)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, &params.token)
+            .map_err(|_| EscrowError::InvalidToken)?;
+        AddressValidator::validate(env, &params.arbitrator)
+            .map_err(|_| EscrowError::InvalidArbitrator)?;
+
+        // Validate amount
+        NumberValidator::validate_amount(params.amount)
+            .map_err(|_| EscrowError::AmountMustBePositive)?;
+
+        // Validate signers
+        NumberValidator::validate_signer_count(params.signers.len() as usize)
+            .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
+
+        // Validate threshold against total signer weight
+        let mut total_weight: u32 = 0;
+        for signer in params.signers.iter() {
+            total_weight += signer.weight;
+        }
+
+        if params.threshold < 1 || params.threshold > total_weight {
+            return Err(EscrowError::InvalidSignerThreshold);
+        }
+
+        // Validate time constraints
+        if let (Some(release), Some(refund)) = (params.release_time, params.refund_time) {
+            if refund <= release {
+                return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
+            }
+        }
+
+        // Check for duplicate signers
+        Self::check_duplicate_signers(&params.signers)?;
+
+        // Additional validation: depositor must be different from beneficiary
+        if params.depositor == params.beneficiary {
+            return Err(EscrowError::DepositorCannotBeBeneficiary);
+        }
+
+        Ok(())
+    }
         let mut seen = soroban_sdk::Map::new(&signers.env());
         for signer in signers.iter() {
             if seen.get(signer.address.clone()).unwrap_or(false) {
