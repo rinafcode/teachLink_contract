@@ -10,7 +10,7 @@ use teachlink_contract::{
 
 #[test]
 fn test_accessibility_type_construction() {
-    let env = Env::default();
+    let _env = Env::default();
 
     let accessibility = MobileAccessibilitySettings {
         screen_reader_enabled: true,

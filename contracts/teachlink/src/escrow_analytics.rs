@@ -1,3 +1,4 @@
+use crate::interfaces::{EscrowMetricsPort, EscrowObserver};
 use crate::storage::ESCROW_ANALYTICS;
 use crate::types::EscrowMetrics;
 use soroban_sdk::{Env, Map};
@@ -5,6 +6,18 @@ use soroban_sdk::{Env, Map};
 pub struct EscrowAnalyticsManager;
 
 impl EscrowAnalyticsManager {
+    /// Standard API for update_creation
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_creation(...);
+    /// ```
     pub fn update_creation(env: &Env, amount: i128) {
         let mut metrics = Self::get_metrics(env);
         metrics.total_escrows += 1;
@@ -12,12 +25,36 @@ impl EscrowAnalyticsManager {
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
     }
 
+    /// Standard API for update_dispute
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_dispute(...);
+    /// ```
     pub fn update_dispute(env: &Env) {
         let mut metrics = Self::get_metrics(env);
         metrics.total_disputes += 1;
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
     }
 
+    /// Standard API for update_resolution
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_resolution(...);
+    /// ```
     pub fn update_resolution(env: &Env, resolution_time: u64) {
         let mut metrics = Self::get_metrics(env);
         metrics.total_resolved += 1;
@@ -34,6 +71,22 @@ impl EscrowAnalyticsManager {
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
     }
 
+    /// Standard API for get_metrics
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_metrics(...);
+    /// ```
     pub fn get_metrics(env: &Env) -> EscrowMetrics {
         env.storage()
             .instance()
@@ -45,5 +98,25 @@ impl EscrowAnalyticsManager {
                 total_resolved: 0,
                 average_resolution_time: 0,
             })
+    }
+}
+
+impl EscrowObserver for EscrowAnalyticsManager {
+    fn on_created(env: &Env, amount: i128) {
+        Self::update_creation(env, amount);
+    }
+
+    fn on_disputed(env: &Env) {
+        Self::update_dispute(env);
+    }
+
+    fn on_resolved(env: &Env, duration: u64) {
+        Self::update_resolution(env, duration);
+    }
+}
+
+impl EscrowMetricsPort for EscrowAnalyticsManager {
+    fn get_metrics(env: &Env) -> EscrowMetrics {
+        Self::get_metrics(env)
     }
 }
