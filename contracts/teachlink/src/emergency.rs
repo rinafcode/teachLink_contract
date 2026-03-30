@@ -4,7 +4,9 @@
 //! to protect the bridge during critical situations.
 
 use crate::errors::BridgeError;
-use crate::events::{BridgePausedEvent, BridgeResumedEvent, CircuitBreakerTriggeredEvent};
+use crate::events::{
+    BridgePausedEvent, BridgeResumedEvent, CircuitBreakerResetEvent, CircuitBreakerTriggeredEvent,
+};
 use crate::storage::{CIRCUIT_BREAKERS, EMERGENCY_STATE, PAUSED_CHAINS};
 use crate::types::{CircuitBreaker, EmergencyState};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
@@ -298,6 +300,14 @@ impl EmergencyManager {
         env.storage()
             .instance()
             .set(&CIRCUIT_BREAKERS, &circuit_breakers);
+
+        // Emit event
+        CircuitBreakerResetEvent {
+            chain_id,
+            reset_by: resetter.clone(),
+            reset_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }

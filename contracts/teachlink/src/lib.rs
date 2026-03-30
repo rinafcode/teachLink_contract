@@ -102,6 +102,7 @@ mod errors;
 mod escrow;
 mod escrow_analytics;
 mod events;
+mod event_query;
 mod insurance;
 // FUTURE: Implement governance module (tracked in TRACKING.md)
 // mod governance;
@@ -114,6 +115,7 @@ mod notification;
 mod notification_events_basic;
 // mod content_quality;
 mod notification_tests;
+// mod event_tests; // Requires testutils feature
 mod backup;
 mod notification_types;
 mod performance;
@@ -127,8 +129,8 @@ mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
+// pub mod property_based_tests; // Requires proptest and quickcheck dependencies
 pub mod validation;
-pub mod property_based_tests;
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
