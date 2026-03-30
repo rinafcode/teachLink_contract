@@ -5,6 +5,7 @@
 
 use crate::errors::BridgeError;
 use crate::events::AuditRecordCreatedEvent;
+use crate::interfaces::AuditPort;
 use crate::storage::{AUDIT_COUNTER, AUDIT_RECORDS, COMPLIANCE_REPORTS};
 use crate::types::{AuditRecord, ComplianceReport, OperationType};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
@@ -478,5 +479,21 @@ impl AuditManager {
         }
 
         Ok(cleared_count)
+    }
+}
+
+impl AuditPort for AuditManager {
+    fn create_record(
+        env: &Env,
+        op: OperationType,
+        operator: Address,
+        details: Bytes,
+        tx_hash: Bytes,
+    ) -> Result<u64, BridgeError> {
+        Self::create_audit_record(env, op, operator, details, tx_hash)
+    }
+
+    fn get_count(env: &Env) -> u64 {
+        Self::get_audit_count(env)
     }
 }

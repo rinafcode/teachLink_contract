@@ -4,8 +4,8 @@
 //! and audit trails for compliance. Off-chain systems use events to replicate
 //! data; this module records manifests, verification, and RTO recovery metrics.
 
-use crate::audit::AuditManager;
 use crate::errors::BridgeError;
+use crate::interfaces::AuditPort;
 use crate::events::{BackupCreatedEvent, BackupVerifiedEvent, RecoveryExecutedEvent};
 use crate::storage::{
     BACKUP_COUNTER, BACKUP_MANIFESTS, BACKUP_SCHEDULES, BACKUP_SCHED_CNT, RECOVERY_CNT,
@@ -19,17 +19,7 @@ pub struct BackupManager;
 
 impl BackupManager {
     /// Create a backup manifest (authorized caller). Integrity hash is supplied by off-chain.
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_backup(...);
-    /// ```
-    pub fn create_backup(
+
         env: &Env,
         creator: Address,
         integrity_hash: Bytes,
@@ -73,7 +63,7 @@ impl BackupManager {
         .publish(env);
 
         let details = Bytes::from_slice(env, &counter.to_be_bytes());
-        AuditManager::create_audit_record(
+        Au::create_record(
             env,
             OperationType::BackupCreated,
             creator,
@@ -109,17 +99,7 @@ impl BackupManager {
     }
 
     /// Verify backup integrity (compare expected hash to stored). Emit event and audit.
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // verify_backup(...);
-    /// ```
-    pub fn verify_backup(
+
         env: &Env,
         backup_id: u64,
         verifier: Address,
@@ -140,7 +120,7 @@ impl BackupManager {
         .publish(env);
 
         let details = Bytes::from_slice(env, &[if valid { 1u8 } else { 0u8 }]);
-        AuditManager::create_audit_record(
+        Au::create_record(
             env,
             OperationType::BackupVerified,
             verifier,
@@ -232,17 +212,7 @@ impl BackupManager {
     }
 
     /// Record a recovery execution (RTO tracking and audit trail)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_recovery(...);
-    /// ```
-    pub fn record_recovery(
+
         env: &Env,
         backup_id: u64,
         executed_by: Address,
@@ -286,7 +256,7 @@ impl BackupManager {
         .publish(env);
 
         let details = Bytes::from_slice(env, &recovery_duration_secs.to_be_bytes());
-        AuditManager::create_audit_record(
+        Au::create_record(
             env,
             OperationType::RecoveryExecuted,
             executed_by,

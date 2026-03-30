@@ -1,11 +1,9 @@
-use crate::arbitration::ArbitrationManager;
 use crate::errors::EscrowError;
-use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
-use crate::insurance::InsuranceManager;
+use crate::interfaces::{ArbitrationPort, EscrowObserver, InsurancePort};
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowSigner, EscrowStatus};
 use crate::validation::EscrowValidator;
@@ -14,19 +12,7 @@ use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Vec};
 pub struct EscrowManager;
 
 impl EscrowManager {
-    /// Standard API for create_escrow
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_escrow(...);
-    /// ```
-    pub fn create_escrow(
+
         env: &Env,
         depositor: Address,
         beneficiary: Address,
@@ -64,15 +50,15 @@ impl EscrowManager {
             ],
         );
 
-        // Process insurance premium
+        // Process insurance premium via injected InsurancePort
         if env
             .storage()
             .instance()
             .has(&crate::storage::INSURANCE_POOL)
         {
-            let premium = InsuranceManager::calculate_premium(env, amount);
+            let premium = I::calculate_premium(env, amount);
             if premium > 0 {
-                InsuranceManager::pay_premium_internal(env, depositor.clone(), premium)?;
+                I::pay_premium(env, depositor.clone(), premium)?;
             }
         }
 
@@ -102,7 +88,7 @@ impl EscrowManager {
             .persistent()
             .set(&(ESCROWS, escrow_count), &escrow);
 
-        EscrowAnalyticsManager::update_creation(env, amount);
+        Obs::on_created(env, amount);
 
         EscrowCreatedEvent { escrow }.publish(env);
 
@@ -283,19 +269,7 @@ impl EscrowManager {
         Ok(())
     }
 
-    /// Standard API for dispute
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // dispute(...);
-    /// ```
-    pub fn dispute(
+
         env: &Env,
         escrow_id: u64,
         disputer: Address,
@@ -312,14 +286,14 @@ impl EscrowManager {
 
         // If arbitrator is default (zero address), pick a professional one
         if Self::arbitrator_is_empty(env, &escrow.arbitrator) {
-            escrow.arbitrator = ArbitrationManager::pick_arbitrator(env)?;
+            escrow.arbitrator = A::pick_arbitrator(env)?;
         }
 
         escrow.status = EscrowStatus::Disputed;
         escrow.dispute_reason = Some(reason.clone());
         Self::save_escrow(env, escrow_id, escrow);
 
-        EscrowAnalyticsManager::update_dispute(env);
+        Obs::on_disputed(env);
 
         EscrowDisputedEvent {
             escrow_id,
@@ -331,19 +305,7 @@ impl EscrowManager {
         Ok(())
     }
 
-    /// Standard API for resolve
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // resolve(...);
-    /// ```
-    pub fn resolve(
+
         env: &Env,
         escrow_id: u64,
         arbitrator: Address,
@@ -379,12 +341,12 @@ impl EscrowManager {
 
         escrow.status = new_status.clone();
 
-        ArbitrationManager::update_reputation(env, arbitrator, true)?;
+        A::record_resolution(env, arbitrator, true)?;
 
         let now = env.ledger().timestamp();
         let created_at = escrow.created_at;
         Self::save_escrow(env, escrow_id, escrow);
-        EscrowAnalyticsManager::update_resolution(env, now - created_at);
+        Obs::on_resolved(env, now - created_at);
 
         EscrowResolvedEvent {
             escrow_id,
@@ -396,28 +358,12 @@ impl EscrowManager {
         Ok(())
     }
 
-    /// Standard API for auto_check_dispute
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // auto_check_dispute(...);
-    /// ```
-    pub fn auto_check_dispute(env: &Env, escrow_id: u64) -> Result<(), EscrowError> {
+
         let mut escrow = Self::load_escrow(env, escrow_id)?;
-        if ArbitrationManager::check_stalled_escrow(env, &escrow) {
+        if A::check_stalled(env, &escrow) {
             escrow.status = EscrowStatus::Disputed;
             escrow.dispute_reason = Some(Bytes::from_slice(env, b"Automated stall detection"));
-            escrow.arbitrator = ArbitrationManager::pick_arbitrator(env)?;
+            escrow.arbitrator = A::pick_arbitrator(env)?;
             Self::save_escrow(env, escrow_id, escrow);
 
             EscrowDisputedEvent {

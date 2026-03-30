@@ -4,8 +4,8 @@
 //! TTL-based freshness and admin-triggered invalidation to reduce gas for
 //! repeated read-heavy calls.
 
-use crate::analytics;
 use crate::errors::BridgeError;
+use crate::interfaces::AnalyticsPort;
 use crate::events::PerfCacheInvalidatedEvent;
 use crate::events::PerfMetricsComputedEvent;
 use crate::storage::{PERF_CACHE, PERF_TS};
@@ -65,24 +65,7 @@ impl PerformanceManager {
     }
 
     /// Computes bridge summary (health score + top chains), writes cache, emits event.
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // compute_and_cache_summary(...);
-    /// ```
-    pub fn compute_and_cache_summary(env: &Env) -> Result<CachedBridgeSummary, BridgeError> {
-        let health_score = analytics::AnalyticsManager::calculate_health_score(env);
-        let top_chains =
-            analytics::AnalyticsManager::get_top_chains_by_volume_bounded(env, MAX_TOP_CHAINS);
+
         let computed_at = env.ledger().timestamp();
         let summary = CachedBridgeSummary {
             health_score,
@@ -100,25 +83,11 @@ impl PerformanceManager {
     }
 
     /// Returns cached summary if fresh; otherwise computes, caches, and returns.
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_or_compute_summary(...);
-    /// ```
-    pub fn get_or_compute_summary(env: &Env) -> Result<CachedBridgeSummary, BridgeError> {
+
         if let Some(cached) = Self::get_cached_summary(env) {
             return Ok(cached);
         }
-        Self::compute_and_cache_summary(env)
+        Self::compute_and_cache_summary::<A>(env)
     }
 
     /// Invalidates performance cache (admin only). Emits PerfCacheInvalidatedEvent.
