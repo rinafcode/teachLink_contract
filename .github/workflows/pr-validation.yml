@@ -157,6 +157,7 @@ jobs:
           TEST_CHECK="${{ steps.test-check.outputs.test_check }}"
           BUILD_DEBUG_CHECK="${{ steps.build-debug-check.outputs.build_debug_check }}"
           BUILD_WASM_CHECK="${{ steps.build-wasm-check.outputs.build_wasm_check }}"
+          DOCS_CHECK="${{ steps.docs-check.outputs.docs_check }}"
 
           if [[ "$FMT_CHECK" == "true" && \
                 "$CLIPPY_CHECK" == "true" && \
