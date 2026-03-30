@@ -4,12 +4,11 @@ use soroban_sdk::{symbol_short, Env, Symbol};
 
 use crate::types::BridgeConfig;
 
-// symbol_short! max length is 9 chars
 pub const ADMIN: Symbol = symbol_short!("admin");
 pub const NONCE: Symbol = symbol_short!("nonce");
-pub const BRIDGE_TXS: Symbol = symbol_short!("brdg_txs");
+pub const BRIDGE_TXS: Symbol = symbol_short!("bridge_txs");
 pub const FALLBACK_ENABLED: Symbol = symbol_short!("fallback");
-pub const ERROR_COUNT: Symbol = symbol_short!("err_count");
+pub const ERROR_COUNT: Symbol = symbol_short!("error_count");
 pub const CONFIG: Symbol = symbol_short!("config");
 
 /// Fetch the current config or return the default.
