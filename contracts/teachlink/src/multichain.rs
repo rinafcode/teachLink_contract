@@ -159,30 +159,20 @@ impl MultiChainManager {
         }
 
         // Validate chain configs
-        for (chain_id, config) in chain_configs.iter() {
-            // Check if chain is supported
-            let chains: Map<u32, bool> = env
-                .storage()
-                .instance()
-                .get(&SUPPORTED_CHAINS)
-                .unwrap_or_else(|| Map::new(env));
-            if !chains.get(chain_id).unwrap_or(false) {
-                return Err(BridgeError::DestinationChainNotSupported);
-            }
-
-            // Validate config
-            if config.token_address.is_empty() || config.token_address.len() > 64 {
-                return Err(BridgeError::InvalidInput);
-            }
-        }
-
         let new_asset_counter = asset_counter + 1;
 
-        // Create multi-chain asset
+        // Store each chain config separately
+        for (chain_id, config) in chain_configs.iter() {
+            env.storage().instance().set(
+                &crate::storage::DataKey::MultiChainAssetConfig(new_asset_counter, chain_id),
+                &config,
+            );
+        }
+
+        // Create multi-chain asset (chain_configs field removed)
         let asset = MultiChainAsset {
             asset_id: asset_id.clone(),
             stellar_token: stellar_token.clone(),
-            chain_configs: chain_configs.clone(),
             total_bridged: 0,
             is_active: true,
         };
@@ -277,13 +267,12 @@ impl MultiChainManager {
 
     /// Check if a chain is supported and active
     pub fn is_chain_active(env: &Env, chain_id: u32) -> bool {
-        let chains: Map<u32, bool> = env
+        if !env
             .storage()
             .instance()
-            .get(&SUPPORTED_CHAINS)
-            .unwrap_or_else(|| Map::new(env));
-
-        if !chains.get(chain_id).unwrap_or(false) {
+            .get::<_, bool>(&crate::storage::DataKey::SupportedChain(chain_id))
+            .unwrap_or(false)
+        {
             return false;
         }
 
@@ -323,28 +312,19 @@ impl MultiChainManager {
 
     /// Get chain asset info for a specific chain
     pub fn get_chain_asset_info(env: &Env, asset_id: u64, chain_id: u32) -> Option<ChainAssetInfo> {
-        if let Some(asset) = Self::get_asset(env, asset_id) {
-            asset.chain_configs.get(chain_id)
-        } else {
-            None
-        }
+        env.storage()
+            .instance()
+            .get(&crate::storage::DataKey::MultiChainAssetConfig(
+                asset_id, chain_id,
+            ))
     }
 
     /// Get all supported chains
     pub fn get_supported_chains(env: &Env) -> Vec<u32> {
-        let chains: Map<u32, bool> = env
-            .storage()
+        env.storage()
             .instance()
-            .get(&SUPPORTED_CHAINS)
-            .unwrap_or_else(|| Map::new(env));
-
-        let mut result = Vec::new(env);
-        for (chain_id, is_supported) in chains.iter() {
-            if is_supported {
-                result.push_back(chain_id);
-            }
-        }
-        result
+            .get(&crate::storage::SUPPORTED_CHAINS_LIST)
+            .unwrap_or_else(|| Vec::new(env))
     }
 
     /// Get all active assets
@@ -399,24 +379,13 @@ impl MultiChainManager {
         }
 
         // Check if asset is configured for both chains
-        if !asset.chain_configs.contains_key(source_chain) {
-            return Err(BridgeError::AssetNotSupported);
-        }
-        if !asset.chain_configs.contains_key(destination_chain) {
-            return Err(BridgeError::AssetNotSupported);
-        }
-
-        let source_asset_info = asset
-            .chain_configs
-            .get(source_chain)
+        let source_asset_info = Self::get_chain_asset_info(env, asset_id, source_chain)
             .ok_or(BridgeError::AssetNotSupported)?;
         if !source_asset_info.is_active {
             return Err(BridgeError::ChainNotActive);
         }
 
-        let destination_asset_info = asset
-            .chain_configs
-            .get(destination_chain)
+        let destination_asset_info = Self::get_chain_asset_info(env, asset_id, destination_chain)
             .ok_or(BridgeError::AssetNotSupported)?;
         if !destination_asset_info.is_active {
             return Err(BridgeError::DestinationChainNotSupported);
@@ -437,12 +406,20 @@ mod tests {
     use soroban_sdk::{Address, Bytes, Env, Map};
 
     fn seed_basic_state(env: &Env, destination_asset_active: bool) {
-        let mut supported_chains: Map<u32, bool> = Map::new(env);
-        supported_chains.set(1, true);
-        supported_chains.set(2, true);
         env.storage()
             .instance()
-            .set(&SUPPORTED_CHAINS, &supported_chains);
+            .set(&crate::storage::DataKey::SupportedChain(1), &true);
+        env.storage()
+            .instance()
+            .set(&crate::storage::DataKey::SupportedChain(2), &true);
+
+        // Seed lists
+        let mut list = Vec::new(env);
+        list.push_back(1);
+        list.push_back(2);
+        env.storage()
+            .instance()
+            .set(&crate::storage::SUPPORTED_CHAINS_LIST, &list);
 
         let chain1 = ChainConfig {
             chain_id: 1,
@@ -469,19 +446,19 @@ mod tests {
         chain_configs.set(2, chain2);
         env.storage().instance().set(&CHAIN_CONFIGS, &chain_configs);
 
-        let mut asset_chain_configs: Map<u32, ChainAssetInfo> = Map::new(env);
-        asset_chain_configs.set(
-            1,
-            ChainAssetInfo {
+        // Seed granular asset configs
+        env.storage().instance().set(
+            &crate::storage::DataKey::MultiChainAssetConfig(1, 1),
+            &ChainAssetInfo {
                 chain_id: 1,
                 token_address: Bytes::from_slice(env, b"token-1"),
                 decimals: 7,
                 is_active: true,
             },
         );
-        asset_chain_configs.set(
-            2,
-            ChainAssetInfo {
+        env.storage().instance().set(
+            &crate::storage::DataKey::MultiChainAssetConfig(1, 2),
+            &ChainAssetInfo {
                 chain_id: 2,
                 token_address: Bytes::from_slice(env, b"token-2"),
                 decimals: 7,
@@ -492,7 +469,6 @@ mod tests {
         let asset = MultiChainAsset {
             asset_id: Bytes::from_slice(env, b"USDC"),
             stellar_token: Address::generate(env),
-            chain_configs: asset_chain_configs,
             total_bridged: 100,
             is_active: true,
         };

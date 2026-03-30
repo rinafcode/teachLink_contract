@@ -26,7 +26,6 @@ pub struct ChainConfig {
 pub struct MultiChainAsset {
     pub asset_id: Bytes,
     pub stellar_token: Address,
-    pub chain_configs: Map<u32, ChainAssetInfo>,
     pub total_bridged: i128,
     pub is_active: bool,
 }
@@ -61,7 +60,6 @@ pub struct ValidatorInfo {
 pub struct BridgeProposal {
     pub proposal_id: u64,
     pub message: CrossChainMessage,
-    pub votes: Map<Address, bool>,
     pub vote_count: u32,
     pub required_votes: u32,
     pub status: ProposalStatus,
@@ -138,7 +136,6 @@ pub struct LiquidityPool {
     pub total_liquidity: i128,
     pub available_liquidity: i128,
     pub locked_liquidity: i128,
-    pub lp_providers: Map<Address, LPPosition>,
 }
 
 #[contracttype]
@@ -258,7 +255,6 @@ pub struct ComplianceReport {
     pub total_volume: i128,
     pub total_transactions: u64,
     pub unique_users: u32,
-    pub validator_performance: Map<Address, u32>,
 }
 
 // ========== Atomic Swap Types ==========
