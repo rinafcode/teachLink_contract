@@ -9,7 +9,7 @@ use crate::insurance::InsuranceManager;
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowSigner, EscrowStatus};
 use crate::validation::EscrowValidator;
-use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
+use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Vec};
 
 pub struct EscrowManager;
 
@@ -98,9 +98,9 @@ impl EscrowManager {
             dispute_reason: None,
         };
 
-        let mut escrows = Self::load_escrows(env);
-        escrows.set(escrow_count, escrow.clone());
-        env.storage().instance().set(&ESCROWS, &escrows);
+        env.storage()
+            .persistent()
+            .set(&(ESCROWS, escrow_count), &escrow);
 
         EscrowAnalyticsManager::update_creation(env, amount);
 
@@ -449,7 +449,7 @@ impl EscrowManager {
     /// // get_escrow(...);
     /// ```
     pub fn get_escrow(env: &Env, escrow_id: u64) -> Option<Escrow> {
-        Self::load_escrows(env).get(escrow_id)
+        env.storage().persistent().get(&(ESCROWS, escrow_id))
     }
 
     /// Standard API for get_escrow_count
@@ -520,22 +520,17 @@ impl EscrowManager {
         *arbitrator == env.current_contract_address()
     }
 
-    fn load_escrows(env: &Env) -> Map<u64, Escrow> {
-        env.storage()
-            .instance()
-            .get(&ESCROWS)
-            .unwrap_or_else(|| Map::new(env))
-    }
-
     fn load_escrow(env: &Env, escrow_id: u64) -> Result<Escrow, EscrowError> {
-        let escrows = Self::load_escrows(env);
-        escrows.get(escrow_id).ok_or(EscrowError::EscrowNotFound)
+        env.storage()
+            .persistent()
+            .get(&(ESCROWS, escrow_id))
+            .ok_or(EscrowError::EscrowNotFound)
     }
 
     fn save_escrow(env: &Env, escrow_id: u64, escrow: Escrow) {
-        let mut escrows = Self::load_escrows(env);
-        escrows.set(escrow_id, escrow);
-        env.storage().instance().set(&ESCROWS, &escrows);
+        env.storage()
+            .persistent()
+            .set(&(ESCROWS, escrow_id), &escrow);
     }
 
     fn transfer_from_contract(env: &Env, token: &Address, to: &Address, amount: i128) {
