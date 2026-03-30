@@ -10,6 +10,876 @@ use crate::{
     validation,
 };
 
+const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
+const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
+const BRIDGE_RETRY_DELAY_BASE_SECONDS: u64 = 300;
+
+pub struct Bridge;
+
+impl Bridge {
+    /// Initialize the bridge contract
+    /// - token: Address of the TeachLink token contract
+    /// - admin: Address of the bridge administrator
+    /// - min_validators: Minimum number of validators required for cross-chain verification
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize(...);
+    /// ```
+    pub fn initialize(
+        env: &Env,
+        token: Address,
+        admin: Address,
+        min_validators: u32,
+        fee_recipient: Address,
+    ) -> Result<(), BridgeError> {
+        // Check if already initialized
+        if env.storage().instance().has(&TOKEN) {
+            return Err(BridgeError::AlreadyInitialized);
+        }
+
+        if min_validators == 0 {
+            return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
+        }
+
+        env.storage().instance().set(&TOKEN, &token);
+        env.storage().instance().set(&ADMIN, &admin);
+        env.storage()
+            .instance()
+            .set(&MIN_VALIDATORS, &min_validators);
+        env.storage().instance().set(&NONCE, &0u64);
+        env.storage().instance().set(&FEE_RECIPIENT, &fee_recipient);
+        env.storage().instance().set(&BRIDGE_FEE, &0i128); // Default no fee
+
+        // Initialize empty validators map
+        let validators: Map<Address, bool> = Map::new(env);
+        env.storage().instance().set(&VALIDATORS, &validators);
+
+        // Initialize empty supported chains map
+        let chains: Map<u32, bool> = Map::new(env);
+        env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
+
+        Ok(())
+    }
+
+    /// Bridge tokens out to another chain (lock/burn tokens on Stellar)
+    /// - amount: Amount of tokens to bridge
+    /// - destination_chain: Chain ID of the destination blockchain
+    /// - destination_address: Address on the destination chain (encoded as bytes)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // bridge_out(...);
+    /// ```
+    pub fn bridge_out(
+        env: &Env,
+        from: Address,
+        amount: i128,
+        destination_chain: u32,
+        destination_address: soroban_sdk::Bytes,
+    ) -> Result<u64, BridgeError> {
+        from.require_auth();
+
+        // Validate all input parameters
+        BridgeValidator::validate_bridge_out(
+            env,
+            &from,
+            amount,
+            destination_chain,
+            &destination_address,
+        )?;
+
+        // Check if destination chain is supported
+        let supported_chains: Map<u32, bool> = env
+            .storage()
+            .instance()
+            .get(&SUPPORTED_CHAINS)
+            .unwrap_or_else(|| Map::new(env));
+        if !supported_chains.get(destination_chain).unwrap_or(false) {
+            return Err(BridgeError::DestinationChainNotSupported);
+        }
+
+        // Get token address
+        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+
+        // Transfer tokens from user to bridge (locking them)
+        env.invoke_contract::<()>(
+            &token,
+            &symbol_short!("transfer"),
+            vec![
+                env,
+                from.into_val(env),
+                env.current_contract_address().into_val(env),
+                amount.into_val(env),
+            ],
+        );
+
+        // Apply bridge fee if configured
+        let fee: i128 = env.storage().instance().get(&BRIDGE_FEE).unwrap_or(0i128);
+        let fee_recipient: Address = env.storage().instance().get(&FEE_RECIPIENT).unwrap();
+        let amount_after_fee = if fee > 0 && fee < amount {
+            env.invoke_contract::<()>(
+                &token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    env.current_contract_address().into_val(env),
+                    fee_recipient.into_val(env),
+                    fee.into_val(env),
+                ],
+            );
+            amount - fee
+        } else {
+            amount
+        };
+
+        // Generate nonce for this transaction
+        let mut nonce: u64 = env.storage().instance().get(&NONCE).unwrap_or(0u64);
+        nonce += 1;
+        env.storage().instance().set(&NONCE, &nonce);
+
+        // Create bridge transaction record
+        let bridge_tx = BridgeTransaction {
+            nonce,
+            token: token.clone(),
+            amount: amount_after_fee,
+            recipient: from.clone(),
+            destination_chain,
+            destination_address: destination_address.clone(),
+            timestamp: env.ledger().timestamp(),
+        };
+
+        // Store bridge transaction
+        let mut bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        bridge_txs.set(nonce, bridge_tx.clone());
+        env.storage().instance().set(&BRIDGE_TXS, &bridge_txs);
+
+        let mut retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        retry_counts.set(nonce, 0);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_RETRY_COUNTS, &retry_counts);
+
+        let mut last_retry: Map<u64, u64> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_LAST_RETRY)
+            .unwrap_or_else(|| Map::new(env));
+        last_retry.set(nonce, env.ledger().timestamp());
+        env.storage()
+            .instance()
+            .set(&BRIDGE_LAST_RETRY, &last_retry);
+
+        // Emit events
+        BridgeInitiatedEvent {
+            nonce,
+            transaction: bridge_tx.clone(),
+        }
+        .publish(env);
+
+        DepositEvent {
+            nonce,
+            from,
+            amount: amount_after_fee,
+            destination_chain,
+            destination_address,
+        }
+        .publish(env);
+
+        Ok(nonce)
+    }
+
+    /// Complete a bridge transaction (mint/release tokens on Stellar)
+    /// This is called by validators after verifying the transaction on the source chain
+    /// - message: Cross-chain message containing transaction details
+    /// - validator_signatures: List of validator addresses that have verified this transaction
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // complete_bridge(...);
+    /// ```
+    pub fn complete_bridge(
+        env: &Env,
+        message: CrossChainMessage,
+        validator_signatures: Vec<Address>,
+    ) -> Result<(), BridgeError> {
+        // Validate all input parameters
+        let min_validators: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
+        BridgeValidator::validate_bridge_completion(
+            env,
+            &message,
+            &validator_signatures,
+            min_validators,
+        )?;
+
+        // Verify all signatures are from valid validators
+        let validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        for validator in validator_signatures.iter() {
+            if !validators.get(validator.clone()).unwrap_or(false) {
+                return Err(BridgeError::InvalidValidatorSignature);
+            }
+        }
+
+        // Check for duplicate nonce to prevent replay attacks
+        let mut processed_nonces: Map<u64, bool> = env
+            .storage()
+            .persistent()
+            .get(&NONCE)
+            .unwrap_or_else(|| Map::new(env));
+        if processed_nonces.get(message.nonce).unwrap_or(false) {
+            return Err(BridgeError::NonceAlreadyProcessed);
+        }
+        processed_nonces.set(message.nonce, true);
+        env.storage().persistent().set(&NONCE, &processed_nonces);
+
+        // Get token address
+        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+
+        // Verify token matches
+        if message.token != token {
+            return Err(BridgeError::TokenMismatch);
+        }
+
+        // Mint/release tokens to recipient
+        env.invoke_contract::<()>(
+            &token,
+            &symbol_short!("mint"),
+            vec![
+                env,
+                message.recipient.into_val(env),
+                message.amount.into_val(env),
+            ],
+        );
+
+        // Emit events
+        BridgeCompletedEvent {
+            nonce: message.nonce,
+            message: message.clone(),
+        }
+        .publish(env);
+
+        ReleaseEvent {
+            nonce: message.nonce,
+            recipient: message.recipient.clone(),
+            amount: message.amount,
+            source_chain: message.source_chain,
+        }
+        .publish(env);
+
+        let mut bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        if bridge_txs.contains_key(message.nonce) {
+            bridge_txs.remove(message.nonce);
+            env.storage().instance().set(&BRIDGE_TXS, &bridge_txs);
+        }
+
+        Self::clear_bridge_retry_metadata(env, message.nonce);
+
+        Ok(())
+    }
+
+    /// Standard API for mark_bridge_failed
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // mark_bridge_failed(...);
+    /// ```
+    pub fn mark_bridge_failed(env: &Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
+        if reason.is_empty() {
+            return Err(BridgeError::InvalidInput);
+        }
+
+        let bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        if !bridge_txs.contains_key(nonce) {
+            return Err(BridgeError::BridgeTransactionNotFound);
+        }
+
+        let mut failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+        failures.set(nonce, reason);
+        env.storage().instance().set(&BRIDGE_FAILURES, &failures);
+
+        Ok(())
+    }
+
+    /// Standard API for retry_bridge
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // retry_bridge(...);
+    /// ```
+    pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
+        let bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        let bridge_tx = bridge_txs
+            .get(nonce)
+            .ok_or(BridgeError::BridgeTransactionNotFound)?;
+
+        let current_time = env.ledger().timestamp();
+        if current_time.saturating_sub(bridge_tx.timestamp) >= BRIDGE_TIMEOUT_SECONDS {
+            return Err(BridgeError::PacketTimeout);
+        }
+
+        let mut retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        let retry_count = retry_counts.get(nonce).unwrap_or(0);
+        if retry_count >= MAX_BRIDGE_RETRY_ATTEMPTS {
+            return Err(BridgeError::RetryLimitExceeded);
+        }
+
+        let mut last_retry: Map<u64, u64> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_LAST_RETRY)
+            .unwrap_or_else(|| Map::new(env));
+        let last_retry_at = last_retry.get(nonce).unwrap_or(bridge_tx.timestamp);
+
+        let backoff_multiplier = 1u64 << retry_count;
+        let retry_delay = BRIDGE_RETRY_DELAY_BASE_SECONDS.saturating_mul(backoff_multiplier);
+        let next_allowed_retry = last_retry_at.saturating_add(retry_delay);
+
+        if current_time < next_allowed_retry {
+            return Err(BridgeError::RetryBackoffActive);
+        }
+
+        let updated_retry_count = retry_count + 1;
+        retry_counts.set(nonce, updated_retry_count);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_RETRY_COUNTS, &retry_counts);
+        last_retry.set(nonce, current_time);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_LAST_RETRY, &last_retry);
+
+        let mut failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+        failures.remove(nonce);
+        env.storage().instance().set(&BRIDGE_FAILURES, &failures);
+
+        Ok(updated_retry_count)
+    }
+
+    /// Cancel a bridge transaction and refund locked tokens
+    /// Only callable after a timeout period
+    /// - nonce: The nonce of the bridge transaction to cancel
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // cancel_bridge(...);
+    /// ```
+    pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
+        // Get bridge transaction
+        let bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        let bridge_tx = bridge_txs
+            .get(nonce)
+            .ok_or(BridgeError::BridgeTransactionNotFound)?;
+
+        let failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+
+        // Allow refunds for timed-out or explicitly failed transactions
+        let elapsed = env.ledger().timestamp().saturating_sub(bridge_tx.timestamp);
+        if elapsed < BRIDGE_TIMEOUT_SECONDS && !failures.contains_key(nonce) {
+            return Err(BridgeError::TimeoutNotReached);
+        }
+
+        // Get token address
+        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+
+        // Refund tokens to original recipient
+        env.invoke_contract::<()>(
+            &token,
+            &symbol_short!("transfer"),
+            vec![
+                env,
+                env.current_contract_address().into_val(env),
+                bridge_tx.recipient.into_val(env),
+                bridge_tx.amount.into_val(env),
+            ],
+        );
+
+        // Remove from bridge transactions
+        let mut updated_txs = bridge_txs;
+        updated_txs.remove(nonce);
+        env.storage().instance().set(&BRIDGE_TXS, &updated_txs);
+
+        Self::clear_bridge_retry_metadata(env, nonce);
+
+        Ok(())
+    }
+
+    /// Standard API for refund_bridge_transaction
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // refund_bridge_transaction(...);
+    /// ```
+    pub fn refund_bridge_transaction(env: &Env, nonce: u64) -> Result<(), BridgeError> {
+        Self::cancel_bridge(env, nonce)
+    }
+
+    fn clear_bridge_retry_metadata(env: &Env, nonce: u64) {
+        let mut retry_counts: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_RETRY_COUNTS)
+            .unwrap_or_else(|| Map::new(env));
+        retry_counts.remove(nonce);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_RETRY_COUNTS, &retry_counts);
+
+        let mut last_retry: Map<u64, u64> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_LAST_RETRY)
+            .unwrap_or_else(|| Map::new(env));
+        last_retry.remove(nonce);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_LAST_RETRY, &last_retry);
+
+        let mut failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(env));
+        failures.remove(nonce);
+        env.storage().instance().set(&BRIDGE_FAILURES, &failures);
+    }
+
+    // ========== Admin Functions ==========
+
+    /// Add a validator (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_validator(...);
+    /// ```
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
+        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        admin.require_auth();
+
+        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        validators.set(validator, true);
+        env.storage().instance().set(&VALIDATORS, &validators);
+
+        Ok(())
+    }
+
+    /// Remove a validator (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // remove_validator(...);
+    /// ```
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn remove_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
+        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        admin.require_auth();
+
+        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        validators.set(validator, false);
+        env.storage().instance().set(&VALIDATORS, &validators);
+
+        Ok(())
+    }
+
+    /// Add a supported destination chain (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // add_supported_chain(...);
+    /// ```
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
+        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        admin.require_auth();
+
+        let mut chains: Map<u32, bool> = env.storage().instance().get(&SUPPORTED_CHAINS).unwrap();
+        chains.set(chain_id, true);
+        env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
+
+        Ok(())
+    }
+
+    /// Remove a supported destination chain (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // remove_supported_chain(...);
+    /// ```
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
+        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        admin.require_auth();
+
+        let mut chains: Map<u32, bool> = env.storage().instance().get(&SUPPORTED_CHAINS).unwrap();
+        chains.set(chain_id, false);
+        env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
+
+        Ok(())
+    }
+
+    /// Set bridge fee (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_bridge_fee(...);
+    /// ```
+    pub fn set_bridge_fee(env: &Env, fee: i128) -> Result<(), BridgeError> {
+        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        admin.require_auth();
+
+        if fee < 0 {
+            return Err(BridgeError::FeeCannotBeNegative);
+        }
+
+        env.storage().instance().set(&BRIDGE_FEE, &fee);
+
+        Ok(())
+    }
+
+    /// Set fee recipient (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_fee_recipient(...);
+    /// ```
+    #[allow(clippy::unnecessary_wraps)]
+    pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), BridgeError> {
+        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        admin.require_auth();
+
+        env.storage().instance().set(&FEE_RECIPIENT, &fee_recipient);
+
+        Ok(())
+    }
+
+    /// Set minimum validators (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // set_min_validators(...);
+    /// ```
+    pub fn set_min_validators(env: &Env, min_validators: u32) -> Result<(), BridgeError> {
+        let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
+        admin.require_auth();
+
+        if min_validators == 0 {
+            return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
+        }
+
+        env.storage()
+            .instance()
+            .set(&MIN_VALIDATORS, &min_validators);
+
+        Ok(())
+    }
+
+    // ========== View Functions ==========
+
+    /// Get the bridge transaction by nonce
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_bridge_transaction(...);
+    /// ```
+    pub fn get_bridge_transaction(env: &Env, nonce: u64) -> Option<BridgeTransaction> {
+        let bridge_txs: Map<u64, BridgeTransaction> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Map::new(env));
+        bridge_txs.get(nonce)
+    }
+
+    /// Check if a chain is supported
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_chain_supported(...);
+    /// ```
+    pub fn is_chain_supported(env: &Env, chain_id: u32) -> bool {
+        let chains: Map<u32, bool> = env
+            .storage()
+            .instance()
+            .get(&SUPPORTED_CHAINS)
+            .unwrap_or_else(|| Map::new(env));
+        chains.get(chain_id).unwrap_or(false)
+    }
+
+    /// Check if an address is a validator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_validator(...);
+    /// ```
+    pub fn is_validator(env: &Env, address: Address) -> bool {
+        let validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
+        validators.get(address).unwrap_or(false)
+    }
+
+    /// Get the current nonce
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_nonce(...);
+    /// ```
+    pub fn get_nonce(env: &Env) -> u64 {
+        env.storage().instance().get(&NONCE).unwrap_or(0u64)
+    }
+
+    /// Get the bridge fee
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_bridge_fee(...);
+    /// ```
+    pub fn get_bridge_fee(env: &Env) -> i128 {
+        env.storage().instance().get(&BRIDGE_FEE).unwrap_or(0i128)
+    }
+
+    /// Get the token address
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_token(...);
+    /// ```
+    pub fn get_token(env: &Env) -> Address {
+        env.storage().instance().get(&TOKEN).unwrap()
+    }
+
+    /// Get the admin address
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_admin(...);
+    /// ```
+    pub fn get_admin(env: &Env) -> Address {
+        env.storage().instance().get(&ADMIN).unwrap()
+    }
+}
 /// Calculate the fee for a given amount and rate (basis points).
 pub fn calculate_fee(amount: i128, fee_rate: u32) -> i128 {
     amount * fee_rate as i128 / constants::fees::FEE_CALCULATION_DIVISOR as i128

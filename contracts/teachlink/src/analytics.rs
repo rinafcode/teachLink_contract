@@ -15,6 +15,20 @@ pub struct AnalyticsManager;
 
 impl AnalyticsManager {
     /// Initialize bridge metrics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize_metrics(...);
+    /// ```
     pub fn initialize_metrics(env: &Env) -> Result<(), BridgeError> {
         let metrics = BridgeMetrics {
             total_volume: 0,
@@ -31,6 +45,16 @@ impl AnalyticsManager {
     }
 
     /// Update bridge metrics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_bridge_metrics(...);
+    /// ```
     pub fn update_bridge_metrics(
         env: &Env,
         volume: i128,
@@ -81,6 +105,20 @@ impl AnalyticsManager {
     }
 
     /// Update validator count
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_validator_count(...);
+    /// ```
     pub fn update_validator_count(env: &Env, active_validators: u32) -> Result<(), BridgeError> {
         let mut metrics: BridgeMetrics =
             env.storage()
@@ -104,6 +142,20 @@ impl AnalyticsManager {
     }
 
     /// Initialize chain metrics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // initialize_chain_metrics(...);
+    /// ```
     pub fn initialize_chain_metrics(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let metrics = ChainMetrics {
             chain_id,
@@ -131,6 +183,16 @@ impl AnalyticsManager {
     }
 
     /// Update chain metrics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_chain_metrics(...);
+    /// ```
     pub fn update_chain_metrics(
         env: &Env,
         chain_id: u32,
@@ -190,6 +252,16 @@ impl AnalyticsManager {
     }
 
     /// Record daily volume
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // record_daily_volume(...);
+    /// ```
     pub fn record_daily_volume(
         env: &Env,
         day_timestamp: u64,
@@ -206,6 +278,20 @@ impl AnalyticsManager {
     }
 
     /// Get daily volume
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_daily_volume(...);
+    /// ```
     pub fn get_daily_volume(env: &Env, day_timestamp: u64, chain_id: u32) -> i128 {
         env.storage()
             .instance()
@@ -217,6 +303,20 @@ impl AnalyticsManager {
     }
 
     /// Get bridge metrics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_bridge_metrics(...);
+    /// ```
     pub fn get_bridge_metrics(env: &Env) -> BridgeMetrics {
         env.storage()
             .instance()
@@ -232,6 +332,20 @@ impl AnalyticsManager {
     }
 
     /// Get chain metrics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_chain_metrics(...);
+    /// ```
     pub fn get_chain_metrics(env: &Env, chain_id: u32) -> Option<ChainMetrics> {
         env.storage()
             .instance()
@@ -239,6 +353,20 @@ impl AnalyticsManager {
     }
 
     /// Get all chain metrics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_all_chain_metrics(...);
+    /// ```
     pub fn get_all_chain_metrics(env: &Env) -> Vec<ChainMetrics> {
         let chains: Vec<u32> = env
             .storage()
@@ -255,6 +383,20 @@ impl AnalyticsManager {
     }
 
     /// Calculate bridge health score (0-100)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // calculate_health_score(...);
+    /// ```
     pub fn calculate_health_score(env: &Env) -> u32 {
         let metrics = Self::get_bridge_metrics(env);
 
@@ -289,7 +431,21 @@ impl AnalyticsManager {
     /// Max chains to iterate when building top-by-volume (gas bound).
     const MAX_CHAINS_ITER: u32 = 50;
 
-    /// Get top chains by volume with bounded iteration using indexed lookup
+    /// Get top chains by volume with bounded iteration (for performance cache).
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_top_chains_by_volume_bounded(...);
+    /// ```
     pub fn get_top_chains_by_volume_bounded(env: &Env, limit: u32) -> Vec<(u32, i128)> {
 
             if count >= Self::MAX_CHAINS_ITER {
@@ -311,10 +467,22 @@ impl AnalyticsManager {
         result
     }
 
-    /// Get top chains by volume using indexed lookup (O(n log n) instead of O(n²))
+    /// Get top chains by volume (unbounded; use get_top_chains_by_volume_bounded for caching).
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_top_chains_by_volume(...);
+    /// ```
     pub fn get_top_chains_by_volume(env: &Env, limit: u32) -> Vec<(u32, i128)> {
-
-        }
 
         // Efficient sort using built-in sorting (O(n log n))
         chains.sort_by(|a, b| b.1.cmp(&a.1));
@@ -330,6 +498,20 @@ impl AnalyticsManager {
     }
 
     /// Get bridge statistics
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_bridge_statistics(...);
+    /// ```
     pub fn get_bridge_statistics(env: &Env) -> Map<Bytes, i128> {
         let metrics = Self::get_bridge_metrics(env);
         let mut stats: Map<Bytes, i128> = Map::new(env);
@@ -363,6 +545,20 @@ impl AnalyticsManager {
     }
 
     /// Reset metrics (admin only)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // reset_metrics(...);
+    /// ```
     pub fn reset_metrics(env: &Env, admin: Address) -> Result<(), BridgeError> {
         admin.require_auth();
 
@@ -381,6 +577,20 @@ impl AnalyticsManager {
     }
 
     /// Check if metrics need update
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // needs_update(...);
+    /// ```
     pub fn needs_update(env: &Env) -> bool {
         let metrics = Self::get_bridge_metrics(env);
         let current_time = env.ledger().timestamp();

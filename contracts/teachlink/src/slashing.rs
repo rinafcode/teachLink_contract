@@ -32,6 +32,20 @@ pub struct SlashingManager;
 
 impl SlashingManager {
     /// Deposit stake for a validator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // deposit_stake(...);
+    /// ```
     pub fn deposit_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
@@ -78,6 +92,20 @@ impl SlashingManager {
     }
 
     /// Withdraw stake (with restrictions)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // withdraw_stake(...);
+    /// ```
     pub fn withdraw_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
@@ -129,6 +157,16 @@ impl SlashingManager {
     }
 
     /// Slash a validator for malicious behavior
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // slash_validator(...);
+    /// ```
     pub fn slash_validator(
         env: &Env,
         validator: Address,
@@ -234,6 +272,16 @@ impl SlashingManager {
     }
 
     /// Reward a validator for honest behavior
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // reward_validator(...);
+    /// ```
     pub fn reward_validator(
         env: &Env,
         validator: Address,
@@ -302,6 +350,20 @@ impl SlashingManager {
     }
 
     /// Check and slash inactive validators
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // check_inactivity(...);
+    /// ```
     pub fn check_inactivity(env: &Env, validator: Address) -> Result<bool, BridgeError> {
         let validator_infos: Map<Address, ValidatorInfo> = env
             .storage()
@@ -328,6 +390,20 @@ impl SlashingManager {
     }
 
     /// Fund the reward pool
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // fund_reward_pool(...);
+    /// ```
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
         funder.require_auth();
 
@@ -357,6 +433,20 @@ impl SlashingManager {
     }
 
     /// Get validator stake
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_stake(...);
+    /// ```
     pub fn get_stake(env: &Env, validator: Address) -> i128 {
         let stakes: Map<Address, i128> = env
             .storage()
@@ -367,11 +457,39 @@ impl SlashingManager {
     }
 
     /// Get reward pool balance
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_reward_pool(...);
+    /// ```
     pub fn get_reward_pool(env: &Env) -> i128 {
         env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128)
     }
 
     /// Get slashing record
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_slashing_record(...);
+    /// ```
     pub fn get_slashing_record(env: &Env, record_id: u64) -> Option<SlashingRecord> {
         let slashing_records: Map<u64, SlashingRecord> = env
             .storage()
@@ -382,6 +500,20 @@ impl SlashingManager {
     }
 
     /// Get validator rewards history
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_validator_rewards(...);
+    /// ```
     pub fn get_validator_rewards(env: &Env, validator: Address) -> Vec<ValidatorReward> {
         let rewards: Map<Address, Vec<ValidatorReward>> = env
             .storage()

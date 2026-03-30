@@ -28,6 +28,16 @@ pub struct BFTConsensus;
 
 impl BFTConsensus {
     /// Register a new validator with stake
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // register_validator(...);
+    /// ```
     pub fn register_validator(
         env: &Env,
         validator: Address,
@@ -95,6 +105,20 @@ impl BFTConsensus {
     }
 
     /// Unregister a validator and return stake
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // unregister_validator(...);
+    /// ```
     pub fn unregister_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         validator.require_auth();
 
@@ -142,6 +166,20 @@ impl BFTConsensus {
     }
 
     /// Create a new bridge proposal
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_proposal(...);
+    /// ```
     pub fn create_proposal(env: &Env, message: CrossChainMessage) -> Result<u64, BridgeError> {
         // Get proposal counter
         let mut proposal_counter: u64 = env
@@ -200,6 +238,16 @@ impl BFTConsensus {
     }
 
     /// Vote on a bridge proposal
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // vote_on_proposal(...);
+    /// ```
     pub fn vote_on_proposal(
         env: &Env,
         validator: Address,
@@ -345,6 +393,20 @@ impl BFTConsensus {
     }
 
     /// Check if an address is an active validator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_active_validator(...);
+    /// ```
     pub fn is_active_validator(env: &Env, address: &Address) -> bool {
         env.storage()
             .instance()
@@ -353,6 +415,20 @@ impl BFTConsensus {
     }
 
     /// Get validator info
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_validator_info(...);
+    /// ```
     pub fn get_validator_info(env: &Env, validator: Address) -> Option<ValidatorInfo> {
         env.storage()
             .instance()
@@ -360,6 +436,20 @@ impl BFTConsensus {
     }
 
     /// Get proposal by ID
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_proposal(...);
+    /// ```
     pub fn get_proposal(env: &Env, proposal_id: u64) -> Option<BridgeProposal> {
         let proposals: Map<u64, BridgeProposal> = env
             .storage()
@@ -370,6 +460,20 @@ impl BFTConsensus {
     }
 
     /// Get consensus state
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_consensus_state(...);
+    /// ```
     pub fn get_consensus_state(env: &Env) -> ConsensusState {
         env.storage()
             .instance()
@@ -383,6 +487,20 @@ impl BFTConsensus {
     }
 
     /// Get all active validators
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_active_validators(...);
+    /// ```
     pub fn get_active_validators(env: &Env) -> Vec<Address> {
         let validators: Vec<Address> = env
             .storage()
@@ -399,6 +517,20 @@ impl BFTConsensus {
     }
 
     /// Check if BFT consensus is reached for a proposal
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // is_consensus_reached(...);
+    /// ```
     pub fn is_consensus_reached(env: &Env, proposal_id: u64) -> bool {
         if let Some(proposal) = Self::get_proposal(env, proposal_id) {
             proposal.vote_count >= proposal.required_votes

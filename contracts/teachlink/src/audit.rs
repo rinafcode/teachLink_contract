@@ -20,6 +20,16 @@ pub struct AuditManager;
 
 impl AuditManager {
     /// Create an audit record
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // create_audit_record(...);
+    /// ```
     pub fn create_audit_record(
         env: &Env,
         operation_type: OperationType,
@@ -68,13 +78,37 @@ impl AuditManager {
     }
 
     /// Get audit record by ID
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_audit_record(...);
+    /// ```
     pub fn get_audit_record(env: &Env, record_id: u64) -> Option<AuditRecord> {
         env.storage()
             .persistent()
             .get(&crate::storage::DataKey::AuditRecord(record_id))
     }
 
-    /// Get recent audit records by time range (bounded search for gas efficiency)
+    /// Get audit records by time range
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_audit_records_by_time(...);
+    /// ```
     pub fn get_audit_records_by_time(
         env: &Env,
         start_time: u64,
@@ -100,6 +134,21 @@ impl AuditManager {
         result
     }
 
+    /// Get audit records by operation type
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_audit_records_by_type(...);
+    /// ```
     pub fn get_audit_records_by_type(env: &Env, operation_type: OperationType) -> Vec<AuditRecord> {
         let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
         let mut result = Vec::new(env);
@@ -116,6 +165,21 @@ impl AuditManager {
         result
     }
 
+    /// Get audit records by operator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_audit_records_by_operator(...);
+    /// ```
     pub fn get_audit_records_by_operator(env: &Env, operator: Address) -> Vec<AuditRecord> {
         let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
         let mut result = Vec::new(env);
@@ -133,6 +197,16 @@ impl AuditManager {
     }
 
     /// Generate compliance report
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // generate_compliance_report(...);
+    /// ```
     pub fn generate_compliance_report(
         env: &Env,
         period_start: u64,
@@ -197,6 +271,21 @@ impl AuditManager {
         Ok(report.report_id)
     }
 
+    /// Get compliance report
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_compliance_report(...);
+    /// ```
     pub fn get_compliance_report(env: &Env, report_id: u64) -> Option<ComplianceReport> {
         let reports: Map<u64, ComplianceReport> = env
             .storage()
@@ -217,11 +306,39 @@ impl AuditManager {
     }
 
     /// Get total audit record count
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_audit_count(...);
+    /// ```
     pub fn get_audit_count(env: &Env) -> u64 {
         env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64)
     }
 
     /// Get recent audit records (last N records)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_recent_audit_records(...);
+    /// ```
     pub fn get_recent_audit_records(env: &Env, count: u32) -> Vec<AuditRecord> {
         let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
         let mut result = Vec::new(env);
@@ -240,6 +357,16 @@ impl AuditManager {
     }
 
     /// Log bridge operation
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // log_bridge_operation(...);
+    /// ```
     pub fn log_bridge_operation(
         env: &Env,
         is_outgoing: bool,
@@ -260,6 +387,16 @@ impl AuditManager {
     }
 
     /// Log validator operation
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // log_validator_operation(...);
+    /// ```
     pub fn log_validator_operation(
         env: &Env,
         is_added: bool,
@@ -277,6 +414,16 @@ impl AuditManager {
     }
 
     /// Log emergency operation
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // log_emergency_operation(...);
+    /// ```
     pub fn log_emergency_operation(
         env: &Env,
         is_pause: bool,
@@ -294,6 +441,16 @@ impl AuditManager {
     }
 
     /// Clear old audit records (maintenance)
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // clear_old_records(...);
+    /// ```
     pub fn clear_old_records(
         env: &Env,
         before_timestamp: u64,
