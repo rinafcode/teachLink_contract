@@ -8,6 +8,20 @@ pub struct ArbitrationManager;
 
 impl ArbitrationManager {
     /// Register a new professional arbitrator
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // register_arbitrator(...);
+    /// ```
     pub fn register_arbitrator(env: &Env, profile: ArbitratorProfile) -> Result<(), EscrowError> {
         profile.address.require_auth();
 
@@ -24,6 +38,16 @@ impl ArbitrationManager {
     }
 
     /// Update arbitrator profile
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_profile(...);
+    /// ```
     pub fn update_profile(
         env: &Env,
         address: Address,
@@ -50,6 +74,20 @@ impl ArbitrationManager {
     }
 
     /// Get arbitrator profile
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_arbitrator(...);
+    /// ```
     pub fn get_arbitrator(env: &Env, address: Address) -> Option<ArbitratorProfile> {
         let arbitrators: Map<Address, ArbitratorProfile> = env
             .storage()
@@ -60,6 +98,20 @@ impl ArbitrationManager {
     }
 
     /// Pick an active arbitrator for an escrow dispute
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // pick_arbitrator(...);
+    /// ```
     pub fn pick_arbitrator(env: &Env) -> Result<Address, EscrowError> {
         let arbitrators: Map<Address, ArbitratorProfile> = env
             .storage()
@@ -77,6 +129,20 @@ impl ArbitrationManager {
     }
 
     /// Automated dispute detection: check if an escrow has stalled
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // check_stalled_escrow(...);
+    /// ```
     pub fn check_stalled_escrow(env: &Env, escrow: &Escrow) -> bool {
         if escrow.status != EscrowStatus::Pending {
             return false;
@@ -94,6 +160,16 @@ impl ArbitrationManager {
     }
 
     /// Update reputation after a resolution
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // update_reputation(...);
+    /// ```
     pub fn update_reputation(
         env: &Env,
         arbitrator_addr: Address,
