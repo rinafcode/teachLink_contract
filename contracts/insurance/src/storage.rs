@@ -10,6 +10,16 @@ pub enum DataKey {
     Oracle,
     Token,
 
+    // RBAC & Governance
+    HasRole(u32, Address),     // Role ID -> Address -> bool
+    PendingAdminTransfer,      // Address (New Admin)
+    AdminTransferTimestamp,    // u64 (When transfer can be executed)
+    MultiSigSigners,           // Vec<Address>
+    MultiSigThreshold,         // u32
+    CriticalOperation(u32),    // Operation ID -> CriticalOperation
+    OperationApprovals(u32),   // Operation ID -> Vec<Address>
+    OperationCount,            // u64
+    
     // Risk assessment
     RiskProfile(u64),
     RiskProfileByUser(Address),
