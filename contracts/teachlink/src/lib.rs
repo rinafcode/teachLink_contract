@@ -113,7 +113,7 @@ mod multichain;
 mod notification;
 mod notification_events_basic;
 // mod content_quality;
-// mod notification_tests; // FUTURE: Re-enable when testutils dependencies are resolved (tracked in TRACKING.md)
+mod notification_tests;
 mod backup;
 mod notification_types;
 mod performance;
@@ -128,6 +128,7 @@ mod storage;
 mod tokenization;
 mod types;
 pub mod validation;
+pub mod property_based_tests;
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
