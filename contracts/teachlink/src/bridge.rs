@@ -1,5 +1,10 @@
 use crate::errors::BridgeError;
-use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
+use crate::events::{
+    BridgeCancelledEvent, BridgeCompletedEvent, BridgeFailedEvent, BridgeFeeUpdatedEvent,
+    BridgeInitiatedEvent, BridgeRetryEvent, ChainSupportedEvent, ChainUnsupportedEvent,
+    DepositEvent, FeeRecipientUpdatedEvent, MinValidatorsUpdatedEvent, ReleaseEvent,
+    ValidatorAddedEvent, ValidatorRemovedEvent,
+};
 use crate::storage::{
     ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS, BRIDGE_TXS,
     FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
@@ -291,8 +296,16 @@ impl Bridge {
             .instance()
             .get(&BRIDGE_FAILURES)
             .unwrap_or_else(|| Map::new(env));
-        failures.set(nonce, reason);
+        failures.set(nonce, reason.clone());
         env.storage().instance().set(&BRIDGE_FAILURES, &failures);
+
+        // Emit event
+        BridgeFailedEvent {
+            nonce,
+            reason: reason.clone(),
+            failed_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -355,6 +368,14 @@ impl Bridge {
         failures.remove(nonce);
         env.storage().instance().set(&BRIDGE_FAILURES, &failures);
 
+        // Emit event
+        BridgeRetryEvent {
+            nonce,
+            retry_count: updated_retry_count,
+            retried_at: current_time,
+        }
+        .publish(env);
+
         Ok(updated_retry_count)
     }
 
@@ -406,6 +427,15 @@ impl Bridge {
 
         Self::clear_bridge_retry_metadata(env, nonce);
 
+        // Emit event
+        BridgeCancelledEvent {
+            nonce,
+            refunded_to: bridge_tx.recipient.clone(),
+            amount: bridge_tx.amount,
+            cancelled_at: env.ledger().timestamp(),
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -452,8 +482,16 @@ impl Bridge {
         admin.require_auth();
 
         let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
-        validators.set(validator, true);
+        validators.set(validator.clone(), true);
         env.storage().instance().set(&VALIDATORS, &validators);
+
+        // Emit event
+        ValidatorAddedEvent {
+            validator: validator.clone(),
+            added_by: admin.clone(),
+            added_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -465,8 +503,16 @@ impl Bridge {
         admin.require_auth();
 
         let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
-        validators.set(validator, false);
+        validators.set(validator.clone(), false);
         env.storage().instance().set(&VALIDATORS, &validators);
+
+        // Emit event
+        ValidatorRemovedEvent {
+            validator: validator.clone(),
+            removed_by: admin.clone(),
+            removed_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -481,6 +527,14 @@ impl Bridge {
         chains.set(chain_id, true);
         env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
 
+        // Emit event
+        ChainSupportedEvent {
+            chain_id,
+            added_by: admin.clone(),
+            added_at: env.ledger().timestamp(),
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -494,6 +548,14 @@ impl Bridge {
         chains.set(chain_id, false);
         env.storage().instance().set(&SUPPORTED_CHAINS, &chains);
 
+        // Emit event
+        ChainUnsupportedEvent {
+            chain_id,
+            removed_by: admin.clone(),
+            removed_at: env.ledger().timestamp(),
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -506,7 +568,17 @@ impl Bridge {
             return Err(BridgeError::FeeCannotBeNegative);
         }
 
+        let old_fee: i128 = env.storage().instance().get(&BRIDGE_FEE).unwrap_or(0i128);
         env.storage().instance().set(&BRIDGE_FEE, &fee);
+
+        // Emit event
+        BridgeFeeUpdatedEvent {
+            old_fee,
+            new_fee: fee,
+            updated_by: admin.clone(),
+            updated_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -517,7 +589,17 @@ impl Bridge {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
 
+        let old_recipient: Address = env.storage().instance().get(&FEE_RECIPIENT).unwrap();
         env.storage().instance().set(&FEE_RECIPIENT, &fee_recipient);
+
+        // Emit event
+        FeeRecipientUpdatedEvent {
+            old_recipient,
+            new_recipient: fee_recipient,
+            updated_by: admin.clone(),
+            updated_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -531,9 +613,19 @@ impl Bridge {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
         }
 
+        let old_min: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
         env.storage()
             .instance()
             .set(&MIN_VALIDATORS, &min_validators);
+
+        // Emit event
+        MinValidatorsUpdatedEvent {
+            old_min,
+            new_min: min_validators,
+            updated_by: admin.clone(),
+            updated_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }

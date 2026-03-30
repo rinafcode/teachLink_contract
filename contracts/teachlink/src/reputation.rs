@@ -1,3 +1,4 @@
+use crate::events::{ContributionRatedEvent, CourseProgressUpdatedEvent, ParticipationUpdatedEvent};
 use crate::types::UserReputation;
 use soroban_sdk::{symbol_short, Address, Env, Symbol};
 
@@ -10,6 +11,15 @@ pub fn update_participation(env: &Env, user: Address, points: u32) {
     reputation.participation_score += points;
     reputation.last_update = env.ledger().timestamp();
     set_reputation(env, &user, &reputation);
+
+    // Emit event
+    ParticipationUpdatedEvent {
+        user: user.clone(),
+        points_added: points,
+        new_participation_score: reputation.participation_score,
+        updated_at: env.ledger().timestamp(),
+    }
+    .publish(env);
 }
 
 pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
@@ -34,6 +44,16 @@ pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
 
     reputation.last_update = env.ledger().timestamp();
     set_reputation(env, &user, &reputation);
+
+    // Emit event
+    CourseProgressUpdatedEvent {
+        user: user.clone(),
+        total_courses_started: reputation.total_courses_started,
+        total_courses_completed: reputation.total_courses_completed,
+        completion_rate: reputation.completion_rate,
+        updated_at: env.ledger().timestamp(),
+    }
+    .publish(env);
 }
 
 pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
@@ -52,6 +72,16 @@ pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
     reputation.last_update = env.ledger().timestamp();
 
     set_reputation(env, &user, &reputation);
+
+    // Emit event
+    ContributionRatedEvent {
+        user: user.clone(),
+        rating,
+        new_contribution_quality: reputation.contribution_quality,
+        total_contributions: reputation.total_contributions,
+        rated_at: env.ledger().timestamp(),
+    }
+    .publish(env);
 }
 
 pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
