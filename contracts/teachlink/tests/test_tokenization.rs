@@ -10,7 +10,8 @@ use soroban_sdk::{
 };
 
 use teachlink_contract::{
-    ContentTokenParameters, ContentType, TeachLinkBridge, TeachLinkBridgeClient, TransferType,
+    ContentToken, ContentTokenParameters, ContentType, TeachLinkBridge, TeachLinkBridgeClient,
+    TransferType,
 };
 
 fn create_params(

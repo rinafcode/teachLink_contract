@@ -5,7 +5,6 @@
 
 use crate::errors::BridgeError;
 use crate::events::AuditRecordCreatedEvent;
-use crate::interfaces::AuditPort;
 use crate::storage::{AUDIT_COUNTER, AUDIT_RECORDS, COMPLIANCE_REPORTS};
 use crate::types::{AuditRecord, ComplianceReport, OperationType};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
@@ -21,16 +20,6 @@ pub struct AuditManager;
 
 impl AuditManager {
     /// Create an audit record
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_audit_record(...);
-    /// ```
     pub fn create_audit_record(
         env: &Env,
         operation_type: OperationType,
@@ -59,11 +48,14 @@ impl AuditManager {
             tx_hash,
         };
 
-        // Store record in persistent storage
-        env.storage().persistent().set(
-            &crate::storage::DataKey::AuditRecord(audit_counter),
-            &record,
-        );
+        // Store record
+        let mut audit_records: Map<u64, AuditRecord> = env
+            .storage()
+            .instance()
+            .get(&AUDIT_RECORDS)
+            .unwrap_or_else(|| Map::new(env));
+        audit_records.set(audit_counter, record);
+        env.storage().instance().set(&AUDIT_RECORDS, &audit_records);
         env.storage().instance().set(&AUDIT_COUNTER, &audit_counter);
 
         // Emit event
@@ -79,135 +71,71 @@ impl AuditManager {
     }
 
     /// Get audit record by ID
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_audit_record(...);
-    /// ```
     pub fn get_audit_record(env: &Env, record_id: u64) -> Option<AuditRecord> {
-        env.storage()
-            .persistent()
-            .get(&crate::storage::DataKey::AuditRecord(record_id))
+        let audit_records: Map<u64, AuditRecord> = env
+            .storage()
+            .instance()
+            .get(&AUDIT_RECORDS)
+            .unwrap_or_else(|| Map::new(env));
+        audit_records.get(record_id)
     }
 
     /// Get audit records by time range
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_audit_records_by_time(...);
-    /// ```
     pub fn get_audit_records_by_time(
         env: &Env,
         start_time: u64,
         end_time: u64,
     ) -> Vec<AuditRecord> {
-        let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
+        let audit_records: Map<u64, AuditRecord> = env
+            .storage()
+            .instance()
+            .get(&AUDIT_RECORDS)
+            .unwrap_or_else(|| Map::new(env));
+
         let mut result = Vec::new(env);
-
-        // Search back from newest records to limit gas consumption
-        let max_search: u64 = 500;
-        let start_search = audit_counter.saturating_sub(max_search).max(1);
-
-        for i in (start_search..=audit_counter).rev() {
-            if let Some(record) = Self::get_audit_record(env, i) {
-                if record.timestamp >= start_time && record.timestamp <= end_time {
-                    result.push_back(record.clone());
-                }
-                if record.timestamp < start_time {
-                    break; // Since records are mostly ordered by time
-                }
+        for (_record_id, record) in audit_records.iter() {
+            if record.timestamp >= start_time && record.timestamp <= end_time {
+                result.push_back(record);
             }
         }
         result
     }
 
     /// Get audit records by operation type
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_audit_records_by_type(...);
-    /// ```
     pub fn get_audit_records_by_type(env: &Env, operation_type: OperationType) -> Vec<AuditRecord> {
-        let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
-        let mut result = Vec::new(env);
-        let max_search: u64 = 200;
-        let start_search = audit_counter.saturating_sub(max_search).max(1);
+        let audit_records: Map<u64, AuditRecord> = env
+            .storage()
+            .instance()
+            .get(&AUDIT_RECORDS)
+            .unwrap_or_else(|| Map::new(env));
 
-        for i in (start_search..=audit_counter).rev() {
-            if let Some(record) = Self::get_audit_record(env, i) {
-                if record.operation_type == operation_type {
-                    result.push_back(record);
-                }
+        let mut result = Vec::new(env);
+        for (_record_id, record) in audit_records.iter() {
+            if record.operation_type == operation_type {
+                result.push_back(record);
             }
         }
         result
     }
 
     /// Get audit records by operator
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_audit_records_by_operator(...);
-    /// ```
     pub fn get_audit_records_by_operator(env: &Env, operator: Address) -> Vec<AuditRecord> {
-        let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
-        let mut result = Vec::new(env);
-        let max_search: u64 = 200;
-        let start_search = audit_counter.saturating_sub(max_search).max(1);
+        let audit_records: Map<u64, AuditRecord> = env
+            .storage()
+            .instance()
+            .get(&AUDIT_RECORDS)
+            .unwrap_or_else(|| Map::new(env));
 
-        for i in (start_search..=audit_counter).rev() {
-            if let Some(record) = Self::get_audit_record(env, i) {
-                if record.operator == operator {
-                    result.push_back(record);
-                }
+        let mut result = Vec::new(env);
+        for (_record_id, record) in audit_records.iter() {
+            if record.operator == operator {
+                result.push_back(record);
             }
         }
         result
     }
 
     /// Generate compliance report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // generate_compliance_report(...);
-    /// ```
     pub fn generate_compliance_report(
         env: &Env,
         period_start: u64,
@@ -241,24 +169,16 @@ impl AuditManager {
             }
         }
 
-        // Create report (validator_performance field removed)
-        let report_id = env.ledger().timestamp();
+        // Create report
         let report = ComplianceReport {
-            report_id,
+            report_id: env.ledger().timestamp(),
             period_start,
             period_end,
             total_volume,
             total_transactions,
             unique_users: unique_users.len(),
+            validator_performance,
         };
-
-        // Store performance counts granularly
-        for (validator, count) in validator_performance.iter() {
-            env.storage().instance().set(
-                &crate::storage::DataKey::ReportValidatorPerf(report_id, validator),
-                &count,
-            );
-        }
 
         // Store report
         let mut reports: Map<u64, ComplianceReport> = env
@@ -273,20 +193,6 @@ impl AuditManager {
     }
 
     /// Get compliance report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_compliance_report(...);
-    /// ```
     pub fn get_compliance_report(env: &Env, report_id: u64) -> Option<ComplianceReport> {
         let reports: Map<u64, ComplianceReport> = env
             .storage()
@@ -296,52 +202,21 @@ impl AuditManager {
         reports.get(report_id)
     }
 
-    /// Get validator performance for a report
-    pub fn get_validator_performance(env: &Env, report_id: u64, validator: Address) -> u32 {
-        env.storage()
-            .instance()
-            .get(&crate::storage::DataKey::ReportValidatorPerf(
-                report_id, validator,
-            ))
-            .unwrap_or(0)
-    }
-
     /// Get total audit record count
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_audit_count(...);
-    /// ```
     pub fn get_audit_count(env: &Env) -> u64 {
         env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64)
     }
 
     /// Get recent audit records (last N records)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_recent_audit_records(...);
-    /// ```
     pub fn get_recent_audit_records(env: &Env, count: u32) -> Vec<AuditRecord> {
         let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
+
+        let audit_records: Map<u64, AuditRecord> = env
+            .storage()
+            .instance()
+            .get(&AUDIT_RECORDS)
+            .unwrap_or_else(|| Map::new(env));
+
         let mut result = Vec::new(env);
         let start = if audit_counter > count as u64 {
             audit_counter - count as u64
@@ -350,7 +225,7 @@ impl AuditManager {
         };
 
         for i in start..=audit_counter {
-            if let Some(record) = Self::get_audit_record(env, i) {
+            if let Some(record) = audit_records.get(i) {
                 result.push_back(record);
             }
         }
@@ -358,16 +233,6 @@ impl AuditManager {
     }
 
     /// Log bridge operation
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // log_bridge_operation(...);
-    /// ```
     pub fn log_bridge_operation(
         env: &Env,
         is_outgoing: bool,
@@ -388,16 +253,6 @@ impl AuditManager {
     }
 
     /// Log validator operation
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // log_validator_operation(...);
-    /// ```
     pub fn log_validator_operation(
         env: &Env,
         is_added: bool,
@@ -415,16 +270,6 @@ impl AuditManager {
     }
 
     /// Log emergency operation
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // log_emergency_operation(...);
-    /// ```
     pub fn log_emergency_operation(
         env: &Env,
         is_pause: bool,
@@ -442,16 +287,6 @@ impl AuditManager {
     }
 
     /// Clear old audit records (maintenance)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // clear_old_records(...);
-    /// ```
     pub fn clear_old_records(
         env: &Env,
         before_timestamp: u64,
@@ -459,41 +294,25 @@ impl AuditManager {
     ) -> Result<u32, BridgeError> {
         admin.require_auth();
 
-        let audit_counter: u64 = env.storage().instance().get(&AUDIT_COUNTER).unwrap_or(0u64);
-        let mut cleared_count: u32 = 0;
+        let audit_records: Map<u64, AuditRecord> = env
+            .storage()
+            .instance()
+            .get(&AUDIT_RECORDS)
+            .unwrap_or_else(|| Map::new(env));
 
-        // Bounded clear (only clear from beginning up to counter)
-        // Note: Circular buffer logic would be more complex, but here we just remove keys
-        for i in 1..=audit_counter {
-            if let Some(record) = Self::get_audit_record(env, i) {
-                if record.timestamp < before_timestamp {
-                    env.storage()
-                        .persistent()
-                        .remove(&crate::storage::DataKey::AuditRecord(i));
-                    cleared_count += 1;
-                }
+        let mut cleared_count: u32 = 0;
+        let mut new_records: Map<u64, AuditRecord> = Map::new(env);
+
+        for (record_id, record) in audit_records.iter() {
+            if record.timestamp >= before_timestamp {
+                new_records.set(record_id, record);
+            } else {
+                cleared_count += 1;
             }
-            if cleared_count > 100 {
-                break;
-            } // Bound gas
         }
 
+        env.storage().instance().set(&AUDIT_RECORDS, &new_records);
+
         Ok(cleared_count)
-    }
-}
-
-impl AuditPort for AuditManager {
-    fn create_record(
-        env: &Env,
-        op: OperationType,
-        operator: Address,
-        details: Bytes,
-        tx_hash: Bytes,
-    ) -> Result<u64, BridgeError> {
-        Self::create_audit_record(env, op, operator, details, tx_hash)
-    }
-
-    fn get_count(env: &Env) -> u64 {
-        Self::get_audit_count(env)
     }
 }

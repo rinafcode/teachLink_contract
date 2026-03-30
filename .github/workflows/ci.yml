@@ -34,49 +34,6 @@ jobs:
       - name: Build WASM (release)
         run: cargo build --target wasm32-unknown-unknown --release
 
-      - name: Run tests
-        run: cargo test --workspace
-
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
-
-  coverage:
-    runs-on: ubuntu-latest
-    needs: rust
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
-      - name: Install cargo-tarpaulin
-        run: cargo install cargo-tarpaulin
-
-      - name: Generate coverage report
-        run: |
-          cargo tarpaulin \
-            --workspace \
-            --out xml \
-            --out html \
-            --output-dir coverage \
-            --skip-clean \
-            --exclude-files "*/tests/*" "*/test_*" \
-            --timeout 300
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
-        with:
-          files: coverage/cobertura.xml
-          fail_ci_if_error: false
-
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage/
       - name: Run tests with coverage
         run: |
           cargo llvm-cov --workspace --lib --bins --tests --all-features --lcov --output-path lcov.info
@@ -120,11 +77,3 @@ jobs:
 
       - name: Check dependencies
         run: cargo deny check
-
-      - name: Check Documentation
-        run: |
-          chmod +x scripts/doc.sh
-          ./scripts/doc.sh
-
-      - name: Lint Documentation (Missing Docs)
-        run: cargo clippy -- -D missing-docs

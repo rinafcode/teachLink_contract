@@ -7,22 +7,6 @@ pub struct Listing {
     pub active: bool,
 }
 
-/// Standard API for buy
-///
-/// # Arguments
-///
-/// * `env` - The environment (if applicable).
-///
-/// # Returns
-///
-/// * The return value of the function.
-///
-/// # Examples
-///
-/// ```rust
-/// // Example usage
-/// // buy(...);
-/// ```
 pub fn buy(listing_id: u64, buyer: Address) -> Result<()> {
     let listing = Self::get_listing(listing_id)?;
     let nft = ContentModule::get_nft(listing.token_id)?;

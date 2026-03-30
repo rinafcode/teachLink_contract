@@ -4,8 +4,8 @@
 //! and audit trails for compliance. Off-chain systems use events to replicate
 //! data; this module records manifests, verification, and RTO recovery metrics.
 
+use crate::audit::AuditManager;
 use crate::errors::BridgeError;
-use crate::interfaces::AuditPort;
 use crate::events::{BackupCreatedEvent, BackupVerifiedEvent, RecoveryExecutedEvent};
 use crate::storage::{
     BACKUP_COUNTER, BACKUP_MANIFESTS, BACKUP_SCHEDULES, BACKUP_SCHED_CNT, RECOVERY_CNT,
@@ -19,7 +19,7 @@ pub struct BackupManager;
 
 impl BackupManager {
     /// Create a backup manifest (authorized caller). Integrity hash is supplied by off-chain.
-
+    pub fn create_backup(
         env: &Env,
         creator: Address,
         integrity_hash: Bytes,
@@ -63,7 +63,7 @@ impl BackupManager {
         .publish(env);
 
         let details = Bytes::from_slice(env, &counter.to_be_bytes());
-        Au::create_record(
+        AuditManager::create_audit_record(
             env,
             OperationType::BackupCreated,
             creator,
@@ -75,20 +75,6 @@ impl BackupManager {
     }
 
     /// Get backup manifest by id
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_backup_manifest(...);
-    /// ```
     pub fn get_backup_manifest(env: &Env, backup_id: u64) -> Option<BackupManifest> {
         let manifests: Map<u64, BackupManifest> = env
             .storage()
@@ -99,7 +85,7 @@ impl BackupManager {
     }
 
     /// Verify backup integrity (compare expected hash to stored). Emit event and audit.
-
+    pub fn verify_backup(
         env: &Env,
         backup_id: u64,
         verifier: Address,
@@ -120,7 +106,7 @@ impl BackupManager {
         .publish(env);
 
         let details = Bytes::from_slice(env, &[if valid { 1u8 } else { 0u8 }]);
-        Au::create_record(
+        AuditManager::create_audit_record(
             env,
             OperationType::BackupVerified,
             verifier,
@@ -132,16 +118,6 @@ impl BackupManager {
     }
 
     /// Schedule automated backup (owner auth)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // schedule_backup(...);
-    /// ```
     pub fn schedule_backup(
         env: &Env,
         owner: Address,
@@ -181,20 +157,6 @@ impl BackupManager {
     }
 
     /// Get scheduled backups for an owner
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_scheduled_backups(...);
-    /// ```
     pub fn get_scheduled_backups(env: &Env, owner: Address) -> Vec<BackupSchedule> {
         let schedules: Map<u64, BackupSchedule> = env
             .storage()
@@ -212,7 +174,7 @@ impl BackupManager {
     }
 
     /// Record a recovery execution (RTO tracking and audit trail)
-
+    pub fn record_recovery(
         env: &Env,
         backup_id: u64,
         executed_by: Address,
@@ -256,7 +218,7 @@ impl BackupManager {
         .publish(env);
 
         let details = Bytes::from_slice(env, &recovery_duration_secs.to_be_bytes());
-        Au::create_record(
+        AuditManager::create_audit_record(
             env,
             OperationType::RecoveryExecuted,
             executed_by,
@@ -268,20 +230,6 @@ impl BackupManager {
     }
 
     /// Get recovery records (for audit trail and RTO reporting)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_recovery_records(...);
-    /// ```
     pub fn get_recovery_records(env: &Env, limit: u32) -> Vec<RecoveryRecord> {
         let counter: u64 = env.storage().instance().get(&RECOVERY_CNT).unwrap_or(0u64);
         let records: Map<u64, RecoveryRecord> = env
@@ -305,20 +253,6 @@ impl BackupManager {
     }
 
     /// Get recent backup manifests (for monitoring and compliance)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_recent_backups(...);
-    /// ```
     pub fn get_recent_backups(env: &Env, limit: u32) -> Vec<BackupManifest> {
         let counter: u64 = env
             .storage()
