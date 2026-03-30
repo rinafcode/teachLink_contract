@@ -4,6 +4,18 @@ use soroban_sdk::{symbol_short, Address, Env, Symbol};
 const BASIS_POINTS: u32 = 10000;
 const REPUTATION: Symbol = symbol_short!("reptn");
 
+/// Standard API for update_participation
+///
+/// # Arguments
+///
+/// * `env` - The environment (if applicable).
+///
+/// # Examples
+///
+/// ```rust
+/// // Example usage
+/// // update_participation(...);
+/// ```
 pub fn update_participation(env: &Env, user: Address, points: u32) {
     user.require_auth();
     let mut reputation = get_reputation(env, &user);
@@ -12,6 +24,18 @@ pub fn update_participation(env: &Env, user: Address, points: u32) {
     set_reputation(env, &user, &reputation);
 }
 
+/// Standard API for update_course_progress
+///
+/// # Arguments
+///
+/// * `env` - The environment (if applicable).
+///
+/// # Examples
+///
+/// ```rust
+/// // Example usage
+/// // update_course_progress(...);
+/// ```
 pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
     user.require_auth();
     let mut reputation = get_reputation(env, &user);
@@ -36,6 +60,18 @@ pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
     set_reputation(env, &user, &reputation);
 }
 
+/// Standard API for rate_contribution
+///
+/// # Arguments
+///
+/// * `env` - The environment (if applicable).
+///
+/// # Examples
+///
+/// ```rust
+/// // Example usage
+/// // rate_contribution(...);
+/// ```
 pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
     // Rating should be 0-5 scaled (e.g. 0-100 or 0-500)
     // Here assuming 0-5
@@ -54,6 +90,22 @@ pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
     set_reputation(env, &user, &reputation);
 }
 
+/// Standard API for get_reputation
+///
+/// # Arguments
+///
+/// * `env` - The environment (if applicable).
+///
+/// # Returns
+///
+/// * The return value of the function.
+///
+/// # Examples
+///
+/// ```rust
+/// // Example usage
+/// // get_reputation(...);
+/// ```
 pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
     env.storage()
         .persistent()

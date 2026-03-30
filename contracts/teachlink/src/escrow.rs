@@ -1,23 +1,18 @@
-use crate::arbitration::ArbitrationManager;
 use crate::errors::EscrowError;
-use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
     EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
     EscrowReleasedEvent, EscrowResolvedEvent,
 };
-// TODO: Implement insurance module
-/*
-use crate::insurance::InsuranceManager;
-*/
+use crate::interfaces::{ArbitrationPort, EscrowObserver, InsurancePort};
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{DisputeOutcome, Escrow, EscrowApprovalKey, EscrowSigner, EscrowStatus};
 use crate::validation::EscrowValidator;
-use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
+use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Vec};
 
 pub struct EscrowManager;
 
 impl EscrowManager {
-    pub fn create_escrow(
+
         env: &Env,
         depositor: Address,
         beneficiary: Address,
@@ -55,6 +50,18 @@ impl EscrowManager {
             ],
         );
 
+        // Process insurance premium via injected InsurancePort
+        if env
+            .storage()
+            .instance()
+            .has(&crate::storage::INSURANCE_POOL)
+        {
+            let premium = I::calculate_premium(env, amount);
+            if premium > 0 {
+                I::pay_premium(env, depositor.clone(), premium)?;
+            }
+        }
+
         let mut escrow_count: u64 = env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0);
         escrow_count += 1;
         env.storage().instance().set(&ESCROW_COUNT, &escrow_count);
@@ -77,17 +84,29 @@ impl EscrowManager {
             dispute_reason: None,
         };
 
-        let mut escrows = Self::load_escrows(env);
-        escrows.set(escrow_count, escrow.clone());
-        env.storage().instance().set(&ESCROWS, &escrows);
+        env.storage()
+            .persistent()
+            .set(&(ESCROWS, escrow_count), &escrow);
 
-        EscrowAnalyticsManager::update_creation(env, amount);
+        Obs::on_created(env, amount);
 
         EscrowCreatedEvent { escrow }.publish(env);
 
         Ok(escrow_count)
     }
 
+    /// Standard API for approve_release
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // approve_release(...);
+    /// ```
     pub fn approve_release(
         env: &Env,
         escrow_id: u64,
@@ -125,6 +144,22 @@ impl EscrowManager {
         Ok(escrow.approval_count)
     }
 
+    /// Standard API for release
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // release(...);
+    /// ```
     pub fn release(env: &Env, escrow_id: u64, caller: Address) -> Result<(), EscrowError> {
         caller.require_auth();
 
@@ -147,6 +182,22 @@ impl EscrowManager {
         Ok(())
     }
 
+    /// Standard API for refund
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // refund(...);
+    /// ```
     pub fn refund(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
 
@@ -180,6 +231,22 @@ impl EscrowManager {
         Ok(())
     }
 
+    /// Standard API for cancel
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // cancel(...);
+    /// ```
     pub fn cancel(env: &Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         depositor.require_auth();
 
@@ -202,7 +269,7 @@ impl EscrowManager {
         Ok(())
     }
 
-    pub fn dispute(
+
         env: &Env,
         escrow_id: u64,
         disputer: Address,
@@ -219,14 +286,14 @@ impl EscrowManager {
 
         // If arbitrator is default (zero address), pick a professional one
         if Self::arbitrator_is_empty(env, &escrow.arbitrator) {
-            escrow.arbitrator = ArbitrationManager::pick_arbitrator(env)?;
+            escrow.arbitrator = A::pick_arbitrator(env)?;
         }
 
         escrow.status = EscrowStatus::Disputed;
         escrow.dispute_reason = Some(reason.clone());
         Self::save_escrow(env, escrow_id, escrow);
 
-        EscrowAnalyticsManager::update_dispute(env);
+        Obs::on_disputed(env);
 
         EscrowDisputedEvent {
             escrow_id,
@@ -238,7 +305,7 @@ impl EscrowManager {
         Ok(())
     }
 
-    pub fn resolve(
+
         env: &Env,
         escrow_id: u64,
         arbitrator: Address,
@@ -274,12 +341,12 @@ impl EscrowManager {
 
         escrow.status = new_status.clone();
 
-        ArbitrationManager::update_reputation(env, arbitrator, true)?;
+        A::record_resolution(env, arbitrator, true)?;
 
         let now = env.ledger().timestamp();
         let created_at = escrow.created_at;
         Self::save_escrow(env, escrow_id, escrow);
-        EscrowAnalyticsManager::update_resolution(env, now - created_at);
+        Obs::on_resolved(env, now - created_at);
 
         EscrowResolvedEvent {
             escrow_id,
@@ -291,12 +358,12 @@ impl EscrowManager {
         Ok(())
     }
 
-    pub fn auto_check_dispute(env: &Env, escrow_id: u64) -> Result<(), EscrowError> {
+
         let mut escrow = Self::load_escrow(env, escrow_id)?;
-        if ArbitrationManager::check_stalled_escrow(env, &escrow) {
+        if A::check_stalled(env, &escrow) {
             escrow.status = EscrowStatus::Disputed;
             escrow.dispute_reason = Some(Bytes::from_slice(env, b"Automated stall detection"));
-            escrow.arbitrator = ArbitrationManager::pick_arbitrator(env)?;
+            escrow.arbitrator = A::pick_arbitrator(env)?;
             Self::save_escrow(env, escrow_id, escrow);
 
             EscrowDisputedEvent {
@@ -311,14 +378,62 @@ impl EscrowManager {
 
     // ---------- Views ----------
 
+    /// Standard API for get_escrow
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_escrow(...);
+    /// ```
     pub fn get_escrow(env: &Env, escrow_id: u64) -> Option<Escrow> {
-        Self::load_escrows(env).get(escrow_id)
+        env.storage().persistent().get(&(ESCROWS, escrow_id))
     }
 
+    /// Standard API for get_escrow_count
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // get_escrow_count(...);
+    /// ```
     pub fn get_escrow_count(env: &Env) -> u64 {
         env.storage().instance().get(&ESCROW_COUNT).unwrap_or(0)
     }
 
+    /// Standard API for has_approved
+    ///
+    /// # Arguments
+    ///
+    /// * `env` - The environment (if applicable).
+    ///
+    /// # Returns
+    ///
+    /// * The return value of the function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// // Example usage
+    /// // has_approved(...);
+    /// ```
     pub fn has_approved(env: &Env, escrow_id: u64, signer: Address) -> bool {
         let key = EscrowApprovalKey { escrow_id, signer };
         env.storage().persistent().has(&key)
@@ -351,22 +466,17 @@ impl EscrowManager {
         *arbitrator == env.current_contract_address()
     }
 
-    fn load_escrows(env: &Env) -> Map<u64, Escrow> {
-        env.storage()
-            .instance()
-            .get(&ESCROWS)
-            .unwrap_or_else(|| Map::new(env))
-    }
-
     fn load_escrow(env: &Env, escrow_id: u64) -> Result<Escrow, EscrowError> {
-        let escrows = Self::load_escrows(env);
-        escrows.get(escrow_id).ok_or(EscrowError::EscrowNotFound)
+        env.storage()
+            .persistent()
+            .get(&(ESCROWS, escrow_id))
+            .ok_or(EscrowError::EscrowNotFound)
     }
 
     fn save_escrow(env: &Env, escrow_id: u64, escrow: Escrow) {
-        let mut escrows = Self::load_escrows(env);
-        escrows.set(escrow_id, escrow);
-        env.storage().instance().set(&ESCROWS, &escrows);
+        env.storage()
+            .persistent()
+            .set(&(ESCROWS, escrow_id), &escrow);
     }
 
     fn transfer_from_contract(env: &Env, token: &Address, to: &Address, amount: i128) {
