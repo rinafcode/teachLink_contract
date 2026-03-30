@@ -1,4 +1,5 @@
 use crate::errors::EscrowError;
+use crate::interfaces::ArbitrationPort;
 use crate::storage::{ARBITRATORS, ESCROWS};
 use crate::types::{ArbitratorProfile, Escrow, EscrowStatus};
 use soroban_sdk::{Address, Env, Map, String, Vec};
@@ -195,5 +196,24 @@ impl ArbitrationManager {
         arbitrators.set(arbitrator_addr, profile);
         env.storage().instance().set(&ARBITRATORS, &arbitrators);
         Ok(())
+    }
+}
+
+
+impl ArbitrationPort for ArbitrationManager {
+    fn pick_arbitrator(env: &Env) -> Result<Address, EscrowError> {
+        Self::pick_arbitrator(env)
+    }
+
+    fn check_stalled(env: &Env, escrow: &Escrow) -> bool {
+        Self::check_stalled_escrow(env, escrow)
+    }
+
+    fn record_resolution(
+        env: &Env,
+        arbitrator: Address,
+        success: bool,
+    ) -> Result<(), EscrowError> {
+        Self::update_reputation(env, arbitrator, success)
     }
 }

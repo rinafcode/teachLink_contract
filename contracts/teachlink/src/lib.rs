@@ -1,22 +1,6 @@
 //! TeachLink Soroban smart contract — entry point.
 //!
-//! This file wires the public contract interface to focused sub-modules:
-//! - [`constants`]   — compile-time configuration values
-//! - [`errors`]      — error enum and panic helper
-//! - [`types`]       — shared data types (`BridgeConfig`)
-//! - [`storage`]     — storage keys and low-level helpers
-//! - [`validation`]  — input validation guards
-//! - [`bridge`]      — bridge-out and chain management
-//! - [`oracle`]      — oracle price feed management
 
-#![cfg_attr(not(test), no_std)]
-
-pub mod bridge;
-pub mod constants;
-pub mod errors;
-pub mod oracle;
-pub mod storage;
-pub mod types;
 pub mod validation;
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Symbol, Vec};
@@ -1703,7 +1687,9 @@ impl TeachLinkBridge {
     /// // get_cached_bridge_summary(...);
     /// ```
     pub fn get_cached_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
-        performance::PerformanceManager::get_or_compute_summary(&env)
+        performance::PerformanceManager::get_or_compute_summary::<analytics::AnalyticsManager>(
+            &env,
+        )
     }
 
     /// Force recompute and cache bridge summary. Emits PerfMetricsComputedEvent.
@@ -1722,7 +1708,9 @@ impl TeachLinkBridge {
     /// // compute_and_cache_bridge_summary(...);
     /// ```
     pub fn compute_and_cache_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
-        performance::PerformanceManager::compute_and_cache_summary(&env)
+        performance::PerformanceManager::compute_and_cache_summary::<analytics::AnalyticsManager>(
+            &env,
+        )
     }
 
     /// Invalidate performance cache (admin only). Emits PerfCacheInvalidatedEvent.
@@ -1762,7 +1750,11 @@ impl TeachLinkBridge {
     /// // get_dashboard_analytics(...);
     /// ```
     pub fn get_dashboard_analytics(env: Env) -> DashboardAnalytics {
-        reporting::ReportingManager::get_dashboard_analytics(&env)
+        reporting::ReportingManager::get_dashboard_analytics::<
+            analytics::AnalyticsManager,
+            audit::AuditManager,
+            escrow_analytics::EscrowAnalyticsManager,
+        >(&env)
     }
 
     /// Create a report template
@@ -1879,13 +1871,11 @@ impl TeachLinkBridge {
         period_start: u64,
         period_end: u64,
     ) -> Result<u64, BridgeError> {
-        reporting::ReportingManager::generate_report_snapshot(
-            &env,
-            generator,
-            template_id,
-            period_start,
-            period_end,
-        )
+        reporting::ReportingManager::generate_report_snapshot::<
+            analytics::AnalyticsManager,
+            audit::AuditManager,
+            escrow_analytics::EscrowAnalyticsManager,
+        >(&env, generator, template_id, period_start, period_end)
     }
 
     /// Get report snapshot by id
@@ -2040,7 +2030,10 @@ impl TeachLinkBridge {
     /// // evaluate_alerts(...);
     /// ```
     pub fn evaluate_alerts(env: Env) -> Vec<u64> {
-        reporting::ReportingManager::evaluate_alerts(&env)
+        reporting::ReportingManager::evaluate_alerts::<
+            analytics::AnalyticsManager,
+            escrow_analytics::EscrowAnalyticsManager,
+        >(&env)
     }
 
     /// Get recent report snapshots
@@ -2082,7 +2075,7 @@ impl TeachLinkBridge {
         rto_tier: RtoTier,
         encryption_ref: u64,
     ) -> Result<u64, BridgeError> {
-        backup::BackupManager::create_backup(
+        backup::BackupManager::create_backup::<audit::AuditManager>(
             &env,
             creator,
             integrity_hash,
@@ -2127,7 +2120,12 @@ impl TeachLinkBridge {
         verifier: Address,
         expected_hash: Bytes,
     ) -> Result<bool, BridgeError> {
-        backup::BackupManager::verify_backup(&env, backup_id, verifier, expected_hash)
+        backup::BackupManager::verify_backup::<audit::AuditManager>(
+            &env,
+            backup_id,
+            verifier,
+            expected_hash,
+        )
     }
 
     /// Schedule automated backup
@@ -2188,7 +2186,7 @@ impl TeachLinkBridge {
         recovery_duration_secs: u64,
         success: bool,
     ) -> Result<u64, BridgeError> {
-        backup::BackupManager::record_recovery(
+        backup::BackupManager::record_recovery::<audit::AuditManager>(
             &env,
             backup_id,
             executed_by,
@@ -2638,7 +2636,11 @@ impl TeachLinkBridge {
     /// // create_escrow(...);
     /// ```
     pub fn create_escrow(env: Env, params: EscrowParameters) -> Result<u64, EscrowError> {
-        escrow::EscrowManager::create_escrow(
+        escrow::EscrowManager::create_escrow::<
+            arbitration::ArbitrationManager,
+            insurance::InsuranceManager,
+            escrow_analytics::EscrowAnalyticsManager,
+        >(
             &env,
             params.depositor,
             params.beneficiary,
@@ -2745,7 +2747,10 @@ impl TeachLinkBridge {
         disputer: Address,
         reason: Bytes,
     ) -> Result<(), EscrowError> {
-        escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
+        escrow::EscrowManager::dispute::<
+            arbitration::ArbitrationManager,
+            escrow_analytics::EscrowAnalyticsManager,
+        >(&env, escrow_id, disputer, reason)
     }
 
     /// Automatically check if an escrow has stalled and trigger a dispute
@@ -2764,7 +2769,10 @@ impl TeachLinkBridge {
     /// // auto_check_escrow_dispute(...);
     /// ```
     pub fn auto_check_escrow_dispute(env: Env, escrow_id: u64) -> Result<(), EscrowError> {
-        escrow::EscrowManager::auto_check_dispute(&env, escrow_id)
+        escrow::EscrowManager::auto_check_dispute::<arbitration::ArbitrationManager>(
+            &env,
+            escrow_id,
+        )
     }
 
     /// Resolve a dispute as the arbitrator
@@ -2784,7 +2792,10 @@ impl TeachLinkBridge {
         arbitrator: Address,
         outcome: DisputeOutcome,
     ) -> Result<(), EscrowError> {
-        escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
+        escrow::EscrowManager::resolve::<
+            arbitration::ArbitrationManager,
+            escrow_analytics::EscrowAnalyticsManager,
+        >(&env, escrow_id, arbitrator, outcome)
     }
 
     // ========== Arbitration Management Functions ==========
@@ -3189,7 +3200,9 @@ impl TeachLinkBridge {
         token_id: u64,
         notes: Option<Bytes>,
     ) {
-        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes);
+        tokenization::ContentTokenization::transfer::<provenance::ProvenanceTracker>(
+            &env, from, to, token_id, notes,
+        );
     }
 
     /// Get a content token by ID
@@ -3439,7 +3452,9 @@ impl TeachLinkBridge {
     /// ```
     #[must_use]
     pub fn get_content_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
-        tokenization::ContentTokenization::get_all_owners(env, token_id)
+        tokenization::ContentTokenization::get_all_owners::<provenance::ProvenanceTracker>(
+            env, token_id,
+        )
     }
 
     // ========== Notification System Functions ==========

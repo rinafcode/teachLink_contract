@@ -1,6 +1,7 @@
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
 use crate::events::ProvenanceRecordedEvent;
+use crate::interfaces::ProvenancePort;
 use crate::storage::PROVENANCE;
 use crate::types::{ProvenanceRecord, TransferType};
 
@@ -231,5 +232,22 @@ impl ProvenanceTracker {
         }
 
         owners
+    }
+}
+
+impl ProvenancePort for ProvenanceTracker {
+    fn record_transfer(
+        env: &Env,
+        token_id: u64,
+        from: Option<Address>,
+        to: Address,
+        transfer_type: TransferType,
+        notes: Option<Bytes>,
+    ) {
+        Self::record_transfer(env, token_id, from, to, transfer_type, notes);
+    }
+
+    fn get_history(env: &Env, token_id: u64) -> Vec<ProvenanceRecord> {
+        Self::get_provenance(env, token_id)
     }
 }
