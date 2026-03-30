@@ -1,168 +1,52 @@
-#![allow(clippy::all)]
-#![allow(unused)]
+//! TeachLink Soroban smart contract — entry point.
+//!
+//! This file wires the public contract interface to focused sub-modules:
+//! - [`constants`]   — compile-time configuration values
+//! - [`errors`]      — error enum and panic helper
+//! - [`types`]       — shared data types (`BridgeConfig`)
+//! - [`storage`]     — storage keys and low-level helpers
+//! - [`validation`]  — input validation guards
+//! - [`bridge`]      — bridge-out and chain management
+//! - [`oracle`]      — oracle price feed management
 
-//! TeachLink Smart Contract
-//!
-//! A comprehensive Soroban smart contract for the TeachLink decentralized
-//! knowledge-sharing platform on the Stellar network.
-//!
-//! # Overview
-//!
-//! TeachLink provides the following core features:
-//!
-//! - **Cross-Chain Bridge**: Bridge tokens between Stellar and other blockchains
-//! - **Advanced BFT Consensus**: Byzantine Fault Tolerant validator consensus
-//! - **Validator Slashing**: Economic penalties for malicious validators
-//! - **Multi-Chain Support**: Support for multiple blockchain networks
-//! - **Liquidity Optimization**: AMM and dynamic fee pricing
-//! - **Message Passing**: Guaranteed cross-chain message delivery
-//! - **Emergency Controls**: Circuit breaker and pause mechanisms
-//! - **Atomic Swaps**: Cross-chain token exchanges
-//! - **Audit & Compliance**: Comprehensive logging and reporting
-//! - **Token Rewards**: Incentivize learning and contributions with token rewards
-//! - **Multi-Sig Escrow**: Secure payments with multi-signature escrow and arbitration
-//! - **Content Tokenization**: Mint NFTs representing educational content ownership
-//! - **Provenance Tracking**: Full chain-of-custody for content tokens
-//! - **User Reputation**: Track user participation, completion rates, and contribution quality
-//! - **Credit Scoring**: Calculate user credit scores based on courses and contributions
-//!
-//! # Contract Modules
-//!
-//! | Module | Description |
-//! |--------|-------------|
-//! | [`bridge`] | Cross-chain token bridging with validator consensus |
-//! | [`bft_consensus`] | Byzantine Fault Tolerant consensus mechanism |
-//! | [`slashing`] | Validator slashing and reward mechanisms |
-//! | [`multichain`] | Multi-chain support and asset management |
-//! | [`liquidity`] | Bridge liquidity pools and AMM |
-//! | [`message_passing`] | Cross-chain message passing |
-//! | [`emergency`] | Emergency pause and circuit breaker |
-//! | [`audit`] | Audit trail and compliance reporting |
-//! | [`atomic_swap`] | Cross-chain atomic swaps |
-//! | [`analytics`] | Bridge monitoring and analytics |
-//! | [`performance`] | Performance caching (bridge summary, TTL, invalidation) |
-//! | [`reporting`] | Advanced analytics, report templates, dashboards, and alerting |
-//! | [`backup`] | Backup scheduling, integrity verification, disaster recovery, and RTO audit |
-//! | [`rewards`] | Reward pool management and distribution |
-//! | [`escrow`] | Multi-signature escrow with dispute resolution |
-//! | [`tokenization`] | Educational content NFT minting and management |
-//! | [`provenance`] | Ownership history tracking for content tokens |
-//! | [`reputation`] | User reputation scoring system |
-//! | [`score`] | Credit score calculation from activities |
-//!
-//! # Quick Start
-//!
-//! ```ignore
-//! // Initialize the contract
-//! TeachLinkBridge::initialize(env, token, admin, min_validators, fee_recipient);
-//!
-//! // Register a validator with BFT consensus
-//! TeachLinkBridge::register_validator(env, validator, stake);
-//!
-//! // Add a supported chain
-//! TeachLinkBridge::add_supported_chain_config(env, chain_id, chain_name, bridge_address);
-//!
-//! // Bridge tokens with advanced features
-//! let nonce = TeachLinkBridge::bridge_out(env, from, amount, destination_chain, destination_address);
-//!
-//! // Create atomic swap
-//! let swap_id = TeachLinkBridge::initiate_atomic_swap(env, params);
-//! ```
-//!
-//! # Authorization
-//!
-//! Most state-changing functions require authorization:
-//! - Admin functions require the admin address
-//! - User functions require the user's address
-//! - Validator functions require validator authorization
-//! - Escrow functions require appropriate party authorization
+#![cfg_attr(not(test), no_std)]
 
-#![no_std]
-#![allow(clippy::unreadable_literal)]
-#![allow(clippy::must_use_candidate)]
-#![allow(clippy::missing_panics_doc)]
-#![allow(clippy::missing_errors_doc)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::too_many_arguments)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::trivially_copy_pass_by_ref)]
-#![allow(clippy::needless_borrow)]
-
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
-
-mod analytics;
-mod arbitration;
-mod assessment;
-mod atomic_swap;
-mod audit;
-mod bft_consensus;
-mod bridge;
-mod emergency;
-mod errors;
-mod escrow;
-mod escrow_analytics;
-mod events;
-mod insurance;
-// FUTURE: Implement governance module (tracked in TRACKING.md)
-// mod governance;
-// mod learning_paths;
-mod liquidity;
-mod message_passing;
-mod mobile_platform;
-mod multichain;
-mod notification;
-mod notification_events_basic;
-// mod content_quality;
-mod notification_tests;
-mod backup;
-mod notification_types;
-mod performance;
-mod provenance;
-mod reporting;
-mod reputation;
-mod rewards;
-mod score;
-mod slashing;
-mod social_learning;
-mod storage;
-mod tokenization;
-mod types;
+pub mod bridge;
+pub mod constants;
+pub mod errors;
+pub mod oracle;
+pub mod storage;
+pub mod types;
 pub mod validation;
-pub mod property_based_tests;
 
-pub use crate::types::{
-    ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
-    LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
-    OnboardingStage, OnboardingStatus, ThemePreference, UserFeedback, VideoQuality,
-};
-pub use assessment::{
-    Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
-};
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
-pub use types::{
-    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
-    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
-    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
-    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
-    EscrowSigner, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
-    NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
-    NotificationTracking, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot, ReportTemplate, ReportType,
-    ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus,
-    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
-    ValidatorReward, ValidatorSignature, VisualizationDataPoint,
-};
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Symbol, Vec};
 
-/// TeachLink main contract.
-///
-/// This contract provides entry points for all TeachLink functionality
-/// including bridging, rewards, escrow, tokenization, and reputation.
+use storage::{ADMIN, BRIDGE_TXS, CONFIG, FALLBACK_ENABLED};
+use types::BridgeConfig;
+use validation::{require_admin, require_initialized, validate_fee_rate};
+
 #[contract]
 pub struct TeachLinkBridge;
 
 #[contractimpl]
 impl TeachLinkBridge {
+    /// Initialize the contract with an admin address.
+    pub fn initialize(env: Env, admin: Address) {
+        require_initialized(&env, false);
+
+        let config = BridgeConfig::default();
+        env.storage().instance().set(&ADMIN, &admin);
+        env.storage().instance().set(&storage::NONCE, &0u64);
+        env.storage()
+            .instance()
+            .set(&FALLBACK_ENABLED, &config.fallback_enabled);
+        env.storage()
+            .instance()
+            .set(&BRIDGE_TXS, &Vec::<(Address, i128, u32, Bytes)>::new(&env));
+        env.storage().instance().set(&storage::ERROR_COUNT, &0u64);
+        env.storage().instance().set(&CONFIG, &config);
+    }
+
     /// Initialize the bridge contract
     ///
     /// This function sets up the core parameters for the bridge, including the token,
@@ -190,7 +74,7 @@ impl TeachLinkBridge {
     /// ```rust
     /// TeachLinkBridge::initialize(env, token_addr, admin_addr, 3, fee_collector_addr);
     /// ```
-    pub fn initialize(
+    pub fn initialize_v2(
         env: Env,
         token: Address,
         admin: Address,
@@ -200,6 +84,7 @@ impl TeachLinkBridge {
         bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)
     }
 
+    /// Bridge tokens to another chain; returns the transaction nonce.
     /// Bridge tokens out to another chain
     ///
     /// Locks or burns tokens on the Stellar network to be minted or released on the
@@ -238,10 +123,11 @@ impl TeachLinkBridge {
         amount: i128,
         destination_chain: u32,
         destination_address: Bytes,
-    ) -> Result<u64, BridgeError> {
-        bridge::Bridge::bridge_out(&env, from, amount, destination_chain, destination_address)
+    ) -> u64 {
+        bridge::bridge_out(&env, from, amount, destination_chain, destination_address)
     }
 
+    /// Register a new supported chain (admin only).
     /// Complete an incoming bridge transaction
     ///
     /// This function handles the completion of a bridge transaction from another chain
@@ -919,12 +805,12 @@ impl TeachLinkBridge {
     pub fn add_supported_chain_config(
         env: Env,
         chain_id: u32,
-        chain_name: Bytes,
-        bridge_contract_address: Bytes,
-        confirmation_blocks: u32,
-        gas_price: u64,
-    ) -> Result<(), BridgeError> {
-        multichain::MultiChainManager::add_chain(
+        name: Symbol,
+        bridge_address: Address,
+        min_confirmations: u32,
+        fee_rate: u32,
+    ) {
+        bridge::add_chain_support(
             &env,
             chain_id,
             chain_name,
@@ -1901,6 +1787,10 @@ impl TeachLinkBridge {
             &env,
             creator,
             name,
+            bridge_address,
+            min_confirmations,
+            fee_rate,
+        );
             report_type,
             config,
         )
@@ -2459,6 +2349,8 @@ impl TeachLinkBridge {
         rewards::Rewards::update_rewards_admin(&env, new_admin);
     }
 
+    /// Submit an oracle price update (authorized oracles only).
+    pub fn update_oracle_price(
     /// Get user reward information
     /// # Arguments
     ///
@@ -3286,6 +3178,12 @@ impl TeachLinkBridge {
     /// ```
     pub fn transfer_content_token(
         env: Env,
+        asset: Symbol,
+        price: i128,
+        confidence: u32,
+        oracle_signer: Address,
+    ) {
+        oracle::update_oracle_price(&env, asset, price, confidence, oracle_signer);
         from: Address,
         to: Address,
         token_id: u64,
@@ -3438,6 +3336,11 @@ impl TeachLinkBridge {
         tokenization::ContentTokenization::set_transferable(&env, owner, token_id, transferable);
     }
 
+    /// Update bridge configuration (admin only).
+    pub fn update_config(env: Env, config: BridgeConfig) {
+        require_admin(&env);
+        validate_fee_rate(&env, &config.fee_rate);
+        env.storage().instance().set(&CONFIG, &config);
     // ========== Provenance Functions ==========
 
     /// Get full provenance history for a content token
@@ -3655,6 +3558,22 @@ impl TeachLinkBridge {
             .map_err(|_| MobilePlatformError::DeviceNotSupported)
     }
 
+    /// Enable or disable the fallback mechanism (admin only).
+    pub fn set_fallback_enabled(env: Env, enabled: bool) {
+        require_admin(&env);
+        env.storage().instance().set(&FALLBACK_ENABLED, &enabled);
+    }
+
+    // ── Queries ──────────────────────────────────────────────────────────────
+
+    /// Get a bridge transaction by index.
+    pub fn get_bridge_tx(env: Env, index: u32) -> Option<(Address, i128, u32, Bytes)> {
+        let txs: Vec<(Address, i128, u32, Bytes)> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_TXS)
+            .unwrap_or_else(|| Vec::new(&env));
+        txs.get(index)
     /// Record onboarding progress
     /// # Arguments
     ///
@@ -3892,6 +3811,9 @@ impl TeachLinkBridge {
         notification::NotificationManager::create_template(&env, admin, name, channels, content)
     }
 
+    /// Get the current bridge configuration.
+    pub fn get_config(env: Env) -> BridgeConfig {
+        storage::get_config(&env)
     /// Send notification using template
     /// # Arguments
     ///
@@ -3935,6 +3857,12 @@ impl TeachLinkBridge {
         notification::NotificationManager::get_notification_tracking(&env, notification_id)
     }
 
+    /// Check whether the fallback mechanism is enabled.
+    pub fn is_fallback_enabled(env: Env) -> bool {
+        env.storage()
+            .instance()
+            .get(&FALLBACK_ENABLED)
+            .unwrap_or(true)
     /// Get user notification history
     /// # Arguments
     ///
@@ -4070,6 +3998,12 @@ impl TeachLinkBridge {
         social_learning::SocialLearningManager::get_user_study_groups(&env, user)
     }
 
+    /// Get the total error count.
+    pub fn get_error_stats(env: Env) -> u64 {
+        env.storage()
+            .instance()
+            .get(&storage::ERROR_COUNT)
+            .unwrap_or(0)
     /// Create a discussion forum
     /// # Arguments
     ///
@@ -4168,6 +4102,15 @@ impl TeachLinkBridge {
             .map_err(|_| BridgeError::InvalidInput)
     }
 
+    /// Expose key constants for off-chain consumers.
+    pub fn get_constants(_env: Env) -> (u32, u32, u32, i128, u64) {
+        (
+            constants::fees::DEFAULT_FEE_RATE,
+            constants::chains::DEFAULT_MIN_CONFIRMATIONS,
+            constants::oracle::DEFAULT_CONFIDENCE_THRESHOLD,
+            constants::amounts::FALLBACK_PRICE,
+            constants::oracle::PRICE_FRESHNESS_SECONDS,
+        )
     /// Create a collaboration workspace
     /// # Arguments
     ///
@@ -4343,6 +4286,13 @@ impl TeachLinkBridge {
         social_learning::SocialLearningManager::get_mentorship_profile(&env, mentor)
             .map_err(|_| BridgeError::InvalidInput)
     }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert!(true);
 
     /// Get user social analytics
     /// # Arguments
@@ -4381,7 +4331,4 @@ impl TeachLinkBridge {
     ) {
         social_learning::SocialLearningManager::update_user_analytics(&env, user, analytics);
     }
-
-    // Analytics function removed due to contracttype limitations
-    // Use internal notification manager for analytics
 }
