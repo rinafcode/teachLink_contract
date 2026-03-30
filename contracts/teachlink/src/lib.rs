@@ -1,5 +1,101 @@
 //! TeachLink Soroban smart contract — entry point.
 //!
+//! // Create atomic swap
+//! let swap_id = TeachLinkBridge::initiate_atomic_swap(env, params);
+//! ```
+//!
+//! # Authorization
+//!
+//! Most state-changing functions require authorization:
+//! - Admin functions require the admin address
+//! - User functions require the user's address
+//! - Validator functions require validator authorization
+//! - Escrow functions require appropriate party authorization
+
+#![no_std]
+#![allow(clippy::unreadable_literal)]
+#![allow(clippy::must_use_candidate)]
+#![allow(clippy::missing_panics_doc)]
+#![allow(clippy::missing_errors_doc)]
+#![allow(clippy::needless_pass_by_value)]
+#![allow(clippy::too_many_arguments)]
+#![allow(clippy::doc_markdown)]
+#![allow(clippy::trivially_copy_pass_by_ref)]
+#![allow(clippy::needless_borrow)]
+
+use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
+
+mod analytics;
+mod arbitration;
+mod assessment;
+mod atomic_swap;
+mod audit;
+mod bft_consensus;
+mod bridge;
+mod emergency;
+mod errors;
+mod escrow;
+mod escrow_analytics;
+mod events;
+mod insurance;
+// FUTURE: Implement governance module (tracked in TRACKING.md)
+// mod governance;
+// mod learning_paths;
+mod liquidity;
+mod message_passing;
+mod mobile_platform;
+mod multichain;
+mod notification;
+mod notification_events_basic;
+// mod content_quality;
+// NOTE: notification_tests disabled — tests access storage outside contract
+// context (missing env.as_contract wrapper). See Issue #162.
+// mod notification_tests;
+mod backup;
+mod notification_types;
+mod performance;
+mod provenance;
+mod reporting;
+mod reputation;
+mod rewards;
+mod score;
+mod slashing;
+mod social_learning;
+mod storage;
+mod tokenization;
+mod types;
+pub mod validation;
+pub mod property_based_tests;
+
+pub use crate::types::{
+    ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
+    LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
+    OnboardingStage, OnboardingStatus, ThemePreference, UserFeedback, VideoQuality,
+};
+pub use assessment::{
+    Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
+};
+pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use types::{
+    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
+    BackupSchedule, BridgeFeeStructure, BridgeMetrics, BridgeProposal, BridgeTransaction,
+    CachedBridgeSummary, ChainConfig, ChainMetrics, CircuitBreaker, ComplianceReport,
+    ConsensusState, ContentMetadata, ContentToken, ContentTokenParameters, ContentType,
+    Contribution, ContributionType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
+    EscrowSigner, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
+    NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
+    NotificationTracking, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
+    RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot, ReportTemplate, ReportType,
+    ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus,
+    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
+    ValidatorReward, ValidatorSignature, VisualizationDataPoint,
+};
+
+/// TeachLink main contract.
+///
+/// This contract provides entry points for all TeachLink functionality
+/// including bridging, rewards, escrow, tokenization, and reputation.
 
 pub mod validation;
 
@@ -1033,6 +1129,16 @@ impl TeachLinkBridge {
         liquidity::LiquidityManager::get_available_liquidity(&env, chain_id)
     }
 
+    /// Get fee structure
+    pub fn get_fee_structure(env: Env) -> BridgeFeeStructure {
+        liquidity::LiquidityManager::get_fee_structure(&env)
+    }
+
+    /// Check if pool has sufficient liquidity
+    pub fn has_sufficient_liquidity(env: Env, chain_id: u32, amount: i128) -> bool {
+        liquidity::LiquidityManager::has_sufficient_liquidity(&env, chain_id, amount)
+    }
+
     // ========== Message Passing Functions ==========
 
     /// Send a cross-chain packet
@@ -1380,6 +1486,47 @@ impl TeachLinkBridge {
         emergency::EmergencyManager::get_emergency_state(&env)
     }
 
+    /// Check circuit breaker for a transaction
+    pub fn check_circuit_breaker(env: Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::check_circuit_breaker(&env, chain_id, amount)
+    }
+
+    /// Reset circuit breaker for a chain
+    pub fn reset_circuit_breaker(
+        env: Env,
+        chain_id: u32,
+        resetter: Address,
+    ) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::reset_circuit_breaker(&env, chain_id, resetter)
+    }
+
+    /// Get circuit breaker state
+    pub fn get_circuit_breaker(env: Env, chain_id: u32) -> Option<CircuitBreaker> {
+        emergency::EmergencyManager::get_circuit_breaker(&env, chain_id)
+    }
+
+    /// Get all paused chains
+    pub fn get_paused_chains(env: Env) -> Vec<u32> {
+        emergency::EmergencyManager::get_paused_chains(&env)
+    }
+
+    /// Update circuit breaker limits
+    pub fn update_circuit_breaker_limits(
+        env: Env,
+        chain_id: u32,
+        max_daily_volume: i128,
+        max_transaction_amount: i128,
+        updater: Address,
+    ) -> Result<(), BridgeError> {
+        emergency::EmergencyManager::update_circuit_breaker_limits(
+            &env,
+            chain_id,
+            max_daily_volume,
+            max_transaction_amount,
+            updater,
+        )
+    }
+
     // ========== Audit and Compliance Functions ==========
 
     /// Create an audit record
@@ -1458,6 +1605,73 @@ impl TeachLinkBridge {
     /// ```
     pub fn get_compliance_report(env: Env, report_id: u64) -> Option<ComplianceReport> {
         audit::AuditManager::get_compliance_report(&env, report_id)
+    }
+
+    /// Get audit record count
+    pub fn get_audit_count(env: Env) -> u64 {
+        audit::AuditManager::get_audit_count(&env)
+    }
+
+    /// Get audit records by operation type
+    pub fn get_audit_records_by_type(
+        env: Env,
+        operation_type: types::OperationType,
+    ) -> Vec<AuditRecord> {
+        audit::AuditManager::get_audit_records_by_type(&env, operation_type)
+    }
+
+    /// Get audit records by operator
+    pub fn get_audit_records_by_operator(env: Env, operator: Address) -> Vec<AuditRecord> {
+        audit::AuditManager::get_audit_records_by_operator(&env, operator)
+    }
+
+    /// Get audit records by time range
+    pub fn get_audit_records_by_time(env: Env, start_time: u64, end_time: u64) -> Vec<AuditRecord> {
+        audit::AuditManager::get_audit_records_by_time(&env, start_time, end_time)
+    }
+
+    /// Get recent audit records
+    pub fn get_recent_audit_records(env: Env, count: u32) -> Vec<AuditRecord> {
+        audit::AuditManager::get_recent_audit_records(&env, count)
+    }
+
+    /// Clear old audit records
+    pub fn clear_old_records(
+        env: Env,
+        before_timestamp: u64,
+        admin: Address,
+    ) -> Result<u32, BridgeError> {
+        audit::AuditManager::clear_old_records(&env, before_timestamp, admin)
+    }
+
+    /// Log bridge operation
+    pub fn log_bridge_operation(
+        env: Env,
+        is_outgoing: bool,
+        operator: Address,
+        amount: i128,
+        chain_id: u32,
+        tx_hash: Bytes,
+    ) -> Result<u64, BridgeError> {
+        audit::AuditManager::log_bridge_operation(
+            &env,
+            is_outgoing,
+            operator,
+            amount,
+            chain_id,
+            tx_hash,
+        )
+    }
+
+    /// Log emergency operation
+    pub fn log_emergency_operation(
+        env: Env,
+        is_pause: bool,
+        operator: Address,
+        reason: Bytes,
+        tx_hash: Bytes,
+    ) -> Result<u64, BridgeError> {
+        audit::AuditManager::log_emergency_operation(&env, is_pause, operator, reason, tx_hash)
     }
 
     // ========== Atomic Swap Functions ==========
