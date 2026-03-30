@@ -30,20 +30,6 @@ pub struct NotificationManager;
 
 impl NotificationManager {
     /// Initialize notification system
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize(...);
-    /// ```
     pub fn initialize(env: &Env) -> Result<(), BridgeError> {
         if env.storage().instance().has(&NOTIFICATION_COUNTER) {
             return Err(BridgeError::AlreadyInitialized);
@@ -98,16 +84,6 @@ impl NotificationManager {
     }
 
     /// Send immediate notification
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // send_notification(...);
-    /// ```
     pub fn send_notification(
         env: &Env,
         recipient: Address,
@@ -161,16 +137,6 @@ impl NotificationManager {
     }
 
     /// Schedule notification for future delivery
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // schedule_notification(...);
-    /// ```
     pub fn schedule_notification(
         env: &Env,
         recipient: Address,
@@ -261,20 +227,6 @@ impl NotificationManager {
     }
 
     /// Process scheduled notifications
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // process_scheduled_notifications(...);
-    /// ```
     pub fn process_scheduled_notifications(env: &Env) -> Result<u32, BridgeError> {
         let current_time = env.ledger().timestamp();
         let scheduled_map: Map<u64, NotificationSchedule> = env
@@ -369,16 +321,6 @@ impl NotificationManager {
     }
 
     /// Update user notification preferences
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_preferences(...);
-    /// ```
     pub fn update_preferences(
         env: &Env,
         user: Address,
@@ -414,16 +356,6 @@ impl NotificationManager {
     }
 
     /// Update user notification settings
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_user_settings(...);
-    /// ```
     pub fn update_user_settings(
         env: &Env,
         user: Address,
@@ -446,16 +378,6 @@ impl NotificationManager {
     }
 
     /// Create notification template
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_template(...);
-    /// ```
     pub fn create_template(
         env: &Env,
         admin: Address,
@@ -493,16 +415,6 @@ impl NotificationManager {
     }
 
     /// Send notification using template
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // send_template_notification(...);
-    /// ```
     pub fn send_template_notification(
         env: &Env,
         recipient: Address,
@@ -548,16 +460,6 @@ impl NotificationManager {
     }
 
     /// Get notification tracking information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_notification_tracking(...);
-    /// ```
     pub fn get_notification_tracking(
         env: &Env,
         notification_id: u64,
@@ -571,16 +473,6 @@ impl NotificationManager {
     }
 
     /// Get user notification history
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_notifications(...);
-    /// ```
     pub fn get_user_notifications(
         env: &Env,
         user: Address,
@@ -609,16 +501,6 @@ impl NotificationManager {
     }
 
     /// Get notification analytics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_notification_analytics(...);
-    /// ```
     pub fn get_notification_analytics(
         env: &Env,
         start_time: u64,

@@ -25,16 +25,6 @@ pub struct MessagePassing;
 
 impl MessagePassing {
     /// Send a cross-chain packet
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // send_packet(...);
-    /// ```
     pub fn send_packet(
         env: &Env,
         source_chain: u32,
@@ -124,16 +114,6 @@ impl MessagePassing {
     }
 
     /// Mark a packet as delivered
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // deliver_packet(...);
-    /// ```
     pub fn deliver_packet(
         env: &Env,
         packet_id: u64,
@@ -197,20 +177,6 @@ impl MessagePassing {
     }
 
     /// Mark a packet as failed
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // fail_packet(...);
-    /// ```
     pub fn fail_packet(env: &Env, packet_id: u64, reason: Bytes) -> Result<(), BridgeError> {
         // Get packet
         let mut packets: Map<u64, CrossChainPacket> = env
@@ -237,20 +203,6 @@ impl MessagePassing {
     }
 
     /// Retry a failed packet
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // retry_packet(...);
-    /// ```
     pub fn retry_packet(env: &Env, packet_id: u64) -> Result<(), BridgeError> {
         // Get packet
         let mut packets: Map<u64, CrossChainPacket> = env
@@ -309,20 +261,6 @@ impl MessagePassing {
     }
 
     /// Check and timeout expired packets
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // check_timeouts(...);
-    /// ```
     pub fn check_timeouts(env: &Env) -> Result<Vec<u64>, BridgeError> {
         let packets: Map<u64, CrossChainPacket> = env
             .storage()
@@ -358,20 +296,6 @@ impl MessagePassing {
     }
 
     /// Get packet by ID
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packet(...);
-    /// ```
     pub fn get_packet(env: &Env, packet_id: u64) -> Option<CrossChainPacket> {
         let packets: Map<u64, CrossChainPacket> = env
             .storage()
@@ -382,20 +306,6 @@ impl MessagePassing {
     }
 
     /// Get packet receipt
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_receipt(...);
-    /// ```
     pub fn get_receipt(env: &Env, packet_id: u64) -> Option<MessageReceipt> {
         let receipts: Map<u64, MessageReceipt> = env
             .storage()
@@ -406,20 +316,6 @@ impl MessagePassing {
     }
 
     /// Get packets by status
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packets_by_status(...);
-    /// ```
     pub fn get_packets_by_status(env: &Env, status: PacketStatus) -> Vec<u64> {
         let packets: Map<u64, CrossChainPacket> = env
             .storage()
@@ -437,20 +333,6 @@ impl MessagePassing {
     }
 
     /// Get pending packets for a chain
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_pending_packets_for_chain(...);
-    /// ```
     pub fn get_pending_packets_for_chain(env: &Env, destination_chain: u32) -> Vec<u64> {
         let packets: Map<u64, CrossChainPacket> = env
             .storage()
@@ -471,20 +353,6 @@ impl MessagePassing {
     }
 
     /// Verify packet delivery
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // verify_delivery(...);
-    /// ```
     pub fn verify_delivery(env: &Env, packet_id: u64) -> bool {
         if let Some(packet) = Self::get_packet(env, packet_id) {
             packet.status == PacketStatus::Delivered
@@ -493,22 +361,6 @@ impl MessagePassing {
         }
     }
 
-    /// Standard API for get_packet_retry_count
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packet_retry_count(...);
-    /// ```
     pub fn get_packet_retry_count(env: &Env, packet_id: u64) -> u32 {
         let retry_counts: Map<u64, u32> = env
             .storage()
@@ -519,20 +371,6 @@ impl MessagePassing {
     }
 
     /// Get packet count
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packet_count(...);
-    /// ```
     pub fn get_packet_count(env: &Env) -> u64 {
         env.storage()
             .instance()
@@ -541,20 +379,6 @@ impl MessagePassing {
     }
 
     /// Get all packets for a sender
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packets_by_sender(...);
-    /// ```
     pub fn get_packets_by_sender(env: &Env, sender: Bytes) -> Vec<u64> {
         let packets: Map<u64, CrossChainPacket> = env
             .storage()
@@ -572,20 +396,6 @@ impl MessagePassing {
     }
 
     /// Get all packets for a recipient
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packets_by_recipient(...);
-    /// ```
     pub fn get_packets_by_recipient(env: &Env, recipient: Bytes) -> Vec<u64> {
         let packets: Map<u64, CrossChainPacket> = env
             .storage()

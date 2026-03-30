@@ -1,76 +1,139 @@
-//! Error types and panic helper for the TeachLink contract.
+use soroban_sdk::contracterror;
 
-use soroban_sdk::{symbol_short, Env};
-
-/// All recoverable error conditions in the contract.
-#[derive(Clone, Debug)]
-pub enum TeachLinkError {
-    Unauthorized,
-    InvalidAmount,
-    InvalidAddress,
-    ChainNotSupported,
-    RateLimitExceeded,
-    InsufficientBalance,
-    BridgeFailed,
-    NotInitialized,
-    InvalidChainId,
-    FeeTooHigh,
-    ChainExists,
-    InvalidPrice,
-    InvalidConfidence,
-    UnauthorizedOracle,
+/// Bridge module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum BridgeError {
+    AlreadyInitialized = 100,
+    AmountMustBePositive = 101,
+    DestinationChainNotSupported = 102,
+    InsufficientValidatorSignatures = 103,
+    InvalidValidatorSignature = 104,
+    NonceAlreadyProcessed = 105,
+    TokenMismatch = 106,
+    BridgeTransactionNotFound = 107,
+    TimeoutNotReached = 108,
+    FeeCannotBeNegative = 109,
+    MinimumValidatorsMustBeAtLeastOne = 110,
+    // BFT Consensus Errors
+    ProposalNotFound = 111,
+    ProposalAlreadyVoted = 112,
+    ProposalExpired = 113,
+    InsufficientStake = 114,
+    InsufficientBalance = 115,
+    ValidatorNotActive = 116,
+    ByzantineThresholdNotMet = 117,
+    // Slashing Errors
+    ValidatorAlreadySlashed = 118,
+    InvalidSlashingEvidence = 119,
+    CannotSlashSelf = 120,
+    // Multi-Chain Errors
+    ChainNotActive = 121,
+    AssetNotSupported = 122,
+    InvalidChainConfiguration = 123,
+    // Liquidity Errors
+    InsufficientLiquidity = 124,
+    SlippageExceeded = 125,
+    InvalidLPAmount = 126,
+    // Emergency Errors
+    BridgePaused = 127,
+    ChainPaused = 128,
+    UnauthorizedPause = 129,
+    CircuitBreakerTriggered = 130,
+    // Message Passing Errors
+    PacketNotFound = 131,
+    PacketTimeout = 132,
+    InvalidPayload = 133,
+    // Atomic Swap Errors
+    SwapNotFound = 134,
+    InvalidHashlock = 135,
+    TimelockExpired = 136,
+    SwapAlreadyCompleted = 137,
+    // General Errors
+    Unauthorized = 138,
+    InvalidInput = 139,
+    RetryLimitExceeded = 140,
+    RetryBackoffActive = 141,
+    BridgeTransactionFailed = 142,
 }
 
-/// Increment the error counter and panic with a descriptive symbol.
-pub fn handle_error(env: &Env, error: TeachLinkError) -> ! {
-    use crate::storage::ERROR_COUNT;
-
-    let mut count: u64 = env.storage().instance().get(&ERROR_COUNT).unwrap_or(0);
-    count += 1;
-    env.storage().instance().set(&ERROR_COUNT, &count);
-
-    match error {
-        TeachLinkError::Unauthorized => {
-            env.panic_with_error_data(&symbol_short!("unauth"), "Unauthorized access")
-        }
-        TeachLinkError::InvalidAmount => {
-            env.panic_with_error_data(&symbol_short!("inv_amt"), "Invalid amount")
-        }
-        TeachLinkError::InvalidAddress => {
-            env.panic_with_error_data(&symbol_short!("inv_addr"), "Invalid address")
-        }
-        TeachLinkError::ChainNotSupported => {
-            env.panic_with_error_data(&symbol_short!("no_chain"), "Chain not supported")
-        }
-        TeachLinkError::RateLimitExceeded => {
-            env.panic_with_error_data(&symbol_short!("rate_lim"), "Rate limit exceeded")
-        }
-        TeachLinkError::InsufficientBalance => {
-            env.panic_with_error_data(&symbol_short!("no_bal"), "Insufficient balance")
-        }
-        TeachLinkError::BridgeFailed => {
-            env.panic_with_error_data(&symbol_short!("br_fail"), "Bridge operation failed")
-        }
-        TeachLinkError::NotInitialized => {
-            env.panic_with_error_data(&symbol_short!("no_init"), "Contract not initialized")
-        }
-        TeachLinkError::InvalidChainId => {
-            env.panic_with_error_data(&symbol_short!("inv_chn"), "Invalid chain ID")
-        }
-        TeachLinkError::FeeTooHigh => {
-            env.panic_with_error_data(&symbol_short!("fee_hi"), "Fee rate too high")
-        }
-        TeachLinkError::ChainExists => {
-            env.panic_with_error_data(&symbol_short!("chn_ex"), "Chain already exists")
-        }
-        TeachLinkError::InvalidPrice => {
-            env.panic_with_error_data(&symbol_short!("inv_prc"), "Invalid price")
-        }
-        TeachLinkError::InvalidConfidence => {
-            env.panic_with_error_data(&symbol_short!("inv_conf"), "Invalid confidence")
-        }
-        TeachLinkError::UnauthorizedOracle => {
-            env.panic_with_error_data(&symbol_short!("unauth_or"), "Unauthorized oracle")
-        }
-    }
+/// Escrow module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum EscrowError {
+    AmountMustBePositive = 200,
+    AtLeastOneSignerRequired = 201,
+    InvalidSignerThreshold = 202,
+    RefundTimeMustBeInFuture = 203,
+    RefundTimeMustBeAfterReleaseTime = 204,
+    DuplicateSigner = 205,
+    SignerNotAuthorized = 206,
+    SignerAlreadyApproved = 207,
+    CallerNotAuthorized = 208,
+    InsufficientApprovals = 209,
+    ReleaseTimeNotReached = 210,
+    OnlyDepositorCanRefund = 211,
+    RefundNotEnabled = 212,
+    RefundTimeNotReached = 213,
+    OnlyDepositorCanCancel = 214,
+    CannotCancelAfterApprovals = 215,
+    OnlyDepositorOrBeneficiaryCanDispute = 216,
+    EscrowNotInDispute = 217,
+    OnlyArbitratorCanResolve = 218,
+    EscrowNotPending = 219,
+    EscrowNotFound = 220,
+    ArbitratorNotAuthorized = 221,
 }
+
+/// Rewards module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RewardsError {
+    AlreadyInitialized = 300,
+    AmountMustBePositive = 301,
+    InsufficientRewardPoolBalance = 302,
+    NoRewardsAvailable = 303,
+    NoPendingRewards = 304,
+    RateCannotBeNegative = 305,
+}
+
+/// Mobile platform module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum MobilePlatformError {
+    DeviceNotSupported = 400,
+    InsufficientStorage = 401,
+    NetworkUnavailable = 402,
+    AuthenticationFailed = 403,
+    SyncFailed = 404,
+    PaymentFailed = 405,
+    SecurityViolation = 406,
+    FeatureNotAvailable = 407,
+}
+
+/// Common errors that can be used across modules
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum CommonError {
+    Unauthorized = 400,
+    InvalidInput = 401,
+    InsufficientBalance = 402,
+    TransferFailed = 403,
+    StorageError = 404,
+}
+
+/// Result type alias for bridge operations
+#[allow(dead_code)]
+pub type BridgeResult<T> = core::result::Result<T, BridgeError>;
+
+/// Result type alias for escrow operations
+#[allow(dead_code)]
+pub type EscrowResult<T> = core::result::Result<T, EscrowError>;
+
+/// Result type alias for rewards operations
+#[allow(dead_code)]
+pub type RewardsResult<T> = core::result::Result<T, RewardsError>;
+
+/// Result type alias for common operations
+#[allow(dead_code)]
+pub type CommonResult<T> = core::result::Result<T, CommonError>;
