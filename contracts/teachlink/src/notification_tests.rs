@@ -7,6 +7,7 @@ pub mod notification_tests {
     use crate::notification::*;
     use crate::notification_types::*;
     use crate::storage::*;
+    use soroban_sdk::testutils::Address as _;
     use soroban_sdk::{Address, Bytes, Env, Map, String, Vec};
 
     // Helper function to create test addresses
