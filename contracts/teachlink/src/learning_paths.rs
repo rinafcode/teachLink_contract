@@ -449,16 +449,6 @@ pub struct LearningPathManager;
 
 impl LearningPathManager {
     /// Generate AI-powered learning path based on user goals and profile
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // generate_learning_path(...);
-    /// ```
     pub fn generate_learning_path(
         env: &Env,
         user: Address,
@@ -543,16 +533,6 @@ impl LearningPathManager {
     }
 
     /// Adapt learning path based on performance and feedback
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // adapt_learning_path(...);
-    /// ```
     pub fn adapt_learning_path(
         env: &Env,
         user: Address,
@@ -577,16 +557,6 @@ impl LearningPathManager {
     }
 
     /// Create collaborative learning path
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_collaborative_path(...);
-    /// ```
     pub fn create_collaborative_path(
         env: &Env,
         creator: Address,
@@ -622,16 +592,6 @@ impl LearningPathManager {
     }
 
     /// Issue certification for completed learning path
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // issue_certification(...);
-    /// ```
     pub fn issue_certification(
         env: &Env,
         user: Address,

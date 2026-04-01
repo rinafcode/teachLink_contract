@@ -205,6 +205,8 @@ Closes #42
 - Use `cargo fmt` for formatting
 - Address all `cargo clippy` warnings
 - Write self-documenting code with clear naming
+- Follow naming standards in [`docs/NAMING_CONVENTIONS.md`](docs/NAMING_CONVENTIONS.md)
+- For TypeScript modules, run `npm run lint` in `indexer/` to enforce naming conventions
 
 ### Testing Requirements
 

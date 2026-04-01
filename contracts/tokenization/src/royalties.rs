@@ -10,22 +10,6 @@ mod royalty_manager {
     }
 
     impl RoyaltyManager {
-        /// Standard API for new
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Returns
-        ///
-        /// * The return value of the function.
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // new(...);
-        /// ```
         #[ink(constructor)]
         pub fn new() -> Self {
             Self {
@@ -33,35 +17,11 @@ mod royalty_manager {
             }
         }
 
-        /// Standard API for set_shares
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // set_shares(...);
-        /// ```
         #[ink(message)]
         pub fn set_shares(&mut self, token_id: u32, recipients: Vec<(AccountId, u8)>) {
             self.shares.insert(token_id, &recipients);
         }
 
-        /// Standard API for distribute
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // distribute(...);
-        /// ```
         #[ink(message)]
         pub fn distribute(&self, token_id: u32, amount: u128) {
             if let Some(recipients) = self.shares.get(token_id) {

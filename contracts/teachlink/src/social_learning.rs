@@ -200,6 +200,168 @@ pub enum ReviewContentType {
     Resource,
 }
 
+/// Parameter struct for creating a study group
+/// Replaces the 9-parameter function signature
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CreateStudyGroupParams {
+    pub creator: Address,
+    pub name: Bytes,
+    pub description: Bytes,
+    pub subject: Bytes,
+    pub max_members: u32,
+    pub is_private: bool,
+    pub tags: Vec<Bytes>,
+    pub settings: StudyGroupSettings,
+}
+
+impl CreateStudyGroupParams {
+    /// Builder pattern for creating study group parameters
+    pub fn builder(creator: Address, name: Bytes, subject: Bytes) -> CreateStudyGroupParamsBuilder {
+        CreateStudyGroupParamsBuilder {
+            creator,
+            name,
+            subject,
+            description: Bytes::new(&soroban_sdk::Env::current()),
+            max_members: 50,
+            is_private: false,
+            tags: Vec::new(&soroban_sdk::Env::current()),
+            settings: StudyGroupSettings {
+                allow_member_invites: true,
+                require_admin_approval: false,
+                enable_chat: true,
+                enable_file_sharing: true,
+                enable_video_calls: true,
+                auto_approve_members: true,
+            },
+        }
+    }
+
+    /// Validates the parameters for creating a study group
+    pub fn validate(&self) -> Result<(), SocialLearningError> {
+        // Validate name
+        if self.name.len() == 0 || self.name.len() > 100 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate description
+        if self.description.len() > 500 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate max_members
+        if self.max_members < 2 || self.max_members > 1000 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate tags
+        if self.tags.len() > 10 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        for tag in self.tags.iter() {
+            if tag.len() == 0 || tag.len() > 50 {
+                return Err(SocialLearningError::InvalidInput);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Builder for CreateStudyGroupParams
+pub struct CreateStudyGroupParamsBuilder {
+    creator: Address,
+    name: Bytes,
+    subject: Bytes,
+    description: Bytes,
+    max_members: u32,
+    is_private: bool,
+    tags: Vec<Bytes>,
+    settings: StudyGroupSettings,
+}
+
+impl CreateStudyGroupParamsBuilder {
+    pub fn description(mut self, description: Bytes) -> Self {
+        self.description = description;
+        self
+    }
+
+    pub fn max_members(mut self, max_members: u32) -> Self {
+        self.max_members = max_members;
+        self
+    }
+
+    pub fn is_private(mut self, is_private: bool) -> Self {
+        self.is_private = is_private;
+        self
+    }
+
+    pub fn tags(mut self, tags: Vec<Bytes>) -> Self {
+        self.tags = tags;
+        self
+    }
+
+    pub fn settings(mut self, settings: StudyGroupSettings) -> Self {
+        self.settings = settings;
+        self
+    }
+
+    pub fn build(self) -> CreateStudyGroupParams {
+        CreateStudyGroupParams {
+            creator: self.creator,
+            name: self.name,
+            description: self.description,
+            subject: self.subject,
+            max_members: self.max_members,
+            is_private: self.is_private,
+            tags: self.tags,
+            settings: self.settings,
+        }
+    }
+}
+
+/// Parameter struct for creating a peer review
+/// Replaces the 8-parameter function signature
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CreatePeerReviewParams {
+    pub reviewer: Address,
+    pub reviewee: Address,
+    pub content_type: ReviewContentType,
+    pub content_id: u64,
+    pub rating: u32,
+    pub feedback: Bytes,
+    pub criteria: Map<Bytes, u32>,
+}
+
+impl CreatePeerReviewParams {
+    /// Validates the peer review parameters
+    pub fn validate(&self) -> Result<(), SocialLearningError> {
+        // Validate rating (must be 1-5)
+        if self.rating < 1 || self.rating > 5 {
+            return Err(SocialLearningError::InvalidRating);
+        }
+
+        // Validate reviewer and reviewee are different
+        if self.reviewer == self.reviewee {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate feedback length
+        if self.feedback.len() == 0 ||self.feedback.len() > 5000 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate criteria
+        if self.criteria.is_empty() {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        Ok(())
+    }
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MentorshipProfile {
@@ -413,29 +575,19 @@ pub struct SocialLearningManager;
 
 impl SocialLearningManager {
     // Study Group Management
-    /// Standard API for create_study_group
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_study_group(...);
-    /// ```
+    /// Creates a new study group with validated parameters
+    /// 
+    /// Uses parameter object pattern to handle multiple parameters cleanly
+    /// and includes automatic validation of all related parameters
     pub fn create_study_group(
         env: &Env,
-        creator: Address,
-        name: Bytes,
-        description: Bytes,
-        subject: Bytes,
-        max_members: u32,
-        is_private: bool,
-        tags: Vec<Bytes>,
-        settings: StudyGroupSettings,
+        params: CreateStudyGroupParams,
     ) -> Result<u64, SocialLearningError> {
+        params.creator.require_auth();
+
+        // Validate all parameters together
+        params.validate()?;
+
         let counter: u64 = env
             .storage()
             .instance()
@@ -444,25 +596,25 @@ impl SocialLearningManager {
         let group_id = counter + 1;
 
         let mut members = Vec::new(&env);
-        members.push_back(creator.clone());
+        members.push_back(params.creator.clone());
 
         let mut admins = Vec::new(&env);
-        admins.push_back(creator.clone());
+        admins.push_back(params.creator.clone());
 
         let study_group = StudyGroup {
             id: group_id,
-            name,
-            description,
-            creator: creator.clone(),
+            name: params.name,
+            description: params.description,
+            creator: params.creator.clone(),
             members,
             admins,
-            subject,
-            max_members,
-            is_private,
+            subject: params.subject,
+            max_members: params.max_members,
+            is_private: params.is_private,
             created_at: env.ledger().timestamp(),
             last_activity: env.ledger().timestamp(),
-            tags,
-            settings,
+            tags: params.tags,
+            settings: params.settings,
         };
 
         // Store study group
@@ -493,18 +645,6 @@ impl SocialLearningManager {
         Ok(group_id)
     }
 
-    /// Standard API for join_study_group
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // join_study_group(...);
-    /// ```
     pub fn join_study_group(
         env: &Env,
         user: Address,
@@ -551,18 +691,6 @@ impl SocialLearningManager {
         Ok(())
     }
 
-    /// Standard API for leave_study_group
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // leave_study_group(...);
-    /// ```
     pub fn leave_study_group(
         env: &Env,
         user: Address,
@@ -625,22 +753,6 @@ impl SocialLearningManager {
         Ok(())
     }
 
-    /// Standard API for get_study_group
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_study_group(...);
-    /// ```
     pub fn get_study_group(env: &Env, group_id: u64) -> Result<StudyGroup, SocialLearningError> {
         let groups: Map<u64, StudyGroup> = env
             .storage()
@@ -653,22 +765,6 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::StudyGroupNotFound)
     }
 
-    /// Standard API for get_user_study_groups
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_study_groups(...);
-    /// ```
     pub fn get_user_study_groups(env: &Env, user: Address) -> Vec<u64> {
         env.storage()
             .instance()
@@ -677,18 +773,6 @@ impl SocialLearningManager {
     }
 
     // Discussion Forum Management
-    /// Standard API for create_forum
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_forum(...);
-    /// ```
     pub fn create_forum(
         env: &Env,
         creator: Address,
@@ -730,18 +814,6 @@ impl SocialLearningManager {
         Ok(forum_id)
     }
 
-    /// Standard API for create_forum_post
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_forum_post(...);
-    /// ```
     pub fn create_forum_post(
         env: &Env,
         forum_id: u64,
@@ -813,22 +885,6 @@ impl SocialLearningManager {
         Ok(post_id)
     }
 
-    /// Standard API for get_forum
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_forum(...);
-    /// ```
     pub fn get_forum(env: &Env, forum_id: u64) -> Result<DiscussionForum, SocialLearningError> {
         let forums: Map<u64, DiscussionForum> = env
             .storage()
@@ -841,22 +897,6 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::ForumNotFound)
     }
 
-    /// Standard API for get_forum_post
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_forum_post(...);
-    /// ```
     pub fn get_forum_post(env: &Env, post_id: u64) -> Result<ForumPost, SocialLearningError> {
         let posts: Map<u64, ForumPost> = env
             .storage()
@@ -868,18 +908,6 @@ impl SocialLearningManager {
     }
 
     // Collaboration Workspace Management
-    /// Standard API for create_workspace
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_workspace(...);
-    /// ```
     pub fn create_workspace(
         env: &Env,
         creator: Address,
@@ -941,18 +969,6 @@ impl SocialLearningManager {
         Ok(workspace_id)
     }
 
-    /// Standard API for get_workspace
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_workspace(...);
-    /// ```
     pub fn get_workspace(
         env: &Env,
         workspace_id: u64,
@@ -968,22 +984,6 @@ impl SocialLearningManager {
             .ok_or(SocialLearningError::WorkspaceNotFound)
     }
 
-    /// Standard API for get_user_workspaces
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_workspaces(...);
-    /// ```
     pub fn get_user_workspaces(env: &Env, user: Address) -> Vec<u64> {
         env.storage()
             .instance()
@@ -992,44 +992,31 @@ impl SocialLearningManager {
     }
 
     // Peer Review System
-    /// Standard API for create_review
+    /// Creates a peer review with validated parameters
     ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_review(...);
-    /// ```
+    /// Uses parameter object pattern for cleaner function signature
+    /// Includes validation of rating ranges and parameter consistency
     pub fn create_review(
         env: &Env,
-        reviewer: Address,
-        reviewee: Address,
-        content_type: ReviewContentType,
-        content_id: u64,
-        rating: u32,
-        feedback: Bytes,
-        criteria: Map<Bytes, u32>,
+        params: CreatePeerReviewParams,
     ) -> Result<u64, SocialLearningError> {
-        if rating < 1 || rating > 5 {
-            return Err(SocialLearningError::InvalidRating);
-        }
+        params.reviewer.require_auth();
+
+        // Validate all parameters together (includes rating checks)
+        params.validate()?;
 
         let counter: u64 = env.storage().instance().get(&REVIEW_COUNTER).unwrap_or(0);
         let review_id = counter + 1;
 
         let review = PeerReview {
             id: review_id,
-            reviewer: reviewer.clone(),
-            reviewee: reviewee.clone(),
-            content_type,
-            content_id,
-            rating,
-            feedback,
-            criteria,
+            reviewer: params.reviewer.clone(),
+            reviewee: params.reviewee.clone(),
+            content_type: params.content_type,
+            content_id: params.content_id,
+            rating: params.rating,
+            feedback: params.feedback,
+            criteria: params.criteria,
             created_at: env.ledger().timestamp(),
             is_helpful: false,
             helpful_votes: 0,
@@ -1059,22 +1046,6 @@ impl SocialLearningManager {
         Ok(review_id)
     }
 
-    /// Standard API for get_review
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_review(...);
-    /// ```
     pub fn get_review(env: &Env, review_id: u64) -> Result<PeerReview, SocialLearningError> {
         let reviews: Map<u64, PeerReview> = env
             .storage()
@@ -1088,18 +1059,6 @@ impl SocialLearningManager {
     }
 
     // Mentorship System
-    /// Standard API for create_mentorship_profile
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_mentorship_profile(...);
-    /// ```
     pub fn create_mentorship_profile(
         env: &Env,
         mentor: Address,
@@ -1140,18 +1099,6 @@ impl SocialLearningManager {
         Ok(())
     }
 
-    /// Standard API for get_mentorship_profile
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_mentorship_profile(...);
-    /// ```
     pub fn get_mentorship_profile(
         env: &Env,
         mentor: Address,
@@ -1168,22 +1115,6 @@ impl SocialLearningManager {
     }
 
     // Social Analytics
-    /// Standard API for get_user_analytics
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_analytics(...);
-    /// ```
     pub fn get_user_analytics(env: &Env, user: Address) -> SocialAnalytics {
         env.storage()
             .instance()
@@ -1203,18 +1134,6 @@ impl SocialLearningManager {
             })
     }
 
-    /// Standard API for update_user_analytics
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_user_analytics(...);
-    /// ```
     pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) {
         env.storage().instance().set(&SOCIAL_ANALYTICS, &analytics);
     }

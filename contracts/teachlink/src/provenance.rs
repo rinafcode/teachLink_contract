@@ -1,7 +1,6 @@
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
 use crate::events::ProvenanceRecordedEvent;
-use crate::interfaces::ProvenancePort;
 use crate::storage::PROVENANCE;
 use crate::types::{ProvenanceRecord, TransferType};
 
@@ -9,16 +8,6 @@ pub struct ProvenanceTracker;
 
 impl ProvenanceTracker {
     /// Record a transfer in the provenance chain
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_transfer(...);
-    /// ```
     pub fn record_transfer(
         env: &Env,
         token_id: u64,
@@ -62,16 +51,6 @@ impl ProvenanceTracker {
     }
 
     /// Record initial mint in provenance
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_mint(...);
-    /// ```
     pub fn record_mint(env: &Env, token_id: u64, creator: Address, notes: Option<Bytes>) {
         Self::record_transfer(
             env,
@@ -84,20 +63,6 @@ impl ProvenanceTracker {
     }
 
     /// Get full provenance history for a token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_provenance(...);
-    /// ```
     pub fn get_provenance(env: &Env, token_id: u64) -> Vec<ProvenanceRecord> {
         env.storage()
             .persistent()
@@ -106,40 +71,12 @@ impl ProvenanceTracker {
     }
 
     /// Get the number of transfers for a token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_transfer_count(...);
-    /// ```
     pub fn get_transfer_count(env: &Env, token_id: u64) -> u32 {
         let history = Self::get_provenance(env, token_id);
         history.len()
     }
 
     /// Verify ownership chain integrity
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // verify_chain(...);
-    /// ```
     pub fn verify_chain(env: &Env, token_id: u64) -> bool {
         let history = Self::get_provenance(env, token_id);
 
@@ -174,20 +111,6 @@ impl ProvenanceTracker {
     }
 
     /// Get the original creator of a token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_creator(...);
-    /// ```
     #[allow(dead_code)]
     pub fn get_creator(env: &Env, token_id: u64) -> Option<Address> {
         let history = Self::get_provenance(env, token_id);
@@ -204,20 +127,6 @@ impl ProvenanceTracker {
     }
 
     /// Get all addresses that have owned this token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_all_owners(...);
-    /// ```
     #[allow(dead_code)]
     pub fn get_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
         let history = Self::get_provenance(env, token_id);
@@ -232,22 +141,5 @@ impl ProvenanceTracker {
         }
 
         owners
-    }
-}
-
-impl ProvenancePort for ProvenanceTracker {
-    fn record_transfer(
-        env: &Env,
-        token_id: u64,
-        from: Option<Address>,
-        to: Address,
-        transfer_type: TransferType,
-        notes: Option<Bytes>,
-    ) {
-        Self::record_transfer(env, token_id, from, to, transfer_type, notes);
-    }
-
-    fn get_history(env: &Env, token_id: u64) -> Vec<ProvenanceRecord> {
-        Self::get_provenance(env, token_id)
     }
 }
