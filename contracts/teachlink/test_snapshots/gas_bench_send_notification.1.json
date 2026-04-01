@@ -1,0 +1,355 @@
+{
+  "generators": {
+    "address": 5,
+    "nonce": 0,
+    "mux_id": 0
+  },
+  "auth": [
+    [],
+    [],
+    [],
+    []
+  ],
+  "ledger": {
+    "protocol_version": 25,
+    "sequence_number": 0,
+    "timestamp": 0,
+    "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
+    "base_reserve": 0,
+    "min_persistent_entry_ttl": 4096,
+    "min_temp_entry_ttl": 16,
+    "max_entry_ttl": 6312000,
+    "ledger_entries": [
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "key": "ledger_key_contract_instance",
+              "durability": "persistent",
+              "val": {
+                "contract_instance": {
+                  "executable": {
+                    "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                  },
+                  "storage": [
+                    {
+                      "key": {
+                        "symbol": "admin"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "bridgefee"
+                      },
+                      "val": {
+                        "i128": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "chains"
+                      },
+                      "val": {
+                        "map": []
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "fee_rcpt"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "min_valid"
+                      },
+                      "val": {
+                        "u32": 2
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "nonce"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "notif_cnt"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "notif_tmp"
+                      },
+                      "val": {
+                        "map": [
+                          {
+                            "key": {
+                              "u64": "1"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "channels"
+                                  },
+                                  "val": {
+                                    "vec": [
+                                      {
+                                        "u32": 3
+                                      },
+                                      {
+                                        "u32": 0
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "content"
+                                  },
+                                  "val": {
+                                    "map": [
+                                      {
+                                        "key": {
+                                          "symbol": "body"
+                                        },
+                                        "val": {
+                                          "bytes": "57656c636f6d6520746f2054656163684c696e6b2120596f7572206163636f756e7420686173206265656e207375636365737366756c6c7920637265617465642e"
+                                        }
+                                      },
+                                      {
+                                        "key": {
+                                          "symbol": "data"
+                                        },
+                                        "val": {
+                                          "bytes": "7b7d"
+                                        }
+                                      },
+                                      {
+                                        "key": {
+                                          "symbol": "localization"
+                                        },
+                                        "val": {
+                                          "map": []
+                                        }
+                                      },
+                                      {
+                                        "key": {
+                                          "symbol": "subject"
+                                        },
+                                        "val": {
+                                          "bytes": "57656c636f6d6520746f2054656163684c696e6b21"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "created_at"
+                                  },
+                                  "val": {
+                                    "u64": "0"
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "is_active"
+                                  },
+                                  "val": {
+                                    "bool": true
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "name"
+                                  },
+                                  "val": {
+                                    "bytes": "77656c636f6d65"
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "template_id"
+                                  },
+                                  "val": {
+                                    "u64": "1"
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "updated_at"
+                                  },
+                                  "val": {
+                                    "u64": "0"
+                                  }
+                                }
+                              ]
+                            }
+                          },
+                          {
+                            "key": {
+                              "u64": "2"
+                            },
+                            "val": {
+                              "map": [
+                                {
+                                  "key": {
+                                    "symbol": "channels"
+                                  },
+                                  "val": {
+                                    "vec": [
+                                      {
+                                        "u32": 3
+                                      },
+                                      {
+                                        "u32": 0
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "content"
+                                  },
+                                  "val": {
+                                    "map": [
+                                      {
+                                        "key": {
+                                          "symbol": "body"
+                                        },
+                                        "val": {
+                                          "bytes": "596f7572207472616e73616374696f6e20686173206265656e20636f6d706c65746564207375636365737366756c6c792e"
+                                        }
+                                      },
+                                      {
+                                        "key": {
+                                          "symbol": "data"
+                                        },
+                                        "val": {
+                                          "bytes": "7b7d"
+                                        }
+                                      },
+                                      {
+                                        "key": {
+                                          "symbol": "localization"
+                                        },
+                                        "val": {
+                                          "map": []
+                                        }
+                                      },
+                                      {
+                                        "key": {
+                                          "symbol": "subject"
+                                        },
+                                        "val": {
+                                          "bytes": "5472616e73616374696f6e20436f6d706c65746564"
+                                        }
+                                      }
+                                    ]
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "created_at"
+                                  },
+                                  "val": {
+                                    "u64": "0"
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "is_active"
+                                  },
+                                  "val": {
+                                    "bool": true
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "name"
+                                  },
+                                  "val": {
+                                    "bytes": "7472616e73616374696f6e"
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "template_id"
+                                  },
+                                  "val": {
+                                    "u64": "2"
+                                  }
+                                },
+                                {
+                                  "key": {
+                                    "symbol": "updated_at"
+                                  },
+                                  "val": {
+                                    "u64": "0"
+                                  }
+                                }
+                              ]
+                            }
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "token"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "validtor"
+                      },
+                      "val": {
+                        "map": []
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 4095
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_code": {
+              "ext": "v0",
+              "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "code": ""
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 4095
+      }
+    ]
+  },
+  "events": []
+}

@@ -2,3 +2,7 @@
 **/*.rs.bk
 Cargo.lock
 .DS_Store
+
+# Gas benchmark artifacts
+gas_output.txt
+gas_benchmark_report.json
