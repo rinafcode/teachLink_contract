@@ -14,6 +14,8 @@ pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
 pub const BRIDGE_RETRY_COUNTS: Symbol = symbol_short!("br_rtryc");
 pub const BRIDGE_LAST_RETRY: Symbol = symbol_short!("br_lstry");
 pub const BRIDGE_FAILURES: Symbol = symbol_short!("br_fails");
+pub const INTERFACE_VERSION: Symbol = symbol_short!("if_ver");
+pub const MIN_COMPAT_INTERFACE_VERSION: Symbol = symbol_short!("if_minv");
 
 // ========== Advanced Bridge Storage Keys ==========
 

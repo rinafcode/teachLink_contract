@@ -103,6 +103,7 @@ mod escrow;
 mod escrow_analytics;
 mod events;
 mod insurance;
+mod interface_versioning;
 // FUTURE: Implement governance module (tracked in TRACKING.md)
 // mod governance;
 // mod learning_paths;
@@ -114,10 +115,7 @@ mod notification;
 mod notification_events_basic;
 // mod content_quality;
 mod backup;
-// NOTE: notification_tests is temporarily excluded from the default lib test suite
-// because it uses direct storage access patterns incompatible with the current
-// Soroban SDK test runtime without additional env.as_contract wrappers.
-// mod notification_tests;
+mod notification_tests;
 mod notification_types;
 mod performance;
 pub mod property_based_tests;
@@ -146,15 +144,15 @@ pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
-    DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
-    EscrowSigner, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
-    NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
-    NotificationTracking, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot, ReportTemplate, ReportType,
-    ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus,
-    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
-    ValidatorReward, ValidatorSignature, VisualizationDataPoint,
+    ContentTokenParameters, ContentType, ContractSemVer, CrossChainMessage, CrossChainPacket,
+    DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters,
+    EscrowRole, EscrowSigner, EscrowStatus, InterfaceVersionStatus, LiquidityPool, MultiChainAsset,
+    NotificationChannel, NotificationContent, NotificationPreference, NotificationSchedule,
+    NotificationTemplate, NotificationTracking, OperationType, PacketStatus, ProposalStatus,
+    ProvenanceRecord, RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot,
+    ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason,
+    SlashingRecord, SwapStatus, TransferType, UserNotificationSettings, UserReputation, UserReward,
+    ValidatorInfo, ValidatorReward, ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -174,7 +172,9 @@ impl TeachLinkBridge {
         min_validators: u32,
         fee_recipient: Address,
     ) -> Result<(), BridgeError> {
-        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)
+        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
+        interface_versioning::InterfaceVersioning::initialize(&env);
+        Ok(())
     }
 
     /// Bridge tokens out to another chain (lock/burn tokens on Stellar)
@@ -252,6 +252,47 @@ impl TeachLinkBridge {
     }
 
     // ========== View Functions ==========
+
+    /// Get full interface version status (current and minimum compatible version)
+    pub fn get_interface_version_status(env: Env) -> InterfaceVersionStatus {
+        interface_versioning::InterfaceVersioning::get_interface_version_status(&env)
+    }
+
+    /// Get current interface semantic version
+    pub fn get_interface_version(env: Env) -> ContractSemVer {
+        interface_versioning::InterfaceVersioning::get_interface_version(&env)
+    }
+
+    /// Get minimum supported interface semantic version
+    pub fn get_min_compat_interface_version(env: Env) -> ContractSemVer {
+        interface_versioning::InterfaceVersioning::get_minimum_compatible_interface_version(&env)
+    }
+
+    /// Update current and minimum compatible interface versions (admin only)
+    pub fn set_interface_version(
+        env: Env,
+        current: ContractSemVer,
+        minimum_compatible: ContractSemVer,
+    ) -> Result<(), BridgeError> {
+        interface_versioning::InterfaceVersioning::set_interface_versions(
+            &env,
+            current,
+            minimum_compatible,
+        )
+    }
+
+    /// Validate whether a client interface version is compatible
+    pub fn is_interface_compatible(env: Env, client_version: ContractSemVer) -> bool {
+        interface_versioning::InterfaceVersioning::is_interface_compatible(&env, client_version)
+    }
+
+    /// Assert interface compatibility and return an explicit error if incompatible
+    pub fn assert_interface_compatible(
+        env: Env,
+        client_version: ContractSemVer,
+    ) -> Result<(), BridgeError> {
+        interface_versioning::InterfaceVersioning::assert_interface_compatible(&env, client_version)
+    }
 
     /// Get the bridge transaction by nonce
     pub fn get_bridge_transaction(env: Env, nonce: u64) -> Option<BridgeTransaction> {

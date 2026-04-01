@@ -55,6 +55,8 @@ pub enum BridgeError {
     RetryLimitExceeded = 140,
     RetryBackoffActive = 141,
     BridgeTransactionFailed = 142,
+    IncompatibleInterfaceVersion = 143,
+    InvalidInterfaceVersionRange = 144,
 }
 
 /// Escrow module errors
@@ -67,7 +69,6 @@ pub enum EscrowError {
     RefundTimeMustBeInFuture = 203,
     RefundTimeMustBeAfterReleaseTime = 204,
     DuplicateSigner = 205,
-    DuplicateSigners = 205,  // Alias for consistency
     SignerNotAuthorized = 206,
     SignerAlreadyApproved = 207,
     CallerNotAuthorized = 208,
