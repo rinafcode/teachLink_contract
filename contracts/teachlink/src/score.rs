@@ -7,16 +7,6 @@ pub struct ScoreManager;
 
 impl ScoreManager {
     /// Update the user's score by adding points
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_score(...);
-    /// ```
     pub fn update_score(env: &Env, user: Address, points: u64) {
         // Use a tuple key (CREDIT_SCORE, user) for mapping user to score
         let key = (CREDIT_SCORE, user.clone());
@@ -28,16 +18,6 @@ impl ScoreManager {
     }
 
     /// Record a course completion and award points
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_course_completion(...);
-    /// ```
     pub fn record_course_completion(env: &Env, user: Address, course_id: u64, points: u64) {
         let key = (COURSE_COMPLETIONS, user.clone());
         let mut completed_courses: Vec<u64> = env
@@ -66,16 +46,6 @@ impl ScoreManager {
     }
 
     /// Record a contribution and award points
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_contribution(...);
-    /// ```
     pub fn record_contribution(
         env: &Env,
         user: Address,
@@ -113,20 +83,6 @@ impl ScoreManager {
     }
 
     /// Get the user's current credit score
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_score(...);
-    /// ```
     pub fn get_score(env: &Env, user: Address) -> u64 {
         env.storage()
             .persistent()
@@ -135,20 +91,6 @@ impl ScoreManager {
     }
 
     /// Get valid course completions
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_courses(...);
-    /// ```
     pub fn get_courses(env: &Env, user: Address) -> Vec<u64> {
         env.storage()
             .persistent()
@@ -157,20 +99,6 @@ impl ScoreManager {
     }
 
     /// Get user contributions
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_contributions(...);
-    /// ```
     pub fn get_contributions(env: &Env, user: Address) -> Vec<Contribution> {
         env.storage()
             .persistent()

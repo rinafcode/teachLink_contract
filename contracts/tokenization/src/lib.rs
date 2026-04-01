@@ -22,22 +22,6 @@ mod content_nft {
     }
 
     impl ContentNFT {
-        /// Standard API for new
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Returns
-        ///
-        /// * The return value of the function.
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // new(...);
-        /// ```
         #[ink(constructor)]
         pub fn new() -> Self {
             Self {
@@ -49,22 +33,6 @@ mod content_nft {
             }
         }
 
-        /// Standard API for mint
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Returns
-        ///
-        /// * The return value of the function.
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // mint(...);
-        /// ```
         #[ink(message)]
         pub fn mint(&mut self, to: AccountId, metadata_uri: String, royalty: u8, license: LicenseType) -> u32 {
             self.total_supply += 1;
@@ -76,43 +44,11 @@ mod content_nft {
             token_id
         }
 
-        /// Standard API for get_metadata
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Returns
-        ///
-        /// * The return value of the function.
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // get_metadata(...);
-        /// ```
         #[ink(message)]
         pub fn get_metadata(&self, token_id: u32) -> Option<String> {
             self.metadata.get(token_id)
         }
 
-        /// Standard API for get_owner
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Returns
-        ///
-        /// * The return value of the function.
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // get_owner(...);
-        /// ```
         #[ink(message)]
         pub fn get_owner(&self, token_id: u32) -> Option<AccountId> {
             self.owner.get(token_id)

@@ -85,6 +85,10 @@ pub enum EscrowError {
     EscrowNotPending = 219,
     EscrowNotFound = 220,
     ArbitratorNotAuthorized = 221,
+    InvalidBeneficiary = 222,
+    InvalidToken = 223,
+    InvalidArbitrator = 224,
+    DepositorCannotBeBeneficiary = 225,
 }
 
 /// Rewards module errors
