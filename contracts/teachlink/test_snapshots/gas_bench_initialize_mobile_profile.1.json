@@ -1,0 +1,981 @@
+{
+  "generators": {
+    "address": 5,
+    "nonce": 0,
+    "mux_id": 0
+  },
+  "auth": [
+    [],
+    [],
+    [
+      [
+        "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
+        {
+          "function": {
+            "contract_fn": {
+              "contract_address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "function_name": "initialize_mobile_profile",
+              "args": [
+                {
+                  "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
+                },
+                {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "device_id"
+                      },
+                      "val": {
+                        "bytes": "6465766963652d303031"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "is_tablet"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "model"
+                      },
+                      "val": {
+                        "bytes": "6950686f6e65203134"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "os_version"
+                      },
+                      "val": {
+                        "bytes": "694f53203137"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "push_token"
+                      },
+                      "val": {
+                        "bytes": "707573685f746f6b656e5f616263"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "screen_resolution"
+                      },
+                      "val": {
+                        "bytes": "313137307832353332"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "map": [
+                    {
+                      "key": {
+                        "symbol": "auto_download_wifi"
+                      },
+                      "val": {
+                        "bool": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "custom_theme_colors"
+                      },
+                      "val": {
+                        "map": []
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "data_saver_mode"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "font_size"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Medium"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "gesture_navigation"
+                      },
+                      "val": {
+                        "bool": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "language"
+                      },
+                      "val": {
+                        "bytes": "656e"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "layout_density"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Comfortable"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "sound_enabled"
+                      },
+                      "val": {
+                        "bool": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "theme"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "System"
+                          }
+                        ]
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "vibration_enabled"
+                      },
+                      "val": {
+                        "bool": true
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "video_quality"
+                      },
+                      "val": {
+                        "vec": [
+                          {
+                            "symbol": "Auto"
+                          }
+                        ]
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          "sub_invocations": []
+        }
+      ]
+    ]
+  ],
+  "ledger": {
+    "protocol_version": 25,
+    "sequence_number": 0,
+    "timestamp": 0,
+    "network_id": "0000000000000000000000000000000000000000000000000000000000000000",
+    "base_reserve": 0,
+    "min_persistent_entry_ttl": 4096,
+    "min_temp_entry_ttl": 16,
+    "max_entry_ttl": 6312000,
+    "ledger_entries": [
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "key": {
+                "vec": [
+                  {
+                    "symbol": "mob_prof"
+                  },
+                  {
+                    "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
+                  }
+                ]
+              },
+              "durability": "persistent",
+              "val": {
+                "map": [
+                  {
+                    "key": {
+                      "symbol": "accessibility_settings"
+                    },
+                    "val": {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "color_blind_mode"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "None"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "focus_indicator_style"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "Default"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "gesture_navigation_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "haptic_feedback_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "high_contrast_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "large_text_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "reduced_motion_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "screen_reader_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "voice_control_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "data_usage"
+                    },
+                    "val": {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "cached_data"
+                          },
+                          "val": {
+                            "u64": "0"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "daily_limit"
+                          },
+                          "val": {
+                            "u64": "104857600"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "last_reset"
+                          },
+                          "val": {
+                            "u64": "0"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "streaming_data"
+                          },
+                          "val": {
+                            "u64": "0"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "total_downloaded"
+                          },
+                          "val": {
+                            "u64": "0"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "total_uploaded"
+                          },
+                          "val": {
+                            "u64": "0"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "warning_threshold"
+                          },
+                          "val": {
+                            "u64": "8000"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "device_info"
+                    },
+                    "val": {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "device_id"
+                          },
+                          "val": {
+                            "bytes": "6465766963652d303031"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "is_tablet"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "model"
+                          },
+                          "val": {
+                            "bytes": "6950686f6e65203134"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "os_version"
+                          },
+                          "val": {
+                            "bytes": "694f53203137"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "push_token"
+                          },
+                          "val": {
+                            "bytes": "707573685f746f6b656e5f616263"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "screen_resolution"
+                          },
+                          "val": {
+                            "bytes": "313137307832353332"
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "last_sync"
+                    },
+                    "val": {
+                      "u64": "0"
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "notification_preferences"
+                    },
+                    "val": {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "achievement_notifications"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "content_updates"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "deadline_alerts"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "frequency_limit"
+                          },
+                          "val": {
+                            "u32": 10
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "learning_reminders"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "led_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "quiet_hours"
+                          },
+                          "val": {
+                            "map": [
+                              {
+                                "key": {
+                                  "symbol": "end_hour"
+                                },
+                                "val": {
+                                  "u32": 8
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "start_hour"
+                                },
+                                "val": {
+                                  "u32": 22
+                                }
+                              },
+                              {
+                                "key": {
+                                  "symbol": "timezone"
+                                },
+                                "val": {
+                                  "bytes": "555443"
+                                }
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "social_updates"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "sound_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "vibration_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "offline_settings"
+                    },
+                    "val": {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "auto_download_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "compression_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "download_quality"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "StandardQuality"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "offline_duration"
+                          },
+                          "val": {
+                            "u64": "168"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "priority_content"
+                          },
+                          "val": {
+                            "vec": []
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "storage_limit"
+                          },
+                          "val": {
+                            "u64": "1073741824"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "sync_strategy"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "WiFiOnly"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "payment_methods"
+                    },
+                    "val": {
+                      "vec": []
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "preferences"
+                    },
+                    "val": {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "auto_download_wifi"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "custom_theme_colors"
+                          },
+                          "val": {
+                            "map": []
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "data_saver_mode"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "font_size"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "Medium"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "gesture_navigation"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "language"
+                          },
+                          "val": {
+                            "bytes": "656e"
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "layout_density"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "Comfortable"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "sound_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "theme"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "System"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "vibration_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "video_quality"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "Auto"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "security_settings"
+                    },
+                    "val": {
+                      "map": [
+                        {
+                          "key": {
+                            "symbol": "biometric_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "biometric_type"
+                          },
+                          "val": {
+                            "vec": [
+                              {
+                                "symbol": "Fingerprint"
+                              }
+                            ]
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "encryption_enabled"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "login_attempts"
+                          },
+                          "val": {
+                            "u32": 0
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "max_login_attempts"
+                          },
+                          "val": {
+                            "u32": 5
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "pin_required"
+                          },
+                          "val": {
+                            "bool": true
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "remote_wipe_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "session_timeout"
+                          },
+                          "val": {
+                            "u32": 30
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "trusted_devices"
+                          },
+                          "val": {
+                            "vec": []
+                          }
+                        },
+                        {
+                          "key": {
+                            "symbol": "two_factor_enabled"
+                          },
+                          "val": {
+                            "bool": false
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "key": {
+                      "symbol": "user"
+                    },
+                    "val": {
+                      "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM"
+                    }
+                  }
+                ]
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 4095
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD2KM",
+              "key": "ledger_key_contract_instance",
+              "durability": "persistent",
+              "val": {
+                "contract_instance": {
+                  "executable": {
+                    "wasm": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+                  },
+                  "storage": [
+                    {
+                      "key": {
+                        "symbol": "admin"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAHK3M"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "bridgefee"
+                      },
+                      "val": {
+                        "i128": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "chains"
+                      },
+                      "val": {
+                        "map": []
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "fee_rcpt"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAITA4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "min_valid"
+                      },
+                      "val": {
+                        "u32": 2
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "nonce"
+                      },
+                      "val": {
+                        "u64": "0"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "token"
+                      },
+                      "val": {
+                        "address": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFCT4"
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "validtor"
+                      },
+                      "val": {
+                        "map": []
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 4095
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_data": {
+              "ext": "v0",
+              "contract": "CAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAK3IM",
+              "key": {
+                "ledger_key_nonce": {
+                  "nonce": "801925984706572462"
+                }
+              },
+              "durability": "temporary",
+              "val": "void"
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 6311999
+      },
+      {
+        "entry": {
+          "last_modified_ledger_seq": 0,
+          "data": {
+            "contract_code": {
+              "ext": "v0",
+              "hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+              "code": ""
+            }
+          },
+          "ext": "v0"
+        },
+        "live_until": 4095
+      }
+    ]
+  },
+  "events": []
+}
