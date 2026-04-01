@@ -299,6 +299,7 @@ Key project paths:
 
 - `contracts/teachlink`: Soroban smart contract source
 - `docs/ARCHITECTURE.md`: Full architecture diagrams and data flows
+- `docs/NAMING_CONVENTIONS.md`: Cross-module naming standards and enforcement
 - `scripts/`: onboarding and deployment scripts
 
 ## Development Workflow

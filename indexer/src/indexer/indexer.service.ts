@@ -13,7 +13,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(IndexerService.name);
   private closeStreamHandler: (() => void) | null = null;
   private isRunning = false;
-  private readonly STATE_KEY = 'main_indexer';
+  private readonly stateKey = 'main_indexer';
 
   constructor(
     private horizonService: HorizonService,
@@ -45,7 +45,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
 
       // Get or create indexer state
       let state = await this.indexerStateRepo.findOne({
-        where: { key: this.STATE_KEY },
+        where: { key: this.stateKey },
       });
 
       let startLedger: string;
@@ -62,7 +62,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
         }
 
         state = this.indexerStateRepo.create({
-          key: this.STATE_KEY,
+          key: this.stateKey,
           lastProcessedLedger: startLedger,
           totalEventsProcessed: 0,
           totalErrors: 0,
@@ -138,7 +138,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
 
       // Update indexer state
       const state = await this.indexerStateRepo.findOne({
-        where: { key: this.STATE_KEY },
+        where: { key: this.stateKey },
       });
 
       if (state) {
@@ -163,7 +163,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
   private async incrementErrorCount(): Promise<void> {
     try {
       const state = await this.indexerStateRepo.findOne({
-        where: { key: this.STATE_KEY },
+        where: { key: this.stateKey },
       });
 
       if (state) {
@@ -209,7 +209,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
     lastProcessedTimestamp: string;
   }> {
     const state = await this.indexerStateRepo.findOne({
-      where: { key: this.STATE_KEY },
+      where: { key: this.stateKey },
     });
 
     if (!state) {
