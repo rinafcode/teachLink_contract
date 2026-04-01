@@ -18,22 +18,6 @@ mod marketplace {
     }
 
     impl Marketplace {
-        /// Standard API for new
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Returns
-        ///
-        /// * The return value of the function.
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // new(...);
-        /// ```
         #[ink(constructor)]
         pub fn new() -> Self {
             Self {
@@ -41,36 +25,12 @@ mod marketplace {
             }
         }
 
-        /// Standard API for list
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // list(...);
-        /// ```
         #[ink(message)]
         pub fn list(&mut self, token_id: u32, price: u128) {
             let caller = self.env().caller();
             self.listings.insert(token_id, &(caller, price, Status::Listed));
         }
 
-        /// Standard API for buy
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // buy(...);
-        /// ```
         #[ink(message, payable)]
         pub fn buy(&mut self, token_id: u32) {
             if let Some((seller, price, status)) = self.listings.get(token_id) {
@@ -84,18 +44,6 @@ mod marketplace {
             }
         }
 
-        /// Standard API for cancel
-        ///
-        /// # Arguments
-        ///
-        /// * `env` - The environment (if applicable).
-        ///
-        /// # Examples
-        ///
-        /// ```rust
-        /// // Example usage
-        /// // cancel(...);
-        /// ```
         #[ink(message)]
         pub fn cancel(&mut self, token_id: u32) {
             if let Some((seller, price, _)) = self.listings.get(token_id) {

@@ -39,16 +39,6 @@ pub struct MobilePlatformManager;
 
 impl MobilePlatformManager {
     /// Initialize mobile profile for user
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_mobile_profile(...);
-    /// ```
     pub fn initialize_mobile_profile(
         env: &Env,
         user: Address,
@@ -128,16 +118,6 @@ impl MobilePlatformManager {
     }
 
     /// Download content for offline access
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // download_offline_content(...);
-    /// ```
     pub fn download_offline_content(
         env: &Env,
         user: Address,
@@ -178,16 +158,6 @@ impl MobilePlatformManager {
     }
 
     /// Send push notification
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // send_push_notification(...);
-    /// ```
     pub fn send_push_notification(
         env: &Env,
         user: Address,
@@ -217,16 +187,6 @@ impl MobilePlatformManager {
     }
 
     /// Process mobile payment
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // process_mobile_payment(...);
-    /// ```
     pub fn process_mobile_payment(
         env: &Env,
         user: Address,
@@ -264,16 +224,6 @@ impl MobilePlatformManager {
     }
 
     /// Record security event
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_security_event(...);
-    /// ```
     pub fn record_security_event(
         env: &Env,
         user: Address,
@@ -313,16 +263,6 @@ impl MobilePlatformManager {
     }
 
     /// Update accessibility settings
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_accessibility_settings(...);
-    /// ```
     pub fn update_accessibility_settings(
         env: &Env,
         user: Address,
@@ -336,16 +276,6 @@ impl MobilePlatformManager {
     }
 
     /// Update personalization settings
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_personalization(...);
-    /// ```
     pub fn update_personalization(
         env: &Env,
         user: Address,
@@ -359,16 +289,6 @@ impl MobilePlatformManager {
     }
 
     /// Record onboarding progress
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_onboarding_progress(...);
-    /// ```
     pub fn record_onboarding_progress(
         env: &Env,
         user: Address,
@@ -394,16 +314,6 @@ impl MobilePlatformManager {
     }
 
     /// Submit user feedback
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // submit_user_feedback(...);
-    /// ```
     pub fn submit_user_feedback(
         env: &Env,
         user: Address,
@@ -427,20 +337,6 @@ impl MobilePlatformManager {
     }
 
     /// Get userAllocated experiment variants
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_experiment_variants(...);
-    /// ```
     pub fn get_user_experiment_variants(env: &Env, user: Address) -> Map<u64, Symbol> {
         let mut results = Map::new(env);
         let experiments = Self::get_active_experiments(env);
@@ -454,20 +350,6 @@ impl MobilePlatformManager {
     }
 
     /// Get design system configuration
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_design_system_config(...);
-    /// ```
     pub fn get_design_system_config(env: &Env) -> ComponentConfig {
         env.storage()
             .persistent()
@@ -482,16 +364,6 @@ impl MobilePlatformManager {
     }
 
     /// Set design system configuration (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_design_system_config(...);
-    /// ```
     pub fn set_design_system_config(env: &Env, config: ComponentConfig) {
         env.storage().persistent().set(&COMPONENT_CONFIG, &config);
     }

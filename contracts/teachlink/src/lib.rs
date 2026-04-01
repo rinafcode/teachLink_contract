@@ -1,4 +1,69 @@
-//! TeachLink Soroban smart contract — entry point.
+#![allow(clippy::all)]
+#![allow(unused)]
+
+//! TeachLink Smart Contract
+//!
+//! A comprehensive Soroban smart contract for the TeachLink decentralized
+//! knowledge-sharing platform on the Stellar network.
+//!
+//! # Overview
+//!
+//! TeachLink provides the following core features:
+//!
+//! - **Cross-Chain Bridge**: Bridge tokens between Stellar and other blockchains
+//! - **Advanced BFT Consensus**: Byzantine Fault Tolerant validator consensus
+//! - **Validator Slashing**: Economic penalties for malicious validators
+//! - **Multi-Chain Support**: Support for multiple blockchain networks
+//! - **Liquidity Optimization**: AMM and dynamic fee pricing
+//! - **Message Passing**: Guaranteed cross-chain message delivery
+//! - **Emergency Controls**: Circuit breaker and pause mechanisms
+//! - **Atomic Swaps**: Cross-chain token exchanges
+//! - **Audit & Compliance**: Comprehensive logging and reporting
+//! - **Token Rewards**: Incentivize learning and contributions with token rewards
+//! - **Multi-Sig Escrow**: Secure payments with multi-signature escrow and arbitration
+//! - **Content Tokenization**: Mint NFTs representing educational content ownership
+//! - **Provenance Tracking**: Full chain-of-custody for content tokens
+//! - **User Reputation**: Track user participation, completion rates, and contribution quality
+//! - **Credit Scoring**: Calculate user credit scores based on courses and contributions
+//!
+//! # Contract Modules
+//!
+//! | Module | Description |
+//! |--------|-------------|
+//! | [`bridge`] | Cross-chain token bridging with validator consensus |
+//! | [`bft_consensus`] | Byzantine Fault Tolerant consensus mechanism |
+//! | [`slashing`] | Validator slashing and reward mechanisms |
+//! | [`multichain`] | Multi-chain support and asset management |
+//! | [`liquidity`] | Bridge liquidity pools and AMM |
+//! | [`message_passing`] | Cross-chain message passing |
+//! | [`emergency`] | Emergency pause and circuit breaker |
+//! | [`audit`] | Audit trail and compliance reporting |
+//! | [`atomic_swap`] | Cross-chain atomic swaps |
+//! | [`analytics`] | Bridge monitoring and analytics |
+//! | [`performance`] | Performance caching (bridge summary, TTL, invalidation) |
+//! | [`reporting`] | Advanced analytics, report templates, dashboards, and alerting |
+//! | [`backup`] | Backup scheduling, integrity verification, disaster recovery, and RTO audit |
+//! | [`rewards`] | Reward pool management and distribution |
+//! | [`escrow`] | Multi-signature escrow with dispute resolution |
+//! | [`tokenization`] | Educational content NFT minting and management |
+//! | [`provenance`] | Ownership history tracking for content tokens |
+//! | [`reputation`] | User reputation scoring system |
+//! | [`score`] | Credit score calculation from activities |
+//!
+//! # Quick Start
+//!
+//! ```ignore
+//! // Initialize the contract
+//! TeachLinkBridge::initialize(env, token, admin, min_validators, fee_recipient);
+//!
+//! // Register a validator with BFT consensus
+//! TeachLinkBridge::register_validator(env, validator, stake);
+//!
+//! // Add a supported chain
+//! TeachLinkBridge::add_supported_chain_config(env, chain_id, chain_name, bridge_address);
+//!
+//! // Bridge tokens with advanced features
+//! let nonce = TeachLinkBridge::bridge_out(env, from, amount, destination_chain, destination_address);
 //!
 //! // Create atomic swap
 //! let swap_id = TeachLinkBridge::initiate_atomic_swap(env, params);
@@ -48,12 +113,14 @@ mod multichain;
 mod notification;
 mod notification_events_basic;
 // mod content_quality;
-// NOTE: notification_tests disabled — tests access storage outside contract
-// context (missing env.as_contract wrapper). See Issue #162.
-// mod notification_tests;
 mod backup;
+// NOTE: notification_tests is temporarily excluded from the default lib test suite
+// because it uses direct storage access patterns incompatible with the current
+// Soroban SDK test runtime without additional env.as_contract wrappers.
+// mod notification_tests;
 mod notification_types;
 mod performance;
+pub mod property_based_tests;
 mod provenance;
 mod reporting;
 mod reputation;
@@ -65,7 +132,6 @@ mod storage;
 mod tokenization;
 mod types;
 pub mod validation;
-pub mod property_based_tests;
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
@@ -78,10 +144,9 @@ pub use assessment::{
 pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
 pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
-    BackupSchedule, BridgeFeeStructure, BridgeMetrics, BridgeProposal, BridgeTransaction,
-    CachedBridgeSummary, ChainConfig, ChainMetrics, CircuitBreaker, ComplianceReport,
-    ConsensusState, ContentMetadata, ContentToken, ContentTokenParameters, ContentType,
-    Contribution, ContributionType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
+    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
+    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
+    ContentTokenParameters, ContentType, CrossChainMessage, CrossChainPacket, DashboardAnalytics,
     DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
     EscrowSigner, EscrowStatus, LiquidityPool, MultiChainAsset, NotificationChannel,
     NotificationContent, NotificationPreference, NotificationSchedule, NotificationTemplate,
@@ -96,65 +161,13 @@ pub use types::{
 ///
 /// This contract provides entry points for all TeachLink functionality
 /// including bridging, rewards, escrow, tokenization, and reputation.
-
-pub mod validation;
-
-use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Symbol, Vec};
-
-use storage::{ADMIN, BRIDGE_TXS, CONFIG, FALLBACK_ENABLED};
-use types::BridgeConfig;
-use validation::{require_admin, require_initialized, validate_fee_rate};
-
 #[contract]
 pub struct TeachLinkBridge;
 
 #[contractimpl]
 impl TeachLinkBridge {
-    /// Initialize the contract with an admin address.
-    pub fn initialize(env: Env, admin: Address) {
-        require_initialized(&env, false);
-
-        let config = BridgeConfig::default();
-        env.storage().instance().set(&ADMIN, &admin);
-        env.storage().instance().set(&storage::NONCE, &0u64);
-        env.storage()
-            .instance()
-            .set(&FALLBACK_ENABLED, &config.fallback_enabled);
-        env.storage()
-            .instance()
-            .set(&BRIDGE_TXS, &Vec::<(Address, i128, u32, Bytes)>::new(&env));
-        env.storage().instance().set(&storage::ERROR_COUNT, &0u64);
-        env.storage().instance().set(&CONFIG, &config);
-    }
-
     /// Initialize the bridge contract
-    ///
-    /// This function sets up the core parameters for the bridge, including the token,
-    /// administrator, and initial validator threshold. It must be called once before
-    /// any other bridge functions.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `token` - The address of the token to be bridged.
-    /// * `admin` - The address with administrative permissions.
-    /// * `min_validators` - The minimum number of validator signatures required for a bridge transaction.
-    /// * `fee_recipient` - The address that will receive bridge fees.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), BridgeError>` - Returns `Ok(())` if initialization is successful.
-    ///
-    /// # Errors
-    ///
-    /// * `AlreadyInitialized` - If the contract has already been initialized.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// TeachLinkBridge::initialize(env, token_addr, admin_addr, 3, fee_collector_addr);
-    /// ```
-    pub fn initialize_v2(
+    pub fn initialize(
         env: Env,
         token: Address,
         admin: Address,
@@ -164,77 +177,18 @@ impl TeachLinkBridge {
         bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)
     }
 
-    /// Bridge tokens to another chain; returns the transaction nonce.
-    /// Bridge tokens out to another chain
-    ///
-    /// Locks or burns tokens on the Stellar network to be minted or released on the
-    /// destination chain. Generates a unique nonce for tracking the transaction.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `from` - The address of the user initiating the bridge.
-    /// * `amount` - The amount of tokens to bridge.
-    /// * `destination_chain` - The ID of the target blockchain.
-    /// * `destination_address` - The recipient's address on the destination chain.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<u64, BridgeError>` - Returns the unique nonce of the bridge transaction.
-    ///
-    /// # Errors
-    ///
-    /// * `InvalidAmount` - If the amount is less than or equal to zero.
-    /// * `UnsupportedChain` - If the destination chain is not supported.
-    /// * `InsufficientBalance` - If the sender does not have enough tokens.
-    ///
-    /// # Events
-    ///
-    /// * `BridgeOut` - Emitted when tokens are successfully locked for bridging.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let nonce = TeachLinkBridge::bridge_out(env, user_addr, 1000, 1, dest_bytes);
-    /// ```
+    /// Bridge tokens out to another chain (lock/burn tokens on Stellar)
     pub fn bridge_out(
         env: Env,
         from: Address,
         amount: i128,
         destination_chain: u32,
         destination_address: Bytes,
-    ) -> u64 {
-        bridge::bridge_out(&env, from, amount, destination_chain, destination_address)
+    ) -> Result<u64, BridgeError> {
+        bridge::Bridge::bridge_out(&env, from, amount, destination_chain, destination_address)
     }
 
-    /// Register a new supported chain (admin only).
-    /// Complete an incoming bridge transaction
-    ///
-    /// This function handles the completion of a bridge transaction from another chain
-    /// to Stellar. It validates validator signatures and mints or releases tokens to
-    /// the recipient on Stellar.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `message` - The `CrossChainMessage` containing transaction details.
-    /// * `validator_signatures` - A list of validator addresses who signed the message.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), BridgeError>` - Returns `Ok(())` if the transaction is completed.
-    ///
-    /// # Errors
-    ///
-    /// * `ThresholdNotMet` - If the number of signatures is below the threshold.
-    /// * `InvalidSignature` - If any validator signature is invalid.
-    /// * `AlreadyCompleted` - If the bridge transaction has already been processed.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// TeachLinkBridge::complete_bridge(env, message, signatures);
-    /// ```
+    /// Complete a bridge transaction (mint/release tokens on Stellar)
     pub fn complete_bridge(
         env: Env,
         message: CrossChainMessage,
@@ -243,355 +197,93 @@ impl TeachLinkBridge {
         bridge::Bridge::complete_bridge(&env, message, validator_signatures)
     }
 
-    /// Cancel a pending bridge transaction
-    ///
-    /// Refunds the locked tokens to the sender if the bridge hasn't been completed.
-    /// Typically used for timeouts or if the user cancels before validator consensus.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `nonce` - The unique nonce identifying the bridge transaction.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), BridgeError>` - Returns `Ok(())` if the cancellation succeeds.
-    ///
-    /// # Errors
-    ///
-    /// * `NotFound` - If the bridge transaction does not exist.
-    /// * `AlreadyCompleted` - If the transaction has already been completed.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// TeachLinkBridge::cancel_bridge(env, nonce);
-    /// ```
+    /// Cancel a bridge transaction and refund locked tokens
     pub fn cancel_bridge(env: Env, nonce: u64) -> Result<(), BridgeError> {
         bridge::Bridge::cancel_bridge(&env, nonce)
     }
 
-    /// Mark a bridge transaction as failed
-    ///
-    /// Records the reason for failure and allows for subsequent retries or refunds.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `nonce` - The unique nonce identifying the bridge transaction.
-    /// * `reason` - A bytes object describing why the transaction failed.
-    ///
-    /// # Returns
-    ///
-    /// * `Result<(), BridgeError>` - Returns `Ok(())` if successful.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// TeachLinkBridge::mark_bridge_failed(env, nonce, reason);
-    /// ```
     pub fn mark_bridge_failed(env: Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
         bridge::Bridge::mark_bridge_failed(&env, nonce, reason)
     }
 
-    /// Standard API for retry_bridge
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // retry_bridge(...);
-    /// ```
     pub fn retry_bridge(env: Env, nonce: u64) -> Result<u32, BridgeError> {
         bridge::Bridge::retry_bridge(&env, nonce)
     }
 
-    /// Standard API for refund_bridge_transaction
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // refund_bridge_transaction(...);
-    /// ```
     pub fn refund_bridge_transaction(env: Env, nonce: u64) -> Result<(), BridgeError> {
         bridge::Bridge::refund_bridge_transaction(&env, nonce)
     }
 
     // ========== Admin Functions ==========
 
-    /// Add a new validator to the bridge
-    ///
-    /// This function adds an address to the authorized list of validators.
-    /// Only the contract administrator can call this function.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `validator` - The address of the new validator.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// TeachLinkBridge::add_validator(env, validator_addr);
-    /// ```
+    /// Add a validator (admin only)
     pub fn add_validator(env: Env, validator: Address) {
         let _ = bridge::Bridge::add_validator(&env, validator);
     }
 
-    /// Remove a validator from the bridge
-    ///
-    /// This function removes an address from the authorized list of validators.
-    /// Only the contract administrator can call this function.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `validator` - The address of the validator to remove.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// TeachLinkBridge::remove_validator(env, validator_addr);
-    /// ```
+    /// Remove a validator (admin only)
     pub fn remove_validator(env: Env, validator: Address) {
         let _ = bridge::Bridge::remove_validator(&env, validator);
     }
 
     /// Add a supported destination chain (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_supported_chain(...);
-    /// ```
     pub fn add_supported_chain(env: Env, chain_id: u32) {
         let _ = bridge::Bridge::add_supported_chain(&env, chain_id);
     }
 
     /// Remove a supported destination chain (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // remove_supported_chain(...);
-    /// ```
     pub fn remove_supported_chain(env: Env, chain_id: u32) {
         let _ = bridge::Bridge::remove_supported_chain(&env, chain_id);
     }
 
     /// Set bridge fee (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_bridge_fee(...);
-    /// ```
     pub fn set_bridge_fee(env: Env, fee: i128) -> Result<(), BridgeError> {
         bridge::Bridge::set_bridge_fee(&env, fee)
     }
 
     /// Set fee recipient (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_fee_recipient(...);
-    /// ```
     pub fn set_fee_recipient(env: Env, fee_recipient: Address) {
         let _ = bridge::Bridge::set_fee_recipient(&env, fee_recipient);
     }
 
     /// Set minimum validators (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_min_validators(...);
-    /// ```
     pub fn set_min_validators(env: Env, min_validators: u32) -> Result<(), BridgeError> {
         bridge::Bridge::set_min_validators(&env, min_validators)
     }
 
     // ========== View Functions ==========
 
-    /// Get bridge transaction details by nonce
-    ///
-    /// Retrieves the status, amount, and other metadata for a specific bridge
-    /// transaction identified by its unique nonce.
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The Soroban environment.
-    /// * `nonce` - The unique nonce of the bridge transaction.
-    ///
-    /// # Returns
-    ///
-    /// * `Option<BridgeTransaction>` - Returns the transaction if found, or `None`.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// let tx = TeachLinkBridge::get_bridge_transaction(env, nonce);
-    /// ```
+    /// Get the bridge transaction by nonce
     pub fn get_bridge_transaction(env: Env, nonce: u64) -> Option<BridgeTransaction> {
         bridge::Bridge::get_bridge_transaction(&env, nonce)
     }
 
     /// Check if a chain is supported
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_chain_supported(...);
-    /// ```
     pub fn is_chain_supported(env: Env, chain_id: u32) -> bool {
         bridge::Bridge::is_chain_supported(&env, chain_id)
     }
 
     /// Check if an address is a validator
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_validator(...);
-    /// ```
     pub fn is_validator(env: Env, address: Address) -> bool {
         bridge::Bridge::is_validator(&env, address)
     }
 
     /// Get the current nonce
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_nonce(...);
-    /// ```
     pub fn get_nonce(env: Env) -> u64 {
         bridge::Bridge::get_nonce(&env)
     }
 
     /// Get the bridge fee
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_bridge_fee(...);
-    /// ```
     pub fn get_bridge_fee(env: Env) -> i128 {
         bridge::Bridge::get_bridge_fee(&env)
     }
 
     /// Get the token address
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_token(...);
-    /// ```
     pub fn get_token(env: Env) -> Address {
         bridge::Bridge::get_token(&env)
     }
 
     /// Get the admin address
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_admin(...);
-    /// ```
     pub fn get_admin(env: Env) -> Address {
         bridge::Bridge::get_admin(&env)
     }
@@ -599,16 +291,6 @@ impl TeachLinkBridge {
     // ========== BFT Consensus Functions ==========
 
     /// Register a validator with stake for BFT consensus
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // register_validator(...);
-    /// ```
     pub fn register_validator(
         env: Env,
         validator: Address,
@@ -618,35 +300,11 @@ impl TeachLinkBridge {
     }
 
     /// Unregister a validator and unstake
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // unregister_validator(...);
-    /// ```
     pub fn unregister_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
         bft_consensus::BFTConsensus::unregister_validator(&env, validator)
     }
 
     /// Create a bridge proposal for BFT consensus
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_bridge_proposal(...);
-    /// ```
     pub fn create_bridge_proposal(
         env: Env,
         message: CrossChainMessage,
@@ -655,16 +313,6 @@ impl TeachLinkBridge {
     }
 
     /// Vote on a bridge proposal
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // vote_on_proposal(...);
-    /// ```
     pub fn vote_on_proposal(
         env: Env,
         validator: Address,
@@ -675,77 +323,21 @@ impl TeachLinkBridge {
     }
 
     /// Get validator information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_validator_info(...);
-    /// ```
     pub fn get_validator_info(env: Env, validator: Address) -> Option<ValidatorInfo> {
         bft_consensus::BFTConsensus::get_validator_info(&env, validator)
     }
 
     /// Get consensus state
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_consensus_state(...);
-    /// ```
     pub fn get_consensus_state(env: Env) -> ConsensusState {
         bft_consensus::BFTConsensus::get_consensus_state(&env)
     }
 
     /// Get proposal by ID
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_proposal(...);
-    /// ```
     pub fn get_proposal(env: Env, proposal_id: u64) -> Option<BridgeProposal> {
         bft_consensus::BFTConsensus::get_proposal(&env, proposal_id)
     }
 
     /// Check if consensus is reached for a proposal
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_consensus_reached(...);
-    /// ```
     pub fn is_consensus_reached(env: Env, proposal_id: u64) -> bool {
         bft_consensus::BFTConsensus::is_consensus_reached(&env, proposal_id)
     }
@@ -753,54 +345,16 @@ impl TeachLinkBridge {
     // ========== Slashing and Rewards Functions ==========
 
     /// Deposit stake for a validator
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // deposit_stake(...);
-    /// ```
     pub fn deposit_stake(env: Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         slashing::SlashingManager::deposit_stake(&env, validator, amount)
     }
 
     /// Withdraw stake
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // withdraw_stake(...);
-    /// ```
     pub fn withdraw_stake(env: Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         slashing::SlashingManager::withdraw_stake(&env, validator, amount)
     }
 
     /// Slash a validator for malicious behavior
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // slash_validator(...);
-    /// ```
     pub fn slash_validator(
         env: Env,
         validator: Address,
@@ -812,16 +366,6 @@ impl TeachLinkBridge {
     }
 
     /// Reward a validator
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // reward_validator(...);
-    /// ```
     pub fn reward_validator(
         env: Env,
         validator: Address,
@@ -832,16 +376,6 @@ impl TeachLinkBridge {
     }
 
     /// Fund the reward pool
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // fund_validator_reward_pool(...);
-    /// ```
     pub fn fund_validator_reward_pool(
         env: Env,
         funder: Address,
@@ -851,20 +385,6 @@ impl TeachLinkBridge {
     }
 
     /// Get validator stake
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_validator_stake(...);
-    /// ```
     pub fn get_validator_stake(env: Env, validator: Address) -> i128 {
         slashing::SlashingManager::get_stake(&env, validator)
     }
@@ -872,25 +392,15 @@ impl TeachLinkBridge {
     // ========== Multi-Chain Functions ==========
 
     /// Add a supported chain with configuration
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_supported_chain_config(...);
-    /// ```
     pub fn add_supported_chain_config(
         env: Env,
         chain_id: u32,
-        name: Symbol,
-        bridge_address: Address,
-        min_confirmations: u32,
-        fee_rate: u32,
-    ) {
-        bridge::add_chain_support(
+        chain_name: Bytes,
+        bridge_contract_address: Bytes,
+        confirmation_blocks: u32,
+        gas_price: u64,
+    ) -> Result<(), BridgeError> {
+        multichain::MultiChainManager::add_chain(
             &env,
             chain_id,
             chain_name,
@@ -901,16 +411,6 @@ impl TeachLinkBridge {
     }
 
     /// Update chain configuration
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_chain_config(...);
-    /// ```
     pub fn update_chain_config(
         env: Env,
         chain_id: u32,
@@ -928,16 +428,6 @@ impl TeachLinkBridge {
     }
 
     /// Register a multi-chain asset
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // register_multi_chain_asset(...);
-    /// ```
     pub fn register_multi_chain_asset(
         env: Env,
         asset_id: Bytes,
@@ -948,58 +438,16 @@ impl TeachLinkBridge {
     }
 
     /// Get chain configuration
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_chain_config(...);
-    /// ```
     pub fn get_chain_config(env: Env, chain_id: u32) -> Option<ChainConfig> {
         multichain::MultiChainManager::get_chain_config(&env, chain_id)
     }
 
     /// Check if chain is active
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_chain_active(...);
-    /// ```
     pub fn is_chain_active(env: Env, chain_id: u32) -> bool {
         multichain::MultiChainManager::is_chain_active(&env, chain_id)
     }
 
     /// Get supported chains
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_supported_chains(...);
-    /// ```
     pub fn get_supported_chains(env: Env) -> Vec<u32> {
         multichain::MultiChainManager::get_supported_chains(&env)
     }
@@ -1007,16 +455,6 @@ impl TeachLinkBridge {
     // ========== Liquidity and AMM Functions ==========
 
     /// Initialize liquidity pool for a chain
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_liquidity_pool(...);
-    /// ```
     pub fn initialize_liquidity_pool(
         env: Env,
         chain_id: u32,
@@ -1026,16 +464,6 @@ impl TeachLinkBridge {
     }
 
     /// Add liquidity to a pool
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_liquidity(...);
-    /// ```
     pub fn add_liquidity(
         env: Env,
         provider: Address,
@@ -1046,16 +474,6 @@ impl TeachLinkBridge {
     }
 
     /// Remove liquidity from a pool
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // remove_liquidity(...);
-    /// ```
     pub fn remove_liquidity(
         env: Env,
         provider: Address,
@@ -1066,16 +484,6 @@ impl TeachLinkBridge {
     }
 
     /// Calculate dynamic bridge fee
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // calculate_bridge_fee(...);
-    /// ```
     pub fn calculate_bridge_fee(
         env: Env,
         chain_id: u32,
@@ -1086,16 +494,6 @@ impl TeachLinkBridge {
     }
 
     /// Update fee structure
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_fee_structure(...);
-    /// ```
     pub fn update_fee_structure(
         env: Env,
         base_fee: i128,
@@ -1111,47 +509,13 @@ impl TeachLinkBridge {
     }
 
     /// Get available liquidity for a chain
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_available_liquidity(...);
-    /// ```
     pub fn get_available_liquidity(env: Env, chain_id: u32) -> i128 {
         liquidity::LiquidityManager::get_available_liquidity(&env, chain_id)
-    }
-
-    /// Get fee structure
-    pub fn get_fee_structure(env: Env) -> BridgeFeeStructure {
-        liquidity::LiquidityManager::get_fee_structure(&env)
-    }
-
-    /// Check if pool has sufficient liquidity
-    pub fn has_sufficient_liquidity(env: Env, chain_id: u32, amount: i128) -> bool {
-        liquidity::LiquidityManager::has_sufficient_liquidity(&env, chain_id, amount)
     }
 
     // ========== Message Passing Functions ==========
 
     /// Send a cross-chain packet
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // send_cross_chain_packet(...);
-    /// ```
     pub fn send_cross_chain_packet(
         env: Env,
         source_chain: u32,
@@ -1173,16 +537,6 @@ impl TeachLinkBridge {
     }
 
     /// Mark a cross-chain packet as delivered
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // deliver_cross_chain_packet(...);
-    /// ```
     pub fn deliver_cross_chain_packet(
         env: Env,
         packet_id: u64,
@@ -1193,16 +547,6 @@ impl TeachLinkBridge {
     }
 
     /// Mark a cross-chain packet as failed
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // fail_cross_chain_packet(...);
-    /// ```
     pub fn fail_cross_chain_packet(
         env: Env,
         packet_id: u64,
@@ -1212,115 +556,31 @@ impl TeachLinkBridge {
     }
 
     /// Retry a failed or timed-out cross-chain packet
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // retry_cross_chain_packet(...);
-    /// ```
     pub fn retry_cross_chain_packet(env: Env, packet_id: u64) -> Result<(), BridgeError> {
         message_passing::MessagePassing::retry_packet(&env, packet_id)
     }
 
     /// Mark all expired packets as timed out and return packet IDs
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // check_cross_chain_timeouts(...);
-    /// ```
     pub fn check_cross_chain_timeouts(env: Env) -> Result<Vec<u64>, BridgeError> {
         message_passing::MessagePassing::check_timeouts(&env)
     }
 
     /// Get packet by ID
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packet(...);
-    /// ```
     pub fn get_packet(env: Env, packet_id: u64) -> Option<CrossChainPacket> {
         message_passing::MessagePassing::get_packet(&env, packet_id)
     }
 
     /// Get packet receipt
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packet_receipt(...);
-    /// ```
     pub fn get_packet_receipt(env: Env, packet_id: u64) -> Option<types::MessageReceipt> {
         message_passing::MessagePassing::get_receipt(&env, packet_id)
     }
 
     /// Verify packet delivery
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // verify_packet_delivery(...);
-    /// ```
     pub fn verify_packet_delivery(env: Env, packet_id: u64) -> bool {
         message_passing::MessagePassing::verify_delivery(&env, packet_id)
     }
 
     /// Get retry count for a packet
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_packet_retry_count(...);
-    /// ```
     pub fn get_packet_retry_count(env: Env, packet_id: u64) -> u32 {
         message_passing::MessagePassing::get_packet_retry_count(&env, packet_id)
     }
@@ -1328,54 +588,16 @@ impl TeachLinkBridge {
     // ========== Emergency Functions ==========
 
     /// Pause the entire bridge
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // pause_bridge(...);
-    /// ```
     pub fn pause_bridge(env: Env, pauser: Address, reason: Bytes) -> Result<(), BridgeError> {
         emergency::EmergencyManager::pause_bridge(&env, pauser, reason)
     }
 
     /// Resume the bridge
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // resume_bridge(...);
-    /// ```
     pub fn resume_bridge(env: Env, resumer: Address) -> Result<(), BridgeError> {
         emergency::EmergencyManager::resume_bridge(&env, resumer)
     }
 
     /// Pause specific chains
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // pause_chains(...);
-    /// ```
     pub fn pause_chains(
         env: Env,
         pauser: Address,
@@ -1386,16 +608,6 @@ impl TeachLinkBridge {
     }
 
     /// Resume specific chains
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // resume_chains(...);
-    /// ```
     pub fn resume_chains(
         env: Env,
         resumer: Address,
@@ -1405,16 +617,6 @@ impl TeachLinkBridge {
     }
 
     /// Initialize circuit breaker for a chain
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_circuit_breaker(...);
-    /// ```
     pub fn initialize_circuit_breaker(
         env: Env,
         chain_id: u32,
@@ -1430,116 +632,23 @@ impl TeachLinkBridge {
     }
 
     /// Check if bridge is paused
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_bridge_paused(...);
-    /// ```
     pub fn is_bridge_paused(env: Env) -> bool {
         emergency::EmergencyManager::is_bridge_paused(&env)
     }
 
     /// Check if a chain is paused
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_chain_paused(...);
-    /// ```
     pub fn is_chain_paused(env: Env, chain_id: u32) -> bool {
         emergency::EmergencyManager::is_chain_paused(&env, chain_id)
     }
 
     /// Get emergency state
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_emergency_state(...);
-    /// ```
     pub fn get_emergency_state(env: Env) -> EmergencyState {
         emergency::EmergencyManager::get_emergency_state(&env)
-    }
-
-    /// Check circuit breaker for a transaction
-    pub fn check_circuit_breaker(env: Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
-        emergency::EmergencyManager::check_circuit_breaker(&env, chain_id, amount)
-    }
-
-    /// Reset circuit breaker for a chain
-    pub fn reset_circuit_breaker(
-        env: Env,
-        chain_id: u32,
-        resetter: Address,
-    ) -> Result<(), BridgeError> {
-        emergency::EmergencyManager::reset_circuit_breaker(&env, chain_id, resetter)
-    }
-
-    /// Get circuit breaker state
-    pub fn get_circuit_breaker(env: Env, chain_id: u32) -> Option<CircuitBreaker> {
-        emergency::EmergencyManager::get_circuit_breaker(&env, chain_id)
-    }
-
-    /// Get all paused chains
-    pub fn get_paused_chains(env: Env) -> Vec<u32> {
-        emergency::EmergencyManager::get_paused_chains(&env)
-    }
-
-    /// Update circuit breaker limits
-    pub fn update_circuit_breaker_limits(
-        env: Env,
-        chain_id: u32,
-        max_daily_volume: i128,
-        max_transaction_amount: i128,
-        updater: Address,
-    ) -> Result<(), BridgeError> {
-        emergency::EmergencyManager::update_circuit_breaker_limits(
-            &env,
-            chain_id,
-            max_daily_volume,
-            max_transaction_amount,
-            updater,
-        )
     }
 
     // ========== Audit and Compliance Functions ==========
 
     /// Create an audit record
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_audit_record(...);
-    /// ```
     pub fn create_audit_record(
         env: Env,
         operation_type: types::OperationType,
@@ -1551,35 +660,11 @@ impl TeachLinkBridge {
     }
 
     /// Get audit record by ID
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_audit_record(...);
-    /// ```
     pub fn get_audit_record(env: Env, record_id: u64) -> Option<AuditRecord> {
         audit::AuditManager::get_audit_record(&env, record_id)
     }
 
     /// Generate compliance report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // generate_compliance_report(...);
-    /// ```
     pub fn generate_compliance_report(
         env: Env,
         period_start: u64,
@@ -1589,104 +674,13 @@ impl TeachLinkBridge {
     }
 
     /// Get compliance report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_compliance_report(...);
-    /// ```
     pub fn get_compliance_report(env: Env, report_id: u64) -> Option<ComplianceReport> {
         audit::AuditManager::get_compliance_report(&env, report_id)
-    }
-
-    /// Get audit record count
-    pub fn get_audit_count(env: Env) -> u64 {
-        audit::AuditManager::get_audit_count(&env)
-    }
-
-    /// Get audit records by operation type
-    pub fn get_audit_records_by_type(
-        env: Env,
-        operation_type: types::OperationType,
-    ) -> Vec<AuditRecord> {
-        audit::AuditManager::get_audit_records_by_type(&env, operation_type)
-    }
-
-    /// Get audit records by operator
-    pub fn get_audit_records_by_operator(env: Env, operator: Address) -> Vec<AuditRecord> {
-        audit::AuditManager::get_audit_records_by_operator(&env, operator)
-    }
-
-    /// Get audit records by time range
-    pub fn get_audit_records_by_time(env: Env, start_time: u64, end_time: u64) -> Vec<AuditRecord> {
-        audit::AuditManager::get_audit_records_by_time(&env, start_time, end_time)
-    }
-
-    /// Get recent audit records
-    pub fn get_recent_audit_records(env: Env, count: u32) -> Vec<AuditRecord> {
-        audit::AuditManager::get_recent_audit_records(&env, count)
-    }
-
-    /// Clear old audit records
-    pub fn clear_old_records(
-        env: Env,
-        before_timestamp: u64,
-        admin: Address,
-    ) -> Result<u32, BridgeError> {
-        audit::AuditManager::clear_old_records(&env, before_timestamp, admin)
-    }
-
-    /// Log bridge operation
-    pub fn log_bridge_operation(
-        env: Env,
-        is_outgoing: bool,
-        operator: Address,
-        amount: i128,
-        chain_id: u32,
-        tx_hash: Bytes,
-    ) -> Result<u64, BridgeError> {
-        audit::AuditManager::log_bridge_operation(
-            &env,
-            is_outgoing,
-            operator,
-            amount,
-            chain_id,
-            tx_hash,
-        )
-    }
-
-    /// Log emergency operation
-    pub fn log_emergency_operation(
-        env: Env,
-        is_pause: bool,
-        operator: Address,
-        reason: Bytes,
-        tx_hash: Bytes,
-    ) -> Result<u64, BridgeError> {
-        audit::AuditManager::log_emergency_operation(&env, is_pause, operator, reason, tx_hash)
     }
 
     // ========== Atomic Swap Functions ==========
 
     /// Initiate an atomic swap
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initiate_atomic_swap(...);
-    /// ```
     pub fn initiate_atomic_swap(
         env: Env,
         initiator: Address,
@@ -1712,16 +706,6 @@ impl TeachLinkBridge {
     }
 
     /// Accept and complete an atomic swap
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // accept_atomic_swap(...);
-    /// ```
     pub fn accept_atomic_swap(
         env: Env,
         swap_id: u64,
@@ -1732,16 +716,6 @@ impl TeachLinkBridge {
     }
 
     /// Refund an expired atomic swap
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // refund_atomic_swap(...);
-    /// ```
     pub fn refund_atomic_swap(
         env: Env,
         swap_id: u64,
@@ -1751,39 +725,11 @@ impl TeachLinkBridge {
     }
 
     /// Get atomic swap by ID
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_atomic_swap(...);
-    /// ```
     pub fn get_atomic_swap(env: Env, swap_id: u64) -> Option<AtomicSwap> {
         atomic_swap::AtomicSwapManager::get_swap(&env, swap_id)
     }
 
     /// Get active atomic swaps
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_active_atomic_swaps(...);
-    /// ```
     pub fn get_active_atomic_swaps(env: Env) -> Vec<u64> {
         atomic_swap::AtomicSwapManager::get_active_swaps(&env)
     }
@@ -1791,157 +737,41 @@ impl TeachLinkBridge {
     // ========== Analytics Functions ==========
 
     /// Initialize bridge metrics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_bridge_metrics(...);
-    /// ```
     pub fn initialize_bridge_metrics(env: Env) -> Result<(), BridgeError> {
         analytics::AnalyticsManager::initialize_metrics(&env)
     }
 
     /// Get bridge metrics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_bridge_metrics(...);
-    /// ```
     pub fn get_bridge_metrics(env: Env) -> BridgeMetrics {
         analytics::AnalyticsManager::get_bridge_metrics(&env)
     }
 
     /// Get chain metrics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_chain_metrics(...);
-    /// ```
     pub fn get_chain_metrics(env: Env, chain_id: u32) -> Option<ChainMetrics> {
         analytics::AnalyticsManager::get_chain_metrics(&env, chain_id)
     }
 
     /// Calculate bridge health score
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // calculate_bridge_health_score(...);
-    /// ```
     pub fn calculate_bridge_health_score(env: Env) -> u32 {
         analytics::AnalyticsManager::calculate_health_score(&env)
     }
 
     /// Get bridge statistics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_bridge_statistics(...);
-    /// ```
     pub fn get_bridge_statistics(env: Env) -> Map<Bytes, i128> {
         analytics::AnalyticsManager::get_bridge_statistics(&env)
     }
 
     /// Get cached or computed bridge summary (health score + top chains). Uses cache if fresh.
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_cached_bridge_summary(...);
-    /// ```
     pub fn get_cached_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
-        performance::PerformanceManager::get_or_compute_summary::<analytics::AnalyticsManager>(
-            &env,
-        )
+        performance::PerformanceManager::get_or_compute_summary(&env)
     }
 
     /// Force recompute and cache bridge summary. Emits PerfMetricsComputedEvent.
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // compute_and_cache_bridge_summary(...);
-    /// ```
     pub fn compute_and_cache_bridge_summary(env: Env) -> Result<CachedBridgeSummary, BridgeError> {
-        performance::PerformanceManager::compute_and_cache_summary::<analytics::AnalyticsManager>(
-            &env,
-        )
+        performance::PerformanceManager::compute_and_cache_summary(&env)
     }
 
     /// Invalidate performance cache (admin only). Emits PerfCacheInvalidatedEvent.
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // invalidate_performance_cache(...);
-    /// ```
     pub fn invalidate_performance_cache(env: Env, admin: Address) -> Result<(), BridgeError> {
         performance::PerformanceManager::invalidate_cache(&env, &admin)
     }
@@ -1949,39 +779,11 @@ impl TeachLinkBridge {
     // ========== Advanced Analytics & Reporting Functions ==========
 
     /// Get dashboard-ready aggregate analytics for visualizations
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_dashboard_analytics(...);
-    /// ```
     pub fn get_dashboard_analytics(env: Env) -> DashboardAnalytics {
-        reporting::ReportingManager::get_dashboard_analytics::<
-            analytics::AnalyticsManager,
-            audit::AuditManager,
-            escrow_analytics::EscrowAnalyticsManager,
-        >(&env)
+        reporting::ReportingManager::get_dashboard_analytics(&env)
     }
 
     /// Create a report template
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_report_template(...);
-    /// ```
     pub fn create_report_template(
         env: Env,
         creator: Address,
@@ -1993,45 +795,17 @@ impl TeachLinkBridge {
             &env,
             creator,
             name,
-            bridge_address,
-            min_confirmations,
-            fee_rate,
-        );
             report_type,
             config,
         )
     }
 
     /// Get report template by id
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_template(...);
-    /// ```
     pub fn get_report_template(env: Env, template_id: u64) -> Option<ReportTemplate> {
         reporting::ReportingManager::get_report_template(&env, template_id)
     }
 
     /// Schedule a report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // schedule_report(...);
-    /// ```
     pub fn schedule_report(
         env: Env,
         owner: Address,
@@ -2049,35 +823,11 @@ impl TeachLinkBridge {
     }
 
     /// Get scheduled reports for an owner
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_scheduled_reports(...);
-    /// ```
     pub fn get_scheduled_reports(env: Env, owner: Address) -> Vec<ReportSchedule> {
         reporting::ReportingManager::get_scheduled_reports(&env, owner)
     }
 
     /// Generate a report snapshot
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // generate_report_snapshot(...);
-    /// ```
     pub fn generate_report_snapshot(
         env: Env,
         generator: Address,
@@ -2085,43 +835,21 @@ impl TeachLinkBridge {
         period_start: u64,
         period_end: u64,
     ) -> Result<u64, BridgeError> {
-        reporting::ReportingManager::generate_report_snapshot::<
-            analytics::AnalyticsManager,
-            audit::AuditManager,
-            escrow_analytics::EscrowAnalyticsManager,
-        >(&env, generator, template_id, period_start, period_end)
+        reporting::ReportingManager::generate_report_snapshot(
+            &env,
+            generator,
+            template_id,
+            period_start,
+            period_end,
+        )
     }
 
     /// Get report snapshot by id
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_snapshot(...);
-    /// ```
     pub fn get_report_snapshot(env: Env, report_id: u64) -> Option<ReportSnapshot> {
         reporting::ReportingManager::get_report_snapshot(&env, report_id)
     }
 
     /// Record report view for usage analytics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_report_view(...);
-    /// ```
     pub fn record_report_view(
         env: Env,
         report_id: u64,
@@ -2131,35 +859,11 @@ impl TeachLinkBridge {
     }
 
     /// Get report usage count
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_usage_count(...);
-    /// ```
     pub fn get_report_usage_count(env: Env, report_id: u64) -> u32 {
         reporting::ReportingManager::get_report_usage_count(&env, report_id)
     }
 
     /// Add comment to a report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_report_comment(...);
-    /// ```
     pub fn add_report_comment(
         env: Env,
         report_id: u64,
@@ -2170,35 +874,11 @@ impl TeachLinkBridge {
     }
 
     /// Get comments for a report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_comments(...);
-    /// ```
     pub fn get_report_comments(env: Env, report_id: u64) -> Vec<ReportComment> {
         reporting::ReportingManager::get_report_comments(&env, report_id)
     }
 
     /// Create an alert rule
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_alert_rule(...);
-    /// ```
     pub fn create_alert_rule(
         env: Env,
         owner: Address,
@@ -2210,61 +890,16 @@ impl TeachLinkBridge {
     }
 
     /// Get alert rules for an owner
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_alert_rules(...);
-    /// ```
     pub fn get_alert_rules(env: Env, owner: Address) -> Vec<AlertRule> {
         reporting::ReportingManager::get_alert_rules(&env, owner)
     }
 
     /// Evaluate alert rules (returns triggered rule ids)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // evaluate_alerts(...);
-    /// ```
     pub fn evaluate_alerts(env: Env) -> Vec<u64> {
-        reporting::ReportingManager::evaluate_alerts::<
-            analytics::AnalyticsManager,
-            escrow_analytics::EscrowAnalyticsManager,
-        >(&env)
+        reporting::ReportingManager::evaluate_alerts(&env)
     }
 
     /// Get recent report snapshots
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_recent_report_snapshots(...);
-    /// ```
     pub fn get_recent_report_snapshots(env: Env, limit: u32) -> Vec<ReportSnapshot> {
         reporting::ReportingManager::get_recent_report_snapshots(&env, limit)
     }
@@ -2272,16 +907,6 @@ impl TeachLinkBridge {
     // ========== Backup and Disaster Recovery Functions ==========
 
     /// Create a backup manifest (integrity hash from off-chain)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_backup(...);
-    /// ```
     pub fn create_backup(
         env: Env,
         creator: Address,
@@ -2289,7 +914,7 @@ impl TeachLinkBridge {
         rto_tier: RtoTier,
         encryption_ref: u64,
     ) -> Result<u64, BridgeError> {
-        backup::BackupManager::create_backup::<audit::AuditManager>(
+        backup::BackupManager::create_backup(
             &env,
             creator,
             integrity_hash,
@@ -2299,60 +924,21 @@ impl TeachLinkBridge {
     }
 
     /// Get backup manifest by id
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_backup_manifest(...);
-    /// ```
     pub fn get_backup_manifest(env: Env, backup_id: u64) -> Option<BackupManifest> {
         backup::BackupManager::get_backup_manifest(&env, backup_id)
     }
 
     /// Verify backup integrity
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // verify_backup(...);
-    /// ```
     pub fn verify_backup(
         env: Env,
         backup_id: u64,
         verifier: Address,
         expected_hash: Bytes,
     ) -> Result<bool, BridgeError> {
-        backup::BackupManager::verify_backup::<audit::AuditManager>(
-            &env,
-            backup_id,
-            verifier,
-            expected_hash,
-        )
+        backup::BackupManager::verify_backup(&env, backup_id, verifier, expected_hash)
     }
 
     /// Schedule automated backup
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // schedule_backup(...);
-    /// ```
     pub fn schedule_backup(
         env: Env,
         owner: Address,
@@ -2364,35 +950,11 @@ impl TeachLinkBridge {
     }
 
     /// Get scheduled backups for an owner
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_scheduled_backups(...);
-    /// ```
     pub fn get_scheduled_backups(env: Env, owner: Address) -> Vec<BackupSchedule> {
         backup::BackupManager::get_scheduled_backups(&env, owner)
     }
 
     /// Record a recovery execution (RTO tracking and audit)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_recovery(...);
-    /// ```
     pub fn record_recovery(
         env: Env,
         backup_id: u64,
@@ -2400,7 +962,7 @@ impl TeachLinkBridge {
         recovery_duration_secs: u64,
         success: bool,
     ) -> Result<u64, BridgeError> {
-        backup::BackupManager::record_recovery::<audit::AuditManager>(
+        backup::BackupManager::record_recovery(
             &env,
             backup_id,
             executed_by,
@@ -2410,39 +972,11 @@ impl TeachLinkBridge {
     }
 
     /// Get recovery records for audit and RTO reporting
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_recovery_records(...);
-    /// ```
     pub fn get_recovery_records(env: Env, limit: u32) -> Vec<RecoveryRecord> {
         backup::BackupManager::get_recovery_records(&env, limit)
     }
 
     /// Get recent backup manifests
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_recent_backups(...);
-    /// ```
     pub fn get_recent_backups(env: Env, limit: u32) -> Vec<BackupManifest> {
         backup::BackupManager::get_recent_backups(&env, limit)
     }
@@ -2450,16 +984,6 @@ impl TeachLinkBridge {
     // ========== Rewards Functions ==========
 
     /// Initialize the rewards system
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_rewards(...);
-    /// ```
     pub fn initialize_rewards(
         env: Env,
         token: Address,
@@ -2469,35 +993,11 @@ impl TeachLinkBridge {
     }
 
     /// Fund the reward pool
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // fund_reward_pool(...);
-    /// ```
     pub fn fund_reward_pool(env: Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
         rewards::Rewards::fund_reward_pool(&env, funder, amount)
     }
 
     /// Issue rewards to a user
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // issue_reward(...);
-    /// ```
     pub fn issue_reward(
         env: Env,
         recipient: Address,
@@ -2508,35 +1008,11 @@ impl TeachLinkBridge {
     }
 
     /// Claim pending rewards
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // claim_rewards(...);
-    /// ```
     pub fn claim_rewards(env: Env, user: Address) -> Result<(), RewardsError> {
         rewards::Rewards::claim_rewards(&env, user)
     }
 
     /// Set reward rate for a specific reward type (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_reward_rate(...);
-    /// ```
     pub fn set_reward_rate(
         env: Env,
         reward_type: String,
@@ -2547,113 +1023,31 @@ impl TeachLinkBridge {
     }
 
     /// Update rewards admin (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_rewards_admin(...);
-    /// ```
     pub fn update_rewards_admin(env: Env, new_admin: Address) {
         rewards::Rewards::update_rewards_admin(&env, new_admin);
     }
 
-    /// Submit an oracle price update (authorized oracles only).
-    pub fn update_oracle_price(
     /// Get user reward information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_rewards(...);
-    /// ```
     pub fn get_user_rewards(env: Env, user: Address) -> Option<UserReward> {
         rewards::Rewards::get_user_rewards(&env, user)
     }
 
     /// Get reward pool balance
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_reward_pool_balance(...);
-    /// ```
     pub fn get_reward_pool_balance(env: Env) -> i128 {
         rewards::Rewards::get_reward_pool_balance(&env)
     }
 
     /// Get total rewards issued
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_total_rewards_issued(...);
-    /// ```
     pub fn get_total_rewards_issued(env: Env) -> i128 {
         rewards::Rewards::get_total_rewards_issued(&env)
     }
 
     /// Get reward rate for a specific type
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_reward_rate(...);
-    /// ```
     pub fn get_reward_rate(env: Env, reward_type: String) -> Option<RewardRate> {
         rewards::Rewards::get_reward_rate(&env, reward_type)
     }
 
     /// Get rewards admin address
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_rewards_admin(...);
-    /// ```
     pub fn get_rewards_admin(env: Env) -> Address {
         rewards::Rewards::get_rewards_admin(&env)
     }
@@ -2661,16 +1055,6 @@ impl TeachLinkBridge {
     // ========== Assessment and Testing Platform Functions ==========
 
     /// Create a new assessment
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_assessment(...);
-    /// ```
     pub fn create_assessment(
         env: Env,
         creator: Address,
@@ -2690,16 +1074,6 @@ impl TeachLinkBridge {
     }
 
     /// Add a question to the pool
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_assessment_question(...);
-    /// ```
     pub fn add_assessment_question(
         env: Env,
         creator: Address,
@@ -2723,16 +1097,6 @@ impl TeachLinkBridge {
     }
 
     /// Submit an assessment
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // submit_assessment(...);
-    /// ```
     pub fn submit_assessment(
         env: Env,
         student: Address,
@@ -2750,35 +1114,11 @@ impl TeachLinkBridge {
     }
 
     /// Get assessment details
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_assessment(...);
-    /// ```
     pub fn get_assessment(env: Env, id: u64) -> Option<Assessment> {
         assessment::AssessmentManager::get_assessment(&env, id)
     }
 
     /// Get user submission
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_assessment_submission(...);
-    /// ```
     pub fn get_assessment_submission(
         env: Env,
         student: Address,
@@ -2788,16 +1128,6 @@ impl TeachLinkBridge {
     }
 
     /// Report a proctoring violation
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // report_proctor_violation(...);
-    /// ```
     pub fn report_proctor_violation(
         env: Env,
         student: Address,
@@ -2813,16 +1143,6 @@ impl TeachLinkBridge {
     }
 
     /// Get next adaptive question
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_next_adaptive_question(...);
-    /// ```
     pub fn get_next_adaptive_question(
         env: Env,
         id: u64,
@@ -2835,26 +1155,8 @@ impl TeachLinkBridge {
     // ========== Escrow Functions ==========
 
     /// Create a multi-signature escrow
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_escrow(...);
-    /// ```
     pub fn create_escrow(env: Env, params: EscrowParameters) -> Result<u64, EscrowError> {
-        escrow::EscrowManager::create_escrow::<
-            arbitration::ArbitrationManager,
-            insurance::InsuranceManager,
-            escrow_analytics::EscrowAnalyticsManager,
-        >(
+        escrow::EscrowManager::create_escrow(
             &env,
             params.depositor,
             params.beneficiary,
@@ -2869,16 +1171,6 @@ impl TeachLinkBridge {
     }
 
     /// Approve escrow release (multi-signature)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // approve_escrow_release(...);
-    /// ```
     pub fn approve_escrow_release(
         env: Env,
         escrow_id: u64,
@@ -2888,162 +1180,53 @@ impl TeachLinkBridge {
     }
 
     /// Release funds to the beneficiary once conditions are met
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // release_escrow(...);
-    /// ```
     pub fn release_escrow(env: Env, escrow_id: u64, caller: Address) -> Result<(), EscrowError> {
         escrow::EscrowManager::release(&env, escrow_id, caller)
     }
 
     /// Refund escrow to the depositor after refund time
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // refund_escrow(...);
-    /// ```
     pub fn refund_escrow(env: Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         escrow::EscrowManager::refund(&env, escrow_id, depositor)
     }
 
     /// Cancel escrow before any approvals
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // cancel_escrow(...);
-    /// ```
     pub fn cancel_escrow(env: Env, escrow_id: u64, depositor: Address) -> Result<(), EscrowError> {
         escrow::EscrowManager::cancel(&env, escrow_id, depositor)
     }
 
     /// Raise a dispute on the escrow
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // dispute_escrow(...);
-    /// ```
     pub fn dispute_escrow(
         env: Env,
         escrow_id: u64,
         disputer: Address,
         reason: Bytes,
     ) -> Result<(), EscrowError> {
-        escrow::EscrowManager::dispute::<
-            arbitration::ArbitrationManager,
-            escrow_analytics::EscrowAnalyticsManager,
-        >(&env, escrow_id, disputer, reason)
+        escrow::EscrowManager::dispute(&env, escrow_id, disputer, reason)
     }
 
     /// Automatically check if an escrow has stalled and trigger a dispute
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // auto_check_escrow_dispute(...);
-    /// ```
     pub fn auto_check_escrow_dispute(env: Env, escrow_id: u64) -> Result<(), EscrowError> {
-        escrow::EscrowManager::auto_check_dispute::<arbitration::ArbitrationManager>(
-            &env,
-            escrow_id,
-        )
+        escrow::EscrowManager::auto_check_dispute(&env, escrow_id)
     }
 
     /// Resolve a dispute as the arbitrator
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // resolve_escrow(...);
-    /// ```
     pub fn resolve_escrow(
         env: Env,
         escrow_id: u64,
         arbitrator: Address,
         outcome: DisputeOutcome,
     ) -> Result<(), EscrowError> {
-        escrow::EscrowManager::resolve::<
-            arbitration::ArbitrationManager,
-            escrow_analytics::EscrowAnalyticsManager,
-        >(&env, escrow_id, arbitrator, outcome)
+        escrow::EscrowManager::resolve(&env, escrow_id, arbitrator, outcome)
     }
 
     // ========== Arbitration Management Functions ==========
 
     /// Register a new professional arbitrator
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // register_arbitrator(...);
-    /// ```
     pub fn register_arbitrator(env: Env, profile: ArbitratorProfile) -> Result<(), EscrowError> {
         arbitration::ArbitrationManager::register_arbitrator(&env, profile)
     }
 
     /// Update arbitrator profile
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_arbitrator_profile(...);
-    /// ```
     pub fn update_arbitrator_profile(
         env: Env,
         address: Address,
@@ -3053,20 +1236,6 @@ impl TeachLinkBridge {
     }
 
     /// Get arbitrator profile
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_arbitrator_profile(...);
-    /// ```
     pub fn get_arbitrator_profile(env: Env, address: Address) -> Option<ArbitratorProfile> {
         arbitration::ArbitrationManager::get_arbitrator(&env, address)
     }
@@ -3074,16 +1243,6 @@ impl TeachLinkBridge {
     // ========== Insurance Pool Functions ==========
 
     /// Initialize insurance pool
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_insurance_pool(...);
-    /// ```
     pub fn initialize_insurance_pool(
         env: Env,
         token: Address,
@@ -3093,20 +1252,6 @@ impl TeachLinkBridge {
     }
 
     /// Fund insurance pool
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // fund_insurance_pool(...);
-    /// ```
     pub fn fund_insurance_pool(env: Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
         insurance::InsuranceManager::fund_pool(&env, funder, amount)
     }
@@ -3114,77 +1259,21 @@ impl TeachLinkBridge {
     // ========== Escrow Analytics Functions ==========
 
     /// Get aggregate escrow metrics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_escrow_metrics(...);
-    /// ```
     pub fn get_escrow_metrics(env: Env) -> EscrowMetrics {
         escrow_analytics::EscrowAnalyticsManager::get_metrics(&env)
     }
 
     /// Get escrow by id
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_escrow(...);
-    /// ```
     pub fn get_escrow(env: Env, escrow_id: u64) -> Option<Escrow> {
         escrow::EscrowManager::get_escrow(&env, escrow_id)
     }
 
     /// Check if a signer approved
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // has_escrow_approval(...);
-    /// ```
     pub fn has_escrow_approval(env: Env, escrow_id: u64, signer: Address) -> bool {
         escrow::EscrowManager::has_approved(&env, escrow_id, signer)
     }
 
     /// Get the current escrow count
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_escrow_count(...);
-    /// ```
     pub fn get_escrow_count(env: Env) -> u64 {
         escrow::EscrowManager::get_escrow_count(&env)
     }
@@ -3192,16 +1281,6 @@ impl TeachLinkBridge {
     // ========== Credit Scoring Functions (feat/credit_score) ==========
 
     /// Record course completion
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_course_completion(...);
-    /// ```
     pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
         let admin = bridge::Bridge::get_admin(&env);
         admin.require_auth();
@@ -3209,16 +1288,6 @@ impl TeachLinkBridge {
     }
 
     /// Record contribution
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_contribution(...);
-    /// ```
     pub fn record_contribution(
         env: Env,
         user: Address,
@@ -3230,128 +1299,34 @@ impl TeachLinkBridge {
     }
 
     /// Get user's credit score
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_credit_score(...);
-    /// ```
     pub fn get_credit_score(env: Env, user: Address) -> u64 {
         score::ScoreManager::get_score(&env, user)
     }
 
     /// Get user's courses
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_courses(...);
-    /// ```
     pub fn get_user_courses(env: Env, user: Address) -> Vec<u64> {
         score::ScoreManager::get_courses(&env, user)
     }
 
     /// Get user's contributions
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_contributions(...);
-    /// ```
     pub fn get_user_contributions(env: Env, user: Address) -> Vec<types::Contribution> {
         score::ScoreManager::get_contributions(&env, user)
     }
 
     // ========== Reputation Functions (main) ==========
 
-    /// Standard API for update_participation
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_participation(...);
-    /// ```
     pub fn update_participation(env: Env, user: Address, points: u32) {
         reputation::update_participation(&env, user, points);
     }
 
-    /// Standard API for update_course_progress
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_course_progress(...);
-    /// ```
     pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
         reputation::update_course_progress(&env, user, is_completion);
     }
 
-    /// Standard API for rate_contribution
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // rate_contribution(...);
-    /// ```
     pub fn rate_contribution(env: Env, user: Address, rating: u32) {
         reputation::rate_contribution(&env, user, rating);
     }
 
-    /// Standard API for get_user_reputation
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_reputation(...);
-    /// ```
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
         reputation::get_reputation(&env, &user)
     }
@@ -3359,20 +1334,6 @@ impl TeachLinkBridge {
     // ========== Content Tokenization Functions ==========
 
     /// Mint a new educational content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // mint_content_token(...);
-    /// ```
     pub fn mint_content_token(env: Env, params: ContentTokenParameters) -> u64 {
         let token_id = tokenization::ContentTokenization::mint(
             &env,
@@ -3391,140 +1352,42 @@ impl TeachLinkBridge {
     }
 
     /// Transfer ownership of a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // transfer_content_token(...);
-    /// ```
     pub fn transfer_content_token(
         env: Env,
-        asset: Symbol,
-        price: i128,
-        confidence: u32,
-        oracle_signer: Address,
-    ) {
-        oracle::update_oracle_price(&env, asset, price, confidence, oracle_signer);
         from: Address,
         to: Address,
         token_id: u64,
         notes: Option<Bytes>,
     ) {
-        tokenization::ContentTokenization::transfer::<provenance::ProvenanceTracker>(
-            &env, from, to, token_id, notes,
-        );
+        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes);
     }
 
     /// Get a content token by ID
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_content_token(...);
-    /// ```
     pub fn get_content_token(env: Env, token_id: u64) -> Option<ContentToken> {
         tokenization::ContentTokenization::get_token(&env, token_id)
     }
 
     /// Get the owner of a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_content_token_owner(...);
-    /// ```
     pub fn get_content_token_owner(env: Env, token_id: u64) -> Option<Address> {
         tokenization::ContentTokenization::get_owner(&env, token_id)
     }
 
     /// Check if an address owns a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_content_token_owner(...);
-    /// ```
     pub fn is_content_token_owner(env: Env, token_id: u64, address: Address) -> bool {
         tokenization::ContentTokenization::is_owner(&env, token_id, address)
     }
 
     /// Get all tokens owned by an address
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_owner_content_tokens(...);
-    /// ```
     pub fn get_owner_content_tokens(env: Env, owner: Address) -> Vec<u64> {
         tokenization::ContentTokenization::get_owner_tokens(&env, owner)
     }
 
     /// Get the total number of content tokens minted
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_content_token_count(...);
-    /// ```
     pub fn get_content_token_count(env: Env) -> u64 {
         tokenization::ContentTokenization::get_token_count(&env)
     }
 
     /// Update content token metadata (only by owner)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_content_metadata(...);
-    /// ```
     pub fn update_content_metadata(
         env: Env,
         owner: Address,
@@ -3544,16 +1407,6 @@ impl TeachLinkBridge {
     }
 
     /// Set transferability of a content token (only by owner)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_content_token_transferable(...);
-    /// ```
     pub fn set_content_token_transferable(
         env: Env,
         owner: Address,
@@ -3563,146 +1416,45 @@ impl TeachLinkBridge {
         tokenization::ContentTokenization::set_transferable(&env, owner, token_id, transferable);
     }
 
-    /// Update bridge configuration (admin only).
-    pub fn update_config(env: Env, config: BridgeConfig) {
-        require_admin(&env);
-        validate_fee_rate(&env, &config.fee_rate);
-        env.storage().instance().set(&CONFIG, &config);
     // ========== Provenance Functions ==========
 
     /// Get full provenance history for a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_content_provenance(...);
-    /// ```
     pub fn get_content_provenance(env: Env, token_id: u64) -> Vec<ProvenanceRecord> {
         provenance::ProvenanceTracker::get_provenance(&env, token_id)
     }
 
     /// Get the number of transfers for a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_content_transfer_count(...);
-    /// ```
     #[must_use]
     pub fn get_content_transfer_count(env: &Env, token_id: u64) -> u32 {
         provenance::ProvenanceTracker::get_transfer_count(env, token_id)
     }
 
     /// Verify ownership chain integrity for a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // verify_content_chain(...);
-    /// ```
     #[must_use]
     pub fn verify_content_chain(env: &Env, token_id: u64) -> bool {
         provenance::ProvenanceTracker::verify_chain(env, token_id)
     }
 
     /// Get the creator of a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_content_creator(...);
-    /// ```
     #[must_use]
     pub fn get_content_creator(env: &Env, token_id: u64) -> Option<Address> {
         tokenization::ContentTokenization::get_creator(env, token_id)
     }
 
     /// Get all owners of a content token
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_content_all_owners(...);
-    /// ```
     #[must_use]
     pub fn get_content_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
-        tokenization::ContentTokenization::get_all_owners::<provenance::ProvenanceTracker>(
-            env, token_id,
-        )
+        tokenization::ContentTokenization::get_all_owners(env, token_id)
     }
 
     // ========== Notification System Functions ==========
 
     /// Initialize notification system
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_notifications(...);
-    /// ```
     pub fn initialize_notifications(env: Env) -> Result<(), BridgeError> {
         notification::NotificationManager::initialize(&env)
     }
 
     /// Send immediate notification
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // send_notification(...);
-    /// ```
     pub fn send_notification(
         env: Env,
         recipient: Address,
@@ -3722,16 +1474,6 @@ impl TeachLinkBridge {
     // ========== Mobile UI/UX Functions ==========
 
     /// Initialize mobile profile for user
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_mobile_profile(...);
-    /// ```
     pub fn initialize_mobile_profile(
         env: Env,
         user: Address,
@@ -3748,16 +1490,6 @@ impl TeachLinkBridge {
     }
 
     /// Update accessibility settings
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_accessibility_settings(...);
-    /// ```
     pub fn update_accessibility_settings(
         env: Env,
         user: Address,
@@ -3768,16 +1500,6 @@ impl TeachLinkBridge {
     }
 
     /// Update personalization settings
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_personalization(...);
-    /// ```
     pub fn update_personalization(
         env: Env,
         user: Address,
@@ -3787,33 +1509,7 @@ impl TeachLinkBridge {
             .map_err(|_| MobilePlatformError::DeviceNotSupported)
     }
 
-    /// Enable or disable the fallback mechanism (admin only).
-    pub fn set_fallback_enabled(env: Env, enabled: bool) {
-        require_admin(&env);
-        env.storage().instance().set(&FALLBACK_ENABLED, &enabled);
-    }
-
-    // ── Queries ──────────────────────────────────────────────────────────────
-
-    /// Get a bridge transaction by index.
-    pub fn get_bridge_tx(env: Env, index: u32) -> Option<(Address, i128, u32, Bytes)> {
-        let txs: Vec<(Address, i128, u32, Bytes)> = env
-            .storage()
-            .instance()
-            .get(&BRIDGE_TXS)
-            .unwrap_or_else(|| Vec::new(&env));
-        txs.get(index)
     /// Record onboarding progress
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_onboarding_progress(...);
-    /// ```
     pub fn record_onboarding_progress(
         env: Env,
         user: Address,
@@ -3824,16 +1520,6 @@ impl TeachLinkBridge {
     }
 
     /// Submit user feedback
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // submit_user_feedback(...);
-    /// ```
     pub fn submit_user_feedback(
         env: Env,
         user: Address,
@@ -3848,70 +1534,22 @@ impl TeachLinkBridge {
     }
 
     /// Get user allocated experiment variants
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_experiment_variants(...);
-    /// ```
     pub fn get_user_experiment_variants(env: Env, user: Address) -> Map<u64, Symbol> {
         mobile_platform::MobilePlatformManager::get_user_experiment_variants(&env, user)
     }
 
     /// Get design system configuration
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_design_system_config(...);
-    /// ```
     pub fn get_design_system_config(env: Env) -> ComponentConfig {
         mobile_platform::MobilePlatformManager::get_design_system_config(&env)
     }
 
     /// Set design system configuration (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_design_system_config(...);
-    /// ```
     pub fn set_design_system_config(env: Env, config: ComponentConfig) {
         // In a real implementation, we would check for admin authorization here
         mobile_platform::MobilePlatformManager::set_design_system_config(&env, config)
     }
 
     /// Schedule notification for future delivery
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // schedule_notification(...);
-    /// ```
     pub fn schedule_notification(
         env: Env,
         recipient: Address,
@@ -3944,35 +1582,11 @@ impl TeachLinkBridge {
     }
 
     /// Process scheduled notifications
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // process_scheduled_notifications(...);
-    /// ```
     pub fn process_scheduled_notifications(env: Env) -> Result<u32, BridgeError> {
         notification::NotificationManager::process_scheduled_notifications(&env)
     }
 
     /// Update user notification preferences
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_notification_preferences(...);
-    /// ```
     pub fn update_notification_preferences(
         env: Env,
         user: Address,
@@ -3982,16 +1596,6 @@ impl TeachLinkBridge {
     }
 
     /// Update user notification settings
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_notification_settings(...);
-    /// ```
     pub fn update_notification_settings(
         env: Env,
         user: Address,
@@ -4013,16 +1617,6 @@ impl TeachLinkBridge {
     }
 
     /// Create notification template
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_notification_template(...);
-    /// ```
     pub fn create_notification_template(
         env: Env,
         admin: Address,
@@ -4040,20 +1634,7 @@ impl TeachLinkBridge {
         notification::NotificationManager::create_template(&env, admin, name, channels, content)
     }
 
-    /// Get the current bridge configuration.
-    pub fn get_config(env: Env) -> BridgeConfig {
-        storage::get_config(&env)
     /// Send notification using template
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // send_template_notification(...);
-    /// ```
     pub fn send_template_notification(
         env: Env,
         recipient: Address,
@@ -4069,16 +1650,6 @@ impl TeachLinkBridge {
     }
 
     /// Get notification tracking information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_notification_tracking(...);
-    /// ```
     pub fn get_notification_tracking(
         env: Env,
         notification_id: u64,
@@ -4086,23 +1657,7 @@ impl TeachLinkBridge {
         notification::NotificationManager::get_notification_tracking(&env, notification_id)
     }
 
-    /// Check whether the fallback mechanism is enabled.
-    pub fn is_fallback_enabled(env: Env) -> bool {
-        env.storage()
-            .instance()
-            .get(&FALLBACK_ENABLED)
-            .unwrap_or(true)
     /// Get user notification history
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_notifications(...);
-    /// ```
     pub fn get_user_notifications(
         env: Env,
         user: Address,
@@ -4114,16 +1669,6 @@ impl TeachLinkBridge {
     // ========== Social Learning Functions ==========
 
     /// Create a study group
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_study_group(...);
-    /// ```
     pub fn create_study_group(
         env: Env,
         creator: Address,
@@ -4150,56 +1695,18 @@ impl TeachLinkBridge {
     }
 
     /// Join a study group
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // join_study_group(...);
-    /// ```
     pub fn join_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
         social_learning::SocialLearningManager::join_study_group(&env, user, group_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Leave a study group
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // leave_study_group(...);
-    /// ```
     pub fn leave_study_group(env: Env, user: Address, group_id: u64) -> Result<(), BridgeError> {
         social_learning::SocialLearningManager::leave_study_group(&env, user, group_id)
             .map_err(|_| BridgeError::InvalidInput)
     }
 
     /// Get study group information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_study_group(...);
-    /// ```
     pub fn get_study_group(
         env: Env,
         group_id: u64,
@@ -4209,41 +1716,11 @@ impl TeachLinkBridge {
     }
 
     /// Get user's study groups
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_study_groups(...);
-    /// ```
     pub fn get_user_study_groups(env: Env, user: Address) -> Vec<u64> {
         social_learning::SocialLearningManager::get_user_study_groups(&env, user)
     }
 
-    /// Get the total error count.
-    pub fn get_error_stats(env: Env) -> u64 {
-        env.storage()
-            .instance()
-            .get(&storage::ERROR_COUNT)
-            .unwrap_or(0)
     /// Create a discussion forum
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_forum(...);
-    /// ```
     pub fn create_forum(
         env: Env,
         creator: Address,
@@ -4264,16 +1741,6 @@ impl TeachLinkBridge {
     }
 
     /// Create a forum post
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_forum_post(...);
-    /// ```
     pub fn create_forum_post(
         env: Env,
         forum_id: u64,
@@ -4294,16 +1761,6 @@ impl TeachLinkBridge {
     }
 
     /// Get forum information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_forum(...);
-    /// ```
     pub fn get_forum(
         env: Env,
         forum_id: u64,
@@ -4313,16 +1770,6 @@ impl TeachLinkBridge {
     }
 
     /// Get forum post
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_forum_post(...);
-    /// ```
     pub fn get_forum_post(
         env: Env,
         post_id: u64,
@@ -4331,26 +1778,7 @@ impl TeachLinkBridge {
             .map_err(|_| BridgeError::InvalidInput)
     }
 
-    /// Expose key constants for off-chain consumers.
-    pub fn get_constants(_env: Env) -> (u32, u32, u32, i128, u64) {
-        (
-            constants::fees::DEFAULT_FEE_RATE,
-            constants::chains::DEFAULT_MIN_CONFIRMATIONS,
-            constants::oracle::DEFAULT_CONFIDENCE_THRESHOLD,
-            constants::amounts::FALLBACK_PRICE,
-            constants::oracle::PRICE_FRESHNESS_SECONDS,
-        )
     /// Create a collaboration workspace
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_workspace(...);
-    /// ```
     pub fn create_workspace(
         env: Env,
         creator: Address,
@@ -4371,16 +1799,6 @@ impl TeachLinkBridge {
     }
 
     /// Get workspace information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_workspace(...);
-    /// ```
     pub fn get_workspace(
         env: Env,
         workspace_id: u64,
@@ -4390,35 +1808,11 @@ impl TeachLinkBridge {
     }
 
     /// Get user's workspaces
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_workspaces(...);
-    /// ```
     pub fn get_user_workspaces(env: Env, user: Address) -> Vec<u64> {
         social_learning::SocialLearningManager::get_user_workspaces(&env, user)
     }
 
     /// Create a peer review
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_review(...);
-    /// ```
     pub fn create_review(
         env: Env,
         reviewer: Address,
@@ -4443,16 +1837,6 @@ impl TeachLinkBridge {
     }
 
     /// Get review information
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_review(...);
-    /// ```
     pub fn get_review(
         env: Env,
         review_id: u64,
@@ -4462,16 +1846,6 @@ impl TeachLinkBridge {
     }
 
     /// Create mentorship profile
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_mentorship_profile(...);
-    /// ```
     pub fn create_mentorship_profile(
         env: Env,
         mentor: Address,
@@ -4498,16 +1872,6 @@ impl TeachLinkBridge {
     }
 
     /// Get mentorship profile
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_mentorship_profile(...);
-    /// ```
     pub fn get_mentorship_profile(
         env: Env,
         mentor: Address,
@@ -4515,44 +1879,13 @@ impl TeachLinkBridge {
         social_learning::SocialLearningManager::get_mentorship_profile(&env, mentor)
             .map_err(|_| BridgeError::InvalidInput)
     }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert!(true);
 
     /// Get user social analytics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_user_analytics(...);
-    /// ```
     pub fn get_user_analytics(env: Env, user: Address) -> social_learning::SocialAnalytics {
         social_learning::SocialLearningManager::get_user_analytics(&env, user)
     }
 
     /// Update user social analytics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_user_analytics(...);
-    /// ```
     pub fn update_user_analytics(
         env: Env,
         user: Address,
@@ -4560,4 +1893,7 @@ mod tests {
     ) {
         social_learning::SocialLearningManager::update_user_analytics(&env, user, analytics);
     }
+
+    // Analytics function removed due to contracttype limitations
+    // Use internal notification manager for analytics
 }
