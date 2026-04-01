@@ -1,14 +1,12 @@
-//! Bridge-out and chain-management logic.
-
-use soroban_sdk::{symbol_short, Address, Bytes, Env, Symbol, Vec};
-
-use crate::{
-    constants,
-    errors::{handle_error, TeachLinkError},
-    storage::{self, BRIDGE_TXS},
-    types::BridgeConfig,
-    validation,
+use crate::errors::BridgeError;
+use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
+use crate::storage::{
+    ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS, BRIDGE_TXS,
+    FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
 };
+use crate::types::{BridgeTransaction, CrossChainMessage};
+use crate::validation::BridgeValidator;
+use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
 const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
@@ -21,16 +19,6 @@ impl Bridge {
     /// - token: Address of the TeachLink token contract
     /// - admin: Address of the bridge administrator
     /// - min_validators: Minimum number of validators required for cross-chain verification
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize(...);
-    /// ```
     pub fn initialize(
         env: &Env,
         token: Address,
@@ -71,16 +59,6 @@ impl Bridge {
     /// - amount: Amount of tokens to bridge
     /// - destination_chain: Chain ID of the destination blockchain
     /// - destination_address: Address on the destination chain (encoded as bytes)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // bridge_out(...);
-    /// ```
     pub fn bridge_out(
         env: &Env,
         from: Address,
@@ -211,16 +189,6 @@ impl Bridge {
     /// This is called by validators after verifying the transaction on the source chain
     /// - message: Cross-chain message containing transaction details
     /// - validator_signatures: List of validator addresses that have verified this transaction
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // complete_bridge(...);
-    /// ```
     pub fn complete_bridge(
         env: &Env,
         message: CrossChainMessage,
@@ -304,22 +272,6 @@ impl Bridge {
         Ok(())
     }
 
-    /// Standard API for mark_bridge_failed
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // mark_bridge_failed(...);
-    /// ```
     pub fn mark_bridge_failed(env: &Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
         if reason.is_empty() {
             return Err(BridgeError::InvalidInput);
@@ -345,22 +297,6 @@ impl Bridge {
         Ok(())
     }
 
-    /// Standard API for retry_bridge
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // retry_bridge(...);
-    /// ```
     pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
         let bridge_txs: Map<u64, BridgeTransaction> = env
             .storage()
@@ -425,20 +361,6 @@ impl Bridge {
     /// Cancel a bridge transaction and refund locked tokens
     /// Only callable after a timeout period
     /// - nonce: The nonce of the bridge transaction to cancel
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // cancel_bridge(...);
-    /// ```
     pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         // Get bridge transaction
         let bridge_txs: Map<u64, BridgeTransaction> = env
@@ -487,22 +409,6 @@ impl Bridge {
         Ok(())
     }
 
-    /// Standard API for refund_bridge_transaction
-    ///
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // refund_bridge_transaction(...);
-    /// ```
     pub fn refund_bridge_transaction(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         Self::cancel_bridge(env, nonce)
     }
@@ -540,20 +446,6 @@ impl Bridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_validator(...);
-    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -567,20 +459,6 @@ impl Bridge {
     }
 
     /// Remove a validator (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // remove_validator(...);
-    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -594,20 +472,6 @@ impl Bridge {
     }
 
     /// Add a supported destination chain (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_supported_chain(...);
-    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -621,20 +485,6 @@ impl Bridge {
     }
 
     /// Remove a supported destination chain (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // remove_supported_chain(...);
-    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -648,20 +498,6 @@ impl Bridge {
     }
 
     /// Set bridge fee (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_bridge_fee(...);
-    /// ```
     pub fn set_bridge_fee(env: &Env, fee: i128) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -676,20 +512,6 @@ impl Bridge {
     }
 
     /// Set fee recipient (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_fee_recipient(...);
-    /// ```
     #[allow(clippy::unnecessary_wraps)]
     pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
@@ -701,20 +523,6 @@ impl Bridge {
     }
 
     /// Set minimum validators (admin only)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // set_min_validators(...);
-    /// ```
     pub fn set_min_validators(env: &Env, min_validators: u32) -> Result<(), BridgeError> {
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
@@ -733,20 +541,6 @@ impl Bridge {
     // ========== View Functions ==========
 
     /// Get the bridge transaction by nonce
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_bridge_transaction(...);
-    /// ```
     pub fn get_bridge_transaction(env: &Env, nonce: u64) -> Option<BridgeTransaction> {
         let bridge_txs: Map<u64, BridgeTransaction> = env
             .storage()
@@ -757,20 +551,6 @@ impl Bridge {
     }
 
     /// Check if a chain is supported
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_chain_supported(...);
-    /// ```
     pub fn is_chain_supported(env: &Env, chain_id: u32) -> bool {
         let chains: Map<u32, bool> = env
             .storage()
@@ -781,20 +561,6 @@ impl Bridge {
     }
 
     /// Check if an address is a validator
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // is_validator(...);
-    /// ```
     pub fn is_validator(env: &Env, address: Address) -> bool {
         let validators: Map<Address, bool> = env
             .storage()
@@ -805,153 +571,130 @@ impl Bridge {
     }
 
     /// Get the current nonce
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_nonce(...);
-    /// ```
     pub fn get_nonce(env: &Env) -> u64 {
         env.storage().instance().get(&NONCE).unwrap_or(0u64)
     }
 
     /// Get the bridge fee
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_bridge_fee(...);
-    /// ```
     pub fn get_bridge_fee(env: &Env) -> i128 {
         env.storage().instance().get(&BRIDGE_FEE).unwrap_or(0i128)
     }
 
     /// Get the token address
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_token(...);
-    /// ```
     pub fn get_token(env: &Env) -> Address {
         env.storage().instance().get(&TOKEN).unwrap()
     }
 
     /// Get the admin address
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_admin(...);
-    /// ```
     pub fn get_admin(env: &Env) -> Address {
         env.storage().instance().get(&ADMIN).unwrap()
     }
 }
-/// Calculate the fee for a given amount and rate (basis points).
-pub fn calculate_fee(amount: i128, fee_rate: u32) -> i128 {
-    amount * fee_rate as i128 / constants::fees::FEE_CALCULATION_DIVISOR as i128
-}
 
-/// Initiate a cross-chain bridge transfer and return the nonce.
-pub fn bridge_out(
-    env: &Env,
-    from: Address,
-    amount: i128,
-    destination_chain: u32,
-    destination_address: Bytes,
-) -> u64 {
-    validation::require_initialized(env, true);
-    validation::validate_amount(env, &amount);
-    validation::validate_chain_id(env, &destination_chain);
-    validation::validate_bytes_address(env, &destination_address);
+#[cfg(test)]
+mod tests {
+    use super::{Bridge, BRIDGE_RETRY_DELAY_BASE_SECONDS};
+    use crate::errors::BridgeError;
+    use crate::storage::{BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS};
+    use crate::types::{BridgeTransaction, CrossChainMessage};
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::{Address as _, Ledger};
+    use soroban_sdk::{vec, Address, Bytes, Env, Map, Vec};
 
-    let config: BridgeConfig = storage::get_config(env);
-    let nonce = storage::get_next_nonce(env);
-
-    let fee = calculate_fee(amount, config.fee_rate);
-    let bridge_amount = amount - fee;
-    validation::validate_amount(env, &bridge_amount);
-
-    let mut txs: Vec<(Address, i128, u32, Bytes)> = env
-        .storage()
-        .instance()
-        .get(&BRIDGE_TXS)
-        .unwrap_or_else(|| Vec::new(env));
-
-    if txs.len() >= constants::storage::MAX_BRIDGE_TXS {
-        handle_error(env, TeachLinkError::BridgeFailed);
+    fn set_time(env: &Env, timestamp: u64) {
+        env.ledger().with_mut(|ledger_info| {
+            ledger_info.timestamp = timestamp;
+        });
     }
 
-    txs.push_back((from, bridge_amount, destination_chain, destination_address));
-    env.storage().instance().set(&BRIDGE_TXS, &txs);
+    fn seed_bridge_tx(env: &Env, nonce: u64, timestamp: u64) {
+        let token = Address::generate(env);
+        let sender = Address::generate(env);
+        env.storage().instance().set(&TOKEN, &token);
 
-    nonce
-}
+        let tx = BridgeTransaction {
+            nonce,
+            token,
+            amount: 500,
+            recipient: sender,
+            destination_chain: 2,
+            destination_address: Bytes::from_slice(env, b"dest"),
+            timestamp,
+        };
 
-/// Register a new supported chain (admin only).
-pub fn add_chain_support(
-    env: &Env,
-    chain_id: u32,
-    name: Symbol,
-    bridge_address: Address,
-    min_confirmations: u32,
-    fee_rate: u32,
-) {
-    validation::require_admin(env);
-    validation::validate_chain_id(env, &chain_id);
-    validation::validate_fee_rate(env, &fee_rate);
-
-    let chains_key = symbol_short!("chains");
-    let chains: Vec<(u32, Symbol, Address, u32, u32)> = env
-        .storage()
-        .instance()
-        .get(&chains_key)
-        .unwrap_or_else(|| Vec::new(env));
-
-    if chains.len() >= constants::storage::MAX_CHAIN_CONFIGS {
-        handle_error(env, TeachLinkError::ChainExists);
+        let mut txs: Map<u64, BridgeTransaction> = Map::new(env);
+        txs.set(nonce, tx);
+        env.storage().instance().set(&BRIDGE_TXS, &txs);
     }
 
-    for chain in chains.iter() {
-        if chain.0 == chain_id {
-            handle_error(env, TeachLinkError::ChainExists);
-        }
+    #[test]
+    fn mark_bridge_failed_requires_existing_tx() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let result = env.as_contract(&contract_id, || {
+            Bridge::mark_bridge_failed(&env, 99, Bytes::from_slice(&env, b"failure"))
+        });
+        assert_eq!(result, Err(BridgeError::BridgeTransactionNotFound));
     }
 
-    let mut updated = chains;
-    updated.push_back((chain_id, name, bridge_address, min_confirmations, fee_rate));
-    env.storage().instance().set(&chains_key, &updated);
+    #[test]
+    fn complete_bridge_rejects_replay_when_nonce_already_processed() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        env.as_contract(&contract_id, || {
+            let token = Address::generate(&env);
+            let validator = Address::generate(&env);
+            let recipient = Address::generate(&env);
+
+            env.storage().instance().set(&TOKEN, &token);
+            env.storage().instance().set(&MIN_VALIDATORS, &1u32);
+
+            let mut validators: Map<Address, bool> = Map::new(&env);
+            validators.set(validator.clone(), true);
+            env.storage().instance().set(&VALIDATORS, &validators);
+
+            let mut processed: Map<u64, bool> = Map::new(&env);
+            processed.set(7u64, true);
+            env.storage().persistent().set(&NONCE, &processed);
+
+            let message = CrossChainMessage {
+                source_chain: 1,
+                source_tx_hash: Bytes::from_slice(&env, &[0xab; 32]),
+                nonce: 7,
+                token: token.clone(),
+                amount: 100,
+                recipient: recipient.clone(),
+                destination_chain: 2,
+            };
+
+            let sigs: Vec<Address> = vec![&env, validator];
+            let r = Bridge::complete_bridge(&env, message, sigs);
+            assert_eq!(r, Err(BridgeError::NonceAlreadyProcessed));
+        });
+    }
+
+    #[test]
+    fn retry_bridge_enforces_backoff_and_limit() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        env.as_contract(&contract_id, || {
+            set_time(&env, 10_000);
+            seed_bridge_tx(&env, 1, 10_000);
+
+            let retry_too_early = Bridge::retry_bridge(&env, 1);
+            assert_eq!(retry_too_early, Err(BridgeError::RetryBackoffActive));
+
+            let mut now = 10_000u64;
+            for retry_count in 0..5u32 {
+                now += BRIDGE_RETRY_DELAY_BASE_SECONDS * (1u64 << retry_count);
+                set_time(&env, now);
+                let updated_retry_count = Bridge::retry_bridge(&env, 1).expect("retry should pass");
+                assert_eq!(updated_retry_count, retry_count + 1);
+            }
+
+            set_time(&env, now + 100_000);
+            let retry_over_limit = Bridge::retry_bridge(&env, 1);
+            assert_eq!(retry_over_limit, Err(BridgeError::RetryLimitExceeded));
+        });
+    }
 }

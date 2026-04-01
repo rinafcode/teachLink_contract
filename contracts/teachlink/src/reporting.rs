@@ -4,8 +4,10 @@
 //! collaboration comments, alert rules, and dashboard-ready aggregate analytics
 //! for visualization.
 
+use crate::analytics::AnalyticsManager;
+use crate::audit::AuditManager;
 use crate::errors::BridgeError;
-use crate::interfaces::{AnalyticsPort, AuditPort, EscrowMetricsPort};
+use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
     AlertTriggeredEvent, ReportCommentAddedEvent, ReportGeneratedEvent, ReportScheduledEvent,
 };
@@ -25,16 +27,6 @@ pub struct ReportingManager;
 
 impl ReportingManager {
     /// Create a report template
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_report_template(...);
-    /// ```
     pub fn create_report_template(
         env: &Env,
         creator: Address,
@@ -75,20 +67,6 @@ impl ReportingManager {
     }
 
     /// Get report template by id
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_template(...);
-    /// ```
     pub fn get_report_template(env: &Env, template_id: u64) -> Option<ReportTemplate> {
         let templates: Map<u64, ReportTemplate> = env
             .storage()
@@ -99,16 +77,6 @@ impl ReportingManager {
     }
 
     /// Schedule a report (owner must auth)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // schedule_report(...);
-    /// ```
     pub fn schedule_report(
         env: &Env,
         owner: Address,
@@ -162,20 +130,6 @@ impl ReportingManager {
     }
 
     /// Get scheduled reports for an owner
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_scheduled_reports(...);
-    /// ```
     pub fn get_scheduled_reports(env: &Env, owner: Address) -> Vec<ReportSchedule> {
         let schedules: Map<u64, ReportSchedule> = env
             .storage()
@@ -193,7 +147,7 @@ impl ReportingManager {
     }
 
     /// Generate a report snapshot (stores result, emits event)
-
+    pub fn generate_report_snapshot(
         env: &Env,
         generator: Address,
         template_id: u64,
@@ -205,7 +159,7 @@ impl ReportingManager {
         let template =
             Self::get_report_template(env, template_id).ok_or(BridgeError::InvalidInput)?;
 
-        let analytics = Self::get_dashboard_analytics::<An, Au, Em>(env);
+        let analytics = Self::get_dashboard_analytics(env);
         // Summary stored as placeholder; full data available via get_dashboard_analytics
         let _ = analytics;
         let summary = Bytes::new(env);
@@ -252,20 +206,6 @@ impl ReportingManager {
     }
 
     /// Get report snapshot by id
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_snapshot(...);
-    /// ```
     pub fn get_report_snapshot(env: &Env, report_id: u64) -> Option<ReportSnapshot> {
         let snapshots: Map<u64, ReportSnapshot> = env
             .storage()
@@ -276,16 +216,6 @@ impl ReportingManager {
     }
 
     /// Record report view for usage analytics
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // record_report_view(...);
-    /// ```
     pub fn record_report_view(
         env: &Env,
         report_id: u64,
@@ -316,20 +246,6 @@ impl ReportingManager {
     }
 
     /// Get usage count for a report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_usage_count(...);
-    /// ```
     pub fn get_report_usage_count(env: &Env, report_id: u64) -> u32 {
         let usage_map: Map<(u64, Address), ReportUsage> = env
             .storage()
@@ -347,16 +263,6 @@ impl ReportingManager {
     }
 
     /// Add a comment to a report (collaboration)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_report_comment(...);
-    /// ```
     pub fn add_report_comment(
         env: &Env,
         report_id: u64,
@@ -406,20 +312,6 @@ impl ReportingManager {
     }
 
     /// Get comments for a report
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_report_comments(...);
-    /// ```
     pub fn get_report_comments(env: &Env, report_id: u64) -> Vec<ReportComment> {
         let comments: Map<u64, ReportComment> = env
             .storage()
@@ -437,16 +329,6 @@ impl ReportingManager {
     }
 
     /// Create an alert rule
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_alert_rule(...);
-    /// ```
     pub fn create_alert_rule(
         env: &Env,
         owner: Address,
@@ -486,20 +368,6 @@ impl ReportingManager {
     }
 
     /// Get alert rules for an owner
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_alert_rules(...);
-    /// ```
     pub fn get_alert_rules(env: &Env, owner: Address) -> Vec<AlertRule> {
         let rules: Map<u64, AlertRule> = env
             .storage()
@@ -517,16 +385,16 @@ impl ReportingManager {
     }
 
     /// Evaluate alert rules and emit AlertTriggeredEvent if any threshold is breached
-
+    pub fn evaluate_alerts(env: &Env) -> Vec<u64> {
         let rules: Map<u64, AlertRule> = env
             .storage()
             .instance()
             .get(&ALERT_RULES)
             .unwrap_or_else(|| Map::new(env));
 
-        let bridge_metrics = An::bridge_metrics(env);
-        let health = An::health_score(env);
-        let escrow_metrics = Em::get_metrics(env);
+        let bridge_metrics = AnalyticsManager::get_bridge_metrics(env);
+        let health = AnalyticsManager::calculate_health_score(env);
+        let escrow_metrics = EscrowAnalyticsManager::get_metrics(env);
 
         let mut triggered = Vec::new(env);
         for (rule_id, rule) in rules.iter() {
@@ -578,7 +446,11 @@ impl ReportingManager {
     }
 
     /// Get dashboard-ready aggregate analytics for visualizations
-
+    pub fn get_dashboard_analytics(env: &Env) -> DashboardAnalytics {
+        let bridge_metrics = AnalyticsManager::get_bridge_metrics(env);
+        let health = AnalyticsManager::calculate_health_score(env);
+        let escrow_metrics = EscrowAnalyticsManager::get_metrics(env);
+        let audit_count = AuditManager::get_audit_count(env);
 
         let compliance_count: u32 = 0; // Could be extended to count ComplianceReports if stored by id range
 
@@ -598,20 +470,6 @@ impl ReportingManager {
     }
 
     /// Get recent report snapshots (for listing)
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // get_recent_report_snapshots(...);
-    /// ```
     pub fn get_recent_report_snapshots(env: &Env, limit: u32) -> Vec<ReportSnapshot> {
         let counter: u64 = env
             .storage()

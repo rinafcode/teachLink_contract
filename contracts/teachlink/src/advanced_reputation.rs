@@ -265,20 +265,6 @@ pub struct AdvancedReputationManager;
 
 impl AdvancedReputationManager {
     /// Initialize advanced reputation system for a user
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Returns
-    ///
-    /// * The return value of the function.
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // initialize_user(...);
-    /// ```
     pub fn initialize_user(env: &Env, user: Address) -> Result<(), AdvancedReputationError> {
         user.require_auth();
         
@@ -333,16 +319,6 @@ impl AdvancedReputationManager {
     }
 
     /// Add endorsement to user's social proof
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_endorsement(...);
-    /// ```
     pub fn add_endorsement(
         env: &Env,
         endorser: Address,
@@ -380,16 +356,6 @@ impl AdvancedReputationManager {
     }
 
     /// Add verification to user's profile
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // add_verification(...);
-    /// ```
     pub fn add_verification(
         env: &Env,
         verifier: Address,
@@ -422,16 +388,6 @@ impl AdvancedReputationManager {
     }
 
     /// Update cross-platform reputation data
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_cross_platform_reputation(...);
-    /// ```
     pub fn update_cross_platform_reputation(
         env: &Env,
         user: Address,
@@ -451,16 +407,6 @@ impl AdvancedReputationManager {
     }
 
     /// Update external credit data
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // update_external_credit_data(...);
-    /// ```
     pub fn update_external_credit_data(
         env: &Env,
         user: Address,
@@ -490,16 +436,6 @@ impl AdvancedReputationManager {
     }
 
     /// Purchase reputation insurance
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // purchase_reputation_insurance(...);
-    /// ```
     pub fn purchase_reputation_insurance(
         env: &Env,
         user: Address,
@@ -535,16 +471,6 @@ impl AdvancedReputationManager {
     }
 
     /// Create reputation marketplace listing
-    /// # Arguments
-    ///
-    /// * `env` - The environment (if applicable).
-    ///
-    /// # Examples
-    ///
-    /// ```rust
-    /// // Example usage
-    /// // create_reputation_listing(...);
-    /// ```
     pub fn create_reputation_listing(
         env: &Env,
         seller: Address,
