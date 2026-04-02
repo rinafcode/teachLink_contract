@@ -12,9 +12,13 @@ pub mod config {
     pub const MAX_STRING_LENGTH: u32 = 256;
     pub const MIN_CHAIN_ID: u32 = 1;
     pub const MAX_CHAIN_ID: u32 = 999999;
-    pub const MAX_ESROW_DESCRIPTION_LENGTH: u32 = 1000;
+    pub const MAX_ESCROW_DESCRIPTION_LENGTH: u32 = 1000;
     pub const MIN_TIMEOUT_SECONDS: u64 = 60; // 1 minute minimum
     pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum
+    pub const MAX_PAYLOAD_SIZE: u32 = 4096; // 4 KB max packet payload
+    /// Bridge-specific amount bounds
+    pub const MIN_BRIDGE_AMOUNT: i128 = 1;
+    pub const MAX_BRIDGE_AMOUNT: i128 = 1_000_000_000_000_000_000; // 1e18
 }
 
 /// Validation errors
@@ -192,11 +196,16 @@ impl StringValidator {
 pub struct BytesValidator;
 
 impl BytesValidator {
-    /// Validates bytes length for cross-chain addresses
+    /// Validates bytes for cross-chain addresses
     pub fn validate_cross_chain_address(bytes: &Bytes) -> ValidationResult<()> {
         // Most blockchain addresses are 20-32 bytes
         if bytes.len() < 20 || bytes.len() > 32 {
             return Err(ValidationError::InvalidBytesLength);
+        }
+        // Reject all-zero addresses (null address)
+        let all_zero = bytes.iter().all(|b| b == 0);
+        if all_zero {
+            return Err(ValidationError::InvalidAddressFormat);
         }
         Ok(())
     }
@@ -204,6 +213,17 @@ impl BytesValidator {
     /// Validates bytes for general use
     pub fn validate_length(bytes: &Bytes, min_len: u32, max_len: u32) -> ValidationResult<()> {
         if bytes.len() < min_len || bytes.len() > max_len {
+            return Err(ValidationError::InvalidBytesLength);
+        }
+        Ok(())
+    }
+
+    /// Validates packet payload (non-empty, within size limit)
+    pub fn validate_payload(bytes: &Bytes) -> ValidationResult<()> {
+        if bytes.is_empty() {
+            return Err(ValidationError::InvalidCrossChainData);
+        }
+        if bytes.len() > config::MAX_PAYLOAD_SIZE {
             return Err(ValidationError::InvalidBytesLength);
         }
         Ok(())
@@ -298,6 +318,68 @@ impl EscrowValidator {
 
     /// Checks for duplicate signers in the list
     pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
+        let mut seen_addresses: Vec<Address> = Vec::new(&soroban_sdk::Env::current());
+        
+        for signer in signers.iter() {
+            if seen_addresses.iter().any(|addr| addr == &signer.address) {
+                return Err(EscrowError::DuplicateSigners);
+            }
+            seen_addresses.push_back(signer.address.clone());
+        }
+        
+        Ok(())
+    }
+
+    /// Validates EscrowParameters struct (refactored from individual parameters)
+    pub fn validate_escrow_parameters(
+        env: &Env,
+        params: &crate::types::EscrowParameters,
+    ) -> Result<(), EscrowError> {
+        // Validate addresses
+        AddressValidator::validate(env, &params.depositor)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, &params.beneficiary)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, &params.token)
+            .map_err(|_| EscrowError::InvalidToken)?;
+        AddressValidator::validate(env, &params.arbitrator)
+            .map_err(|_| EscrowError::InvalidArbitrator)?;
+
+        // Validate amount
+        NumberValidator::validate_amount(params.amount)
+            .map_err(|_| EscrowError::AmountMustBePositive)?;
+
+        // Validate signers
+        NumberValidator::validate_signer_count(params.signers.len() as usize)
+            .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
+
+        // Validate threshold against total signer weight
+        let mut total_weight: u32 = 0;
+        for signer in params.signers.iter() {
+            total_weight += signer.weight;
+        }
+
+        if params.threshold < 1 || params.threshold > total_weight {
+            return Err(EscrowError::InvalidSignerThreshold);
+        }
+
+        // Validate time constraints
+        if let (Some(release), Some(refund)) = (params.release_time, params.refund_time) {
+            if refund <= release {
+                return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
+            }
+        }
+
+        // Check for duplicate signers
+        Self::check_duplicate_signers(&params.signers)?;
+
+        // Additional validation: depositor must be different from beneficiary
+        if params.depositor == params.beneficiary {
+            return Err(EscrowError::DepositorCannotBeBeneficiary);
+        }
+
+        Ok(())
+    }
         let mut seen = soroban_sdk::Map::new(&signers.env());
         for signer in signers.iter() {
             if seen.get(signer.address.clone()).unwrap_or(false) {
@@ -352,11 +434,36 @@ impl EscrowValidator {
     }
 }
 
+/// Parameter sanitization utilities
+pub struct InputSanitizer;
+
+impl InputSanitizer {
+    /// Clamps an i128 amount to the valid bridge range, returning an error if out of bounds.
+    pub fn sanitize_amount(amount: i128) -> ValidationResult<i128> {
+        if amount < config::MIN_BRIDGE_AMOUNT || amount > config::MAX_BRIDGE_AMOUNT {
+            return Err(ValidationError::InvalidAmountRange);
+        }
+        Ok(amount)
+    }
+
+    /// Validates and returns a chain ID only if it is within the numeric range.
+    pub fn sanitize_chain_id(chain_id: u32) -> ValidationResult<u32> {
+        NumberValidator::validate_chain_id(chain_id)?;
+        Ok(chain_id)
+    }
+
+    /// Validates destination bytes are non-empty, non-zero, and within address length bounds.
+    pub fn sanitize_destination_address(bytes: &Bytes) -> ValidationResult<()> {
+        BytesValidator::validate_cross_chain_address(bytes)
+    }
+}
+
 /// Bridge-specific validation utilities
 pub struct BridgeValidator;
 
 impl BridgeValidator {
-    /// Validates bridge out parameters
+    /// Validates bridge out parameters.
+    /// Pass `supported_chains` to also verify the chain is registered; pass `None` to skip.
     pub fn validate_bridge_out(
         env: &Env,
         from: &Address,
@@ -364,17 +471,31 @@ impl BridgeValidator {
         destination_chain: u32,
         destination_address: &Bytes,
     ) -> Result<(), crate::errors::BridgeError> {
-        // Validate addresses
+        // Validate sender address
         AddressValidator::validate(env, from)
+            .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
+
+        // Validate amount within bridge-specific bounds
+        InputSanitizer::sanitize_amount(amount)
             .map_err(|_| crate::errors::BridgeError::AmountMustBePositive)?;
 
-        // Validate amount
-        NumberValidator::validate_amount(amount)
-            .map_err(|_| crate::errors::BridgeError::AmountMustBePositive)?;
-
-        // Validate cross-chain data
-        CrossChainValidator::validate_destination_data(env, destination_chain, destination_address)
+        // Validate chain ID numeric range
+        InputSanitizer::sanitize_chain_id(destination_chain)
             .map_err(|_| crate::errors::BridgeError::DestinationChainNotSupported)?;
+
+        // Validate chain is registered as supported
+        let supported: soroban_sdk::Map<u32, bool> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::SUPPORTED_CHAINS)
+            .unwrap_or_else(|| soroban_sdk::Map::new(env));
+        if !supported.get(destination_chain).unwrap_or(false) {
+            return Err(crate::errors::BridgeError::DestinationChainNotSupported);
+        }
+
+        // Validate destination address format (length + non-zero)
+        InputSanitizer::sanitize_destination_address(destination_address)
+            .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
 
         Ok(())
     }
@@ -399,7 +520,7 @@ impl BridgeValidator {
             message.amount,
             &message.recipient,
         )
-        .map_err(|_| crate::errors::BridgeError::TokenMismatch)?;
+        .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
 
         Ok(())
     }
@@ -416,15 +537,12 @@ impl RewardsValidator {
         amount: i128,
         reward_type: &String,
     ) -> Result<(), crate::errors::RewardsError> {
-        // Validate addresses
         AddressValidator::validate(env, recipient)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
-        // Validate amount
         NumberValidator::validate_amount(amount)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
-        // Validate reward type string
         StringValidator::validate(reward_type, config::MAX_STRING_LENGTH)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 

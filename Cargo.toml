@@ -33,3 +33,4 @@ pedantic = { level = "allow", priority = -2 }
 
 [workspace.lints.rust]
 unsafe_code = "deny"
+nonstandard_style = "deny"

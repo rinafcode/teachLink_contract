@@ -200,6 +200,168 @@ pub enum ReviewContentType {
     Resource,
 }
 
+/// Parameter struct for creating a study group
+/// Replaces the 9-parameter function signature
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CreateStudyGroupParams {
+    pub creator: Address,
+    pub name: Bytes,
+    pub description: Bytes,
+    pub subject: Bytes,
+    pub max_members: u32,
+    pub is_private: bool,
+    pub tags: Vec<Bytes>,
+    pub settings: StudyGroupSettings,
+}
+
+impl CreateStudyGroupParams {
+    /// Builder pattern for creating study group parameters
+    pub fn builder(creator: Address, name: Bytes, subject: Bytes) -> CreateStudyGroupParamsBuilder {
+        CreateStudyGroupParamsBuilder {
+            creator,
+            name,
+            subject,
+            description: Bytes::new(&soroban_sdk::Env::current()),
+            max_members: 50,
+            is_private: false,
+            tags: Vec::new(&soroban_sdk::Env::current()),
+            settings: StudyGroupSettings {
+                allow_member_invites: true,
+                require_admin_approval: false,
+                enable_chat: true,
+                enable_file_sharing: true,
+                enable_video_calls: true,
+                auto_approve_members: true,
+            },
+        }
+    }
+
+    /// Validates the parameters for creating a study group
+    pub fn validate(&self) -> Result<(), SocialLearningError> {
+        // Validate name
+        if self.name.len() == 0 || self.name.len() > 100 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate description
+        if self.description.len() > 500 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate max_members
+        if self.max_members < 2 || self.max_members > 1000 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate tags
+        if self.tags.len() > 10 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        for tag in self.tags.iter() {
+            if tag.len() == 0 || tag.len() > 50 {
+                return Err(SocialLearningError::InvalidInput);
+            }
+        }
+
+        Ok(())
+    }
+}
+
+/// Builder for CreateStudyGroupParams
+pub struct CreateStudyGroupParamsBuilder {
+    creator: Address,
+    name: Bytes,
+    subject: Bytes,
+    description: Bytes,
+    max_members: u32,
+    is_private: bool,
+    tags: Vec<Bytes>,
+    settings: StudyGroupSettings,
+}
+
+impl CreateStudyGroupParamsBuilder {
+    pub fn description(mut self, description: Bytes) -> Self {
+        self.description = description;
+        self
+    }
+
+    pub fn max_members(mut self, max_members: u32) -> Self {
+        self.max_members = max_members;
+        self
+    }
+
+    pub fn is_private(mut self, is_private: bool) -> Self {
+        self.is_private = is_private;
+        self
+    }
+
+    pub fn tags(mut self, tags: Vec<Bytes>) -> Self {
+        self.tags = tags;
+        self
+    }
+
+    pub fn settings(mut self, settings: StudyGroupSettings) -> Self {
+        self.settings = settings;
+        self
+    }
+
+    pub fn build(self) -> CreateStudyGroupParams {
+        CreateStudyGroupParams {
+            creator: self.creator,
+            name: self.name,
+            description: self.description,
+            subject: self.subject,
+            max_members: self.max_members,
+            is_private: self.is_private,
+            tags: self.tags,
+            settings: self.settings,
+        }
+    }
+}
+
+/// Parameter struct for creating a peer review
+/// Replaces the 8-parameter function signature
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CreatePeerReviewParams {
+    pub reviewer: Address,
+    pub reviewee: Address,
+    pub content_type: ReviewContentType,
+    pub content_id: u64,
+    pub rating: u32,
+    pub feedback: Bytes,
+    pub criteria: Map<Bytes, u32>,
+}
+
+impl CreatePeerReviewParams {
+    /// Validates the peer review parameters
+    pub fn validate(&self) -> Result<(), SocialLearningError> {
+        // Validate rating (must be 1-5)
+        if self.rating < 1 || self.rating > 5 {
+            return Err(SocialLearningError::InvalidRating);
+        }
+
+        // Validate reviewer and reviewee are different
+        if self.reviewer == self.reviewee {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate feedback length
+        if self.feedback.len() == 0 ||self.feedback.len() > 5000 {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        // Validate criteria
+        if self.criteria.is_empty() {
+            return Err(SocialLearningError::InvalidInput);
+        }
+
+        Ok(())
+    }
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct MentorshipProfile {
@@ -413,17 +575,19 @@ pub struct SocialLearningManager;
 
 impl SocialLearningManager {
     // Study Group Management
+    /// Creates a new study group with validated parameters
+    /// 
+    /// Uses parameter object pattern to handle multiple parameters cleanly
+    /// and includes automatic validation of all related parameters
     pub fn create_study_group(
         env: &Env,
-        creator: Address,
-        name: Bytes,
-        description: Bytes,
-        subject: Bytes,
-        max_members: u32,
-        is_private: bool,
-        tags: Vec<Bytes>,
-        settings: StudyGroupSettings,
+        params: CreateStudyGroupParams,
     ) -> Result<u64, SocialLearningError> {
+        params.creator.require_auth();
+
+        // Validate all parameters together
+        params.validate()?;
+
         let counter: u64 = env
             .storage()
             .instance()
@@ -432,25 +596,25 @@ impl SocialLearningManager {
         let group_id = counter + 1;
 
         let mut members = Vec::new(&env);
-        members.push_back(creator.clone());
+        members.push_back(params.creator.clone());
 
         let mut admins = Vec::new(&env);
-        admins.push_back(creator.clone());
+        admins.push_back(params.creator.clone());
 
         let study_group = StudyGroup {
             id: group_id,
-            name,
-            description,
-            creator: creator.clone(),
+            name: params.name,
+            description: params.description,
+            creator: params.creator.clone(),
             members,
             admins,
-            subject,
-            max_members,
-            is_private,
+            subject: params.subject,
+            max_members: params.max_members,
+            is_private: params.is_private,
             created_at: env.ledger().timestamp(),
             last_activity: env.ledger().timestamp(),
-            tags,
-            settings,
+            tags: params.tags,
+            settings: params.settings,
         };
 
         // Store study group
@@ -828,32 +992,31 @@ impl SocialLearningManager {
     }
 
     // Peer Review System
+    /// Creates a peer review with validated parameters
+    ///
+    /// Uses parameter object pattern for cleaner function signature
+    /// Includes validation of rating ranges and parameter consistency
     pub fn create_review(
         env: &Env,
-        reviewer: Address,
-        reviewee: Address,
-        content_type: ReviewContentType,
-        content_id: u64,
-        rating: u32,
-        feedback: Bytes,
-        criteria: Map<Bytes, u32>,
+        params: CreatePeerReviewParams,
     ) -> Result<u64, SocialLearningError> {
-        if rating < 1 || rating > 5 {
-            return Err(SocialLearningError::InvalidRating);
-        }
+        params.reviewer.require_auth();
+
+        // Validate all parameters together (includes rating checks)
+        params.validate()?;
 
         let counter: u64 = env.storage().instance().get(&REVIEW_COUNTER).unwrap_or(0);
         let review_id = counter + 1;
 
         let review = PeerReview {
             id: review_id,
-            reviewer: reviewer.clone(),
-            reviewee: reviewee.clone(),
-            content_type,
-            content_id,
-            rating,
-            feedback,
-            criteria,
+            reviewer: params.reviewer.clone(),
+            reviewee: params.reviewee.clone(),
+            content_type: params.content_type,
+            content_id: params.content_id,
+            rating: params.rating,
+            feedback: params.feedback,
+            criteria: params.criteria,
             created_at: env.ledger().timestamp(),
             is_helpful: false,
             helpful_votes: 0,
