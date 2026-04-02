@@ -68,7 +68,7 @@ impl Bridge {
     ) -> Result<u64, BridgeError> {
         from.require_auth();
 
-        // Validate all input parameters
+        // Validate all input parameters (includes supported-chain registry check)
         BridgeValidator::validate_bridge_out(
             env,
             &from,
@@ -76,16 +76,6 @@ impl Bridge {
             destination_chain,
             &destination_address,
         )?;
-
-        // Check if destination chain is supported
-        let supported_chains: Map<u32, bool> = env
-            .storage()
-            .instance()
-            .get(&SUPPORTED_CHAINS)
-            .unwrap_or_else(|| Map::new(env));
-        if !supported_chains.get(destination_chain).unwrap_or(false) {
-            return Err(BridgeError::DestinationChainNotSupported);
-        }
 
         // Get token address
         let token: Address = env.storage().instance().get(&TOKEN).unwrap();
