@@ -2,8 +2,8 @@ use crate::arbitration::ArbitrationManager;
 use crate::errors::EscrowError;
 use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
-    EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
-    EscrowReleasedEvent, EscrowResolvedEvent,
+    EscrowApprovedEvent, EscrowCancelledEvent, EscrowCreatedEvent, EscrowDisputedEvent,
+    EscrowRefundedEvent, EscrowReleasedEvent, EscrowResolvedEvent,
 };
 use crate::insurance::InsuranceManager;
 use crate::storage::{ESCROWS, ESCROW_COUNT};
@@ -198,6 +198,15 @@ impl EscrowManager {
 
         escrow.status = EscrowStatus::Cancelled;
         Self::save_escrow(env, escrow_id, escrow.clone());
+
+        // Emit event
+        EscrowCancelledEvent {
+            escrow_id,
+            depositor: escrow.depositor.clone(),
+            amount: escrow.amount,
+            cancelled_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }
