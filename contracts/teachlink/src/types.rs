@@ -7,6 +7,44 @@ use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, S
 // Include notification types
 pub use crate::notification_types::*;
 
+// ========== Interface Versioning Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ContractSemVer {
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+}
+
+impl ContractSemVer {
+    #[must_use]
+    pub const fn new(major: u32, minor: u32, patch: u32) -> Self {
+        Self {
+            major,
+            minor,
+            patch,
+        }
+    }
+
+    #[must_use]
+    pub fn is_lower_than(&self, other: &Self) -> bool {
+        (self.major, self.minor, self.patch) < (other.major, other.minor, other.patch)
+    }
+
+    #[must_use]
+    pub fn is_greater_than(&self, other: &Self) -> bool {
+        (self.major, self.minor, self.patch) > (other.major, other.minor, other.patch)
+    }
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct InterfaceVersionStatus {
+    pub current: ContractSemVer,
+    pub minimum_compatible: ContractSemVer,
+}
+
 // ========== Chain Configuration Types ==========
 
 #[contracttype]

@@ -2,8 +2,8 @@ use crate::arbitration::ArbitrationManager;
 use crate::errors::EscrowError;
 use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
-    EscrowApprovedEvent, EscrowCreatedEvent, EscrowDisputedEvent, EscrowRefundedEvent,
-    EscrowReleasedEvent, EscrowResolvedEvent,
+    EscrowApprovedEvent, EscrowCancelledEvent, EscrowCreatedEvent, EscrowDisputedEvent,
+    EscrowRefundedEvent, EscrowReleasedEvent, EscrowResolvedEvent,
 };
 use crate::insurance::InsuranceManager;
 use crate::repository::escrow_repository::EscrowAggregateRepository;
@@ -15,41 +15,32 @@ use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 pub struct EscrowManager;
 
 impl EscrowManager {
+    /// Creates an escrow with validated parameters
+    /// 
+    /// # Arguments
+    /// * `params` - EscrowParameters containing all escrow creation details
+    /// 
+    /// # Returns
+    /// * `u64` - The ID of the created escrow
+    /// 
+    /// # Errors
+    /// Returns `EscrowError` if validation fails
     pub fn create_escrow(
         env: &Env,
-        depositor: Address,
-        beneficiary: Address,
-        token: Address,
-        amount: i128,
-        signers: Vec<EscrowSigner>,
-        threshold: u32,
-        release_time: Option<u64>,
-        refund_time: Option<u64>,
-        arbitrator: Address,
+        params: EscrowParameters,
     ) -> Result<u64, EscrowError> {
-        depositor.require_auth();
+        params.depositor.require_auth();
 
-        EscrowValidator::validate_create_escrow(
-            env,
-            &depositor,
-            &beneficiary,
-            &token,
-            amount,
-            &signers,
-            threshold,
-            release_time,
-            refund_time,
-            &arbitrator,
-        )?;
+        EscrowValidator::validate_escrow_parameters(env, &params)?;
 
         env.invoke_contract::<()>(
-            &token,
+            &params.token,
             &symbol_short!("transfer"),
             vec![
                 env,
-                depositor.clone().into_val(env),
+                params.depositor.clone().into_val(env),
                 env.current_contract_address().into_val(env),
-                amount.into_val(env),
+                params.amount.into_val(env),
             ],
         );
 
@@ -57,8 +48,14 @@ impl EscrowManager {
         let repo = EscrowAggregateRepository::new(env);
         if env.storage().instance().has(&crate::storage::INSURANCE_POOL) {
             let premium = InsuranceManager::calculate_premium(env, amount);
+        if env
+            .storage()
+            .instance()
+            .has(&crate::storage::INSURANCE_POOL)
+        {
+            let premium = InsuranceManager::calculate_premium(env, params.amount);
             if premium > 0 {
-                InsuranceManager::pay_premium_internal(env, depositor.clone(), premium)?;
+                InsuranceManager::pay_premium_internal(env, params.depositor.clone(), premium)?;
             }
         }
 
@@ -74,10 +71,17 @@ impl EscrowManager {
             amount,
             signers,
             threshold,
+            id: escrow_count,
+            depositor: params.depositor.clone(),
+            beneficiary: params.beneficiary.clone(),
+            token: params.token.clone(),
+            amount: params.amount,
+            signers: params.signers.clone(),
+            threshold: params.threshold,
             approval_count: 0,
-            release_time,
-            refund_time,
-            arbitrator,
+            release_time: params.release_time,
+            refund_time: params.refund_time,
+            arbitrator: params.arbitrator.clone(),
             status: EscrowStatus::Pending,
             created_at: now,
             dispute_reason: None,
@@ -85,7 +89,7 @@ impl EscrowManager {
 
         repo.escrows.save_escrow(&escrow).map_err(|_| EscrowError::StorageError)?;
 
-        EscrowAnalyticsManager::update_creation(env, amount);
+        EscrowAnalyticsManager::update_creation(env, params.amount);
 
         EscrowCreatedEvent { escrow }.publish(env);
 
@@ -207,6 +211,15 @@ impl EscrowManager {
 
         escrow.status = EscrowStatus::Cancelled;
         repo.escrows.save_escrow(&escrow).map_err(|_| EscrowError::StorageError)?;
+
+        // Emit event
+        EscrowCancelledEvent {
+            escrow_id,
+            depositor: escrow.depositor.clone(),
+            amount: escrow.amount,
+            cancelled_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }

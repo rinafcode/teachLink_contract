@@ -5,12 +5,12 @@
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Bytes, Env, Vec, Symbol, Map,
+    vec, Address, Bytes, Env, Map, Symbol, Vec,
 };
 
 use teachlink_contract::{
-    EmergencyError, EmergencyAction, CircuitBreakerConfig, TeachLinkBridge, TeachLinkBridgeClient,
-    EmergencyStatus,
+    CircuitBreakerConfig, EmergencyAction, EmergencyError, EmergencyStatus, TeachLinkBridge,
+    TeachLinkBridgeClient,
 };
 
 fn create_circuit_breaker_config(
@@ -53,12 +53,12 @@ fn test_emergency_pause() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 5, 3, 3600);
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Test authorized emergency pause
     client.emergency_pause(&admin);
-    
+
     let status = client.get_emergency_status();
     assert_eq!(status, EmergencyStatus::Paused);
 
@@ -76,7 +76,7 @@ fn test_emergency_resume() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 5, 3, 3600);
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Pause first
@@ -102,7 +102,7 @@ fn test_circuit_breaker_trigger() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 3, 2, 3600); // Trigger after 3 failures
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Report failures to trigger circuit breaker
@@ -124,7 +124,7 @@ fn test_circuit_breaker_recovery() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 3, 2, 1); // 1 second timeout for testing
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Trigger circuit breaker
@@ -133,7 +133,10 @@ fn test_circuit_breaker_recovery() {
         client.report_operation_failure(&error_data);
     }
 
-    assert_eq!(client.get_emergency_status(), EmergencyStatus::CircuitBreakerTriggered);
+    assert_eq!(
+        client.get_emergency_status(),
+        EmergencyStatus::CircuitBreakerTriggered
+    );
 
     // Report successes for recovery
     for i in 0..2 {
@@ -166,7 +169,7 @@ fn test_emergency_action_execution() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 5, 3, 3600);
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Test emergency action: Pause specific chain
@@ -191,7 +194,7 @@ fn test_emergency_time_limits() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 5, 3, 2); // 2 second max pause
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Emergency pause
@@ -212,7 +215,10 @@ fn test_emergency_time_limits() {
 
     // Try to keep paused (should fail due to time limit)
     let result = client.try_emergency_pause(&admin);
-    assert_eq!(result.error(), Some(Ok(EmergencyError::MaxPauseDurationExceeded)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(EmergencyError::MaxPauseDurationExceeded))
+    );
 }
 
 #[test]
@@ -223,12 +229,12 @@ fn test_emergency_logging() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 5, 3, 3600);
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Generate some emergency events
     client.emergency_pause(&admin);
-    
+
     let error_data = Bytes::from_slice(&env, b"test_error");
     client.report_operation_failure(&error_data);
 
@@ -248,7 +254,7 @@ fn test_emergency_configuration_update() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 5, 3, 3600);
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Update configuration
@@ -275,7 +281,7 @@ fn test_emergency_status_transitions() {
 
     let admin = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 3, 2, 3600);
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Initial state should be Active
@@ -294,7 +300,10 @@ fn test_emergency_status_transitions() {
         let error_data = Bytes::from_slice(&env, &format!("failure_{}", i).as_bytes());
         client.report_operation_failure(&error_data);
     }
-    assert_eq!(client.get_emergency_status(), EmergencyStatus::CircuitBreakerTriggered);
+    assert_eq!(
+        client.get_emergency_status(),
+        EmergencyStatus::CircuitBreakerTriggered
+    );
 }
 
 #[test]
@@ -306,7 +315,7 @@ fn test_emergency_notification_system() {
     let admin = Address::generate(&env);
     let notifier = Address::generate(&env);
     let config = create_circuit_breaker_config(&env, 5, 3, 3600);
-    
+
     client.initialize_emergency(&admin, &config);
 
     // Register emergency notifier

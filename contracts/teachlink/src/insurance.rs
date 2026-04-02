@@ -1,4 +1,8 @@
 use crate::errors::EscrowError;
+use crate::events::{
+    InsuranceClaimProcessedEvent, InsurancePoolFundedEvent, InsurancePoolInitializedEvent,
+    InsurancePremiumPaidEvent,
+};
 use crate::storage::INSURANCE_POOL;
 use crate::types::InsurancePool;
 #[cfg(test)]
@@ -15,13 +19,22 @@ impl InsuranceManager {
         premium_rate: u32,
     ) -> Result<(), EscrowError> {
         let pool = InsurancePool {
-            token,
+            token: token.clone(),
             balance: 0,
             premium_rate,
             total_claims_paid: 0,
             max_payout_percentage: 8000, // 80%
         };
         env.storage().instance().set(&INSURANCE_POOL, &pool);
+
+        // Emit event
+        InsurancePoolInitializedEvent {
+            token,
+            premium_rate,
+            initialized_at: env.ledger().timestamp(),
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -39,7 +52,7 @@ impl InsuranceManager {
             &symbol_short!("transfer"),
             vec![
                 env,
-                funder.into_val(env),
+                funder.clone().into_val(env),
                 env.current_contract_address().into_val(env),
                 amount.into_val(env),
             ],
@@ -47,6 +60,16 @@ impl InsuranceManager {
 
         pool.balance += amount;
         env.storage().instance().set(&INSURANCE_POOL, &pool);
+
+        // Emit event
+        InsurancePoolFundedEvent {
+            funder: funder.clone(),
+            amount,
+            new_balance: pool.balance,
+            funded_at: env.ledger().timestamp(),
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -86,7 +109,7 @@ impl InsuranceManager {
             &symbol_short!("transfer"),
             vec![
                 env,
-                user.into_val(env),
+                user.clone().into_val(env),
                 env.current_contract_address().into_val(env),
                 amount.into_val(env),
             ],
@@ -94,6 +117,15 @@ impl InsuranceManager {
 
         pool.balance += amount;
         env.storage().instance().set(&INSURANCE_POOL, &pool);
+
+        // Emit event
+        InsurancePremiumPaidEvent {
+            user: user.clone(),
+            amount,
+            paid_at: env.ledger().timestamp(),
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -122,7 +154,7 @@ impl InsuranceManager {
             vec![
                 env,
                 env.current_contract_address().into_val(env),
-                recipient.into_val(env),
+                recipient.clone().into_val(env),
                 final_payout.into_val(env),
             ],
         );
@@ -130,6 +162,15 @@ impl InsuranceManager {
         pool.balance -= final_payout;
         pool.total_claims_paid += final_payout;
         env.storage().instance().set(&INSURANCE_POOL, &pool);
+
+        // Emit event
+        InsuranceClaimProcessedEvent {
+            recipient: recipient.clone(),
+            payout_amount: final_payout,
+            new_balance: pool.balance,
+            processed_at: env.ledger().timestamp(),
+        }
+        .publish(env);
 
         Ok(())
     }

@@ -4,9 +4,7 @@
 //! and reward distribution for honest validators.
 
 use crate::errors::BridgeError;
-use crate::events::{
-    StakeDepositedEvent, StakeWithdrawnEvent, ValidatorRewardedEvent, ValidatorSlashedEvent,
-};
+use crate::events::{StakeDepositedEvent, StakeWithdrawnEvent, ValidatorRewardedEvent, ValidatorSlashedEvent};
 use crate::storage::{
     REWARD_POOL, SLASHING_COUNTER, SLASHING_RECORDS, VALIDATOR_INFO, VALIDATOR_REWARDS,
     VALIDATOR_STAKES,
@@ -336,9 +334,10 @@ impl SlashingManager {
         }
 
         let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
+        let new_balance = reward_pool + amount;
         env.storage()
             .instance()
-            .set(&REWARD_POOL, &(reward_pool + amount));
+            .set(&REWARD_POOL, &new_balance);
 
         Ok(())
     }

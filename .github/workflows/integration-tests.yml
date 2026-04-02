@@ -217,7 +217,7 @@ jobs:
 
       - name: Upload integration test results
         if: always()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: integration-test-results-${{ matrix.test-suite }}
           path: integration-test-results/
@@ -308,7 +308,7 @@ jobs:
           EOF
 
       - name: Upload nightly results
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nightly-integration-results
           path: nightly-results/
@@ -344,7 +344,7 @@ jobs:
           name: codecov-integration
 
       - name: Upload integration coverage artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: integration-coverage-report
           path: integration-coverage/

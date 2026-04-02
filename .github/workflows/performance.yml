@@ -1,0 +1,178 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    paths:
+      - 'contracts/**'
+      - 'gas_thresholds.json'
+      - 'gas_baseline.json'
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  gas-benchmarks:
+    name: Gas Usage Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build WASM (release)
+        run: cargo build --target wasm32-unknown-unknown --release -p teachlink-contract
+
+      - name: Check WASM binary size
+        run: |
+          WASM_PATH="target/wasm32-unknown-unknown/release/teachlink_contract.wasm"
+          if [ -f "$WASM_PATH" ]; then
+            SIZE=$(stat -c%s "$WASM_PATH")
+            echo "WASM size: $SIZE bytes"
+            if [ "$SIZE" -gt 307200 ]; then
+              echo "::error::WASM binary size ($SIZE bytes) exceeds 300 KB threshold"
+              exit 1
+            elif [ "$SIZE" -gt 256000 ]; then
+              echo "::warning::WASM binary size ($SIZE bytes) approaching 300 KB limit"
+            fi
+          fi
+
+      - name: Run gas benchmarks
+        run: |
+          cargo test --release -p teachlink-contract --test test_gas_benchmarks -- --nocapture 2>&1 | tee gas_output.txt
+
+      - name: Run benchmark analysis
+        run: |
+          python3 scripts/run_gas_benchmarks.py --output gas_benchmark_report.json || true
+
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gas-benchmark-report
+          path: |
+            gas_benchmark_report.json
+            gas_output.txt
+
+      - name: Comment PR with benchmark results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = {};
+            try {
+              report = JSON.parse(fs.readFileSync('gas_benchmark_report.json', 'utf8'));
+            } catch (e) {
+              console.log('No benchmark report found');
+              return;
+            }
+
+            const summary = report.summary || {};
+            const regressions = report.regressions || [];
+            const operations = report.operations || {};
+
+            let body = '## Gas Benchmark Results\n\n';
+            body += `| Metric | Value |\n|--------|-------|\n`;
+            body += `| Operations Tested | ${summary.total_operations || 0} |\n`;
+            body += `| Passed | ${summary.passed || 0} |\n`;
+            body += `| Failed | ${summary.failed || 0} |\n`;
+            body += `| Regressions | ${summary.regressions || 0} |\n\n`;
+
+            if (operations && Object.keys(operations).length > 0) {
+              body += '### Operation Gas Usage\n\n';
+              body += '| Operation | Gas Used | Threshold | Status |\n';
+              body += '|-----------|----------|-----------|--------|\n';
+              for (const [name, data] of Object.entries(operations)) {
+                const status = data.within_threshold ? 'Pass' : 'FAIL';
+                const pctChange = data.pct_change !== undefined ? ` (${data.pct_change > 0 ? '+' : ''}${data.pct_change}%)` : '';
+                body += `| ${name} | ${data.gas_used} | ${data.threshold}${pctChange} | ${status} |\n`;
+              }
+              body += '\n';
+            }
+
+            if (regressions.length > 0) {
+              body += '### Regressions Detected\n\n';
+              for (const r of regressions) {
+                const icon = r.severity === 'critical' ? 'CRITICAL' : 'WARNING';
+                body += `- **${icon}** ${r.operation}: ${r.baseline} -> ${r.current} (${r.change_pct > 0 ? '+' : ''}${r.change_pct}%)\n`;
+              }
+              body += '\n';
+            }
+
+            if (report.wasm_binary && report.wasm_binary.exists) {
+              body += `### WASM Binary Size\n\n`;
+              body += `- Size: ${report.wasm_binary.size_bytes} bytes\n`;
+              body += `- Threshold: ${report.wasm_binary.max_bytes} bytes\n`;
+              body += `- Status: ${report.wasm_binary.within_threshold ? 'OK' : 'EXCEEDS LIMIT'}\n\n`;
+            }
+
+            body += `> Generated at: ${report.generated_at || 'N/A'}\n`;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: body,
+            });
+
+      - name: Fail on critical regressions
+        if: always()
+        run: |
+          if [ -f gas_benchmark_report.json ]; then
+            FAILED=$(python3 -c "
+          import json, sys
+          try:
+              with open('gas_benchmark_report.json') as f:
+                  r = json.load(f)
+              print(r.get('summary', {}).get('failed', 0))
+          except:
+              print(0)
+          ")
+            if [ "$FAILED" -gt 0 ]; then
+              echo "::error::Gas benchmark regressions detected"
+              exit 1
+            fi
+          fi
+
+  performance-regression:
+    name: Performance Regression Check
+    runs-on: ubuntu-latest
+    needs: gas-benchmarks
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download benchmark reports
+        uses: actions/download-artifact@v4
+        with:
+          name: gas-benchmark-report
+
+      - name: Validate against thresholds
+        run: |
+          if [ -f gas_benchmark_report.json ]; then
+            echo "Checking regression thresholds..."
+            python3 -c "
+          import json, sys
+          with open('gas_benchmark_report.json') as f:
+              report = json.load(f)
+          regressions = report.get('regressions', [])
+          critical = [r for r in regressions if r.get('severity') == 'critical']
+          if critical:
+              print(f'CRITICAL: {len(critical)} gas regressions found')
+              for r in critical:
+                  print(f'  - {r[\"operation\"]}: {r[\"change_pct\"]:+.1f}%')
+              sys.exit(1)
+          else:
+              print('No critical regressions detected')
+          "
+          else
+            echo "No benchmark report found, skipping validation"
+          fi

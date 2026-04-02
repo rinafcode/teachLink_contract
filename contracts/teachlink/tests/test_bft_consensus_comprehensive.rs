@@ -5,12 +5,12 @@
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Bytes, Env, Vec, Symbol, Map,
+    vec, Address, Bytes, Env, Map, Symbol, Vec,
 };
 
 use teachlink_contract::{
-    BftConsensusError, Proposal, ProposalType, Vote, TeachLinkBridge, TeachLinkBridgeClient,
-    ValidatorInfo, ConsensusParameters,
+    BftConsensusError, ConsensusParameters, Proposal, ProposalType, TeachLinkBridge,
+    TeachLinkBridgeClient, ValidatorInfo, Vote,
 };
 
 fn create_consensus_params(
@@ -51,7 +51,10 @@ fn test_consensus_initialization() {
 
     // Test double initialization
     let result = client.try_initialize_consensus(&admin, &params);
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::AlreadyInitialized)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::AlreadyInitialized))
+    );
 }
 
 #[test]
@@ -63,7 +66,7 @@ fn test_validator_registration() {
     let admin = Address::generate(&env);
     let validator = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 50);
-    
+
     client.initialize_consensus(&admin, &params);
 
     // Test successful validator registration
@@ -72,11 +75,17 @@ fn test_validator_registration() {
     // Test insufficient stake
     let validator2 = Address::generate(&env);
     let result = client.try_register_validator(&validator2, &500); // Less than min_stake
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::InsufficientStake)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::InsufficientStake))
+    );
 
     // Test duplicate registration
     let result = client.try_register_validator(&validator, &3000);
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::ValidatorAlreadyRegistered)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::ValidatorAlreadyRegistered))
+    );
 }
 
 #[test]
@@ -88,19 +97,27 @@ fn test_proposal_creation() {
     let admin = Address::generate(&env);
     let proposer = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 50);
-    
+
     client.initialize_consensus(&admin, &params);
     client.register_validator(&proposer, &2000);
 
     // Test creating a parameter change proposal
     let proposal_data = Bytes::from_slice(&env, b"change_parameter");
-    let proposal_id = client.create_proposal(&proposer, &ProposalType::ParameterChange, &proposal_data);
+    let proposal_id =
+        client.create_proposal(&proposer, &ProposalType::ParameterChange, &proposal_data);
     assert!(proposal_id > 0);
 
     // Test unauthorized proposal creation
     let unauthorized = Address::generate(&env);
-    let result = client.try_create_proposal(&unauthorized, &ProposalType::ParameterChange, &proposal_data);
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::ValidatorNotActive)));
+    let result = client.try_create_proposal(
+        &unauthorized,
+        &ProposalType::ParameterChange,
+        &proposal_data,
+    );
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::ValidatorNotActive))
+    );
 }
 
 #[test]
@@ -113,25 +130,32 @@ fn test_voting_mechanism() {
     let validator1 = Address::generate(&env);
     let validator2 = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 50);
-    
+
     client.initialize_consensus(&admin, &params);
     client.register_validator(&validator1, &2000);
     client.register_validator(&validator2, &3000);
 
     // Create proposal
     let proposal_data = Bytes::from_slice(&env, b"test_proposal");
-    let proposal_id = client.create_proposal(&validator1, &ProposalType::ParameterChange, &proposal_data);
+    let proposal_id =
+        client.create_proposal(&validator1, &ProposalType::ParameterChange, &proposal_data);
 
     // Test voting
     client.vote(&validator1, &proposal_id, &true); // Vote in favor
 
     // Test double voting
     let result = client.try_vote(&validator1, &proposal_id, &false);
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::ProposalAlreadyVoted)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::ProposalAlreadyVoted))
+    );
 
     // Test voting on non-existent proposal
     let result = client.try_vote(&validator2, &999999, &true);
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::ProposalNotFound)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::ProposalNotFound))
+    );
 }
 
 #[test]
@@ -145,7 +169,7 @@ fn test_proposal_execution() {
     let validator2 = Address::generate(&env);
     let validator3 = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 1); // Short execution delay for testing
-    
+
     client.initialize_consensus(&admin, &params);
     client.register_validator(&validator1, &2000);
     client.register_validator(&validator2, &2000);
@@ -153,7 +177,8 @@ fn test_proposal_execution() {
 
     // Create proposal
     let proposal_data = Bytes::from_slice(&env, b"test_proposal");
-    let proposal_id = client.create_proposal(&validator1, &ProposalType::ParameterChange, &proposal_data);
+    let proposal_id =
+        client.create_proposal(&validator1, &ProposalType::ParameterChange, &proposal_data);
 
     // Vote to reach threshold
     client.vote(&validator1, &proposal_id, &true);
@@ -176,7 +201,10 @@ fn test_proposal_execution() {
 
     // Test executing already executed proposal
     let result = client.try_execute_proposal(&proposal_id);
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::ProposalAlreadyExecuted)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::ProposalAlreadyExecuted))
+    );
 }
 
 #[test]
@@ -189,7 +217,7 @@ fn test_byzantine_fault_detection() {
     let validator1 = Address::generate(&env);
     let validator2 = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 50);
-    
+
     client.initialize_consensus(&admin, &params);
     client.register_validator(&validator1, &2000);
     client.register_validator(&validator2, &2000);
@@ -213,7 +241,7 @@ fn test_consensus_parameters_update() {
     let validator1 = Address::generate(&env);
     let validator2 = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 50);
-    
+
     client.initialize_consensus(&admin, &params);
     client.register_validator(&validator1, &2000);
     client.register_validator(&validator2, &2000);
@@ -221,7 +249,8 @@ fn test_consensus_parameters_update() {
     // Create parameter update proposal
     let new_params = create_consensus_params(&env, 1500, 200, 75);
     let proposal_data = Bytes::from_slice(&env, &new_params.serialize().to_vec());
-    let proposal_id = client.create_proposal(&validator1, &ProposalType::ParameterChange, &proposal_data);
+    let proposal_id =
+        client.create_proposal(&validator1, &ProposalType::ParameterChange, &proposal_data);
 
     // Vote and execute
     client.vote(&validator1, &proposal_id, &true);
@@ -256,7 +285,7 @@ fn test_validator_stake_management() {
     let admin = Address::generate(&env);
     let validator = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 50);
-    
+
     client.initialize_consensus(&admin, &params);
     client.register_validator(&validator, &2000);
 
@@ -267,7 +296,10 @@ fn test_validator_stake_management() {
 
     // Test decreasing stake below minimum
     let result = client.try_decrease_stake(&validator, &2500); // Would leave 500 < min_stake
-    assert_eq!(result.error(), Some(Ok(BftConsensusError::InsufficientStake)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(BftConsensusError::InsufficientStake))
+    );
 
     // Test valid decrease
     client.decrease_stake(&validator, &1500);
@@ -284,13 +316,14 @@ fn test_proposal_timeout() {
     let admin = Address::generate(&env);
     let validator = Address::generate(&env);
     let params = create_consensus_params(&env, 1000, 100, 50);
-    
+
     client.initialize_consensus(&admin, &params);
     client.register_validator(&validator, &2000);
 
     // Create proposal
     let proposal_data = Bytes::from_slice(&env, b"test_proposal");
-    let proposal_id = client.create_proposal(&validator, &ProposalType::ParameterChange, &proposal_data);
+    let proposal_id =
+        client.create_proposal(&validator, &ProposalType::ParameterChange, &proposal_data);
 
     // Fast forward past voting period
     env.ledger().set(LedgerInfo {
