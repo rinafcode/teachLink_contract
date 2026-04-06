@@ -55,6 +55,9 @@ pub enum BridgeError {
     RetryLimitExceeded = 140,
     RetryBackoffActive = 141,
     BridgeTransactionFailed = 142,
+    // Repository/Storage Errors
+    StorageError = 143,
+    NotInitialized = 144,
     IncompatibleInterfaceVersion = 143,
     InvalidInterfaceVersionRange = 144,
 }
@@ -85,6 +88,8 @@ pub enum EscrowError {
     EscrowNotPending = 219,
     EscrowNotFound = 220,
     ArbitratorNotAuthorized = 221,
+    // Repository/Storage Errors
+    StorageError = 222,
     InvalidBeneficiary = 222,
     InvalidToken = 223,
     InvalidArbitrator = 224,
