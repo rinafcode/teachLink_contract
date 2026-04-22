@@ -141,3 +141,9 @@ pub const ONBOARDING_STATUS: Symbol = symbol_short!("onboard");
 pub const USER_FEEDBACK: Symbol = symbol_short!("feedback");
 pub const UX_EXPERIMENTS: Symbol = symbol_short!("ux_exp");
 pub const COMPONENT_CONFIG: Symbol = symbol_short!("comp_cfg");
+
+// Reentrancy guard locks
+pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
+pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
+pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
+pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
