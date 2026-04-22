@@ -8,8 +8,8 @@ use crate::events::{
 use crate::reentrancy;
 use crate::repository::bridge_repository::BridgeRepository;
 use crate::storage::{
-    ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS, BRIDGE_TXS,
-    BRIDGE_GUARD, FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
+    ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_GUARD, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS,
+    BRIDGE_TXS, FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
 };
 use crate::types::{BridgeTransaction, CrossChainMessage};
 use crate::validation::BridgeValidator;
