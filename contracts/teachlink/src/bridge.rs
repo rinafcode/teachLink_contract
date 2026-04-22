@@ -1,12 +1,11 @@
 use crate::errors::BridgeError;
-use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
-use crate::repository::bridge_repository::BridgeRepository;
 use crate::events::{
     BridgeCancelledEvent, BridgeCompletedEvent, BridgeFailedEvent, BridgeFeeUpdatedEvent,
     BridgeInitiatedEvent, BridgeRetryEvent, ChainSupportedEvent, ChainUnsupportedEvent,
     DepositEvent, FeeRecipientUpdatedEvent, MinValidatorsUpdatedEvent, ReleaseEvent,
     ValidatorAddedEvent, ValidatorRemovedEvent,
 };
+use crate::repository::bridge_repository::BridgeRepository;
 use crate::storage::{
     ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS, BRIDGE_TXS,
     FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
@@ -34,7 +33,7 @@ impl Bridge {
         fee_recipient: Address,
     ) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        
+
         // Check if already initialized
         if repo.config.is_initialized() {
             return Err(BridgeError::AlreadyInitialized);
@@ -44,14 +43,27 @@ impl Bridge {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
         }
 
-        repo.config.set_token(&token).map_err(|_| BridgeError::StorageError)?;
-        repo.config.set_admin(&admin).map_err(|_| BridgeError::StorageError)?;
-        repo.config.set_min_validators(min_validators).map_err(|_| BridgeError::StorageError)?;
-        repo.config.set_bridge_fee(0).map_err(|_| BridgeError::StorageError)?;
-        repo.config.set_fee_recipient(&fee_recipient).map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_token(&token)
+            .map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_admin(&admin)
+            .map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_min_validators(min_validators)
+            .map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_bridge_fee(0)
+            .map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_fee_recipient(&fee_recipient)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Initialize nonce to 0
-        repo.transactions.get_current_nonce().map_err(|_| BridgeError::StorageError).ok();
+        repo.transactions
+            .get_current_nonce()
+            .map_err(|_| BridgeError::StorageError)
+            .ok();
 
         Ok(())
     }
@@ -86,7 +98,10 @@ impl Bridge {
         }
 
         // Get token address
-        let token = repo.config.get_token().map_err(|_| BridgeError::NotInitialized)?;
+        let token = repo
+            .config
+            .get_token()
+            .map_err(|_| BridgeError::NotInitialized)?;
 
         // Transfer tokens from user to bridge (locking them)
         env.invoke_contract::<()>(
@@ -120,8 +135,11 @@ impl Bridge {
         };
 
         // Generate nonce for this transaction and create bridge transaction record
-        let nonce = repo.transactions.get_next_nonce().map_err(|_| BridgeError::StorageError)?;
-        
+        let nonce = repo
+            .transactions
+            .get_next_nonce()
+            .map_err(|_| BridgeError::StorageError)?;
+
         let bridge_tx = BridgeTransaction {
             nonce,
             token: token.clone(),
@@ -133,13 +151,19 @@ impl Bridge {
         };
 
         // Store bridge transaction
-        repo.transactions.save_transaction(&bridge_tx).map_err(|_| BridgeError::StorageError)?;
-        
+        repo.transactions
+            .save_transaction(&bridge_tx)
+            .map_err(|_| BridgeError::StorageError)?;
+
         // Initialize retry count to 0
-        repo.retry.set_retry_count(nonce, 0).map_err(|_| BridgeError::StorageError)?;
-        
+        repo.retry
+            .set_retry_count(nonce, 0)
+            .map_err(|_| BridgeError::StorageError)?;
+
         // Set last retry time
-        repo.retry.set_last_retry_time(nonce, env.ledger().timestamp()).map_err(|_| BridgeError::StorageError)?;
+        repo.retry
+            .set_last_retry_time(nonce, env.ledger().timestamp())
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Emit events
         BridgeInitiatedEvent {
@@ -170,7 +194,7 @@ impl Bridge {
         validator_signatures: Vec<Address>,
     ) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        
+
         // Validate all input parameters
         let min_validators = repo.config.get_min_validators().unwrap_or(1);
         BridgeValidator::validate_bridge_completion(
@@ -198,10 +222,15 @@ impl Bridge {
             return Err(BridgeError::NonceAlreadyProcessed);
         }
         processed_nonces.set(message.nonce, true);
-        env.storage().persistent().set(&processed_nonces_key, &processed_nonces);
+        env.storage()
+            .persistent()
+            .set(&processed_nonces_key, &processed_nonces);
 
         // Get token address
-        let token = repo.config.get_token().map_err(|_| BridgeError::NotInitialized)?;
+        let token = repo
+            .config
+            .get_token()
+            .map_err(|_| BridgeError::NotInitialized)?;
 
         // Verify token matches
         if message.token != token {
@@ -235,10 +264,14 @@ impl Bridge {
         .publish(env);
 
         // Remove transaction after completion
-        repo.transactions.remove_transaction(message.nonce).map_err(|_| BridgeError::StorageError)?;
+        repo.transactions
+            .remove_transaction(message.nonce)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Clear retry metadata
-        repo.retry.clear_retry_metadata(message.nonce).map_err(|_| BridgeError::StorageError)?;
+        repo.retry
+            .clear_retry_metadata(message.nonce)
+            .map_err(|_| BridgeError::StorageError)?;
 
         Ok(())
     }
@@ -249,12 +282,14 @@ impl Bridge {
         }
 
         let repo = BridgeRepository::new(env);
-        
+
         if !repo.transactions.has_transaction(nonce) {
             return Err(BridgeError::BridgeTransactionNotFound);
         }
 
-        repo.retry.set_failure(nonce, &reason).map_err(|_| BridgeError::StorageError)?;
+        repo.retry
+            .set_failure(nonce, &reason)
+            .map_err(|_| BridgeError::StorageError)?;
         let mut failures: Map<u64, Bytes> = env
             .storage()
             .instance()
@@ -276,8 +311,9 @@ impl Bridge {
 
     pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
         let repo = BridgeRepository::new(env);
-        
-        let bridge_tx = repo.transactions
+
+        let bridge_tx = repo
+            .transactions
             .get_transaction(nonce)
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
@@ -292,7 +328,11 @@ impl Bridge {
         }
 
         let last_retry_at = repo.retry.get_last_retry_time(nonce);
-        let last_retry_at = if last_retry_at == 0 { bridge_tx.timestamp } else { last_retry_at };
+        let last_retry_at = if last_retry_at == 0 {
+            bridge_tx.timestamp
+        } else {
+            last_retry_at
+        };
 
         let backoff_multiplier = 1u64 << retry_count;
         let retry_delay = BRIDGE_RETRY_DELAY_BASE_SECONDS.saturating_mul(backoff_multiplier);
@@ -303,11 +343,17 @@ impl Bridge {
         }
 
         let updated_retry_count = retry_count + 1;
-        repo.retry.set_retry_count(nonce, updated_retry_count).map_err(|_| BridgeError::StorageError)?;
-        repo.retry.set_last_retry_time(nonce, current_time).map_err(|_| BridgeError::StorageError)?;
+        repo.retry
+            .set_retry_count(nonce, updated_retry_count)
+            .map_err(|_| BridgeError::StorageError)?;
+        repo.retry
+            .set_last_retry_time(nonce, current_time)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Clear failure record
-        repo.retry.clear_failure(nonce).map_err(|_| BridgeError::StorageError)?;
+        repo.retry
+            .clear_failure(nonce)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Emit event
         BridgeRetryEvent {
@@ -325,22 +371,26 @@ impl Bridge {
     /// - nonce: The nonce of the bridge transaction to cancel
     pub fn cancel_bridge(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        
+
         // Get bridge transaction
-        let bridge_tx = repo.transactions
+        let bridge_tx = repo
+            .transactions
             .get_transaction(nonce)
             .ok_or(BridgeError::BridgeTransactionNotFound)?;
 
         // Allow refunds for timed-out or explicitly failed transactions
         let elapsed = env.ledger().timestamp().saturating_sub(bridge_tx.timestamp);
         let has_failed = repo.retry.get_failure(nonce).is_some();
-        
+
         if elapsed < BRIDGE_TIMEOUT_SECONDS && !has_failed {
             return Err(BridgeError::TimeoutNotReached);
         }
 
         // Get token address
-        let token = repo.config.get_token().map_err(|_| BridgeError::NotInitialized)?;
+        let token = repo
+            .config
+            .get_token()
+            .map_err(|_| BridgeError::NotInitialized)?;
 
         // Refund tokens to original recipient
         env.invoke_contract::<()>(
@@ -355,10 +405,14 @@ impl Bridge {
         );
 
         // Remove from bridge transactions
-        repo.transactions.remove_transaction(nonce).map_err(|_| BridgeError::StorageError)?;
+        repo.transactions
+            .remove_transaction(nonce)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Clear retry metadata
-        repo.retry.clear_retry_metadata(nonce).map_err(|_| BridgeError::StorageError)?;
+        repo.retry
+            .clear_retry_metadata(nonce)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Emit event
         BridgeCancelledEvent {
@@ -382,10 +436,15 @@ impl Bridge {
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        let admin = repo
+            .config
+            .get_admin()
+            .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        repo.validators.add_validator(&validator).map_err(|_| BridgeError::StorageError)?;
+        repo.validators
+            .add_validator(&validator)
+            .map_err(|_| BridgeError::StorageError)?;
         let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
         validators.set(validator.clone(), true);
         env.storage().instance().set(&VALIDATORS, &validators);
@@ -405,10 +464,15 @@ impl Bridge {
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        let admin = repo
+            .config
+            .get_admin()
+            .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        repo.validators.remove_validator(&validator).map_err(|_| BridgeError::StorageError)?;
+        repo.validators
+            .remove_validator(&validator)
+            .map_err(|_| BridgeError::StorageError)?;
         let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
         validators.set(validator.clone(), false);
         env.storage().instance().set(&VALIDATORS, &validators);
@@ -428,10 +492,15 @@ impl Bridge {
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        let admin = repo
+            .config
+            .get_admin()
+            .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        repo.chains.add_chain(chain_id).map_err(|_| BridgeError::StorageError)?;
+        repo.chains
+            .add_chain(chain_id)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Emit event
         ChainSupportedEvent {
@@ -448,10 +517,15 @@ impl Bridge {
     #[allow(clippy::unnecessary_wraps)]
     pub fn remove_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        let admin = repo
+            .config
+            .get_admin()
+            .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        repo.chains.remove_chain(chain_id).map_err(|_| BridgeError::StorageError)?;
+        repo.chains
+            .remove_chain(chain_id)
+            .map_err(|_| BridgeError::StorageError)?;
 
         // Emit event
         ChainUnsupportedEvent {
@@ -467,14 +541,19 @@ impl Bridge {
     /// Set bridge fee (admin only)
     pub fn set_bridge_fee(env: &Env, fee: i128) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        let admin = repo
+            .config
+            .get_admin()
+            .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
         if fee < 0 {
             return Err(BridgeError::FeeCannotBeNegative);
         }
 
-        repo.config.set_bridge_fee(fee).map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_bridge_fee(fee)
+            .map_err(|_| BridgeError::StorageError)?;
         let old_fee: i128 = env.storage().instance().get(&BRIDGE_FEE).unwrap_or(0i128);
         env.storage().instance().set(&BRIDGE_FEE, &fee);
 
@@ -494,10 +573,15 @@ impl Bridge {
     #[allow(clippy::unnecessary_wraps)]
     pub fn set_fee_recipient(env: &Env, fee_recipient: Address) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        let admin = repo
+            .config
+            .get_admin()
+            .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        repo.config.set_fee_recipient(&fee_recipient).map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_fee_recipient(&fee_recipient)
+            .map_err(|_| BridgeError::StorageError)?;
         let old_recipient: Address = env.storage().instance().get(&FEE_RECIPIENT).unwrap();
         env.storage().instance().set(&FEE_RECIPIENT, &fee_recipient);
 
@@ -516,14 +600,19 @@ impl Bridge {
     /// Set minimum validators (admin only)
     pub fn set_min_validators(env: &Env, min_validators: u32) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
-        let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        let admin = repo
+            .config
+            .get_admin()
+            .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
         if min_validators == 0 {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
         }
 
-        repo.config.set_min_validators(min_validators).map_err(|_| BridgeError::StorageError)?;
+        repo.config
+            .set_min_validators(min_validators)
+            .map_err(|_| BridgeError::StorageError)?;
         let old_min: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
         env.storage()
             .instance()
