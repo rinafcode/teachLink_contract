@@ -1,4 +1,6 @@
-use crate::events::{ContributionRatedEvent, CourseProgressUpdatedEvent, ParticipationUpdatedEvent};
+use crate::events::{
+    ContributionRatedEvent, CourseProgressUpdatedEvent, ParticipationUpdatedEvent,
+};
 use crate::types::UserReputation;
 use soroban_sdk::{symbol_short, Address, Env, Symbol};
 
