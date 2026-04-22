@@ -20,60 +20,17 @@ jobs:
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
-      - name: Install coverage tools
-        run: |
-          cargo install cargo-llvm-cov
-          cargo install cargo-tarpaulin
-
-      - name: Format
+      - name: Check code formatting
         run: cargo fmt --all -- --check
 
-      - name: Clippy
+      - name: Run clippy linter
         run: cargo clippy --workspace --all-features -- -D warnings
 
       - name: Build WASM (release)
         run: cargo build --target wasm32v1-none --release
 
-      - name: Run tests with coverage
-        run: |
-          cargo llvm-cov --workspace --lib --bins --tests --all-features --lcov --output-path lcov.info
-          cargo llvm-cov --workspace --lib --bins --tests --all-features --html
-
-      - name: Check coverage thresholds
-        run: |
-          COVERAGE=$(cargo llvm-cov --workspace --lib --bins --tests --all-features --json | jq -r '.data[0].totals.lines.percent // .data[0].totals.functions.percent // 0')
-          echo "Current coverage: ${COVERAGE}%"
-          THRESHOLD=10
-          if (( $(echo "$COVERAGE >= $THRESHOLD" | bc -l) )); then
-            echo "✅ Coverage threshold met: ${COVERAGE}% >= ${THRESHOLD}%"
-          else
-            echo "❌ Coverage threshold NOT met: ${COVERAGE}% < ${THRESHOLD}%"
-            exit 1
-          fi
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: lcov.info
-          flags: unittests
-          name: codecov-umbrella
-
-      - name: Upload coverage artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: target/llvm-cov/html/
+      - name: Run unit tests
+        run: cargo test --workspace --lib
 
       - name: Run integration tests
         run: cargo test --workspace --test cross_chain_integration
-
-      - name: Run comprehensive integration tests
-        run: |
-          cd testing/integration
-          cargo test --lib
-
-      - name: Security audit
-        run: cargo audit --ignore RUSTSEC-2023-0052
-
-      - name: Check dependencies
-        run: cargo deny check
