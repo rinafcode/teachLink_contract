@@ -1,7 +1,9 @@
 use crate::errors::RewardsError;
 use crate::events::{RewardClaimedEvent, RewardIssuedEvent, RewardPoolFundedEvent};
+use crate::reentrancy;
 use crate::storage::{
-    REWARDS_ADMIN, REWARD_POOL, REWARD_RATES, TOKEN, TOTAL_REWARDS_ISSUED, USER_REWARDS,
+    REWARDS_ADMIN, REWARDS_GUARD, REWARD_POOL, REWARD_RATES, TOKEN, TOTAL_REWARDS_ISSUED,
+    USER_REWARDS,
 };
 use crate::types::{RewardRate, UserReward};
 use crate::validation::RewardsValidator;
@@ -42,33 +44,35 @@ impl Rewards {
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
         funder.require_auth();
 
-        RewardsValidator::validate_pool_funding(env, &funder, amount)?;
+        reentrancy::with_guard(env, &REWARDS_GUARD, RewardsError::ReentrancyDetected, || {
+            RewardsValidator::validate_pool_funding(env, &funder, amount)?;
 
-        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+            let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
-        env.invoke_contract::<()>(
-            &token,
-            &symbol_short!("transfer"),
-            vec![
-                env,
-                funder.clone().into_val(env),
-                env.current_contract_address().into_val(env),
-                amount.into_val(env),
-            ],
-        );
+            let mut pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
+            pool_balance += amount;
+            env.storage().instance().set(&REWARD_POOL, &pool_balance);
 
-        let mut pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
-        pool_balance += amount;
-        env.storage().instance().set(&REWARD_POOL, &pool_balance);
+            env.invoke_contract::<()>(
+                &token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    funder.clone().into_val(env),
+                    env.current_contract_address().into_val(env),
+                    amount.into_val(env),
+                ],
+            );
 
-        RewardPoolFundedEvent {
-            funder,
-            amount,
-            timestamp: env.ledger().timestamp(),
-        }
-        .publish(env);
+            RewardPoolFundedEvent {
+                funder,
+                amount,
+                timestamp: env.ledger().timestamp(),
+            }
+            .publish(env);
 
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Issue rewards to a user
@@ -136,60 +140,59 @@ impl Rewards {
     pub fn claim_rewards(env: &Env, user: Address) -> Result<(), RewardsError> {
         user.require_auth();
 
-        let mut user_rewards: Map<Address, UserReward> = env
-            .storage()
-            .instance()
-            .get(&USER_REWARDS)
-            .unwrap_or_else(|| Map::new(env));
+        reentrancy::with_guard(env, &REWARDS_GUARD, RewardsError::ReentrancyDetected, || {
+            let mut user_rewards: Map<Address, UserReward> = env
+                .storage()
+                .instance()
+                .get(&USER_REWARDS)
+                .unwrap_or_else(|| Map::new(env));
 
-        let mut user_reward = user_rewards
-            .get(user.clone())
-            .ok_or(RewardsError::NoRewardsAvailable)?;
+            let mut user_reward = user_rewards
+                .get(user.clone())
+                .ok_or(RewardsError::NoRewardsAvailable)?;
 
-        if user_reward.pending <= 0 {
-            return Err(RewardsError::NoPendingRewards);
-        }
+            if user_reward.pending <= 0 {
+                return Err(RewardsError::NoPendingRewards);
+            }
 
-        let amount_to_claim = user_reward.pending;
+            let amount_to_claim = user_reward.pending;
 
-        let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
-        if pool_balance < amount_to_claim {
-            return Err(RewardsError::InsufficientRewardPoolBalance);
-        }
+            let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
+            if pool_balance < amount_to_claim {
+                return Err(RewardsError::InsufficientRewardPoolBalance);
+            }
 
-        let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+            let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
-        env.invoke_contract::<()>(
-            &token,
-            &symbol_short!("transfer"),
-            vec![
-                env,
-                env.current_contract_address().into_val(env),
-                user.clone().into_val(env),
-                amount_to_claim.into_val(env),
-            ],
-        );
+            user_reward.claimed += amount_to_claim;
+            user_reward.pending = 0;
+            user_reward.last_claim_timestamp = env.ledger().timestamp();
+            user_rewards.set(user.clone(), user_reward);
+            env.storage().instance().set(&USER_REWARDS, &user_rewards);
 
-        user_reward.claimed += amount_to_claim;
-        user_reward.pending = 0;
-        user_reward.last_claim_timestamp = env.ledger().timestamp();
+            let new_pool_balance = pool_balance - amount_to_claim;
+            env.storage().instance().set(&REWARD_POOL, &new_pool_balance);
 
-        user_rewards.set(user.clone(), user_reward);
-        env.storage().instance().set(&USER_REWARDS, &user_rewards);
+            env.invoke_contract::<()>(
+                &token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    env.current_contract_address().into_val(env),
+                    user.clone().into_val(env),
+                    amount_to_claim.into_val(env),
+                ],
+            );
 
-        let new_pool_balance = pool_balance - amount_to_claim;
-        env.storage()
-            .instance()
-            .set(&REWARD_POOL, &new_pool_balance);
+            RewardClaimedEvent {
+                user,
+                amount: amount_to_claim,
+                timestamp: env.ledger().timestamp(),
+            }
+            .publish(env);
 
-        RewardClaimedEvent {
-            user,
-            amount: amount_to_claim,
-            timestamp: env.ledger().timestamp(),
-        }
-        .publish(env);
-
-        Ok(())
+            Ok(())
+        })
     }
 
     // ==========================
@@ -272,5 +275,30 @@ impl Rewards {
 
     pub fn get_rewards_admin(env: &Env) -> Address {
         env.storage().instance().get(&REWARDS_ADMIN).unwrap()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Rewards;
+    use crate::errors::RewardsError;
+    use crate::storage::REWARDS_GUARD;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{Address, Env};
+
+    #[test]
+    fn claim_rewards_rejects_when_reentrancy_guard_active() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            let user = Address::generate(&env);
+            env.storage().instance().set(&REWARDS_GUARD, &true);
+
+            let res = Rewards::claim_rewards(&env, user);
+            assert_eq!(res, Err(RewardsError::ReentrancyDetected));
+        });
     }
 }

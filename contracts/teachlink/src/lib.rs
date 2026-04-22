@@ -125,6 +125,7 @@ mod provenance;
 mod reporting;
 mod repository;
 mod reputation;
+mod reentrancy;
 mod rewards;
 mod score;
 mod slashing;
