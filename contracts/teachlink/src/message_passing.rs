@@ -36,8 +36,7 @@ impl MessagePassing {
         timeout: Option<u64>,
     ) -> Result<u64, BridgeError> {
         // Validate chain IDs
-        NumberValidator::validate_chain_id(source_chain)
-            .map_err(|_| BridgeError::InvalidInput)?;
+        NumberValidator::validate_chain_id(source_chain).map_err(|_| BridgeError::InvalidInput)?;
         NumberValidator::validate_chain_id(destination_chain)
             .map_err(|_| BridgeError::InvalidInput)?;
 

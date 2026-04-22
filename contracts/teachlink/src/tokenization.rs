@@ -1,6 +1,9 @@
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
-use crate::events::{ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent, TransferabilityUpdatedEvent};
+use crate::events::{
+    ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent,
+    TransferabilityUpdatedEvent,
+};
 use crate::storage::{CONTENT_TOKENS, OWNERSHIP, OWNER_TOKENS, TOKEN_COUNTER};
 use crate::types::{ContentMetadata, ContentToken, ContentType, TransferType};
 
