@@ -23,17 +23,17 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
       - name: Build WASM (release)
-        run: cargo build --target wasm32-unknown-unknown --release -p teachlink-contract
+        run: cargo build --target wasm32v1-none --release -p teachlink-contract
 
       - name: Check WASM binary size
         run: |
-          WASM_PATH="target/wasm32-unknown-unknown/release/teachlink_contract.wasm"
+          WASM_PATH="target/wasm32v1-none/release/teachlink_contract.wasm"
           if [ -f "$WASM_PATH" ]; then
             SIZE=$(stat -c%s "$WASM_PATH")
             echo "WASM size: $SIZE bytes"

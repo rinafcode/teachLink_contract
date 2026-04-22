@@ -38,7 +38,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -55,7 +55,7 @@ jobs:
         run: cargo clippy --workspace --all-features -- -D warnings
 
       - name: Build contracts
-        run: cargo build --target wasm32-unknown-unknown --release
+        run: cargo build --target wasm32v1-none --release
 
       - name: Run smoke tests
         if: matrix.test-suite == 'smoke' || matrix.test-suite == 'comprehensive'
@@ -264,7 +264,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -325,7 +325,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: llvm-tools-preview
-          targets: wasm32-unknown-unknown
+          targets: wasm32v1-none
 
       - name: Install cargo-llvm-cov
         run: cargo install cargo-llvm-cov
