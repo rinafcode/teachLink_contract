@@ -5,7 +5,11 @@ where
     E: Copy,
     F: FnOnce() -> Result<T, E>,
 {
-    let active = env.storage().instance().get::<_, bool>(key).unwrap_or(false);
+    let active = env
+        .storage()
+        .instance()
+        .get::<_, bool>(key)
+        .unwrap_or(false);
     if active {
         return Err(reentrancy_error);
     }

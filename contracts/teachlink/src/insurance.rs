@@ -42,37 +42,42 @@ impl InsuranceManager {
     /// Fund the insurance pool
     pub fn fund_pool(env: &Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
         funder.require_auth();
-        reentrancy::with_guard(env, &INSURANCE_GUARD, EscrowError::ReentrancyDetected, || {
-            let mut pool: InsurancePool = env
-                .storage()
-                .instance()
-                .get(&INSURANCE_POOL)
-                .ok_or(EscrowError::AmountMustBePositive)?;
+        reentrancy::with_guard(
+            env,
+            &INSURANCE_GUARD,
+            EscrowError::ReentrancyDetected,
+            || {
+                let mut pool: InsurancePool = env
+                    .storage()
+                    .instance()
+                    .get(&INSURANCE_POOL)
+                    .ok_or(EscrowError::AmountMustBePositive)?;
 
-            pool.balance += amount;
-            env.storage().instance().set(&INSURANCE_POOL, &pool);
+                pool.balance += amount;
+                env.storage().instance().set(&INSURANCE_POOL, &pool);
 
-            env.invoke_contract::<()>(
-                &pool.token,
-                &symbol_short!("transfer"),
-                vec![
-                    env,
-                    funder.clone().into_val(env),
-                    env.current_contract_address().into_val(env),
-                    amount.into_val(env),
-                ],
-            );
+                env.invoke_contract::<()>(
+                    &pool.token,
+                    &symbol_short!("transfer"),
+                    vec![
+                        env,
+                        funder.clone().into_val(env),
+                        env.current_contract_address().into_val(env),
+                        amount.into_val(env),
+                    ],
+                );
 
-            InsurancePoolFundedEvent {
-                funder: funder.clone(),
-                amount,
-                new_balance: pool.balance,
-                funded_at: env.ledger().timestamp(),
-            }
-            .publish(env);
+                InsurancePoolFundedEvent {
+                    funder: funder.clone(),
+                    amount,
+                    new_balance: pool.balance,
+                    funded_at: env.ledger().timestamp(),
+                }
+                .publish(env);
 
-            Ok(())
-        })
+                Ok(())
+            },
+        )
     }
 
     /// Calculate insurance premium for an escrow amount
@@ -100,36 +105,41 @@ impl InsuranceManager {
 
     /// Internal: Pay premium and add to pool (no auth check)
     pub fn pay_premium_internal(env: &Env, user: Address, amount: i128) -> Result<(), EscrowError> {
-        reentrancy::with_guard(env, &INSURANCE_GUARD, EscrowError::ReentrancyDetected, || {
-            let mut pool: InsurancePool = env
-                .storage()
-                .instance()
-                .get(&INSURANCE_POOL)
-                .ok_or(EscrowError::AmountMustBePositive)?;
+        reentrancy::with_guard(
+            env,
+            &INSURANCE_GUARD,
+            EscrowError::ReentrancyDetected,
+            || {
+                let mut pool: InsurancePool = env
+                    .storage()
+                    .instance()
+                    .get(&INSURANCE_POOL)
+                    .ok_or(EscrowError::AmountMustBePositive)?;
 
-            pool.balance += amount;
-            env.storage().instance().set(&INSURANCE_POOL, &pool);
+                pool.balance += amount;
+                env.storage().instance().set(&INSURANCE_POOL, &pool);
 
-            env.invoke_contract::<()>(
-                &pool.token,
-                &symbol_short!("transfer"),
-                vec![
-                    env,
-                    user.clone().into_val(env),
-                    env.current_contract_address().into_val(env),
-                    amount.into_val(env),
-                ],
-            );
+                env.invoke_contract::<()>(
+                    &pool.token,
+                    &symbol_short!("transfer"),
+                    vec![
+                        env,
+                        user.clone().into_val(env),
+                        env.current_contract_address().into_val(env),
+                        amount.into_val(env),
+                    ],
+                );
 
-            InsurancePremiumPaidEvent {
-                user: user.clone(),
-                amount,
-                paid_at: env.ledger().timestamp(),
-            }
-            .publish(env);
+                InsurancePremiumPaidEvent {
+                    user: user.clone(),
+                    amount,
+                    paid_at: env.ledger().timestamp(),
+                }
+                .publish(env);
 
-            Ok(())
-        })
+                Ok(())
+            },
+        )
     }
 
     /// Process an insurance claim
@@ -138,45 +148,50 @@ impl InsuranceManager {
         recipient: Address,
         requested_amount: i128,
     ) -> Result<(), EscrowError> {
-        reentrancy::with_guard(env, &INSURANCE_GUARD, EscrowError::ReentrancyDetected, || {
-            let mut pool: InsurancePool = env
-                .storage()
-                .instance()
-                .get(&INSURANCE_POOL)
-                .ok_or(EscrowError::AmountMustBePositive)?;
+        reentrancy::with_guard(
+            env,
+            &INSURANCE_GUARD,
+            EscrowError::ReentrancyDetected,
+            || {
+                let mut pool: InsurancePool = env
+                    .storage()
+                    .instance()
+                    .get(&INSURANCE_POOL)
+                    .ok_or(EscrowError::AmountMustBePositive)?;
 
-            let max_payout = (pool.balance * pool.max_payout_percentage as i128) / 10000;
-            let final_payout = requested_amount.min(max_payout);
+                let max_payout = (pool.balance * pool.max_payout_percentage as i128) / 10000;
+                let final_payout = requested_amount.min(max_payout);
 
-            if final_payout <= 0 {
-                return Err(EscrowError::AmountMustBePositive);
-            }
+                if final_payout <= 0 {
+                    return Err(EscrowError::AmountMustBePositive);
+                }
 
-            pool.balance -= final_payout;
-            pool.total_claims_paid += final_payout;
-            env.storage().instance().set(&INSURANCE_POOL, &pool);
+                pool.balance -= final_payout;
+                pool.total_claims_paid += final_payout;
+                env.storage().instance().set(&INSURANCE_POOL, &pool);
 
-            env.invoke_contract::<()>(
-                &pool.token,
-                &symbol_short!("transfer"),
-                vec![
-                    env,
-                    env.current_contract_address().into_val(env),
-                    recipient.clone().into_val(env),
-                    final_payout.into_val(env),
-                ],
-            );
+                env.invoke_contract::<()>(
+                    &pool.token,
+                    &symbol_short!("transfer"),
+                    vec![
+                        env,
+                        env.current_contract_address().into_val(env),
+                        recipient.clone().into_val(env),
+                        final_payout.into_val(env),
+                    ],
+                );
 
-            InsuranceClaimProcessedEvent {
-                recipient: recipient.clone(),
-                payout_amount: final_payout,
-                new_balance: pool.balance,
-                processed_at: env.ledger().timestamp(),
-            }
-            .publish(env);
+                InsuranceClaimProcessedEvent {
+                    recipient: recipient.clone(),
+                    payout_amount: final_payout,
+                    new_balance: pool.balance,
+                    processed_at: env.ledger().timestamp(),
+                }
+                .publish(env);
 
-            Ok(())
-        })
+                Ok(())
+            },
+        )
     }
 
     /// Risk assessment for an escrow
