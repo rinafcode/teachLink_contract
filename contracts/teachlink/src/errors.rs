@@ -58,8 +58,8 @@ pub enum BridgeError {
     // Repository/Storage Errors
     StorageError = 143,
     NotInitialized = 144,
-    IncompatibleInterfaceVersion = 143,
-    InvalidInterfaceVersionRange = 144,
+    IncompatibleInterfaceVersion = 145,
+    InvalidInterfaceVersionRange = 146,
 }
 
 /// Escrow module errors
@@ -90,7 +90,7 @@ pub enum EscrowError {
     ArbitratorNotAuthorized = 221,
     // Repository/Storage Errors
     StorageError = 222,
-    InvalidBeneficiary = 222,
+    InvalidBeneficiary = 226,
     InvalidToken = 223,
     InvalidArbitrator = 224,
     DepositorCannotBeBeneficiary = 225,
