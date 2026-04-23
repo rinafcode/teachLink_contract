@@ -6,8 +6,10 @@
 use crate::repository::generic::{GenericCounterRepository, GenericMapRepository};
 use crate::repository::traits::InstanceStorage;
 use crate::repository::StorageError;
-use crate::storage::{ESCROWS, ESCROW_COUNT};
+use crate::reentrancy;
+use crate::storage::{ESCROWS, ESCROW_COUNT, ESCROW_GUARD};
 use crate::types::{Escrow, EscrowApprovalKey};
+use crate::errors::EscrowError;
 use soroban_sdk::{Address, Env, Map};
 
 /// Repository for escrow management
@@ -105,6 +107,25 @@ impl<'a> EscrowApprovalRepository<'a> {
     pub fn approve(&self, key: &EscrowApprovalKey) -> Result<(), StorageError> {
         self.storage.set(key, &true);
         Ok(())
+    }
+
+    /// Atomically check for duplicate approval, record it, and increment the escrow's
+    /// approval count — all under the ESCROW_GUARD reentrancy lock.
+    pub fn approve_with_guard(
+        &self,
+        key: &EscrowApprovalKey,
+        escrow_repo: &EscrowRepository,
+    ) -> Result<u32, EscrowError> {
+        let env = self.storage.env();
+        reentrancy::with_guard(env, &ESCROW_GUARD, EscrowError::ReentrancyDetected, || {
+            if self.has_approved(key) {
+                return Err(EscrowError::SignerAlreadyApproved);
+            }
+            self.storage.set(key, &true);
+            escrow_repo
+                .increment_approval_count(key.escrow_id)
+                .map_err(|_| EscrowError::StorageError)
+        })
     }
 
     /// Check if signer has approved
@@ -225,3 +246,118 @@ impl<'a> EscrowAggregateRepository<'a> {
 //         assert!(approval_repo.has_approved(&key));
 //     }
 // }
+
+#[cfg(test)]
+mod concurrency_tests {
+    use super::*;
+    use crate::errors::EscrowError;
+    use crate::storage::ESCROW_GUARD;
+    use crate::types::{EscrowSigner, EscrowStatus};
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{Address, Env, Vec};
+
+    fn make_escrow(env: &Env, id: u64) -> Escrow {
+        let addr = Address::generate(env);
+        Escrow {
+            id,
+            depositor: addr.clone(),
+            beneficiary: Address::generate(env),
+            token: Address::generate(env),
+            amount: 1_000,
+            signers: Vec::new(env),
+            threshold: 1,
+            approval_count: 0,
+            release_time: None,
+            refund_time: None,
+            arbitrator: addr,
+            status: EscrowStatus::Pending,
+            created_at: env.ledger().timestamp(),
+            dispute_reason: None,
+        }
+    }
+
+    /// Duplicate approval by the same signer must be rejected.
+    #[test]
+    fn approve_with_guard_rejects_duplicate_approval() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            let escrow_repo = EscrowRepository::new(&env);
+            let approval_repo = EscrowApprovalRepository::new(&env);
+
+            let escrow = make_escrow(&env, 1);
+            escrow_repo.save_escrow(&escrow).unwrap();
+
+            let signer = Address::generate(&env);
+            let key = EscrowApprovalKey { escrow_id: 1, signer: signer.clone() };
+
+            // First approval succeeds and count becomes 1.
+            let count = approval_repo.approve_with_guard(&key, &escrow_repo).unwrap();
+            assert_eq!(count, 1);
+
+            // Second approval by the same signer must be rejected.
+            let result = approval_repo.approve_with_guard(&key, &escrow_repo);
+            assert_eq!(result, Err(EscrowError::SignerAlreadyApproved));
+
+            // Approval count must still be 1.
+            assert_eq!(escrow_repo.get_escrow(1).unwrap().approval_count, 1);
+        });
+    }
+
+    /// Different signers each increment the count exactly once.
+    #[test]
+    fn approve_with_guard_multiple_signers_increment_correctly() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            let escrow_repo = EscrowRepository::new(&env);
+            let approval_repo = EscrowApprovalRepository::new(&env);
+
+            let escrow = make_escrow(&env, 2);
+            escrow_repo.save_escrow(&escrow).unwrap();
+
+            for expected_count in 1u32..=3 {
+                let key = EscrowApprovalKey {
+                    escrow_id: 2,
+                    signer: Address::generate(&env),
+                };
+                let count = approval_repo.approve_with_guard(&key, &escrow_repo).unwrap();
+                assert_eq!(count, expected_count);
+            }
+
+            assert_eq!(escrow_repo.get_escrow(2).unwrap().approval_count, 3);
+        });
+    }
+
+    /// When the reentrancy guard is already active, approve_with_guard must return
+    /// ReentrancyDetected instead of proceeding.
+    #[test]
+    fn approve_with_guard_rejects_when_guard_active() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            let escrow_repo = EscrowRepository::new(&env);
+            let approval_repo = EscrowApprovalRepository::new(&env);
+
+            let escrow = make_escrow(&env, 3);
+            escrow_repo.save_escrow(&escrow).unwrap();
+
+            // Simulate a concurrent call by pre-setting the guard.
+            env.storage().instance().set(&ESCROW_GUARD, &true);
+
+            let key = EscrowApprovalKey {
+                escrow_id: 3,
+                signer: Address::generate(&env),
+            };
+            let result = approval_repo.approve_with_guard(&key, &escrow_repo);
+            assert_eq!(result, Err(EscrowError::ReentrancyDetected));
+
+            // Approval count must remain 0.
+            assert_eq!(escrow_repo.get_escrow(3).unwrap().approval_count, 0);
+        });
+    }
+}
