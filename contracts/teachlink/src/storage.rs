@@ -25,6 +25,7 @@ pub const BRIDGE_PROPOSALS: Symbol = symbol_short!("proposals");
 pub const PROPOSAL_COUNTER: Symbol = symbol_short!("prop_cnt");
 pub const CONSENSUS_STATE: Symbol = symbol_short!("cons_st");
 pub const VALIDATOR_STAKES: Symbol = symbol_short!("val_stake");
+pub const NETWORK_STATE: Symbol = symbol_short!("net_state");
 
 // Slashing and Rewards Storage
 pub const SLASHING_RECORDS: Symbol = symbol_short!("slash_rec");
