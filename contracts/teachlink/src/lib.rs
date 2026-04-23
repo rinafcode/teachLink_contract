@@ -123,6 +123,7 @@ mod notification_types;
 mod performance;
 pub mod property_based_tests;
 mod provenance;
+mod reentrancy;
 mod reporting;
 mod repository;
 mod reputation;
