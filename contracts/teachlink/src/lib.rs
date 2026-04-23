@@ -90,6 +90,7 @@
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
+mod access_logger;
 mod analytics;
 mod arbitration;
 mod assessment;
@@ -145,7 +146,7 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use errors::{AccessLogError, BridgeError, EscrowError, MobilePlatformError, RewardsError};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -163,6 +164,7 @@ pub use types::{
     ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason,
     SlashingRecord, SwapStatus, TransferType, UserNotificationSettings, UserReputation, UserReward,
     ValidatorInfo, ValidatorReward, ValidatorSignature, VisualizationDataPoint,
+    AccessLogEntry, AccessOutcome, AuditQuery,
 };
 
 /// TeachLink main contract.
@@ -1641,4 +1643,33 @@ impl TeachLinkBridge {
 
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
+
+    // ========== Access Logging Functions ==========
+
+    /// Record an access attempt (caller, operation tag, outcome).
+    /// Called internally after any significant contract invocation.
+    pub fn log_access(env: Env, caller: Address, operation: Symbol, outcome: AccessOutcome) {
+        access_logger::AccessLogger::log_access(&env, caller, operation, outcome);
+    }
+
+    /// Retrieve a single access log entry by ID. Returns None if not found.
+    pub fn get_log_entry(env: Env, entry_id: u64) -> Option<AccessLogEntry> {
+        access_logger::AccessLogger::get_log_entry(&env, entry_id)
+    }
+
+    /// Return the total number of access log entries ever recorded.
+    pub fn get_total_log_count(env: Env) -> u64 {
+        access_logger::AccessLogger::get_total_log_count(&env)
+    }
+
+    /// Query access log entries with optional filters (most-recent-first).
+    /// Returns at most `query.limit` matching entries.
+    pub fn query_logs(env: Env, query: AuditQuery) -> Vec<AccessLogEntry> {
+        access_logger::AccessLogger::query_logs(&env, query)
+    }
+
+    /// Return the per-address call count for a given hourly window.
+    pub fn get_temporal_pattern(env: Env, caller: Address, window_start: u64) -> u32 {
+        access_logger::AccessLogger::get_temporal_pattern(&env, caller, window_start)
+    }
 }

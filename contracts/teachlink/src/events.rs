@@ -685,3 +685,26 @@ pub struct PerfMetricsComputedEvent {
 pub struct PerfCacheInvalidatedEvent {
     pub invalidated_at: u64,
 }
+
+// ================= Access Logging Events =================
+
+/// Emitted for every successfully recorded access log entry.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AccessAttemptEvent {
+    pub entry_id: u64,
+    pub caller: Address,
+    pub operation: Symbol,
+    pub success: bool,
+    pub error_code: u32,
+    pub timestamp: u64,
+}
+
+/// Emitted when the log write itself fails (fallback observability).
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AccessLogFailedEvent {
+    pub caller: Address,
+    pub operation: Symbol,
+    pub timestamp: u64,
+}

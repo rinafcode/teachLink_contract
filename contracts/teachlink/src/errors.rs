@@ -148,3 +148,16 @@ pub type RewardsResult<T> = core::result::Result<T, RewardsError>;
 /// Result type alias for common operations
 #[allow(dead_code)]
 pub type CommonResult<T> = core::result::Result<T, CommonError>;
+
+/// Access logging module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AccessLogError {
+    StorageWriteFailed = 500,
+    InvalidOperationTag = 501,
+    InvalidLimit = 502,
+}
+
+/// Result type alias for access log operations
+#[allow(dead_code)]
+pub type AccessLogResult<T> = core::result::Result<T, AccessLogError>;

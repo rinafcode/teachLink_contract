@@ -141,3 +141,8 @@ pub const ONBOARDING_STATUS: Symbol = symbol_short!("onboard");
 pub const USER_FEEDBACK: Symbol = symbol_short!("feedback");
 pub const UX_EXPERIMENTS: Symbol = symbol_short!("ux_exp");
 pub const COMPONENT_CONFIG: Symbol = symbol_short!("comp_cfg");
+
+// Access Logging Storage (symbol_short! max 9 chars)
+pub const LOG_COUNTER: Symbol = symbol_short!("log_cnt");
+pub const ACCESS_LOGS: Symbol = symbol_short!("acc_logs");
+pub const ACCESS_TEMPORAL: Symbol = symbol_short!("acc_tmp");
