@@ -296,10 +296,13 @@ impl EscrowValidator {
 
         let mut total_weight: u32 = 0;
         for signer in signers.iter() {
+            if signer.weight == 0 {
+                return Err(EscrowError::InvalidSignerThreshold);
+            }
             total_weight += signer.weight;
         }
 
-        if threshold < 1 || threshold > total_weight {
+        if threshold < 1 || total_weight == 0 || threshold > total_weight {
             return Err(EscrowError::InvalidSignerThreshold);
         }
 
@@ -318,8 +321,14 @@ impl EscrowValidator {
 
     /// Checks for duplicate signers in the list
     pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
-        // Simplified check - removed Env::current() call which doesn't exist
-        // This validation is now handled by the caller
+        let len = signers.len();
+        for i in 0..len {
+            for j in (i + 1)..len {
+                if signers.get(i).unwrap().address == signers.get(j).unwrap().address {
+                    return Err(EscrowError::DuplicateSigner);
+                }
+            }
+        }
         Ok(())
     }
 
@@ -348,10 +357,13 @@ impl EscrowValidator {
         // Validate threshold against total signer weight
         let mut total_weight: u32 = 0;
         for signer in params.signers.iter() {
+            if signer.weight == 0 {
+                return Err(EscrowError::InvalidSignerThreshold);
+            }
             total_weight += signer.weight;
         }
 
-        if params.threshold < 1 || params.threshold > total_weight {
+        if params.threshold < 1 || total_weight == 0 || params.threshold > total_weight {
             return Err(EscrowError::InvalidSignerThreshold);
         }
 
