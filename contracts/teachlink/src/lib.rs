@@ -946,6 +946,13 @@ impl TeachLinkBridge {
         reporting::ReportingManager::get_alert_rules(&env, owner)
     }
 
+    /// Bootstrap a baseline set of alert rules for production monitoring.
+    ///
+    /// Returns the created rule IDs.
+    pub fn bootstrap_default_alert_rules(env: Env, owner: Address) -> Result<Vec<u64>, BridgeError> {
+        reporting::ReportingManager::bootstrap_default_alert_rules(&env, owner)
+    }
+
     /// Evaluate alert rules (returns triggered rule ids)
     pub fn evaluate_alerts(env: Env) -> Vec<u64> {
         reporting::ReportingManager::evaluate_alerts(&env)
