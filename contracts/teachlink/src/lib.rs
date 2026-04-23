@@ -163,6 +163,7 @@ pub use types::{
     ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason,
     SlashingRecord, SwapStatus, TransferType, UserNotificationSettings, UserReputation, UserReward,
     ValidatorInfo, ValidatorReward, ValidatorSignature, VisualizationDataPoint,
+    DeprecatedFunction, DeprecationPolicy, MigrationPath,
 };
 
 /// TeachLink main contract.
@@ -302,6 +303,82 @@ impl TeachLinkBridge {
         client_version: ContractSemVer,
     ) -> Result<(), BridgeError> {
         interface_versioning::InterfaceVersioning::assert_interface_compatible(&env, client_version)
+    }
+
+    /// Check if upgrading from one version to another is backward compatible
+    pub fn is_backward_compatible(from: ContractSemVer, to: ContractSemVer) -> bool {
+        interface_versioning::InterfaceVersioning::is_backward_compatible(&from, &to)
+    }
+
+    /// Register a function as deprecated (admin only)
+    pub fn deprecate_function(
+        env: Env,
+        caller: Address,
+        function_name: Symbol,
+        deprecated_in: ContractSemVer,
+        removal_in: ContractSemVer,
+        replacement: Option<Symbol>,
+        reason: Bytes,
+    ) -> Result<(), BridgeError> {
+        interface_versioning::InterfaceVersioning::deprecate_function(
+            &env,
+            caller,
+            function_name,
+            deprecated_in,
+            removal_in,
+            replacement,
+            reason,
+        )
+    }
+
+    /// Get deprecation info for a specific function
+    pub fn get_deprecation(env: Env, function_name: Symbol) -> Option<DeprecatedFunction> {
+        interface_versioning::InterfaceVersioning::get_deprecation(&env, function_name)
+    }
+
+    /// Get the full deprecation policy (current version + all deprecated functions)
+    pub fn get_deprecation_policy(env: Env) -> DeprecationPolicy {
+        interface_versioning::InterfaceVersioning::get_deprecation_policy(&env)
+    }
+
+    /// Register a migration path between two versions (admin only)
+    pub fn register_migration_path(
+        env: Env,
+        caller: Address,
+        from_version: ContractSemVer,
+        to_version: ContractSemVer,
+        description: Bytes,
+        breaking_changes: Vec<Bytes>,
+        migration_steps: Vec<Bytes>,
+    ) -> Result<(), BridgeError> {
+        interface_versioning::InterfaceVersioning::register_migration_path(
+            &env,
+            caller,
+            from_version,
+            to_version,
+            description,
+            breaking_changes,
+            migration_steps,
+        )
+    }
+
+    /// Get the migration path between two specific versions
+    pub fn get_migration_path(
+        env: Env,
+        from_version: ContractSemVer,
+        to_version: ContractSemVer,
+    ) -> Option<MigrationPath> {
+        interface_versioning::InterfaceVersioning::get_migration_path(&env, from_version, to_version)
+    }
+
+    /// Get all registered migration paths
+    pub fn get_all_migration_paths(env: Env) -> Vec<MigrationPath> {
+        interface_versioning::InterfaceVersioning::get_all_migration_paths(&env)
+    }
+
+    /// Get the full version upgrade history
+    pub fn get_version_history(env: Env) -> Vec<ContractSemVer> {
+        interface_versioning::InterfaceVersioning::get_version_history(&env)
     }
 
     /// Get the bridge transaction by nonce
