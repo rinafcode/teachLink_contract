@@ -7,7 +7,7 @@ use crate::errors::BridgeError;
 use crate::events::{
     BridgePausedEvent, BridgeResumedEvent, CircuitBreakerResetEvent, CircuitBreakerTriggeredEvent,
 };
-use crate::storage::{CIRCUIT_BREAKERS, EMERGENCY_STATE, PAUSED_CHAINS};
+use crate::storage::{CIRCUIT_BREAKERS, CIRCUIT_RESET_SEQ, EMERGENCY_STATE, PAUSED_CHAINS};
 use crate::types::{CircuitBreaker, EmergencyState};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
@@ -193,6 +193,14 @@ impl EmergencyManager {
             .instance()
             .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
+        let mut reset_seq: Map<u32, u32> = env
+            .storage()
+            .instance()
+            .get(&CIRCUIT_RESET_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        reset_seq.set(chain_id, env.ledger().sequence());
+        env.storage().instance().set(&CIRCUIT_RESET_SEQ, &reset_seq);
+
         Ok(())
     }
 
@@ -219,9 +227,34 @@ impl EmergencyManager {
 
         // Reset daily volume if needed
         let current_time = env.ledger().timestamp();
-        if current_time - breaker.last_reset >= DAILY_VOLUME_RESET {
+        let mut should_reset = current_time - breaker.last_reset >= DAILY_VOLUME_RESET;
+
+        // Fallback: sequence-based reset if timestamps are unreliable.
+        if !should_reset {
+            let reset_seq: Map<u32, u32> = env
+                .storage()
+                .instance()
+                .get(&CIRCUIT_RESET_SEQ)
+                .unwrap_or_else(|| Map::new(env));
+            if let Some(last_seq) = reset_seq.get(chain_id) {
+                let threshold_ledgers =
+                    crate::ledger_time::seconds_to_ledger_delta(DAILY_VOLUME_RESET);
+                should_reset =
+                    env.ledger().sequence().saturating_sub(last_seq) >= threshold_ledgers;
+            }
+        }
+
+        if should_reset {
             breaker.current_daily_volume = 0;
             breaker.last_reset = current_time;
+
+            let mut reset_seq: Map<u32, u32> = env
+                .storage()
+                .instance()
+                .get(&CIRCUIT_RESET_SEQ)
+                .unwrap_or_else(|| Map::new(env));
+            reset_seq.set(chain_id, env.ledger().sequence());
+            env.storage().instance().set(&CIRCUIT_RESET_SEQ, &reset_seq);
         }
 
         // Check transaction amount limit
@@ -300,6 +333,14 @@ impl EmergencyManager {
         env.storage()
             .instance()
             .set(&CIRCUIT_BREAKERS, &circuit_breakers);
+
+        let mut reset_seq: Map<u32, u32> = env
+            .storage()
+            .instance()
+            .get(&CIRCUIT_RESET_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        reset_seq.set(chain_id, env.ledger().sequence());
+        env.storage().instance().set(&CIRCUIT_RESET_SEQ, &reset_seq);
 
         // Emit event
         CircuitBreakerResetEvent {

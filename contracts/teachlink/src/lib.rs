@@ -105,6 +105,7 @@ mod event_query;
 mod events;
 mod insurance;
 mod interface_versioning;
+mod ledger_time;
 // FUTURE: Implement governance module (tracked in TRACKING.md)
 // mod governance;
 // mod learning_paths;
