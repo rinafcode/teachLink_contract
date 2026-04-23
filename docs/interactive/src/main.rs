@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::process::Command;
 use std::fs;
 use tower::ServiceBuilder;
+use tower_governor::{governor::GovernorConfigBuilder, GovernorLayer};
 use tower_http::{cors::CorsLayer, services::ServeDir};
 
 #[derive(Deserialize)]
@@ -24,12 +25,40 @@ struct InvokeResponse {
 
 #[tokio::main]
 async fn main() {
+    // Global rate limiting: 10 req/sec per IP
+    let global_governor = GovernorConfigBuilder::default()
+        .per_second(10)
+        .burst_size(20)
+        .finish()
+        .unwrap();
+
+    // Stricter for deploy: 1 req/min per IP
+    let deploy_governor = GovernorConfigBuilder::default()
+        .per_minute(1)
+        .burst_size(1)
+        .finish()
+        .unwrap();
+
+    // For invoke: 5 req/sec per IP
+    let invoke_governor = GovernorConfigBuilder::default()
+        .per_second(5)
+        .burst_size(10)
+        .finish()
+        .unwrap();
+
     let app = Router::new()
-        .route("/deploy", post(deploy_contract))
-        .route("/invoke", post(invoke_contract))
+        .route("/deploy", post(deploy_contract).layer(GovernorLayer {
+            config: &deploy_governor,
+        }))
+        .route("/invoke", post(invoke_contract).layer(GovernorLayer {
+            config: &invoke_governor,
+        }))
         .route("/api", get(get_api))
         .nest_service("/", ServeDir::new("static"))
-        .layer(CorsLayer::permissive());
+        .layer(CorsLayer::permissive())
+        .layer(GovernorLayer {
+            config: &global_governor,
+        });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     println!("Server running on http://localhost:3000");
