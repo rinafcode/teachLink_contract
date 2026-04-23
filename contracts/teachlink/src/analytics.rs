@@ -3,6 +3,7 @@
 //! Bridge monitoring and analytics for bridge operations, validator performance, and chain metrics.
 
 use crate::errors::BridgeError;
+use crate::events::{BridgeMetricsUpdatedEvent, ChainMetricsUpdatedEvent};
 use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};
 use crate::types::{BridgeMetrics, ChainMetrics};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
@@ -26,6 +27,16 @@ impl AnalyticsManager {
         };
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
+
+        BridgeMetricsUpdatedEvent {
+            total_volume: metrics.total_volume,
+            total_transactions: metrics.total_transactions,
+            active_validators: metrics.active_validators,
+            average_confirmation_time: metrics.average_confirmation_time,
+            success_rate: metrics.success_rate,
+            updated_at: metrics.last_updated,
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -77,6 +88,16 @@ impl AnalyticsManager {
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
 
+        BridgeMetricsUpdatedEvent {
+            total_volume: metrics.total_volume,
+            total_transactions: metrics.total_transactions,
+            active_validators: metrics.active_validators,
+            average_confirmation_time: metrics.average_confirmation_time,
+            success_rate: metrics.success_rate,
+            updated_at: metrics.last_updated,
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -100,6 +121,16 @@ impl AnalyticsManager {
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
 
+        BridgeMetricsUpdatedEvent {
+            total_volume: metrics.total_volume,
+            total_transactions: metrics.total_transactions,
+            active_validators: metrics.active_validators,
+            average_confirmation_time: metrics.average_confirmation_time,
+            success_rate: metrics.success_rate,
+            updated_at: metrics.last_updated,
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -113,6 +144,11 @@ impl AnalyticsManager {
             average_fee: 0,
             last_updated: env.ledger().timestamp(),
         };
+        let volume_in = metrics.volume_in;
+        let volume_out = metrics.volume_out;
+        let transaction_count = metrics.transaction_count;
+        let average_fee = metrics.average_fee;
+        let updated_at = metrics.last_updated;
 
         let mut chain_metrics: Map<u32, ChainMetrics> = env
             .storage()
@@ -121,6 +157,16 @@ impl AnalyticsManager {
             .unwrap_or_else(|| Map::new(env));
         chain_metrics.set(chain_id, metrics);
         env.storage().instance().set(&CHAIN_METRICS, &chain_metrics);
+
+        ChainMetricsUpdatedEvent {
+            chain_id,
+            volume_in,
+            volume_out,
+            transaction_count,
+            average_fee,
+            updated_at,
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -171,6 +217,18 @@ impl AnalyticsManager {
 
         chain_metrics.set(chain_id, metrics);
         env.storage().instance().set(&CHAIN_METRICS, &chain_metrics);
+
+        if let Some(metrics) = chain_metrics.get(chain_id) {
+            ChainMetricsUpdatedEvent {
+                chain_id,
+                volume_in: metrics.volume_in,
+                volume_out: metrics.volume_out,
+                transaction_count: metrics.transaction_count,
+                average_fee: metrics.average_fee,
+                updated_at: metrics.last_updated,
+            }
+            .publish(env);
+        }
 
         Ok(())
     }

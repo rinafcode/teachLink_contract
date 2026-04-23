@@ -26,6 +26,80 @@ use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 pub struct ReportingManager;
 
 impl ReportingManager {
+    /// Bootstrap a set of recommended alert rules for production monitoring.
+    ///
+    /// This is intentionally opinionated and can be modified/disabled by the owner afterwards.
+    pub fn bootstrap_default_alert_rules(env: &Env, owner: Address) -> Result<Vec<u64>, BridgeError> {
+        owner.require_auth();
+
+        let mut created = Vec::new(env);
+
+        // Health score below 80/100.
+        created.push_back(Self::create_alert_rule_inner(
+            env,
+            owner.clone(),
+            Bytes::from_slice(env, b"Bridge health below 80"),
+            AlertConditionType::BridgeHealthBelow,
+            80,
+        )?);
+
+        // Escrow dispute rate above 5% (500 bps, where rate is disputes/total * 10_000).
+        created.push_back(Self::create_alert_rule_inner(
+            env,
+            owner.clone(),
+            Bytes::from_slice(env, b"Escrow dispute rate above 5%"),
+            AlertConditionType::EscrowDisputeRateAbove,
+            500,
+        )?);
+
+        // Transaction count spike: more than 10k.
+        created.push_back(Self::create_alert_rule_inner(
+            env,
+            owner.clone(),
+            Bytes::from_slice(env, b"Transaction count above 10000"),
+            AlertConditionType::TransactionCountAbove,
+            10_000,
+        )?);
+
+        Ok(created)
+    }
+
+    fn create_alert_rule_inner(
+        env: &Env,
+        owner: Address,
+        name: Bytes,
+        condition_type: AlertConditionType,
+        threshold: i128,
+    ) -> Result<u64, BridgeError> {
+        let mut counter: u64 = env
+            .storage()
+            .instance()
+            .get(&ALERT_RULE_COUNTER)
+            .unwrap_or(0u64);
+        counter += 1;
+
+        let rule = AlertRule {
+            rule_id: counter,
+            name,
+            condition_type: condition_type.clone(),
+            threshold,
+            owner: owner.clone(),
+            enabled: true,
+            created_at: env.ledger().timestamp(),
+        };
+
+        let mut rules: Map<u64, AlertRule> = env
+            .storage()
+            .instance()
+            .get(&ALERT_RULES)
+            .unwrap_or_else(|| Map::new(env));
+        rules.set(counter, rule);
+        env.storage().instance().set(&ALERT_RULES, &rules);
+        env.storage().instance().set(&ALERT_RULE_COUNTER, &counter);
+
+        Ok(counter)
+    }
+
     /// Create a report template
     pub fn create_report_template(
         env: &Env,
@@ -338,33 +412,7 @@ impl ReportingManager {
     ) -> Result<u64, BridgeError> {
         owner.require_auth();
 
-        let mut counter: u64 = env
-            .storage()
-            .instance()
-            .get(&ALERT_RULE_COUNTER)
-            .unwrap_or(0u64);
-        counter += 1;
-
-        let rule = AlertRule {
-            rule_id: counter,
-            name,
-            condition_type: condition_type.clone(),
-            threshold,
-            owner: owner.clone(),
-            enabled: true,
-            created_at: env.ledger().timestamp(),
-        };
-
-        let mut rules: Map<u64, AlertRule> = env
-            .storage()
-            .instance()
-            .get(&ALERT_RULES)
-            .unwrap_or_else(|| Map::new(env));
-        rules.set(counter, rule);
-        env.storage().instance().set(&ALERT_RULES, &rules);
-        env.storage().instance().set(&ALERT_RULE_COUNTER, &counter);
-
-        Ok(counter)
+        Self::create_alert_rule_inner(env, owner, name, condition_type, threshold)
     }
 
     /// Get alert rules for an owner
@@ -494,5 +542,57 @@ impl ReportingManager {
             }
         }
         result
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ReportingManager;
+    use crate::types::AlertConditionType;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{Address, Env};
+
+    #[test]
+    fn bootstrap_default_alert_rules_creates_expected_rules() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            let owner = Address::generate(&env);
+
+            let created = ReportingManager::bootstrap_default_alert_rules(&env, owner.clone())
+                .expect("bootstrap should succeed");
+            assert_eq!(created.len(), 3);
+
+            let rules = ReportingManager::get_alert_rules(&env, owner);
+            assert_eq!(rules.len(), 3);
+
+            let mut saw_health = false;
+            let mut saw_disputes = false;
+            let mut saw_tx_count = false;
+
+            for idx in 0..rules.len() {
+                let r = rules.get(idx).unwrap();
+                match r.condition_type {
+                    AlertConditionType::BridgeHealthBelow => {
+                        saw_health = true;
+                        assert_eq!(r.threshold, 80);
+                    }
+                    AlertConditionType::EscrowDisputeRateAbove => {
+                        saw_disputes = true;
+                        assert_eq!(r.threshold, 500);
+                    }
+                    AlertConditionType::TransactionCountAbove => {
+                        saw_tx_count = true;
+                        assert_eq!(r.threshold, 10_000);
+                    }
+                    _ => {}
+                }
+            }
+
+            assert!(saw_health && saw_disputes && saw_tx_count);
+        });
     }
 }
