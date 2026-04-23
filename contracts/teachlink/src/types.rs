@@ -146,6 +146,8 @@ pub enum SlashingReason {
     Inactivity,
     ByzantineBehavior,
     MaliciousProposal,
+    Collusion,
+    LowReputation,
 }
 
 #[contracttype]

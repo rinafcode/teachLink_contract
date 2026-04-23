@@ -20,8 +20,14 @@ use soroban_sdk::{Address, Env, Map, Vec};
 /// Minimum stake required to become a validator
 pub const MIN_VALIDATOR_STAKE: i128 = 100_000_000; // 100 tokens with 6 decimals
 
-/// Proposal timeout in seconds (24 hours)
-pub const PROPOSAL_TIMEOUT: u64 = 86_400;
+/// Maximum stake per validator (to prevent dominance)
+pub const MAX_VALIDATOR_STAKE: i128 = 1_000_000_000; // 1000 tokens
+
+/// Validator rotation period in seconds (30 days)
+pub const ROTATION_PERIOD: u64 = 2_592_000;
+
+/// Minimum reputation score before slashing
+pub const MIN_REPUTATION_SCORE: u32 = 50;
 
 /// BFT Consensus Manager
 pub struct BFTConsensus;
@@ -37,6 +43,10 @@ impl BFTConsensus {
 
         if stake < MIN_VALIDATOR_STAKE {
             return Err(BridgeError::InsufficientStake);
+        }
+
+        if stake > MAX_VALIDATOR_STAKE {
+            return Err(BridgeError::StakeTooHigh);
         }
 
         // Check if already registered
@@ -388,6 +398,8 @@ impl BFTConsensus {
         if let Some(mut info) = validator_infos.get(validator.clone()) {
             info.last_activity = env.ledger().timestamp();
             info.total_validations += 1;
+            // Boost reputation for active participation
+            info.reputation_score = (info.reputation_score + 1).min(100);
             validator_infos.set(validator.clone(), info);
             env.storage()
                 .instance()
@@ -463,5 +475,54 @@ impl BFTConsensus {
         } else {
             false
         }
+    }
+
+    /// Rotate validators based on performance and stake
+    pub fn rotate_validators(env: &Env) -> Result<(), BridgeError> {
+        let current_time = env.ledger().timestamp();
+        let consensus_state = Self::get_consensus_state(env);
+
+        // Only rotate if enough time has passed
+        if current_time - consensus_state.last_consensus_round < ROTATION_PERIOD {
+            return Ok(());
+        }
+
+        let validator_infos: Map<Address, ValidatorInfo> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_INFO)
+            .unwrap_or_else(|| Map::new(env));
+
+        // Collect candidates with high reputation and sufficient stake
+        let mut candidates = Vec::new(env);
+        for (validator, info) in validator_infos.iter() {
+            if info.reputation_score >= MIN_REPUTATION_SCORE && info.stake >= MIN_VALIDATOR_STAKE {
+                candidates.push_back((validator, info.reputation_score, info.stake));
+            }
+        }
+
+        // Sort by reputation then stake (descending)
+        candidates.sort_by(|a, b| {
+            b.1.cmp(&a.1).then(b.2.cmp(&a.2))
+        });
+
+        // Select top validators (up to a reasonable number, e.g., 100)
+        let max_validators = 100u32;
+        let selected_count = candidates.len().min(max_validators as usize) as u32;
+
+        // Update active validators
+        let mut validators: Map<Address, bool> = Map::new(env);
+        for i in 0..selected_count {
+            if let Some(candidate) = candidates.get(i as u32) {
+                validators.set(candidate.0.clone(), true);
+            }
+        }
+
+        env.storage().instance().set(&VALIDATORS, &validators);
+
+        // Update consensus state
+        Self::update_consensus_state(env)?;
+
+        Ok(())
     }
 }

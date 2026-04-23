@@ -20,6 +20,8 @@ pub const SLASHING_PERCENTAGE_INVALID_SIGNATURE: u32 = 1000; // 10%
 pub const SLASHING_PERCENTAGE_INACTIVITY: u32 = 500; // 5%
 pub const SLASHING_PERCENTAGE_BYZANTINE: u32 = 10000; // 100%
 pub const SLASHING_PERCENTAGE_MALICIOUS: u32 = 10000; // 100%
+pub const SLASHING_PERCENTAGE_COLLUSION: u32 = 7500; // 75%
+pub const SLASHING_PERCENTAGE_LOW_REPUTATION: u32 = 2500; // 25%
 
 /// Inactivity threshold (in seconds, 7 days)
 pub const INACTIVITY_THRESHOLD: u64 = 604_800;
@@ -160,6 +162,8 @@ impl SlashingManager {
             SlashingReason::Inactivity => SLASHING_PERCENTAGE_INACTIVITY,
             SlashingReason::ByzantineBehavior => SLASHING_PERCENTAGE_BYZANTINE,
             SlashingReason::MaliciousProposal => SLASHING_PERCENTAGE_MALICIOUS,
+            SlashingReason::Collusion => SLASHING_PERCENTAGE_COLLUSION,
+            SlashingReason::LowReputation => SLASHING_PERCENTAGE_LOW_REPUTATION,
         };
 
         let slash_amount = (info.stake * slash_percentage as i128) / 10000;
@@ -350,6 +354,8 @@ impl SlashingManager {
             SlashingReason::Inactivity => 5,
             SlashingReason::ByzantineBehavior => 50,
             SlashingReason::MaliciousProposal => 100,
+            SlashingReason::Collusion => 30,
+            SlashingReason::LowReputation => 15,
         };
 
         current.saturating_sub(penalty)
@@ -380,13 +386,26 @@ impl SlashingManager {
         slashing_records.get(record_id)
     }
 
-    /// Get validator rewards history
-    pub fn get_validator_rewards(env: &Env, validator: Address) -> Vec<ValidatorReward> {
-        let rewards: Map<Address, Vec<ValidatorReward>> = env
+    /// Slash validators with low reputation
+    pub fn slash_low_reputation_validators(env: &Env) -> Result<(), BridgeError> {
+        let validator_infos: Map<Address, ValidatorInfo> = env
             .storage()
             .instance()
-            .get(&VALIDATOR_REWARDS)
+            .get(&VALIDATOR_INFO)
             .unwrap_or_else(|| Map::new(env));
-        rewards.get(validator).unwrap_or_else(|| Vec::new(env))
+
+        for (validator, info) in validator_infos.iter() {
+            if info.reputation_score < MIN_REPUTATION_SCORE {
+                Self::slash_validator(
+                    env,
+                    validator,
+                    SlashingReason::LowReputation,
+                    soroban_sdk::Bytes::from_slice(env, b"low reputation"),
+                    env.current_contract_address(),
+                )?;
+            }
+        }
+
+        Ok(())
     }
 }
