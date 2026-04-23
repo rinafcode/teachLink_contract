@@ -270,6 +270,15 @@ docker run --rm -v $(pwd):/workspace teachlink-dev cargo build --release --targe
 4. **Before Committing**: Run `./scripts/dev.sh --release` to catch all issues
 5. **CI/CD Integration**: Use Docker containers for consistent builds across environments
 
+## Observability
+
+Production monitoring and alerting is built around the long-running **indexer runtime** (Prometheus + Alertmanager + Grafana), plus contract-level telemetry via Soroban events.
+
+See:
+
+- [OBSERVABILITY.md](OBSERVABILITY.md)
+- [indexer/MONITORING.md](indexer/MONITORING.md)
+
 ## Architecture
 
 For full architecture documentation including system diagrams, data flow diagrams, and component interaction maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
