@@ -517,11 +517,12 @@ impl BFTConsensus {
 
 #[cfg(test)]
 mod tests {
-    use super::{BFTConsensus, MIN_VALIDATOR_STAKE, PROPOSAL_TIMEOUT};
+    use super::{MIN_VALIDATOR_STAKE, PROPOSAL_TIMEOUT};
     use crate::errors::BridgeError;
     use crate::storage::PROPOSAL_EXPIRES_SEQ;
     use crate::types::CrossChainMessage;
     use crate::TeachLinkBridge;
+    use crate::TeachLinkBridgeClient;
     use soroban_sdk::testutils::{Address as _, Ledger};
     use soroban_sdk::{Bytes, Env, Map};
 
@@ -538,37 +539,41 @@ mod tests {
         env.mock_all_auths();
         let contract_id = env.register(TeachLinkBridge, ());
 
-        env.as_contract(&contract_id, || {
-            set_ledger(&env, 1_000, 1);
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
-            let validator = soroban_sdk::Address::generate(&env);
-            BFTConsensus::register_validator(&env, validator.clone(), MIN_VALIDATOR_STAKE).unwrap();
+        set_ledger(&env, 1_000, 1);
 
-            let msg = CrossChainMessage {
-                source_chain: 1,
-                source_tx_hash: Bytes::from_slice(&env, &[0x11; 32]),
-                nonce: 1,
-                token: soroban_sdk::Address::generate(&env),
-                amount: 1,
-                recipient: soroban_sdk::Address::generate(&env),
-                destination_chain: 2,
-                destination_address: Bytes::from_slice(&env, b"dest"),
-            };
-            let proposal_id = BFTConsensus::create_proposal(&env, msg).unwrap();
+        let validator = soroban_sdk::Address::generate(&env);
+        assert_eq!(
+            client.try_register_validator(&validator, &MIN_VALIDATOR_STAKE),
+            Ok(Ok(()))
+        );
 
-            // Ensure the sequence-based expiry is stored.
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0x11; 32]),
+            nonce: 1,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.try_create_bridge_proposal(&msg).unwrap().unwrap();
+
+        // Ensure the sequence-based expiry is stored.
+        let deadline = env.as_contract(&contract_id, || {
             let expires_seq: Map<u64, u32> =
                 env.storage().instance().get(&PROPOSAL_EXPIRES_SEQ).unwrap();
-            let deadline = expires_seq.get(proposal_id).unwrap();
-
-            // Keep timestamp constant but move sequence beyond the deadline.
-            // With timestamp-only logic, this would still be pending.
-            set_ledger(&env, 1_000, deadline.saturating_add(1));
-            let r = BFTConsensus::vote_on_proposal(&env, validator, proposal_id, true);
-            assert_eq!(r, Err(BridgeError::ProposalExpired));
-
-            // Sanity check constant is used (guards against accidental removal).
-            assert!(PROPOSAL_TIMEOUT > 0);
+            expires_seq.get(proposal_id).unwrap()
         });
+
+        // Keep timestamp constant but move sequence beyond the deadline.
+        // With timestamp-only logic, this would still be pending.
+        set_ledger(&env, 1_000, deadline.saturating_add(1));
+        let r = client.try_vote_on_proposal(&validator, &proposal_id, &true);
+        assert_eq!(r, Err(Ok(BridgeError::ProposalExpired)));
+
+        // Sanity check constant is used (guards against accidental removal).
+        assert!(PROPOSAL_TIMEOUT > 0);
     }
 }
