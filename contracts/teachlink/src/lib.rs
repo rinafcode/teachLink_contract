@@ -165,6 +165,7 @@ pub use types::{
     ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason,
     SlashingRecord, SwapStatus, TransferType, UserNotificationSettings, UserReputation, UserReward,
     ValidatorInfo, ValidatorReward, ValidatorSignature, VisualizationDataPoint,
+    NetworkCondition, NetworkHealth,
 };
 
 /// TeachLink main contract.
@@ -393,6 +394,30 @@ impl TeachLinkBridge {
     /// Check if consensus is reached for a proposal
     pub fn is_consensus_reached(env: Env, proposal_id: u64) -> bool {
         bft_consensus::BFTConsensus::is_consensus_reached(&env, proposal_id)
+    }
+
+    /// Update observed network conditions (admin / oracle call).
+    ///
+    /// `avg_latency_ms` – rolling average round-trip latency in milliseconds.
+    /// `consecutive_misses` – number of consecutive rounds that timed out.
+    ///
+    /// Health is derived automatically; future proposals will use the resulting
+    /// adaptive timeout.
+    pub fn update_network_condition(
+        env: Env,
+        avg_latency_ms: u64,
+        consecutive_misses: u32,
+    ) -> NetworkCondition {
+        bft_consensus::BFTConsensus::update_network_condition(
+            &env,
+            avg_latency_ms,
+            consecutive_misses,
+        )
+    }
+
+    /// Query the current network condition snapshot.
+    pub fn get_network_condition(env: Env) -> NetworkCondition {
+        bft_consensus::BFTConsensus::get_network_condition(&env)
     }
 
     // ========== Slashing and Rewards Functions ==========

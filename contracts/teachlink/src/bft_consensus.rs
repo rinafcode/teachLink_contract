@@ -9,24 +9,98 @@ use crate::events::{
     ValidatorUnregisteredEvent,
 };
 use crate::storage::{
-    BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ, VALIDATORS,
-    VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
+    BRIDGE_PROPOSALS, CONSENSUS_STATE, NETWORK_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ,
+    VALIDATORS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
 };
 use crate::types::{
-    BridgeProposal, ConsensusState, CrossChainMessage, ProposalStatus, ValidatorInfo,
+    BridgeProposal, ConsensusState, CrossChainMessage, NetworkCondition, NetworkHealth,
+    ProposalStatus, ValidatorInfo,
 };
 use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Minimum stake required to become a validator
 pub const MIN_VALIDATOR_STAKE: i128 = 100_000_000; // 100 tokens with 6 decimals
 
-/// Proposal timeout in seconds (24 hours)
+/// Proposal timeout in seconds (24 hours) – base value for healthy network.
 pub const PROPOSAL_TIMEOUT: u64 = 86_400;
+
+/// Timeout multiplier for degraded network (2×).
+const TIMEOUT_MULTIPLIER_DEGRADED: u64 = 2;
+/// Timeout multiplier for critical network (3×).
+const TIMEOUT_MULTIPLIER_CRITICAL: u64 = 3;
+
+/// Consecutive miss count that triggers Degraded health.
+const MISS_THRESHOLD_DEGRADED: u32 = 1;
+/// Consecutive miss count that triggers Critical health.
+const MISS_THRESHOLD_CRITICAL: u32 = 3;
 
 /// BFT Consensus Manager
 pub struct BFTConsensus;
 
 impl BFTConsensus {
+    // ── Network condition monitoring ─────────────────────────────────────────
+
+    /// Return the current network condition, defaulting to Healthy if not set.
+    pub fn get_network_condition(env: &Env) -> NetworkCondition {
+        env.storage()
+            .instance()
+            .get(&NETWORK_STATE)
+            .unwrap_or(NetworkCondition {
+                health: NetworkHealth::Healthy,
+                avg_latency_ms: 0,
+                consecutive_misses: 0,
+                last_updated: env.ledger().timestamp(),
+            })
+    }
+
+    /// Update network condition from an external observer (admin / oracle).
+    ///
+    /// Derives `health` automatically from `consecutive_misses`:
+    /// - ≥ `MISS_THRESHOLD_CRITICAL` → Critical
+    /// - ≥ `MISS_THRESHOLD_DEGRADED` → Degraded
+    /// - otherwise → Healthy
+    pub fn update_network_condition(
+        env: &Env,
+        avg_latency_ms: u64,
+        consecutive_misses: u32,
+    ) -> NetworkCondition {
+        let health = if consecutive_misses >= MISS_THRESHOLD_CRITICAL {
+            NetworkHealth::Critical
+        } else if consecutive_misses >= MISS_THRESHOLD_DEGRADED {
+            NetworkHealth::Degraded
+        } else {
+            NetworkHealth::Healthy
+        };
+
+        let condition = NetworkCondition {
+            health,
+            avg_latency_ms,
+            consecutive_misses,
+            last_updated: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&NETWORK_STATE, &condition);
+        condition
+    }
+
+    /// Compute the adaptive proposal timeout based on current network health.
+    ///
+    /// | Health   | Multiplier | Effective timeout |
+    /// |----------|-----------|-------------------|
+    /// | Healthy  | 1×        | 86 400 s (24 h)   |
+    /// | Degraded | 2×        | 172 800 s (48 h)  |
+    /// | Critical | 3×        | 259 200 s (72 h)  |
+    pub fn adaptive_timeout(env: &Env) -> u64 {
+        let condition = Self::get_network_condition(env);
+        let multiplier = match condition.health {
+            NetworkHealth::Healthy => 1,
+            NetworkHealth::Degraded => TIMEOUT_MULTIPLIER_DEGRADED,
+            NetworkHealth::Critical => TIMEOUT_MULTIPLIER_CRITICAL,
+        };
+        PROPOSAL_TIMEOUT.saturating_mul(multiplier)
+    }
+
+    // ── Validator registration ───────────────────────────────────────────────
+
     /// Register a new validator with stake
     pub fn register_validator(
         env: &Env,
@@ -193,6 +267,9 @@ impl BFTConsensus {
 
         let required_votes = consensus_state.byzantine_threshold;
 
+        // Compute timeout based on current network health (graceful degradation).
+        let timeout = Self::adaptive_timeout(env);
+
         // Create proposal
         let proposal = BridgeProposal {
             proposal_id: proposal_counter,
@@ -202,7 +279,7 @@ impl BFTConsensus {
             required_votes,
             status: ProposalStatus::Pending,
             created_at: env.ledger().timestamp(),
-            expires_at: env.ledger().timestamp() + PROPOSAL_TIMEOUT,
+            expires_at: env.ledger().timestamp() + timeout,
         };
 
         // Store proposal
@@ -221,9 +298,7 @@ impl BFTConsensus {
         let expires_seq =
             env.ledger()
                 .sequence()
-                .saturating_add(crate::ledger_time::seconds_to_ledger_delta(
-                    PROPOSAL_TIMEOUT,
-                ));
+                .saturating_add(crate::ledger_time::seconds_to_ledger_delta(timeout));
         let mut proposal_expires_seq: Map<u64, u32> = env
             .storage()
             .instance()
@@ -290,6 +365,13 @@ impl BFTConsensus {
             proposal.status = ProposalStatus::Expired;
             proposals.set(proposal_id, proposal);
             env.storage().instance().set(&BRIDGE_PROPOSALS, &proposals);
+            // Record the miss so the adaptive monitor can react.
+            let cond = Self::get_network_condition(env);
+            Self::update_network_condition(
+                env,
+                cond.avg_latency_ms,
+                cond.consecutive_misses.saturating_add(1),
+            );
             return Err(BridgeError::ProposalExpired);
         }
 
@@ -357,6 +439,10 @@ impl BFTConsensus {
         env.storage()
             .instance()
             .set(&CONSENSUS_STATE, &consensus_state);
+
+        // Successful consensus – reset consecutive miss counter.
+        let cond = Self::get_network_condition(env);
+        Self::update_network_condition(env, cond.avg_latency_ms, 0);
 
         // Emit event
         ProposalExecutedEvent {
@@ -575,5 +661,153 @@ mod tests {
 
         // Sanity check constant is used (guards against accidental removal).
         assert!(PROPOSAL_TIMEOUT > 0);
+    }
+
+    // ── Adaptive timeout tests ────────────────────────────────────────────────
+
+    #[test]
+    fn adaptive_timeout_healthy_uses_base() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+        // Default (no network state set) → Healthy → 1× base timeout.
+        let cond = client.get_network_condition();
+        assert_eq!(cond.consecutive_misses, 0);
+
+        // Proposal expires_at should equal timestamp + PROPOSAL_TIMEOUT.
+        set_ledger(&env, 1_000, 1);
+        let validator = soroban_sdk::Address::generate(&env);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0xAA; 32]),
+            nonce: 10,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&msg);
+        let proposal = client.get_proposal(&proposal_id).unwrap();
+        assert_eq!(proposal.expires_at, 1_000 + PROPOSAL_TIMEOUT);
+    }
+
+    #[test]
+    fn adaptive_timeout_degraded_doubles_timeout() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+        set_ledger(&env, 1_000, 1);
+
+        // 1 miss → Degraded → 2× timeout.
+        client.update_network_condition(&0u64, &1u32);
+        let cond = client.get_network_condition();
+        assert_eq!(cond.consecutive_misses, 1);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0xBB; 32]),
+            nonce: 20,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&msg);
+        let proposal = client.get_proposal(&proposal_id).unwrap();
+        assert_eq!(proposal.expires_at, 1_000 + PROPOSAL_TIMEOUT * 2);
+    }
+
+    #[test]
+    fn adaptive_timeout_critical_triples_timeout() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+        set_ledger(&env, 1_000, 1);
+
+        // 3 misses → Critical → 3× timeout.
+        client.update_network_condition(&500u64, &3u32);
+        let cond = client.get_network_condition();
+        assert_eq!(cond.consecutive_misses, 3);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0xCC; 32]),
+            nonce: 30,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&msg);
+        let proposal = client.get_proposal(&proposal_id).unwrap();
+        assert_eq!(proposal.expires_at, 1_000 + PROPOSAL_TIMEOUT * 3);
+    }
+
+    #[test]
+    fn miss_counter_increments_on_expiry_and_resets_on_success() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+        set_ledger(&env, 1_000, 1);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0xDD; 32]),
+            nonce: 40,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&msg);
+
+        // Expire the proposal via sequence fallback.
+        let deadline = env.as_contract(&contract_id, || {
+            let expires_seq: Map<u64, u32> =
+                env.storage().instance().get(&PROPOSAL_EXPIRES_SEQ).unwrap();
+            expires_seq.get(proposal_id).unwrap()
+        });
+        set_ledger(&env, 1_000, deadline.saturating_add(1));
+        let _ = client.try_vote_on_proposal(&validator, &proposal_id, &true);
+
+        // Miss counter should have incremented.
+        let cond = client.get_network_condition();
+        assert_eq!(cond.consecutive_misses, 1);
+
+        // Now create a new proposal and reach consensus → miss counter resets.
+        set_ledger(&env, 2_000, deadline.saturating_add(2));
+        let msg2 = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0xEE; 32]),
+            nonce: 41,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id2 = client.create_bridge_proposal(&msg2);
+        client.vote_on_proposal(&validator, &proposal_id2, &true);
+
+        let cond_after = client.get_network_condition();
+        assert_eq!(cond_after.consecutive_misses, 0);
     }
 }
