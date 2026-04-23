@@ -29,7 +29,10 @@ impl ReportingManager {
     /// Bootstrap a set of recommended alert rules for production monitoring.
     ///
     /// This is intentionally opinionated and can be modified/disabled by the owner afterwards.
-    pub fn bootstrap_default_alert_rules(env: &Env, owner: Address) -> Result<Vec<u64>, BridgeError> {
+    pub fn bootstrap_default_alert_rules(
+        env: &Env,
+        owner: Address,
+    ) -> Result<Vec<u64>, BridgeError> {
         owner.require_auth();
 
         let mut created = Vec::new(env);
