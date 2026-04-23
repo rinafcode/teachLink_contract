@@ -142,7 +142,7 @@ impl Bridge {
                 .map_err(|_| BridgeError::StorageError)?;
 
             // Transfer tokens from user to bridge (locking them)
-            env.invoke_contract::<()>(
+            let transfer_res = env.invoke_contract::<()>(
                 &token,
                 &symbol_short!("transfer"),
                 vec![
@@ -152,9 +152,14 @@ impl Bridge {
                     amount.into_val(env),
                 ],
             );
+            if transfer_res.is_err() {
+                let reason = Bytes::from_slice(env, b"token_transfer_failed");
+                let _ = Self::mark_bridge_failed(env, nonce, reason.clone());
+                return Err(BridgeError::BridgeTransactionFailed);
+            }
 
             if fee > 0 && fee < amount {
-                env.invoke_contract::<()>(
+                let fee_res = env.invoke_contract::<()>(
                     &token,
                     &symbol_short!("transfer"),
                     vec![
@@ -164,6 +169,11 @@ impl Bridge {
                         fee.into_val(env),
                     ],
                 );
+                if fee_res.is_err() {
+                    let reason = Bytes::from_slice(env, b"fee_transfer_failed");
+                    let _ = Self::mark_bridge_failed(env, nonce, reason.clone());
+                    return Err(BridgeError::BridgeTransactionFailed);
+                }
             }
 
             BridgeInitiatedEvent {
@@ -244,7 +254,7 @@ impl Bridge {
                 .clear_retry_metadata(message.nonce)
                 .map_err(|_| BridgeError::StorageError)?;
 
-            env.invoke_contract::<()>(
+            let mint_res = env.invoke_contract::<()>(
                 &token,
                 &symbol_short!("mint"),
                 vec![
@@ -253,6 +263,11 @@ impl Bridge {
                     message.amount.into_val(env),
                 ],
             );
+            if mint_res.is_err() {
+                let reason = Bytes::from_slice(env, b"mint_failed");
+                let _ = Self::mark_bridge_failed(env, message.nonce, reason.clone());
+                return Err(BridgeError::BridgeTransactionFailed);
+            }
 
             BridgeCompletedEvent {
                 nonce: message.nonce,
@@ -394,7 +409,7 @@ impl Bridge {
                 .clear_retry_metadata(nonce)
                 .map_err(|_| BridgeError::StorageError)?;
 
-            env.invoke_contract::<()>(
+            let refund_res = env.invoke_contract::<()>(
                 &token,
                 &symbol_short!("transfer"),
                 vec![
@@ -404,6 +419,11 @@ impl Bridge {
                     bridge_tx.amount.into_val(env),
                 ],
             );
+            if refund_res.is_err() {
+                let reason = Bytes::from_slice(env, b"refund_transfer_failed");
+                let _ = Self::mark_bridge_failed(env, nonce, reason.clone());
+                return Err(BridgeError::BridgeTransactionFailed);
+            }
 
             BridgeCancelledEvent {
                 nonce,
@@ -784,3 +804,29 @@ mod tests {
         });
     }
 }
+
+    #[test]
+    fn mark_bridge_failed_records_failure_and_stores_reason() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let reason = Bytes::from_slice(&env, b"simulated_failure");
+
+        // Seed a bridge tx so the failure can be recorded
+        env.as_contract(&contract_id, || {
+            seed_bridge_tx(&env, 42, 1_000);
+        });
+
+        env.as_contract(&contract_id, || {
+            let r = Bridge::mark_bridge_failed(&env, 42, reason.clone());
+            assert_eq!(r, Ok(()));
+        });
+
+        let failures: Map<u64, Bytes> = env
+            .storage()
+            .instance()
+            .get(&BRIDGE_FAILURES)
+            .unwrap_or_else(|| Map::new(&env));
+        let stored = failures.get(42);
+        assert!(stored.is_some());
+        assert_eq!(stored.unwrap(), reason);
+    }
