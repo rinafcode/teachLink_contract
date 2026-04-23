@@ -53,6 +53,12 @@ pub const EMERGENCY_STATE: Symbol = symbol_short!("emergency");
 pub const CIRCUIT_BREAKERS: Symbol = symbol_short!("circ_brk");
 pub const PAUSED_CHAINS: Symbol = symbol_short!("paused_ch");
 
+// Ledger-sequence based fallbacks for timestamp-gated critical paths
+pub const PROPOSAL_EXPIRES_SEQ: Symbol = symbol_short!("prp_exps");
+pub const VALIDATOR_ACTIVITY_SEQ: Symbol = symbol_short!("val_act");
+pub const SWAP_TIMELOCK_SEQ: Symbol = symbol_short!("sw_tmlk");
+pub const CIRCUIT_RESET_SEQ: Symbol = symbol_short!("cb_lrst");
+
 // Audit and Compliance Storage
 pub const AUDIT_RECORDS: Symbol = symbol_short!("audit_rec");
 pub const AUDIT_COUNTER: Symbol = symbol_short!("audit_cnt");

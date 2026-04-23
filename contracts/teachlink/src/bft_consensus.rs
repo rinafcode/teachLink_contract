@@ -9,8 +9,8 @@ use crate::events::{
     ValidatorUnregisteredEvent,
 };
 use crate::storage::{
-    BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, VALIDATORS, VALIDATOR_INFO,
-    VALIDATOR_STAKES,
+    BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ, VALIDATORS,
+    VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
 };
 use crate::types::{
     BridgeProposal, ConsensusState, CrossChainMessage, ProposalStatus, ValidatorInfo,
@@ -72,6 +72,17 @@ impl BFTConsensus {
         env.storage()
             .instance()
             .set(&VALIDATOR_INFO, &validator_infos);
+
+        // Sequence-based activity fallback
+        let mut activity_seq: Map<Address, u32> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_ACTIVITY_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        activity_seq.set(validator.clone(), env.ledger().sequence());
+        env.storage()
+            .instance()
+            .set(&VALIDATOR_ACTIVITY_SEQ, &activity_seq);
 
         // Store stake
         let mut stakes: Map<Address, i128> = env
@@ -206,6 +217,23 @@ impl BFTConsensus {
             .instance()
             .set(&PROPOSAL_COUNTER, &proposal_counter);
 
+        // Store sequence-based expiry fallback.
+        let expires_seq =
+            env.ledger()
+                .sequence()
+                .saturating_add(crate::ledger_time::seconds_to_ledger_delta(
+                    PROPOSAL_TIMEOUT,
+                ));
+        let mut proposal_expires_seq: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&PROPOSAL_EXPIRES_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        proposal_expires_seq.set(proposal_counter, expires_seq);
+        env.storage()
+            .instance()
+            .set(&PROPOSAL_EXPIRES_SEQ, &proposal_expires_seq);
+
         // Emit event
         ProposalCreatedEvent {
             proposal_id: proposal_counter,
@@ -247,7 +275,18 @@ impl BFTConsensus {
         }
 
         // Check if proposal has expired
-        if env.ledger().timestamp() > proposal.expires_at {
+        let mut expired = env.ledger().timestamp() > proposal.expires_at;
+        if !expired {
+            let proposal_expires_seq: Map<u64, u32> = env
+                .storage()
+                .instance()
+                .get(&PROPOSAL_EXPIRES_SEQ)
+                .unwrap_or_else(|| Map::new(env));
+            if let Some(expires_seq) = proposal_expires_seq.get(proposal_id) {
+                expired = env.ledger().sequence() > expires_seq;
+            }
+        }
+        if expired {
             proposal.status = ProposalStatus::Expired;
             proposals.set(proposal_id, proposal);
             env.storage().instance().set(&BRIDGE_PROPOSALS, &proposals);
@@ -394,6 +433,16 @@ impl BFTConsensus {
                 .set(&VALIDATOR_INFO, &validator_infos);
         }
 
+        let mut activity_seq: Map<Address, u32> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_ACTIVITY_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        activity_seq.set(validator.clone(), env.ledger().sequence());
+        env.storage()
+            .instance()
+            .set(&VALIDATOR_ACTIVITY_SEQ, &activity_seq);
+
         Ok(())
     }
 
@@ -463,5 +512,68 @@ impl BFTConsensus {
         } else {
             false
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{MIN_VALIDATOR_STAKE, PROPOSAL_TIMEOUT};
+    use crate::errors::BridgeError;
+    use crate::storage::PROPOSAL_EXPIRES_SEQ;
+    use crate::types::CrossChainMessage;
+    use crate::TeachLinkBridge;
+    use crate::TeachLinkBridgeClient;
+    use soroban_sdk::testutils::{Address as _, Ledger};
+    use soroban_sdk::{Bytes, Env, Map};
+
+    fn set_ledger(env: &Env, timestamp: u64, sequence: u32) {
+        env.ledger().with_mut(|li| {
+            li.timestamp = timestamp;
+            li.sequence_number = sequence;
+        });
+    }
+
+    #[test]
+    fn proposal_expiry_uses_sequence_fallback() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+        set_ledger(&env, 1_000, 1);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        assert_eq!(
+            client.try_register_validator(&validator, &MIN_VALIDATOR_STAKE),
+            Ok(Ok(()))
+        );
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0x11; 32]),
+            nonce: 1,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.try_create_bridge_proposal(&msg).unwrap().unwrap();
+
+        // Ensure the sequence-based expiry is stored.
+        let deadline = env.as_contract(&contract_id, || {
+            let expires_seq: Map<u64, u32> =
+                env.storage().instance().get(&PROPOSAL_EXPIRES_SEQ).unwrap();
+            expires_seq.get(proposal_id).unwrap()
+        });
+
+        // Keep timestamp constant but move sequence beyond the deadline.
+        // With timestamp-only logic, this would still be pending.
+        set_ledger(&env, 1_000, deadline.saturating_add(1));
+        let r = client.try_vote_on_proposal(&validator, &proposal_id, &true);
+        assert_eq!(r, Err(Ok(BridgeError::ProposalExpired)));
+
+        // Sanity check constant is used (guards against accidental removal).
+        assert!(PROPOSAL_TIMEOUT > 0);
     }
 }

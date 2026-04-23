@@ -6,9 +6,9 @@
 use crate::errors::BridgeError;
 use crate::events::{SwapCompletedEvent, SwapInitiatedEvent, SwapRefundedEvent};
 use crate::reentrancy;
-use crate::storage::{ATOMIC_SWAPS, SWAP_COUNTER, SWAP_GUARD};
+use crate::storage::{ATOMIC_SWAPS, SWAP_COUNTER, SWAP_GUARD, SWAP_TIMELOCK_SEQ};
 use crate::types::{AtomicSwap, SwapStatus};
-use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Vec};
+use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
 /// Minimum timelock duration (1 hour)
 pub const MIN_TIMELOCK: u64 = 3_600;
@@ -23,6 +23,21 @@ pub const HASH_LENGTH: u32 = 32;
 pub struct AtomicSwapManager;
 
 impl AtomicSwapManager {
+    fn timelock_expired(env: &Env, swap_id: u64, timelock_ts: u64) -> bool {
+        if env.ledger().timestamp() > timelock_ts {
+            return true;
+        }
+        let timelock_seq: Map<u64, u32> = env
+            .storage()
+            .instance()
+            .get(&SWAP_TIMELOCK_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        if let Some(seq_deadline) = timelock_seq.get(swap_id) {
+            return env.ledger().sequence() > seq_deadline;
+        }
+        false
+    }
+
     /// Initiate an atomic swap
     pub fn initiate_swap(
         env: &Env,
@@ -89,6 +104,21 @@ impl AtomicSwapManager {
             env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
             env.storage().instance().set(&SWAP_COUNTER, &swap_counter);
 
+            // Store sequence-based deadline fallback.
+            let deadline_seq = env
+                .ledger()
+                .sequence()
+                .saturating_add(crate::ledger_time::seconds_to_ledger_delta(timelock));
+            let mut timelock_seq: soroban_sdk::Map<u64, u32> = env
+                .storage()
+                .instance()
+                .get(&SWAP_TIMELOCK_SEQ)
+                .unwrap_or_else(|| soroban_sdk::Map::new(env));
+            timelock_seq.set(swap_counter, deadline_seq);
+            env.storage()
+                .instance()
+                .set(&SWAP_TIMELOCK_SEQ, &timelock_seq);
+
             env.invoke_contract::<()>(
                 &initiator_token,
                 &symbol_short!("transfer"),
@@ -135,7 +165,7 @@ impl AtomicSwapManager {
                 return Err(BridgeError::SwapAlreadyCompleted);
             }
 
-            if env.ledger().timestamp() > swap.timelock {
+            if Self::timelock_expired(env, swap_id, swap.timelock) {
                 swap.status = SwapStatus::Expired;
                 swaps.set(swap_id, swap);
                 env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
@@ -214,7 +244,7 @@ impl AtomicSwapManager {
             if swap.status == SwapStatus::Completed || swap.status == SwapStatus::Refunded {
                 return Err(BridgeError::SwapAlreadyCompleted);
             }
-            if env.ledger().timestamp() <= swap.timelock {
+            if !Self::timelock_expired(env, swap_id, swap.timelock) {
                 return Err(BridgeError::TimeoutNotReached);
             }
 
@@ -366,10 +396,31 @@ impl AtomicSwapManager {
 mod tests {
     use super::AtomicSwapManager;
     use crate::errors::BridgeError;
-    use crate::storage::SWAP_GUARD;
+    use crate::storage::{ATOMIC_SWAPS, SWAP_GUARD, SWAP_TIMELOCK_SEQ};
+    use crate::types::{AtomicSwap, SwapStatus};
     use crate::TeachLinkBridge;
     use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::testutils::Ledger;
+    use soroban_sdk::{contract, contractimpl};
     use soroban_sdk::{Address, Bytes, Env};
+
+    #[contract]
+    struct DummyToken;
+
+    #[contractimpl]
+    impl DummyToken {
+        #[allow(unused_variables)]
+        pub fn transfer(env: Env, from: Address, to: Address, amount: i128) {
+            // no-op token stub for unit tests
+        }
+    }
+
+    fn set_ledger(env: &Env, timestamp: u64, sequence: u32) {
+        env.ledger().with_mut(|li| {
+            li.timestamp = timestamp;
+            li.sequence_number = sequence;
+        });
+    }
 
     #[test]
     fn initiate_swap_rejects_when_reentrancy_guard_active() {
@@ -399,6 +450,53 @@ mod tests {
             );
 
             assert_eq!(result, Err(BridgeError::ReentrancyDetected));
+        });
+    }
+
+    #[test]
+    fn refund_swap_uses_sequence_fallback_when_timestamp_not_advanced() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let token_a = env.register(DummyToken, ());
+
+        env.as_contract(&contract_id, || {
+            let initiator = Address::generate(&env);
+            let counterparty = Address::generate(&env);
+            let token_b = Address::generate(&env);
+
+            set_ledger(&env, 1_000, 100);
+
+            let swap = AtomicSwap {
+                swap_id: 1,
+                initiator: initiator.clone(),
+                initiator_token: token_a,
+                initiator_amount: 100,
+                counterparty,
+                counterparty_token: token_b,
+                counterparty_amount: 100,
+                hashlock: Bytes::from_slice(&env, &[0xaa; 32]),
+                timelock: 2_000, // timestamp-based timelock not reached
+                status: SwapStatus::Initiated,
+                created_at: 1_000,
+            };
+
+            let mut swaps = soroban_sdk::Map::new(&env);
+            swaps.set(1u64, swap);
+            env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
+
+            // Set sequence-based deadline already passed.
+            let mut seq_deadlines = soroban_sdk::Map::new(&env);
+            seq_deadlines.set(1u64, 101u32);
+            env.storage()
+                .instance()
+                .set(&SWAP_TIMELOCK_SEQ, &seq_deadlines);
+
+            // With timestamp-only logic this would be TimeoutNotReached; we now pass the check
+            // and proceed to the transfer invocation (stubbed).
+            set_ledger(&env, 1_000, 200);
+            let r = AtomicSwapManager::refund_swap(&env, 1, initiator);
+            assert_eq!(r, Ok(()));
         });
     }
 }
