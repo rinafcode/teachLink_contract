@@ -502,9 +502,7 @@ impl BFTConsensus {
         }
 
         // Sort by reputation then stake (descending)
-        candidates.sort_by(|a, b| {
-            b.1.cmp(&a.1).then(b.2.cmp(&a.2))
-        });
+        candidates.sort_by(|a, b| b.1.cmp(&a.1).then(b.2.cmp(&a.2)));
 
         // Select top validators (up to a reasonable number, e.g., 100)
         let max_validators = 100u32;
