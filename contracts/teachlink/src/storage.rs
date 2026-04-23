@@ -153,3 +153,4 @@ pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
 pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+pub const ESCROW_GUARD: Symbol = symbol_short!("esc_guard");
