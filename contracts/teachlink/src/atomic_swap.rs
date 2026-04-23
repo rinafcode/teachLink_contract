@@ -5,7 +5,8 @@
 
 use crate::errors::BridgeError;
 use crate::events::{SwapCompletedEvent, SwapInitiatedEvent, SwapRefundedEvent};
-use crate::storage::{ATOMIC_SWAPS, SWAP_COUNTER};
+use crate::reentrancy;
+use crate::storage::{ATOMIC_SWAPS, SWAP_COUNTER, SWAP_GUARD};
 use crate::types::{AtomicSwap, SwapStatus};
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Vec};
 
@@ -36,87 +37,81 @@ impl AtomicSwapManager {
     ) -> Result<u64, BridgeError> {
         initiator.require_auth();
 
-        // Validate address inputs
-        crate::validation::AddressValidator::validate(env, &initiator)
-            .map_err(|_| BridgeError::InvalidInput)?;
-        crate::validation::AddressValidator::validate(env, &counterparty)
-            .map_err(|_| BridgeError::InvalidInput)?;
-        crate::validation::AddressValidator::validate(env, &initiator_token)
-            .map_err(|_| BridgeError::InvalidInput)?;
-        crate::validation::AddressValidator::validate(env, &counterparty_token)
-            .map_err(|_| BridgeError::InvalidInput)?;
+        reentrancy::with_guard(env, &SWAP_GUARD, BridgeError::ReentrancyDetected, || {
+            // Validate address inputs
+            crate::validation::AddressValidator::validate(env, &initiator)
+                .map_err(|_| BridgeError::InvalidInput)?;
+            crate::validation::AddressValidator::validate(env, &counterparty)
+                .map_err(|_| BridgeError::InvalidInput)?;
+            crate::validation::AddressValidator::validate(env, &initiator_token)
+                .map_err(|_| BridgeError::InvalidInput)?;
+            crate::validation::AddressValidator::validate(env, &counterparty_token)
+                .map_err(|_| BridgeError::InvalidInput)?;
 
-        // Validate amount bounds
-        crate::validation::InputSanitizer::sanitize_amount(initiator_amount)
-            .map_err(|_| BridgeError::AmountMustBePositive)?;
-        crate::validation::InputSanitizer::sanitize_amount(counterparty_amount)
-            .map_err(|_| BridgeError::AmountMustBePositive)?;
+            crate::validation::InputSanitizer::sanitize_amount(initiator_amount)
+                .map_err(|_| BridgeError::AmountMustBePositive)?;
+            crate::validation::InputSanitizer::sanitize_amount(counterparty_amount)
+                .map_err(|_| BridgeError::AmountMustBePositive)?;
 
-        if hashlock.len() != HASH_LENGTH {
-            return Err(BridgeError::InvalidHashlock);
-        }
+            if hashlock.len() != HASH_LENGTH {
+                return Err(BridgeError::InvalidHashlock);
+            }
+            if timelock < MIN_TIMELOCK || timelock > MAX_TIMELOCK {
+                return Err(BridgeError::InvalidInput);
+            }
+            if initiator == counterparty {
+                return Err(BridgeError::InvalidInput);
+            }
 
-        if timelock < MIN_TIMELOCK || timelock > MAX_TIMELOCK {
-            return Err(BridgeError::InvalidInput);
-        }
+            let mut swap_counter: u64 = env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64);
+            swap_counter += 1;
 
-        if initiator == counterparty {
-            return Err(BridgeError::InvalidInput);
-        }
+            let swap = AtomicSwap {
+                swap_id: swap_counter,
+                initiator: initiator.clone(),
+                initiator_token: initiator_token.clone(),
+                initiator_amount,
+                counterparty: counterparty.clone(),
+                counterparty_token: counterparty_token.clone(),
+                counterparty_amount,
+                hashlock: hashlock.clone(),
+                timelock: env.ledger().timestamp() + timelock,
+                status: SwapStatus::Initiated,
+                created_at: env.ledger().timestamp(),
+            };
 
-        // Get swap counter
-        let mut swap_counter: u64 = env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64);
-        swap_counter += 1;
+            let mut swaps: soroban_sdk::Map<u64, AtomicSwap> = env
+                .storage()
+                .instance()
+                .get(&ATOMIC_SWAPS)
+                .unwrap_or_else(|| soroban_sdk::Map::new(env));
+            swaps.set(swap_counter, swap);
+            env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
+            env.storage().instance().set(&SWAP_COUNTER, &swap_counter);
 
-        // Transfer initiator tokens to contract
-        env.invoke_contract::<()>(
-            &initiator_token,
-            &symbol_short!("transfer"),
-            vec![
-                env,
-                initiator.clone().into_val(env),
-                env.current_contract_address().into_val(env),
-                initiator_amount.into_val(env),
-            ],
-        );
+            env.invoke_contract::<()>(
+                &initiator_token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    initiator.clone().into_val(env),
+                    env.current_contract_address().into_val(env),
+                    initiator_amount.into_val(env),
+                ],
+            );
 
-        // Create swap
-        let swap = AtomicSwap {
-            swap_id: swap_counter,
-            initiator: initiator.clone(),
-            initiator_token: initiator_token.clone(),
-            initiator_amount,
-            counterparty: counterparty.clone(),
-            counterparty_token: counterparty_token.clone(),
-            counterparty_amount,
-            hashlock: hashlock.clone(),
-            timelock: env.ledger().timestamp() + timelock,
-            status: SwapStatus::Initiated,
-            created_at: env.ledger().timestamp(),
-        };
+            SwapInitiatedEvent {
+                swap_id: swap_counter,
+                initiator: initiator.clone(),
+                initiator_amount,
+                counterparty: counterparty.clone(),
+                counterparty_amount,
+                timelock: env.ledger().timestamp() + timelock,
+            }
+            .publish(env);
 
-        // Store swap
-        let mut swaps: soroban_sdk::Map<u64, AtomicSwap> = env
-            .storage()
-            .instance()
-            .get(&ATOMIC_SWAPS)
-            .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        swaps.set(swap_counter, swap);
-        env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
-        env.storage().instance().set(&SWAP_COUNTER, &swap_counter);
-
-        // Emit event
-        SwapInitiatedEvent {
-            swap_id: swap_counter,
-            initiator: initiator.clone(),
-            initiator_amount,
-            counterparty: counterparty.clone(),
-            counterparty_amount,
-            timelock: env.ledger().timestamp() + timelock,
-        }
-        .publish(env);
-
-        Ok(swap_counter)
+            Ok(swap_counter)
+        })
     }
 
     /// Accept and complete an atomic swap (counterparty)
@@ -128,145 +123,125 @@ impl AtomicSwapManager {
     ) -> Result<(), BridgeError> {
         counterparty.require_auth();
 
-        // Get swap
-        let mut swaps: soroban_sdk::Map<u64, AtomicSwap> = env
-            .storage()
-            .instance()
-            .get(&ATOMIC_SWAPS)
-            .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        let mut swap = swaps.get(swap_id).ok_or(BridgeError::SwapNotFound)?;
+        reentrancy::with_guard(env, &SWAP_GUARD, BridgeError::ReentrancyDetected, || {
+            let mut swaps: soroban_sdk::Map<u64, AtomicSwap> = env
+                .storage()
+                .instance()
+                .get(&ATOMIC_SWAPS)
+                .unwrap_or_else(|| soroban_sdk::Map::new(env));
+            let mut swap = swaps.get(swap_id).ok_or(BridgeError::SwapNotFound)?;
 
-        // Validate swap state
-        if swap.status != SwapStatus::Initiated {
-            return Err(BridgeError::SwapAlreadyCompleted);
-        }
+            if swap.status != SwapStatus::Initiated {
+                return Err(BridgeError::SwapAlreadyCompleted);
+            }
 
-        // Check timelock
-        if env.ledger().timestamp() > swap.timelock {
-            swap.status = SwapStatus::Expired;
-            swaps.set(swap_id, swap);
+            if env.ledger().timestamp() > swap.timelock {
+                swap.status = SwapStatus::Expired;
+                swaps.set(swap_id, swap);
+                env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
+                return Err(BridgeError::TimelockExpired);
+            }
+
+            if swap.counterparty != counterparty {
+                return Err(BridgeError::Unauthorized);
+            }
+            if !Self::verify_hashlock(env, &preimage, &swap.hashlock) {
+                return Err(BridgeError::InvalidHashlock);
+            }
+
+            swap.status = SwapStatus::Completed;
+            swaps.set(swap_id, swap.clone());
             env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
-            return Err(BridgeError::TimelockExpired);
-        }
 
-        // Verify counterparty
-        if swap.counterparty != counterparty {
-            return Err(BridgeError::Unauthorized);
-        }
+            env.invoke_contract::<()>(
+                &swap.counterparty_token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    counterparty.clone().into_val(env),
+                    env.current_contract_address().into_val(env),
+                    swap.counterparty_amount.into_val(env),
+                ],
+            );
 
-        // Verify hashlock
-        if !Self::verify_hashlock(env, &preimage, &swap.hashlock) {
-            return Err(BridgeError::InvalidHashlock);
-        }
+            env.invoke_contract::<()>(
+                &swap.counterparty_token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    env.current_contract_address().into_val(env),
+                    swap.initiator.clone().into_val(env),
+                    swap.counterparty_amount.into_val(env),
+                ],
+            );
 
-        // Transfer counterparty tokens to contract
-        env.invoke_contract::<()>(
-            &swap.counterparty_token,
-            &symbol_short!("transfer"),
-            vec![
-                env,
-                counterparty.clone().into_val(env),
-                env.current_contract_address().into_val(env),
-                swap.counterparty_amount.into_val(env),
-            ],
-        );
+            env.invoke_contract::<()>(
+                &swap.initiator_token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    env.current_contract_address().into_val(env),
+                    counterparty.clone().into_val(env),
+                    swap.initiator_amount.into_val(env),
+                ],
+            );
 
-        // Execute the swap
-        // 1. Send counterparty tokens to initiator
-        env.invoke_contract::<()>(
-            &swap.counterparty_token,
-            &symbol_short!("transfer"),
-            vec![
-                env,
-                env.current_contract_address().into_val(env),
-                swap.initiator.clone().into_val(env),
-                swap.counterparty_amount.into_val(env),
-            ],
-        );
+            SwapCompletedEvent {
+                swap_id,
+                completed_at: env.ledger().timestamp(),
+            }
+            .publish(env);
 
-        // 2. Send initiator tokens to counterparty
-        env.invoke_contract::<()>(
-            &swap.initiator_token,
-            &symbol_short!("transfer"),
-            vec![
-                env,
-                env.current_contract_address().into_val(env),
-                counterparty.clone().into_val(env),
-                swap.initiator_amount.into_val(env),
-            ],
-        );
-
-        // Update swap status
-        swap.status = SwapStatus::Completed;
-        swaps.set(swap_id, swap);
-        env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
-
-        // Emit event
-        SwapCompletedEvent {
-            swap_id,
-            completed_at: env.ledger().timestamp(),
-        }
-        .publish(env);
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Refund a swap after timelock expires (initiator only)
     pub fn refund_swap(env: &Env, swap_id: u64, initiator: Address) -> Result<(), BridgeError> {
         initiator.require_auth();
 
-        // Get swap
-        let mut swaps: soroban_sdk::Map<u64, AtomicSwap> = env
-            .storage()
-            .instance()
-            .get(&ATOMIC_SWAPS)
-            .unwrap_or_else(|| soroban_sdk::Map::new(env));
-        let mut swap = swaps.get(swap_id).ok_or(BridgeError::SwapNotFound)?;
+        reentrancy::with_guard(env, &SWAP_GUARD, BridgeError::ReentrancyDetected, || {
+            let mut swaps: soroban_sdk::Map<u64, AtomicSwap> = env
+                .storage()
+                .instance()
+                .get(&ATOMIC_SWAPS)
+                .unwrap_or_else(|| soroban_sdk::Map::new(env));
+            let mut swap = swaps.get(swap_id).ok_or(BridgeError::SwapNotFound)?;
 
-        // Verify initiator
-        if swap.initiator != initiator {
-            return Err(BridgeError::Unauthorized);
-        }
+            if swap.initiator != initiator {
+                return Err(BridgeError::Unauthorized);
+            }
+            if swap.status == SwapStatus::Completed || swap.status == SwapStatus::Refunded {
+                return Err(BridgeError::SwapAlreadyCompleted);
+            }
+            if env.ledger().timestamp() <= swap.timelock {
+                return Err(BridgeError::TimeoutNotReached);
+            }
 
-        // Check if already completed or refunded
-        if swap.status == SwapStatus::Completed {
-            return Err(BridgeError::SwapAlreadyCompleted);
-        }
-        if swap.status == SwapStatus::Refunded {
-            return Err(BridgeError::SwapAlreadyCompleted);
-        }
+            swap.status = SwapStatus::Refunded;
+            swaps.set(swap_id, swap.clone());
+            env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
 
-        // Check timelock
-        if env.ledger().timestamp() <= swap.timelock {
-            return Err(BridgeError::TimeoutNotReached);
-        }
+            env.invoke_contract::<()>(
+                &swap.initiator_token,
+                &symbol_short!("transfer"),
+                vec![
+                    env,
+                    env.current_contract_address().into_val(env),
+                    initiator.clone().into_val(env),
+                    swap.initiator_amount.into_val(env),
+                ],
+            );
 
-        // Refund initiator tokens
-        env.invoke_contract::<()>(
-            &swap.initiator_token,
-            &symbol_short!("transfer"),
-            vec![
-                env,
-                env.current_contract_address().into_val(env),
-                initiator.clone().into_val(env),
-                swap.initiator_amount.into_val(env),
-            ],
-        );
+            SwapRefundedEvent {
+                swap_id,
+                refunded_to: initiator.clone(),
+                amount: swap.initiator_amount,
+            }
+            .publish(env);
 
-        // Update swap status
-        swap.status = SwapStatus::Refunded;
-        swaps.set(swap_id, swap.clone());
-        env.storage().instance().set(&ATOMIC_SWAPS, &swaps);
-
-        // Emit event
-        SwapRefundedEvent {
-            swap_id,
-            refunded_to: initiator.clone(),
-            amount: swap.initiator_amount,
-        }
-        .publish(env);
-
-        Ok(())
+            Ok(())
+        })
     }
 
     /// Get swap by ID
@@ -384,5 +359,46 @@ impl AtomicSwapManager {
             return 0.0;
         }
         (counterparty_amount as f64) / (initiator_amount as f64)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::AtomicSwapManager;
+    use crate::errors::BridgeError;
+    use crate::storage::SWAP_GUARD;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::Address as _;
+    use soroban_sdk::{Address, Bytes, Env};
+
+    #[test]
+    fn initiate_swap_rejects_when_reentrancy_guard_active() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            env.storage().instance().set(&SWAP_GUARD, &true);
+
+            let initiator = Address::generate(&env);
+            let counterparty = Address::generate(&env);
+            let token_a = Address::generate(&env);
+            let token_b = Address::generate(&env);
+            let hashlock = Bytes::from_slice(&env, &[0xaa; 32]);
+
+            let result = AtomicSwapManager::initiate_swap(
+                &env,
+                initiator,
+                token_a,
+                100,
+                counterparty,
+                token_b,
+                100,
+                hashlock,
+                super::MIN_TIMELOCK,
+            );
+
+            assert_eq!(result, Err(BridgeError::ReentrancyDetected));
+        });
     }
 }
