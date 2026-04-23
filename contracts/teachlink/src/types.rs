@@ -80,6 +80,32 @@ pub struct ChainAssetInfo {
 
 // ========== BFT Consensus Types ==========
 
+/// Network health level used to drive adaptive consensus timeouts.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NetworkHealth {
+    /// Normal operation – use base timeout.
+    Healthy,
+    /// Elevated latency – apply moderate multiplier.
+    Degraded,
+    /// Severe degradation – apply maximum multiplier (graceful degradation mode).
+    Critical,
+}
+
+/// Snapshot of observed network conditions stored on-chain.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NetworkCondition {
+    /// Current health classification.
+    pub health: NetworkHealth,
+    /// Rolling average round-trip latency in milliseconds (0 if unknown).
+    pub avg_latency_ms: u64,
+    /// Consecutive rounds where quorum was not reached in time (miss counter).
+    pub consecutive_misses: u32,
+    /// Ledger timestamp of the last update.
+    pub last_updated: u64,
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatorInfo {
