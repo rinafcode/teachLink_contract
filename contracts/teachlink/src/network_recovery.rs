@@ -86,7 +86,7 @@ impl NetworkRecovery {
         let operations: Map<u64, OperationState> = Map::new(env);
         env.storage().instance().set(&RECOVERY_STATE, &operations);
 
-        let notifications: Map<u64, Vec<u64>> = Map::new(env);
+        let notifications: Map<Address, Vec<u64>> = Map::new(env);
         env.storage()
             .instance()
             .set(&RECOVERY_NOTIFICATIONS, &notifications);
@@ -264,7 +264,7 @@ impl NetworkRecovery {
         retry_count: u32,
         next_retry: u64,
     ) -> Result<(), BridgeError> {
-        let mut notifications: Map<u64, Vec<u64>> = env
+        let mut notifications: Map<Address, Vec<u64>> = env
             .storage()
             .instance()
             .get(&RECOVERY_NOTIFICATIONS)
@@ -293,7 +293,7 @@ impl NetworkRecovery {
 
     /// Get user notifications
     pub fn get_user_notifications(env: &Env, user: Address) -> Vec<u64> {
-        let notifications: Map<u64, Vec<u64>> = env
+        let notifications: Map<Address, Vec<u64>> = env
             .storage()
             .instance()
             .get(&RECOVERY_NOTIFICATIONS)
