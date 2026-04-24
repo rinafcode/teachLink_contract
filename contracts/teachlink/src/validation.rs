@@ -595,8 +595,8 @@ impl BridgeValidator {
         )
         .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
 
-        // Validate cross-chain message timestamp sanity
-        TimeValidator::validate_global_bounds(env, message.timestamp)
+        // Validate cross-chain message timestamp sanity (use current ledger time)
+        TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
             .map_err(|_| crate::errors::BridgeError::InvalidTimestamp)?;
 
         Ok(())
