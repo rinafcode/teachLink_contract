@@ -117,7 +117,11 @@ impl RateLimiter {
 mod tests {
     use super::*;
     use crate::TeachLinkBridge;
-    use soroban_sdk::{symbol_short, testutils::Address as _, Address, Env};
+    use soroban_sdk::{
+        symbol_short,
+        testutils::{Address as _, Ledger as _},
+        Address, Env,
+    };
 
     fn set_seq(env: &Env, seq: u32) {
         env.ledger().with_mut(|li| li.sequence_number = seq);
