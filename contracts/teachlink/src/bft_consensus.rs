@@ -725,12 +725,16 @@ mod tests {
         let client = TeachLinkBridgeClient::new(&env, &contract_id);
         client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
 
-        let initial_rep = env.as_contract(&contract_id, || {
+        // Lower reputation below max so the boost is observable (validators start at 100)
+        env.as_contract(&contract_id, || {
             use crate::storage::VALIDATOR_INFO;
             use crate::types::ValidatorInfo;
-            let infos: Map<soroban_sdk::Address, ValidatorInfo> =
+            let mut infos: Map<soroban_sdk::Address, ValidatorInfo> =
                 env.storage().instance().get(&VALIDATOR_INFO).unwrap();
-            infos.get(validator.clone()).unwrap().reputation_score
+            let mut info = infos.get(validator.clone()).unwrap();
+            info.reputation_score = 90;
+            infos.set(validator.clone(), info);
+            env.storage().instance().set(&VALIDATOR_INFO, &infos);
         });
 
         let msg = CrossChainMessage {
@@ -753,9 +757,6 @@ mod tests {
             infos.get(validator.clone()).unwrap().reputation_score
         });
 
-        assert!(
-            after_rep > initial_rep,
-            "reputation should increase after voting"
-        );
+        assert!(after_rep > 90, "reputation should increase after voting");
     }
 }
