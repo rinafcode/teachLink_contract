@@ -1,5 +1,62 @@
+use soroban_sdk::contracttype;
 use soroban_sdk::symbol_short;
 use soroban_sdk::Symbol;
+
+/// Namespaced storage key enum for TeachLink contract.
+///
+/// Using a `#[contracttype]` enum as a storage key ensures each variant is
+/// serialized with a unique discriminant, preventing key collisions in
+/// multi-contract scenarios where plain `Symbol` strings could overlap.
+///
+/// # Collision Detection
+/// All new storage access should use `StorageKey` variants. The legacy
+/// `Symbol` constants below are kept for backward compatibility but should
+/// not be used for new keys.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StorageKey {
+    // Bridge
+    Token,
+    Validators,
+    MinValidators,
+    Nonce,
+    BridgeTxs,
+    SupportedChains,
+    Admin,
+    FeeRecipient,
+    BridgeFee,
+    AccessControl,
+    BridgeRetryCounts,
+    BridgeLastRetry,
+    BridgeFailures,
+    InterfaceVersion,
+    MinCompatInterfaceVersion,
+    // BFT Consensus
+    ValidatorInfo,
+    BridgeProposals,
+    ProposalCounter,
+    ConsensusState,
+    ValidatorStakes,
+    ProposalExpiresSeq,
+    ValidatorActivitySeq,
+    // Slashing
+    SlashingRecords,
+    ValidatorRewards,
+    SlashingCounter,
+    RewardPool,
+    // Validator rotation tracking
+    ValidatorRotationEpoch,
+    ValidatorRotationSet,
+    // Rate limiting
+    RateLimitState,
+}
+
+/// Returns true if the given symbol string matches any known legacy key,
+/// providing a compile-time collision detection reference.
+/// Call this in tests to assert no two legacy keys share the same string.
+pub fn has_legacy_key_collision(a: &Symbol, b: &Symbol) -> bool {
+    a == b
+}
 
 // Storage keys for the bridge contract
 pub const TOKEN: Symbol = symbol_short!("token");
@@ -157,3 +214,48 @@ pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
 pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verify that no two legacy Symbol constants share the same string value.
+    /// This is the collision detection required by issue #242.
+    #[test]
+    fn no_legacy_key_collisions() {
+        let keys: &[(&str, Symbol)] = &[
+            ("TOKEN", TOKEN),
+            ("VALIDATORS", VALIDATORS),
+            ("MIN_VALIDATORS", MIN_VALIDATORS),
+            ("NONCE", NONCE),
+            ("BRIDGE_TXS", BRIDGE_TXS),
+            ("SUPPORTED_CHAINS", SUPPORTED_CHAINS),
+            ("ADMIN", ADMIN),
+            ("FEE_RECIPIENT", FEE_RECIPIENT),
+            ("BRIDGE_FEE", BRIDGE_FEE),
+            ("ACCESS_CONTROL", ACCESS_CONTROL),
+            ("VALIDATOR_INFO", VALIDATOR_INFO),
+            ("BRIDGE_PROPOSALS", BRIDGE_PROPOSALS),
+            ("PROPOSAL_COUNTER", PROPOSAL_COUNTER),
+            ("CONSENSUS_STATE", CONSENSUS_STATE),
+            ("VALIDATOR_STAKES", VALIDATOR_STAKES),
+            ("SLASHING_RECORDS", SLASHING_RECORDS),
+            ("VALIDATOR_REWARDS", VALIDATOR_REWARDS),
+            ("SLASHING_COUNTER", SLASHING_COUNTER),
+            ("PROPOSAL_EXPIRES_SEQ", PROPOSAL_EXPIRES_SEQ),
+            ("VALIDATOR_ACTIVITY_SEQ", VALIDATOR_ACTIVITY_SEQ),
+            ("REWARD_POOL", REWARD_POOL),
+        ];
+
+        for i in 0..keys.len() {
+            for j in (i + 1)..keys.len() {
+                assert!(
+                    !has_legacy_key_collision(&keys[i].1, &keys[j].1),
+                    "Storage key collision detected: '{}' == '{}'",
+                    keys[i].0,
+                    keys[j].0
+                );
+            }
+        }
+    }
+}

@@ -9,8 +9,8 @@ use crate::events::{
     ValidatorUnregisteredEvent,
 };
 use crate::storage::{
-    BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ, VALIDATORS,
-    VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
+    StorageKey, BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ,
+    VALIDATORS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
 };
 use crate::types::{
     BridgeProposal, ConsensusState, CrossChainMessage, ProposalStatus, ValidatorInfo,
@@ -22,6 +22,15 @@ pub const MIN_VALIDATOR_STAKE: i128 = 100_000_000; // 100 tokens with 6 decimals
 
 /// Proposal timeout in seconds (24 hours)
 pub const PROPOSAL_TIMEOUT: u64 = 86_400;
+
+/// Number of consensus rounds per rotation epoch.
+/// After this many rounds, the active validator set is re-evaluated and
+/// low-reputation validators may be rotated out.
+pub const ROTATION_EPOCH_ROUNDS: u64 = 100;
+
+/// Minimum reputation score required to remain in the active validator set.
+/// Validators below this threshold are rotated out during epoch transitions.
+pub const MIN_ACTIVE_REPUTATION: u32 = 40;
 
 /// BFT Consensus Manager
 pub struct BFTConsensus;
@@ -306,8 +315,9 @@ impl BFTConsensus {
         proposals.set(proposal_id, proposal.clone());
         env.storage().instance().set(&BRIDGE_PROPOSALS, &proposals);
 
-        // Update validator activity
+        // Update validator activity and boost reputation for participation
         Self::update_validator_activity(env, &validator)?;
+        Self::boost_reputation(env, &validator);
 
         // Check if proposal has reached consensus
         if proposal.vote_count >= proposal.required_votes {
@@ -513,6 +523,103 @@ impl BFTConsensus {
             false
         }
     }
+
+    /// Rotate validators: deactivate those below `MIN_ACTIVE_REPUTATION` or with
+    /// insufficient stake, and update the consensus state.
+    ///
+    /// This should be called at epoch boundaries (every `ROTATION_EPOCH_ROUNDS`
+    /// consensus rounds) to prevent long-term validator collusion by ensuring
+    /// only validators with good standing remain active.
+    pub fn rotate_validators(env: &Env) -> Result<u32, BridgeError> {
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
+
+        let validator_infos: Map<Address, ValidatorInfo> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_INFO)
+            .unwrap_or_else(|| Map::new(env));
+
+        let stakes: Map<Address, i128> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_STAKES)
+            .unwrap_or_else(|| Map::new(env));
+
+        let mut rotated_out: u32 = 0;
+
+        // Collect addresses to deactivate (can't mutate map while iterating)
+        let mut to_deactivate: Vec<Address> = Vec::new(env);
+        for (addr, is_active) in validators.iter() {
+            if !is_active {
+                continue;
+            }
+            let should_deactivate = if let Some(info) = validator_infos.get(addr.clone()) {
+                info.reputation_score < MIN_ACTIVE_REPUTATION
+                    || stakes.get(addr.clone()).unwrap_or(0) < MIN_VALIDATOR_STAKE
+            } else {
+                // No info record — deactivate
+                true
+            };
+            if should_deactivate {
+                to_deactivate.push_back(addr);
+            }
+        }
+
+        for addr in to_deactivate.iter() {
+            validators.set(addr.clone(), false);
+            rotated_out += 1;
+        }
+
+        env.storage().instance().set(&VALIDATORS, &validators);
+
+        // Record the rotation epoch in namespaced storage (issue #242)
+        let current_epoch: u64 = env
+            .storage()
+            .instance()
+            .get(&StorageKey::ValidatorRotationEpoch)
+            .unwrap_or(0u64);
+        env.storage()
+            .instance()
+            .set(&StorageKey::ValidatorRotationEpoch, &(current_epoch + 1));
+
+        Self::update_consensus_state(env)?;
+        Ok(rotated_out)
+    }
+
+    /// Check whether the current consensus round has crossed an epoch boundary
+    /// and trigger rotation if so.
+    pub fn maybe_rotate(env: &Env) -> Result<bool, BridgeError> {
+        let state = Self::get_consensus_state(env);
+        if state.last_consensus_round > 0
+            && state.last_consensus_round % ROTATION_EPOCH_ROUNDS == 0
+        {
+            Self::rotate_validators(env)?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    /// Boost a validator's reputation score for participating in consensus.
+    /// Called internally after a successful vote.
+    fn boost_reputation(env: &Env, validator: &Address) {
+        let mut validator_infos: Map<Address, ValidatorInfo> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_INFO)
+            .unwrap_or_else(|| Map::new(env));
+        if let Some(mut info) = validator_infos.get(validator.clone()) {
+            // Cap at 100
+            info.reputation_score = info.reputation_score.saturating_add(1).min(100);
+            validator_infos.set(validator.clone(), info);
+            env.storage()
+                .instance()
+                .set(&VALIDATOR_INFO, &validator_infos);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -575,5 +682,78 @@ mod tests {
 
         // Sanity check constant is used (guards against accidental removal).
         assert!(PROPOSAL_TIMEOUT > 0);
+    }
+
+    #[test]
+    fn rotate_validators_removes_low_reputation() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_ledger(&env, 1_000, 1);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        // Manually drop reputation below threshold
+        env.as_contract(&contract_id, || {
+            use crate::storage::VALIDATOR_INFO;
+            use crate::types::ValidatorInfo;
+            let mut infos: Map<soroban_sdk::Address, ValidatorInfo> =
+                env.storage().instance().get(&VALIDATOR_INFO).unwrap();
+            let mut info = infos.get(validator.clone()).unwrap();
+            info.reputation_score = 10; // below MIN_ACTIVE_REPUTATION (40)
+            infos.set(validator.clone(), info);
+            env.storage().instance().set(&VALIDATOR_INFO, &infos);
+        });
+
+        env.as_contract(&contract_id, || {
+            use crate::bft_consensus::BFTConsensus;
+            let rotated = BFTConsensus::rotate_validators(&env).unwrap();
+            assert_eq!(rotated, 1);
+            assert!(!BFTConsensus::is_active_validator(&env, &validator));
+        });
+    }
+
+    #[test]
+    fn voting_boosts_reputation() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_ledger(&env, 1_000, 1);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        let initial_rep = env.as_contract(&contract_id, || {
+            use crate::storage::VALIDATOR_INFO;
+            use crate::types::ValidatorInfo;
+            let infos: Map<soroban_sdk::Address, ValidatorInfo> =
+                env.storage().instance().get(&VALIDATOR_INFO).unwrap();
+            infos.get(validator.clone()).unwrap().reputation_score
+        });
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: soroban_sdk::Bytes::from_slice(&env, &[0xAB; 32]),
+            nonce: 1,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&msg);
+        client.vote_on_proposal(&validator, &proposal_id, &true);
+
+        let after_rep = env.as_contract(&contract_id, || {
+            use crate::storage::VALIDATOR_INFO;
+            use crate::types::ValidatorInfo;
+            let infos: Map<soroban_sdk::Address, ValidatorInfo> =
+                env.storage().instance().get(&VALIDATOR_INFO).unwrap();
+            infos.get(validator.clone()).unwrap().reputation_score
+        });
+
+        assert!(after_rep > initial_rep, "reputation should increase after voting");
     }
 }
