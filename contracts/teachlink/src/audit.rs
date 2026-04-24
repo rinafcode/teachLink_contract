@@ -293,7 +293,11 @@ impl AuditManager {
         admin: Address,
     ) -> Result<u32, BridgeError> {
         admin.require_auth();
-        crate::access_control::AccessControlManager::check_role(env, &admin, crate::types::AccessRole::AuditManager);
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::AuditManager,
+        );
 
         let audit_records: Map<u64, AuditRecord> = env
             .storage()

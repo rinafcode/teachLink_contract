@@ -400,11 +400,11 @@ pub enum EscrowRole {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AccessRole {
-    Admin,             // Root role, can manage all other roles
-    BridgeOperator,    // Can manage bridge configs, fees, retry transactions
-    ValidatorManager,  // Can add/remove validators
-    EmergencyManager,  // Can pause/resume the bridge
-    AuditManager,      // Can manage compliance and audit trails
+    Admin,            // Root role, can manage all other roles
+    BridgeOperator,   // Can manage bridge configs, fees, retry transactions
+    ValidatorManager, // Can add/remove validators
+    EmergencyManager, // Can pause/resume the bridge
+    AuditManager,     // Can manage compliance and audit trails
 }
 
 #[contracttype]
