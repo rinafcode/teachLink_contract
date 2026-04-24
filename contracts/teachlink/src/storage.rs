@@ -11,6 +11,7 @@ pub const SUPPORTED_CHAINS: Symbol = symbol_short!("chains");
 pub const ADMIN: Symbol = symbol_short!("admin");
 pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
+pub const ACCESS_CONTROL: Symbol = symbol_short!("access");
 pub const BRIDGE_RETRY_COUNTS: Symbol = symbol_short!("br_rtryc");
 pub const BRIDGE_LAST_RETRY: Symbol = symbol_short!("br_lstry");
 pub const BRIDGE_FAILURES: Symbol = symbol_short!("br_fails");
