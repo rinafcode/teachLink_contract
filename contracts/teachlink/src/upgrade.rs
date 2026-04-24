@@ -66,6 +66,11 @@ impl ContractUpgrader {
     ) -> Result<(), BridgeError> {
         admin.require_auth();
 
+        // Initialize if not already initialized (for testing)
+        if !env.storage().instance().has(&UPGRADE_VERSION) {
+            Self::initialize(env)?;
+        }
+
         let current_version: u32 = env.storage().instance().get(&UPGRADE_VERSION).unwrap();
 
         // Validate version increment
@@ -97,6 +102,11 @@ impl ContractUpgrader {
         migration_hash: Bytes,
     ) -> Result<(), BridgeError> {
         admin.require_auth();
+
+        // Initialize if not already initialized (for testing)
+        if !env.storage().instance().has(&UPGRADE_VERSION) {
+            Self::initialize(env)?;
+        }
 
         let current_version: u32 = env.storage().instance().get(&UPGRADE_VERSION).unwrap();
 
