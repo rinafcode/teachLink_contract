@@ -28,3 +28,7 @@ workspace = true
 [[test]]
 name = "cross_chain_integration"
 path = "tests/cross_chain_integration.rs"
+
+[[test]]
+name = "test_module_interactions"
+path = "tests/test_module_interactions.rs"
