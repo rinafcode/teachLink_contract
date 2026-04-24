@@ -664,7 +664,7 @@ mod tests {
         let signer = EscrowSigner { address: Address::generate(&env), weight: 1 };
         let mut signers = soroban_sdk::Vec::new(&env);
         signers.push_back(signer);
-        
+
         let result = EscrowValidator::validate_create_escrow(
             &env, &party, &party, &token, 1_000,
             &signers, 1, None, None, &arbitrator,
