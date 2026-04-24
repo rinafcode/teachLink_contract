@@ -1,0 +1,83 @@
+name: Regression
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      # ── Tests ────────────────────────────────────────────────────────────
+      - name: Run unit tests
+        run: |
+          START=$(date +%s)
+          cargo test --workspace --lib 2>&1 | tee ci_test_output.txt
+          END=$(date +%s)
+          echo "unit_test_duration=$((END - START))" >> "$GITHUB_ENV"
+
+      - name: Run integration tests
+        run: |
+          START=$(date +%s)
+          cargo test --workspace --tests 2>&1 | tee -a ci_test_output.txt
+          END=$(date +%s)
+          echo "integration_test_duration=$((END - START))" >> "$GITHUB_ENV"
+
+      # ── Performance baseline ─────────────────────────────────────────────
+      - name: Build WASM (release)
+        run: cargo build --target wasm32v1-none --release -p teachlink-contract
+
+      - name: Capture performance baseline
+        run: bash scripts/perf-baseline.sh
+
+      # ── Regression check ─────────────────────────────────────────────────
+      - name: Download previous baseline
+        id: dl_baseline
+        uses: actions/cache/restore@v4
+        with:
+          path: baseline_previous.json
+          key: perf-baseline-${{ github.base_ref || 'main' }}
+          restore-keys: perf-baseline-
+
+      - name: Check for regressions
+        run: bash scripts/check-regression.sh
+
+      # ── Save new baseline (main branch only) ─────────────────────────────
+      - name: Save baseline to cache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: baseline_current.json
+          key: perf-baseline-main
+
+      # ── Report ───────────────────────────────────────────────────────────
+      - name: Generate report
+        if: always()
+        run: bash scripts/generate-report.sh
+
+      - name: Upload regression report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: regression-report-${{ github.run_number }}
+          path: regression_report.md
+          retention-days: 30
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ github.run_number }}
+          path: ci_test_output.txt
+          retention-days: 14
