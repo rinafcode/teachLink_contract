@@ -48,8 +48,10 @@ impl Rewards {
         funder.require_auth();
 
         // Initialize if not already initialized (for testing)
+        #[cfg(test)]
         if !env.storage().instance().has(&REWARDS_ADMIN) {
             // Use a default admin for testing purposes
+            use soroban_sdk::testutils::Address as _;
             let default_admin = Address::generate(env);
             let default_token = Address::generate(env);
             Self::initialize_rewards(env, default_token, default_admin).ok();
