@@ -90,6 +90,7 @@
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
+mod access_control;
 mod analytics;
 mod arbitration;
 mod assessment;
