@@ -63,25 +63,47 @@ impl AnalyticsManager {
                 });
 
         // Update metrics
-        metrics.total_volume += volume;
-        metrics.total_transactions += transactions;
+        metrics.total_volume = metrics
+            .total_volume
+            .checked_add(volume)
+            .ok_or(BridgeError::InvalidInput)?;
+        metrics.total_transactions = metrics
+            .total_transactions
+            .checked_add(transactions)
+            .ok_or(BridgeError::InvalidInput)?;
 
         // Update average confirmation time (exponential moving average)
         if metrics.total_transactions > 0 {
             let alpha = 10; // Smoothing factor (10% weight to new value)
-            metrics.average_confirmation_time = ((metrics.average_confirmation_time
-                * (100 - alpha) as u64)
-                + (confirmation_time * alpha as u64))
-                / 100;
+            let prev_weighted = metrics
+                .average_confirmation_time
+                .checked_mul((100 - alpha) as u64)
+                .ok_or(BridgeError::InvalidInput)?;
+            let new_weighted = confirmation_time
+                .checked_mul(alpha as u64)
+                .ok_or(BridgeError::InvalidInput)?;
+            metrics.average_confirmation_time = prev_weighted
+                .checked_add(new_weighted)
+                .and_then(|v| v.checked_div(100))
+                .ok_or(BridgeError::InvalidInput)?;
         } else {
             metrics.average_confirmation_time = confirmation_time;
         }
 
         // Update success rate
         if success {
-            metrics.success_rate = ((metrics.success_rate * 99) + 10000) / 100;
+            metrics.success_rate = metrics
+                .success_rate
+                .checked_mul(99)
+                .and_then(|v| v.checked_add(10_000))
+                .and_then(|v| v.checked_div(100))
+                .ok_or(BridgeError::InvalidInput)?;
         } else {
-            metrics.success_rate = (metrics.success_rate * 99) / 100;
+            metrics.success_rate = metrics
+                .success_rate
+                .checked_mul(99)
+                .and_then(|v| v.checked_div(100))
+                .ok_or(BridgeError::InvalidInput)?;
         }
 
         metrics.last_updated = env.ledger().timestamp();
@@ -196,19 +218,33 @@ impl AnalyticsManager {
 
         // Update volume
         if is_incoming {
-            metrics.volume_in += volume;
+            metrics.volume_in = metrics
+                .volume_in
+                .checked_add(volume)
+                .ok_or(BridgeError::InvalidInput)?;
         } else {
-            metrics.volume_out += volume;
+            metrics.volume_out = metrics
+                .volume_out
+                .checked_add(volume)
+                .ok_or(BridgeError::InvalidInput)?;
         }
 
         // Update transaction count
-        metrics.transaction_count += 1;
+        metrics.transaction_count = metrics
+            .transaction_count
+            .checked_add(1)
+            .ok_or(BridgeError::InvalidInput)?;
 
         // Update average fee
         if metrics.transaction_count > 0 {
-            metrics.average_fee = ((metrics.average_fee * (metrics.transaction_count - 1) as i128)
-                + fee)
-                / metrics.transaction_count as i128;
+            let prev_total = metrics
+                .average_fee
+                .checked_mul((metrics.transaction_count - 1) as i128)
+                .ok_or(BridgeError::InvalidInput)?;
+            metrics.average_fee = prev_total
+                .checked_add(fee)
+                .and_then(|v| v.checked_div(metrics.transaction_count as i128))
+                .ok_or(BridgeError::InvalidInput)?;
         } else {
             metrics.average_fee = fee;
         }
@@ -248,7 +284,10 @@ impl AnalyticsManager {
 
         let key = (day_timestamp, chain_id);
         let current_volume = daily_volumes.get(key.clone()).unwrap_or(0);
-        daily_volumes.set(key, current_volume + volume);
+        let updated_volume = current_volume
+            .checked_add(volume)
+            .ok_or(BridgeError::InvalidInput)?;
+        daily_volumes.set(key, updated_volume);
         env.storage().instance().set(&DAILY_VOLUMES, &daily_volumes);
 
         Ok(())

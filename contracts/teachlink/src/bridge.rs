@@ -109,7 +109,9 @@ impl Bridge {
             let fee = repo.config.get_bridge_fee().unwrap_or(0);
             let fee_recipient = repo.config.get_fee_recipient().unwrap();
             let amount_after_fee = if fee > 0 && fee < amount {
-                amount - fee
+                amount
+                    .checked_sub(fee)
+                    .ok_or(BridgeError::InvalidInput)?
             } else {
                 amount
             };

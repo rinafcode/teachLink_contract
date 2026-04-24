@@ -42,6 +42,9 @@ impl InsuranceManager {
     /// Fund the insurance pool
     pub fn fund_pool(env: &Env, funder: Address, amount: i128) -> Result<(), EscrowError> {
         funder.require_auth();
+        if amount <= 0 {
+            return Err(EscrowError::AmountMustBePositive);
+        }
         reentrancy::with_guard(
             env,
             &INSURANCE_GUARD,
@@ -53,7 +56,10 @@ impl InsuranceManager {
                     .get(&INSURANCE_POOL)
                     .ok_or(EscrowError::AmountMustBePositive)?;
 
-                pool.balance += amount;
+                pool.balance = pool
+                    .balance
+                    .checked_add(amount)
+                    .ok_or(EscrowError::AmountMustBePositive)?;
                 env.storage().instance().set(&INSURANCE_POOL, &pool);
 
                 env.invoke_contract::<()>(
@@ -82,6 +88,10 @@ impl InsuranceManager {
 
     /// Calculate insurance premium for an escrow amount
     pub fn calculate_premium(env: &Env, amount: i128) -> i128 {
+        if amount <= 0 {
+            return 0;
+        }
+
         let pool: InsurancePool =
             env.storage()
                 .instance()
@@ -94,7 +104,10 @@ impl InsuranceManager {
                     max_payout_percentage: 8000,
                 });
 
-        (amount * pool.premium_rate as i128) / 10000
+                amount
+                    .checked_mul(pool.premium_rate as i128)
+                    .and_then(|v| v.checked_div(10_000))
+                    .unwrap_or(0)
     }
 
     /// Pay premium and add to pool
@@ -105,6 +118,10 @@ impl InsuranceManager {
 
     /// Internal: Pay premium and add to pool (no auth check)
     pub fn pay_premium_internal(env: &Env, user: Address, amount: i128) -> Result<(), EscrowError> {
+        if amount <= 0 {
+            return Err(EscrowError::AmountMustBePositive);
+        }
+
         reentrancy::with_guard(
             env,
             &INSURANCE_GUARD,
@@ -116,7 +133,10 @@ impl InsuranceManager {
                     .get(&INSURANCE_POOL)
                     .ok_or(EscrowError::AmountMustBePositive)?;
 
-                pool.balance += amount;
+                pool.balance = pool
+                    .balance
+                    .checked_add(amount)
+                    .ok_or(EscrowError::AmountMustBePositive)?;
                 env.storage().instance().set(&INSURANCE_POOL, &pool);
 
                 env.invoke_contract::<()>(
@@ -159,15 +179,25 @@ impl InsuranceManager {
                     .get(&INSURANCE_POOL)
                     .ok_or(EscrowError::AmountMustBePositive)?;
 
-                let max_payout = (pool.balance * pool.max_payout_percentage as i128) / 10000;
+                let max_payout = pool
+                    .balance
+                    .checked_mul(pool.max_payout_percentage as i128)
+                    .and_then(|v| v.checked_div(10_000))
+                    .ok_or(EscrowError::AmountMustBePositive)?;
                 let final_payout = requested_amount.min(max_payout);
 
                 if final_payout <= 0 {
                     return Err(EscrowError::AmountMustBePositive);
                 }
 
-                pool.balance -= final_payout;
-                pool.total_claims_paid += final_payout;
+                pool.balance = pool
+                    .balance
+                    .checked_sub(final_payout)
+                    .ok_or(EscrowError::AmountMustBePositive)?;
+                pool.total_claims_paid = pool
+                    .total_claims_paid
+                    .checked_add(final_payout)
+                    .ok_or(EscrowError::AmountMustBePositive)?;
                 env.storage().instance().set(&INSURANCE_POOL, &pool);
 
                 env.invoke_contract::<()>(
