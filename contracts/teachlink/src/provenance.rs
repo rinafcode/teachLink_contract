@@ -85,7 +85,7 @@ impl ProvenanceTracker {
         }
 
         // First record should be a mint
-        let first = history.get(0).unwrap();
+        let first = history.first().unwrap();
         if first.transfer_type != TransferType::Mint {
             return false;
         }
@@ -118,7 +118,7 @@ impl ProvenanceTracker {
             return None;
         }
 
-        let first = history.get(0).unwrap();
+        let first = history.first().unwrap();
         if first.transfer_type == TransferType::Mint {
             Some(first.to)
         } else {
@@ -132,8 +132,7 @@ impl ProvenanceTracker {
         let history = Self::get_provenance(env, token_id);
         let mut owners = Vec::new(env);
 
-        for i in 0..history.len() {
-            let record = history.get(i).unwrap();
+        for record in history.iter() {
             // Add the 'to' address (new owner)
             if !owners.contains(record.to.clone()) {
                 owners.push_back(record.to);

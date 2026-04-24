@@ -301,14 +301,16 @@ impl AnalyticsManager {
         }
 
         let len = chains.len();
-        for i in 0..len {
-            for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
-                if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
+        if len > 1 {
+            for i in 0..len {
+                for j in 0..len.saturating_sub(i + 1) {
+                    let (_, vol_a) = chains.get(j).unwrap();
+                    let (_, vol_b) = chains.get(j + 1).unwrap();
+                    if vol_a < vol_b {
+                        let temp = chains.get(j).unwrap();
+                        chains.set(j, chains.get(j + 1).unwrap());
+                        chains.set(j + 1, temp);
+                    }
                 }
             }
         }
@@ -338,14 +340,16 @@ impl AnalyticsManager {
 
         // Simple bubble sort (for small datasets)
         let len = chains.len();
-        for i in 0..len {
-            for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
-                if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
+        if len > 1 {
+            for i in 0..len {
+                for j in 0..len.saturating_sub(i + 1) {
+                    let (_, vol_a) = chains.get(j).unwrap();
+                    let (_, vol_b) = chains.get(j + 1).unwrap();
+                    if vol_a < vol_b {
+                        let temp = chains.get(j).unwrap();
+                        chains.set(j, chains.get(j + 1).unwrap());
+                        chains.set(j + 1, temp);
+                    }
                 }
             }
         }
