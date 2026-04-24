@@ -67,6 +67,7 @@ impl ContractUpgrader {
         admin.require_auth();
 
         // Initialize if not already initialized (for testing)
+        #[cfg(test)]
         if !env.storage().instance().has(&UPGRADE_VERSION) {
             Self::initialize(env)?;
         }
@@ -104,6 +105,7 @@ impl ContractUpgrader {
         admin.require_auth();
 
         // Initialize if not already initialized (for testing)
+        #[cfg(test)]
         if !env.storage().instance().has(&UPGRADE_VERSION) {
             Self::initialize(env)?;
         }
