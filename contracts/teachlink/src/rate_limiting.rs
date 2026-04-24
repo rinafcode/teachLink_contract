@@ -56,14 +56,14 @@ impl RateLimiter {
         let key = Self::state_key(caller, endpoint);
         let current_seq = env.ledger().sequence();
 
-        let mut state: RateLimitState = env
-            .storage()
-            .instance()
-            .get(&key)
-            .unwrap_or(RateLimitState {
-                window_start: current_seq,
-                call_count: 0,
-            });
+        let mut state: RateLimitState =
+            env.storage()
+                .instance()
+                .get(&key)
+                .unwrap_or(RateLimitState {
+                    window_start: current_seq,
+                    call_count: 0,
+                });
 
         // Reset window if it has expired
         if current_seq.saturating_sub(state.window_start) >= config.window_ledgers {
