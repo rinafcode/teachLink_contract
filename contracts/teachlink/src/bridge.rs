@@ -460,7 +460,11 @@ impl Bridge {
         repo.validators
             .add_validator(&validator)
             .map_err(|_| BridgeError::StorageError)?;
-        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         validators.set(validator.clone(), true);
         env.storage().instance().set(&VALIDATORS, &validators);
 
@@ -494,7 +498,11 @@ impl Bridge {
         repo.validators
             .remove_validator(&validator)
             .map_err(|_| BridgeError::StorageError)?;
-        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         validators.set(validator.clone(), false);
         env.storage().instance().set(&VALIDATORS, &validators);
 
@@ -627,7 +635,11 @@ impl Bridge {
         repo.config
             .set_fee_recipient(&fee_recipient)
             .map_err(|_| BridgeError::StorageError)?;
-        let old_recipient: Address = env.storage().instance().get(&FEE_RECIPIENT).unwrap();
+        let old_recipient: Address = env
+            .storage()
+            .instance()
+            .get(&FEE_RECIPIENT)
+            .ok_or(BridgeError::NotInitialized)?;
         env.storage().instance().set(&FEE_RECIPIENT, &fee_recipient);
 
         // Emit event
@@ -664,7 +676,11 @@ impl Bridge {
         repo.config
             .set_min_validators(min_validators)
             .map_err(|_| BridgeError::StorageError)?;
-        let old_min: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
+        let old_min: u32 = env
+            .storage()
+            .instance()
+            .get(&MIN_VALIDATORS)
+            .ok_or(BridgeError::NotInitialized)?;
         env.storage()
             .instance()
             .set(&MIN_VALIDATORS, &min_validators);
