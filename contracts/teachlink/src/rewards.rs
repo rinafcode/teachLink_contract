@@ -368,11 +368,9 @@ mod tests {
 
         env.as_contract(&contract_id, || {
             let funder = Address::generate(&env);
-            let token = Address::generate(&env);
-            let admin = Address::generate(&env);
 
-            // Initialize rewards
-            Rewards::initialize_rewards(&env, token.clone(), admin.clone()).unwrap();
+            // Note: Contract initialization already calls Rewards::initialize_rewards
+            // So we skip explicit initialization here
 
             // Test with max allowed amount
             let max_amount = super::MAX_REWARD_AMOUNT;
