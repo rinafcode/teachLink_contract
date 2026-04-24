@@ -51,6 +51,7 @@ impl Rewards {
             || {
                 RewardsValidator::validate_pool_funding(env, &funder, amount)?;
 
+                // SAFETY: TOKEN is always set during initialize_rewards
                 let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
                 let mut pool_balance: i128 =
@@ -88,6 +89,7 @@ impl Rewards {
         amount: i128,
         reward_type: String,
     ) -> Result<(), RewardsError> {
+        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
@@ -172,6 +174,7 @@ impl Rewards {
                     return Err(RewardsError::InsufficientRewardPoolBalance);
                 }
 
+                // SAFETY: TOKEN is always set during initialize_rewards
                 let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
                 user_reward.claimed += amount_to_claim;
@@ -219,6 +222,7 @@ impl Rewards {
         rate: i128,
         enabled: bool,
     ) -> Result<(), RewardsError> {
+        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
@@ -247,6 +251,7 @@ impl Rewards {
     }
 
     pub fn update_rewards_admin(env: &Env, new_admin: Address) {
+        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
         let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
         rewards_admin.require_auth();
 
@@ -287,6 +292,7 @@ impl Rewards {
     }
 
     pub fn get_rewards_admin(env: &Env) -> Address {
+        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
         env.storage().instance().get(&REWARDS_ADMIN).unwrap()
     }
 }
