@@ -3,10 +3,10 @@
 //! This module manages system-wide roles and permissions, providing
 //! multi-layered authorization checks and comprehensive audit trails.
 
+use crate::audit::AuditManager;
 use crate::errors::BridgeError;
 use crate::storage::{ACCESS_CONTROL, ADMIN};
 use crate::types::{AccessRole, OperationType};
-use crate::audit::AuditManager;
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
 pub struct AccessControlManager;
@@ -59,7 +59,7 @@ impl AccessControlManager {
             .unwrap_or_else(|| Map::new(env));
 
         let mut user_roles = roles.get(target.clone()).unwrap_or_else(|| Vec::new(env));
-        
+
         if !user_roles.contains(role.clone()) {
             user_roles.push_back(role.clone());
             roles.set(target.clone(), user_roles);
