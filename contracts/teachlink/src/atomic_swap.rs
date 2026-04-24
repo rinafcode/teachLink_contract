@@ -78,6 +78,14 @@ impl AtomicSwapManager {
                 return Err(BridgeError::InvalidInput);
             }
 
+            // Temporal Validation
+            crate::validation::TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+                .map_err(|_| BridgeError::InvalidTimestamp)?;
+            
+            let future_timelock = env.ledger().timestamp().saturating_add(timelock);
+            crate::validation::TimeValidator::validate_operational_bounds(env, future_timelock)
+                .map_err(|_| BridgeError::InvalidTimestamp)?;
+
             let mut swap_counter: u64 = env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64);
             swap_counter += 1;
 

@@ -138,6 +138,7 @@ mod types;
 pub mod validation;
 // TODO: Fix property_based_tests module (requires test dependencies)
 // pub mod property_based_tests;
+mod timestamp_tests;
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
