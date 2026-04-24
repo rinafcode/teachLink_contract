@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  rust:
+  quality-gates:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,22 +15,43 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32v1-none
+          targets: wasm32-unknown-unknown
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
 
+      # 1) Linting checks
       - name: Check code formatting
         run: cargo fmt --all -- --check
 
       - name: Run clippy linter
         run: cargo clippy --workspace --all-features -- -D warnings
 
+      # Build artifact validation
       - name: Build WASM (release)
-        run: cargo build --target wasm32v1-none --release
+        run: cargo build --target wasm32-unknown-unknown --release
 
+      # 2) Tests
       - name: Run unit tests
         run: cargo test --workspace --lib
 
       - name: Run integration tests
         run: cargo test --workspace --test cross_chain_integration
+
+      # 3) Coverage gate (line coverage >= 80%)
+      - name: Install cargo-llvm-cov
+        run: cargo install cargo-llvm-cov --locked
+
+      - name: Enforce coverage threshold
+        run: cargo llvm-cov --workspace --all-features --fail-under-lines 80 --summary-only
+
+      # 4) Performance benchmark gate
+      - name: Run performance benchmarks
+        run: bash scripts/benchmark.sh
+
+      # 5) Security scan gate
+      - name: Install cargo-audit
+        run: cargo install cargo-audit --locked
+
+      - name: Run dependency security audit
+        run: cargo audit
