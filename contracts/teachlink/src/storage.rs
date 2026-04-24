@@ -117,6 +117,9 @@ pub const NOTIFICATION_FILTERS: Symbol = symbol_short!("notif_flt");
 pub const NOTIFICATION_SEGMENTS: Symbol = symbol_short!("notif_seg");
 pub const NOTIFICATION_CAMPAIGNS: Symbol = symbol_short!("notif_cpg");
 pub const NOTIFICATION_ANALYTICS: Symbol = symbol_short!("notif_anl");
+pub const NOTIFICATION_TTL: Symbol = symbol_short!("notif_ttl");
+pub const NOTIFICATION_MAX_SIZE: Symbol = symbol_short!("notif_max");
+pub const NOTIFICATION_LAST_CLEANUP: Symbol = symbol_short!("notif_cln");
 
 // Advanced Analytics & Reporting Storage (symbol_short! max 9 chars)
 pub const REPORT_TEMPLATE_COUNTER: Symbol = symbol_short!("rpt_tplcn");
