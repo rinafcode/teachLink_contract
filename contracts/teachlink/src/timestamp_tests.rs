@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use crate::validation::{TimeValidator, ValidationError, config};
-    use soroban_sdk::{Env, testutils::Ledger};
+    use crate::validation::{config, TimeValidator, ValidationError};
+    use soroban_sdk::{testutils::Ledger, Env};
 
     fn set_ledger_time(env: &Env, timestamp: u64) {
         env.ledger().with_mut(|li| {
@@ -14,7 +14,7 @@ mod tests {
         let env = Env::default();
         let now = 1_000_000;
         set_ledger_time(&env, now);
-        
+
         assert!(TimeValidator::validate_global_bounds(&env, now).is_ok());
         assert!(TimeValidator::validate_global_bounds(&env, now + 3600).is_ok());
         assert!(TimeValidator::validate_global_bounds(&env, now - 3600).is_ok());
@@ -25,7 +25,7 @@ mod tests {
         let env = Env::default();
         let now = 1_000_000;
         set_ledger_time(&env, now);
-        
+
         let way_future = now + config::MAX_TIMEOUT_SECONDS + 1;
         assert_eq!(
             TimeValidator::validate_global_bounds(&env, way_future),
@@ -38,7 +38,7 @@ mod tests {
         let env = Env::default();
         let now = config::MAX_TIMEOUT_SECONDS + 1_000_000;
         set_ledger_time(&env, now);
-        
+
         let way_past = 0;
         assert_eq!(
             TimeValidator::validate_global_bounds(&env, way_past),
@@ -51,10 +51,10 @@ mod tests {
         let env = Env::default();
         let now = 10_000_000;
         set_ledger_time(&env, now);
-        
+
         // 90 days = 7,776,000 seconds
         assert!(TimeValidator::validate_operational_bounds(&env, now + 7_000_000).is_ok());
-        
+
         assert_eq!(
             TimeValidator::validate_operational_bounds(&env, now + 8_000_000),
             Err(ValidationError::InvalidTimestamp)
@@ -76,11 +76,11 @@ mod tests {
         let env = Env::default();
         let now = 1_000_000;
         set_ledger_time(&env, now);
-        
+
         // 15 minutes = 900 seconds
         assert!(TimeValidator::validate_skew(&env, now + 800).is_ok());
         assert!(TimeValidator::validate_skew(&env, now - 800).is_ok());
-        
+
         assert_eq!(
             TimeValidator::validate_skew(&env, now + 1000),
             Err(ValidationError::TimestampSkewExceeded)

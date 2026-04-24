@@ -81,7 +81,7 @@ impl AtomicSwapManager {
             // Temporal Validation
             crate::validation::TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
                 .map_err(|_| BridgeError::InvalidTimestamp)?;
-            
+
             let future_timelock = env.ledger().timestamp().saturating_add(timelock);
             crate::validation::TimeValidator::validate_operational_bounds(env, future_timelock)
                 .map_err(|_| BridgeError::InvalidTimestamp)?;
