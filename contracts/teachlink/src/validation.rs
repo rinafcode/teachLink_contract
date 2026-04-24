@@ -363,7 +363,8 @@ impl EscrowValidator {
     ) -> Result<(), EscrowError> {
         // Multi-layered address validation
         AddressValidator::validate(env, depositor).map_err(|_| EscrowError::InvalidBeneficiary)?;
-        AddressValidator::validate(env, beneficiary).map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, beneficiary)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
         AddressValidator::validate(env, token).map_err(|_| EscrowError::InvalidToken)?;
         AddressValidator::validate(env, arbitrator).map_err(|_| EscrowError::InvalidArbitrator)?;
 
