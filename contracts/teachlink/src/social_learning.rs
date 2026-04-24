@@ -349,7 +349,7 @@ impl CreatePeerReviewParams {
         }
 
         // Validate feedback length
-        if self.feedback.len() == 0 ||self.feedback.len() > 5000 {
+        if self.feedback.len() == 0 || self.feedback.len() > 5000 {
             return Err(SocialLearningError::InvalidInput);
         }
 
@@ -576,7 +576,7 @@ pub struct SocialLearningManager;
 impl SocialLearningManager {
     // Study Group Management
     /// Creates a new study group with validated parameters
-    /// 
+    ///
     /// Uses parameter object pattern to handle multiple parameters cleanly
     /// and includes automatic validation of all related parameters
     pub fn create_study_group(

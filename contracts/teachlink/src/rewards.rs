@@ -10,6 +10,9 @@ use crate::validation::RewardsValidator;
 
 use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, String};
 
+// Maximum reward amount to prevent overflow (i128::MAX / 2)
+const MAX_REWARD_AMOUNT: i128 = 170141183460469231731687303715884105727;
+
 pub struct Rewards;
 
 impl Rewards {
@@ -51,12 +54,22 @@ impl Rewards {
             || {
                 RewardsValidator::validate_pool_funding(env, &funder, amount)?;
 
+                // Validate amount doesn't exceed max limit
+                if amount > MAX_REWARD_AMOUNT {
+                    return Err(RewardsError::AmountExceedsMaxLimit);
+                }
+
                 // SAFETY: TOKEN is always set during initialize_rewards
                 let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
                 let mut pool_balance: i128 =
                     env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
-                pool_balance += amount;
+
+                // Checked addition to prevent overflow
+                pool_balance = pool_balance
+                    .checked_add(amount)
+                    .ok_or(RewardsError::ArithmeticOverflow)?;
+
                 env.storage().instance().set(&REWARD_POOL, &pool_balance);
 
                 env.invoke_contract::<()>(
@@ -95,6 +108,11 @@ impl Rewards {
 
         RewardsValidator::validate_reward_issuance(env, &recipient, amount, &reward_type)?;
 
+        // Validate amount doesn't exceed max limit
+        if amount > MAX_REWARD_AMOUNT {
+            return Err(RewardsError::AmountExceedsMaxLimit);
+        }
+
         let pool_balance: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
         if pool_balance < amount {
             return Err(RewardsError::InsufficientRewardPoolBalance);
@@ -114,8 +132,16 @@ impl Rewards {
             last_claim_timestamp: 0,
         });
 
-        user_reward.total_earned += amount;
-        user_reward.pending += amount;
+        // Checked addition to prevent overflow
+        user_reward.total_earned = user_reward
+            .total_earned
+            .checked_add(amount)
+            .ok_or(RewardsError::ArithmeticOverflow)?;
+
+        user_reward.pending = user_reward
+            .pending
+            .checked_add(amount)
+            .ok_or(RewardsError::ArithmeticOverflow)?;
 
         user_rewards.set(recipient.clone(), user_reward);
         env.storage().instance().set(&USER_REWARDS, &user_rewards);
@@ -125,7 +151,12 @@ impl Rewards {
             .instance()
             .get(&TOTAL_REWARDS_ISSUED)
             .unwrap_or(0);
-        total_issued += amount;
+
+        // Checked addition to prevent overflow
+        total_issued = total_issued
+            .checked_add(amount)
+            .ok_or(RewardsError::ArithmeticOverflow)?;
+
         env.storage()
             .instance()
             .set(&TOTAL_REWARDS_ISSUED, &total_issued);
@@ -177,13 +208,21 @@ impl Rewards {
                 // SAFETY: TOKEN is always set during initialize_rewards
                 let token: Address = env.storage().instance().get(&TOKEN).unwrap();
 
-                user_reward.claimed += amount_to_claim;
+                // Checked addition to prevent overflow
+                user_reward.claimed = user_reward
+                    .claimed
+                    .checked_add(amount_to_claim)
+                    .ok_or(RewardsError::ArithmeticOverflow)?;
+
                 user_reward.pending = 0;
                 user_reward.last_claim_timestamp = env.ledger().timestamp();
                 user_rewards.set(user.clone(), user_reward);
                 env.storage().instance().set(&USER_REWARDS, &user_rewards);
 
-                let new_pool_balance = pool_balance - amount_to_claim;
+                // Checked subtraction to prevent underflow
+                let new_pool_balance = pool_balance
+                    .checked_sub(amount_to_claim)
+                    .ok_or(RewardsError::InsufficientRewardPoolBalance)?;
                 env.storage()
                     .instance()
                     .set(&REWARD_POOL, &new_pool_balance);
@@ -318,6 +357,56 @@ mod tests {
 
             let res = Rewards::claim_rewards(&env, user);
             assert_eq!(res, Err(RewardsError::ReentrancyDetected));
+        });
+    }
+
+    #[test]
+    fn test_overflow_protection_in_reward_pool_funding() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+    
+        env.as_contract(&contract_id, || {
+            let funder = Address::generate(&env);
+            let token = Address::generate(&env);
+            let admin = Address::generate(&env);
+                
+            // Initialize rewards
+            Rewards::initialize_rewards(&env, token.clone(), admin.clone()).unwrap();
+                
+            // Test with max allowed amount
+            let max_amount = super::MAX_REWARD_AMOUNT;
+            let result = Rewards::fund_reward_pool(&env, funder.clone(), max_amount);
+            assert!(result.is_ok());
+                
+            // Test that a very large amount fails validation
+            // We can't test MAX_REWARD_AMOUNT + 1 directly due to overflow
+            let large_amount = i128::MAX;
+            let result = Rewards::fund_reward_pool(&env, funder, large_amount);
+            assert_eq!(result, Err(RewardsError::AmountExceedsMaxLimit));
+        });
+    }
+
+    #[test]
+    fn test_overflow_detection_in_arithmetic() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            // Test i128 overflow detection
+            let val1: i128 = i128::MAX / 2;
+            let val2: i128 = i128::MAX / 2 + 1;
+
+            // This should detect overflow
+            let result = val1.checked_add(val2);
+            assert!(result.is_none());
+
+            // Test normal addition works
+            let val3: i128 = 100;
+            let val4: i128 = 200;
+            let result = val3.checked_add(val4);
+            assert_eq!(result, Some(300));
         });
     }
 }

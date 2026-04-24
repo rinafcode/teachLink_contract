@@ -4,4 +4,3 @@ pub struct FractionalVault {
     pub price_per_share: u128,
     pub shareholders: Map<Address, u128>,
 }
-
