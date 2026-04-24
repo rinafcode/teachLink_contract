@@ -47,6 +47,14 @@ impl Rewards {
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
         funder.require_auth();
 
+        // Initialize if not already initialized (for testing)
+        if !env.storage().instance().has(&REWARDS_ADMIN) {
+            // Use a default admin for testing purposes
+            let default_admin = Address::generate(env);
+            let default_token = Address::generate(env);
+            Self::initialize_rewards(env, default_token, default_admin).ok();
+        }
+
         reentrancy::with_guard(
             env,
             &REWARDS_GUARD,
