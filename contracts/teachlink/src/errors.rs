@@ -109,6 +109,8 @@ pub enum RewardsError {
     NoPendingRewards = 304,
     RateCannotBeNegative = 305,
     ReentrancyDetected = 306,
+    ArithmeticOverflow = 307,
+    AmountExceedsMaxLimit = 308,
 }
 
 /// Mobile platform module errors

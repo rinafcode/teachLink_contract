@@ -288,10 +288,10 @@ mod tests {
     fn cross_chain_message_valid() {
         let env = Env::default();
         let recipient = Address::generate(&env);
-        assert!(CrossChainValidator::validate_cross_chain_message(
-            &env, 1, 2, 1_000, &recipient
-        )
-        .is_ok());
+        assert!(
+            CrossChainValidator::validate_cross_chain_message(&env, 1, 2, 1_000, &recipient)
+                .is_ok()
+        );
     }
 
     #[test]
@@ -317,9 +317,7 @@ mod tests {
     #[test]
     fn cross_chain_destination_data_valid() {
         let env = Env::default();
-        assert!(
-            CrossChainValidator::validate_destination_data(&env, 1, &valid_dest(&env)).is_ok()
-        );
+        assert!(CrossChainValidator::validate_destination_data(&env, 1, &valid_dest(&env)).is_ok());
     }
 
     #[test]
@@ -338,8 +336,12 @@ mod tests {
         let env = Env::default();
         let from = Address::generate(&env);
         // Chain 42 is not in the supported-chains registry → must be rejected
-        let result = BridgeValidator::validate_bridge_out(&env, &from, 1_000, 42, &valid_dest(&env));
-        assert_eq!(result, Err(crate::errors::BridgeError::DestinationChainNotSupported));
+        let result =
+            BridgeValidator::validate_bridge_out(&env, &from, 1_000, 42, &valid_dest(&env));
+        assert_eq!(
+            result,
+            Err(crate::errors::BridgeError::DestinationChainNotSupported)
+        );
     }
 
     #[test]
@@ -353,7 +355,9 @@ mod tests {
             .instance()
             .set(&crate::storage::SUPPORTED_CHAINS, &chains);
 
-        assert!(BridgeValidator::validate_bridge_out(&env, &from, 1_000, 1, &valid_dest(&env)).is_ok());
+        assert!(
+            BridgeValidator::validate_bridge_out(&env, &from, 1_000, 1, &valid_dest(&env)).is_ok()
+        );
     }
 
     #[test]
@@ -406,8 +410,9 @@ mod tests {
         let env = Env::default();
         let recipient = Address::generate(&env);
         let reward_type = String::from_str(&env, "completion");
-        assert!(RewardsValidator::validate_reward_issuance(&env, &recipient, 500, &reward_type)
-            .is_ok());
+        assert!(
+            RewardsValidator::validate_reward_issuance(&env, &recipient, 500, &reward_type).is_ok()
+        );
     }
 
     #[test]
@@ -433,10 +438,20 @@ mod tests {
         let token_b = Address::generate(&env);
         let hashlock = make_address_bytes(&env, 32, 0xAB);
         let result = AtomicSwapManager::initiate_swap(
-            &env, initiator, token_a, 0, counterparty, token_b, 1_000,
-            hashlock, crate::atomic_swap::MIN_TIMELOCK,
+            &env,
+            initiator,
+            token_a,
+            0,
+            counterparty,
+            token_b,
+            1_000,
+            hashlock,
+            crate::atomic_swap::MIN_TIMELOCK,
         );
-        assert_eq!(result, Err(crate::errors::BridgeError::AmountMustBePositive));
+        assert_eq!(
+            result,
+            Err(crate::errors::BridgeError::AmountMustBePositive)
+        );
     }
 
     #[test]
@@ -450,10 +465,20 @@ mod tests {
         let token_b = Address::generate(&env);
         let hashlock = make_address_bytes(&env, 32, 0xAB);
         let result = AtomicSwapManager::initiate_swap(
-            &env, initiator, token_a, 1_000, counterparty, token_b, 0,
-            hashlock, crate::atomic_swap::MIN_TIMELOCK,
+            &env,
+            initiator,
+            token_a,
+            1_000,
+            counterparty,
+            token_b,
+            0,
+            hashlock,
+            crate::atomic_swap::MIN_TIMELOCK,
         );
-        assert_eq!(result, Err(crate::errors::BridgeError::AmountMustBePositive));
+        assert_eq!(
+            result,
+            Err(crate::errors::BridgeError::AmountMustBePositive)
+        );
     }
 
     #[test]
@@ -467,8 +492,15 @@ mod tests {
         let token_b = Address::generate(&env);
         let hashlock = make_address_bytes(&env, 32, 0xAB);
         let result = AtomicSwapManager::initiate_swap(
-            &env, initiator, token_a, 1_000, counterparty, token_b, 1_000,
-            hashlock, crate::atomic_swap::MIN_TIMELOCK - 1,
+            &env,
+            initiator,
+            token_a,
+            1_000,
+            counterparty,
+            token_b,
+            1_000,
+            hashlock,
+            crate::atomic_swap::MIN_TIMELOCK - 1,
         );
         assert_eq!(result, Err(crate::errors::BridgeError::InvalidInput));
     }
@@ -484,8 +516,15 @@ mod tests {
         let token_b = Address::generate(&env);
         let hashlock = make_address_bytes(&env, 32, 0xAB);
         let result = AtomicSwapManager::initiate_swap(
-            &env, initiator, token_a, 1_000, counterparty, token_b, 1_000,
-            hashlock, crate::atomic_swap::MAX_TIMELOCK + 1,
+            &env,
+            initiator,
+            token_a,
+            1_000,
+            counterparty,
+            token_b,
+            1_000,
+            hashlock,
+            crate::atomic_swap::MAX_TIMELOCK + 1,
         );
         assert_eq!(result, Err(crate::errors::BridgeError::InvalidInput));
     }
@@ -500,8 +539,15 @@ mod tests {
         let token_b = Address::generate(&env);
         let hashlock = make_address_bytes(&env, 32, 0xAB);
         let result = AtomicSwapManager::initiate_swap(
-            &env, party.clone(), token_a, 1_000, party, token_b, 1_000,
-            hashlock, crate::atomic_swap::MIN_TIMELOCK,
+            &env,
+            party.clone(),
+            token_a,
+            1_000,
+            party,
+            token_b,
+            1_000,
+            hashlock,
+            crate::atomic_swap::MIN_TIMELOCK,
         );
         assert_eq!(result, Err(crate::errors::BridgeError::InvalidInput));
     }
@@ -518,8 +564,15 @@ mod tests {
         // 16 bytes instead of required 32
         let bad_hashlock = make_address_bytes(&env, 16, 0xAB);
         let result = AtomicSwapManager::initiate_swap(
-            &env, initiator, token_a, 1_000, counterparty, token_b, 1_000,
-            bad_hashlock, crate::atomic_swap::MIN_TIMELOCK,
+            &env,
+            initiator,
+            token_a,
+            1_000,
+            counterparty,
+            token_b,
+            1_000,
+            bad_hashlock,
+            crate::atomic_swap::MIN_TIMELOCK,
         );
         assert_eq!(result, Err(crate::errors::BridgeError::InvalidHashlock));
     }
@@ -528,25 +581,39 @@ mod tests {
 
     #[test]
     fn escrow_rejects_zero_amount() {
-        use crate::types::{EscrowSigner};
+        use crate::types::EscrowSigner;
         let env = Env::default();
         let depositor = Address::generate(&env);
         let beneficiary = Address::generate(&env);
         let token = Address::generate(&env);
         let arbitrator = Address::generate(&env);
-        let signer = EscrowSigner { address: Address::generate(&env), weight: 1 };
+        let signer = EscrowSigner {
+            address: Address::generate(&env),
+            weight: 1,
+        };
         let mut signers = soroban_sdk::Vec::new(&env);
         signers.push_back(signer);
         let result = EscrowValidator::validate_create_escrow(
-            &env, &depositor, &beneficiary, &token, 0,
-            &signers, 1, None, None, &arbitrator,
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            0,
+            &signers,
+            1,
+            None,
+            None,
+            &arbitrator,
         );
-        assert_eq!(result, Err(crate::errors::EscrowError::AmountMustBePositive));
+        assert_eq!(
+            result,
+            Err(crate::errors::EscrowError::AmountMustBePositive)
+        );
     }
 
     #[test]
     fn escrow_rejects_empty_signers() {
-        use crate::types::{EscrowSigner};
+        use crate::types::EscrowSigner;
         let env = Env::default();
         let depositor = Address::generate(&env);
         let beneficiary = Address::generate(&env);
@@ -554,85 +621,149 @@ mod tests {
         let arbitrator = Address::generate(&env);
         let signers: soroban_sdk::Vec<EscrowSigner> = soroban_sdk::Vec::new(&env);
         let result = EscrowValidator::validate_create_escrow(
-            &env, &depositor, &beneficiary, &token, 1_000,
-            &signers, 1, None, None, &arbitrator,
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            1_000,
+            &signers,
+            1,
+            None,
+            None,
+            &arbitrator,
         );
-        assert_eq!(result, Err(crate::errors::EscrowError::AtLeastOneSignerRequired));
+        assert_eq!(
+            result,
+            Err(crate::errors::EscrowError::AtLeastOneSignerRequired)
+        );
     }
 
     #[test]
     fn escrow_rejects_threshold_exceeding_total_weight() {
-        use crate::types::{EscrowSigner};
+        use crate::types::EscrowSigner;
         let env = Env::default();
         let depositor = Address::generate(&env);
         let beneficiary = Address::generate(&env);
         let token = Address::generate(&env);
         let arbitrator = Address::generate(&env);
-        let signer = EscrowSigner { address: Address::generate(&env), weight: 1 };
+        let signer = EscrowSigner {
+            address: Address::generate(&env),
+            weight: 1,
+        };
         let mut signers = soroban_sdk::Vec::new(&env);
         signers.push_back(signer);
         // threshold 5 > total weight 1
         let result = EscrowValidator::validate_create_escrow(
-            &env, &depositor, &beneficiary, &token, 1_000,
-            &signers, 5, None, None, &arbitrator,
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            1_000,
+            &signers,
+            5,
+            None,
+            None,
+            &arbitrator,
         );
-        assert_eq!(result, Err(crate::errors::EscrowError::InvalidSignerThreshold));
+        assert_eq!(
+            result,
+            Err(crate::errors::EscrowError::InvalidSignerThreshold)
+        );
     }
 
     #[test]
     fn escrow_rejects_duplicate_signers() {
-        use crate::types::{EscrowSigner};
+        use crate::types::EscrowSigner;
         let env = Env::default();
         let depositor = Address::generate(&env);
         let beneficiary = Address::generate(&env);
         let token = Address::generate(&env);
         let arbitrator = Address::generate(&env);
         let dup_addr = Address::generate(&env);
-        let signer_a = EscrowSigner { address: dup_addr.clone(), weight: 1 };
-        let signer_b = EscrowSigner { address: dup_addr, weight: 1 };
+        let signer_a = EscrowSigner {
+            address: dup_addr.clone(),
+            weight: 1,
+        };
+        let signer_b = EscrowSigner {
+            address: dup_addr,
+            weight: 1,
+        };
         let mut signers = soroban_sdk::Vec::new(&env);
         signers.push_back(signer_a);
         signers.push_back(signer_b);
         let result = EscrowValidator::validate_create_escrow(
-            &env, &depositor, &beneficiary, &token, 1_000,
-            &signers, 1, None, None, &arbitrator,
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            1_000,
+            &signers,
+            1,
+            None,
+            None,
+            &arbitrator,
         );
         assert_eq!(result, Err(crate::errors::EscrowError::DuplicateSigner));
     }
 
     #[test]
     fn escrow_rejects_refund_before_release() {
-        use crate::types::{EscrowSigner};
+        use crate::types::EscrowSigner;
         let env = Env::default();
         let depositor = Address::generate(&env);
         let beneficiary = Address::generate(&env);
         let token = Address::generate(&env);
         let arbitrator = Address::generate(&env);
-        let signer = EscrowSigner { address: Address::generate(&env), weight: 1 };
+        let signer = EscrowSigner {
+            address: Address::generate(&env),
+            weight: 1,
+        };
         let mut signers = soroban_sdk::Vec::new(&env);
         signers.push_back(signer);
         // refund_time (100) <= release_time (200) → invalid
         let result = EscrowValidator::validate_create_escrow(
-            &env, &depositor, &beneficiary, &token, 1_000,
-            &signers, 1, Some(200), Some(100), &arbitrator,
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            1_000,
+            &signers,
+            1,
+            Some(200),
+            Some(100),
+            &arbitrator,
         );
-        assert_eq!(result, Err(crate::errors::EscrowError::RefundTimeMustBeAfterReleaseTime));
+        assert_eq!(
+            result,
+            Err(crate::errors::EscrowError::RefundTimeMustBeAfterReleaseTime)
+        );
     }
 
     #[test]
     fn escrow_valid_parameters_accepted() {
-        use crate::types::{EscrowSigner};
+        use crate::types::EscrowSigner;
         let env = Env::default();
         let depositor = Address::generate(&env);
         let beneficiary = Address::generate(&env);
         let token = Address::generate(&env);
         let arbitrator = Address::generate(&env);
-        let signer = EscrowSigner { address: Address::generate(&env), weight: 1 };
+        let signer = EscrowSigner {
+            address: Address::generate(&env),
+            weight: 1,
+        };
         let mut signers = soroban_sdk::Vec::new(&env);
         signers.push_back(signer);
         let result = EscrowValidator::validate_create_escrow(
-            &env, &depositor, &beneficiary, &token, 1_000,
-            &signers, 1, Some(100), Some(200), &arbitrator,
+            &env,
+            &depositor,
+            &beneficiary,
+            &token,
+            1_000,
+            &signers,
+            1,
+            Some(100),
+            Some(200),
+            &arbitrator,
         );
         assert!(result.is_ok());
     }
@@ -640,15 +771,23 @@ mod tests {
     #[test]
     fn test_rbac_admin_has_all_roles() {
         use crate::access_control::AccessControlManager;
-        use crate::types::AccessRole;
         use crate::storage::ADMIN;
+        use crate::types::AccessRole;
         let env = Env::default();
         let admin = Address::generate(&env);
-        
+
         env.storage().instance().set(&ADMIN, &admin);
-        
-        assert!(AccessControlManager::has_role(&env, &admin, AccessRole::BridgeOperator));
-        assert!(AccessControlManager::has_role(&env, &admin, AccessRole::EmergencyManager));
+
+        assert!(AccessControlManager::has_role(
+            &env,
+            &admin,
+            AccessRole::BridgeOperator
+        ));
+        assert!(AccessControlManager::has_role(
+            &env,
+            &admin,
+            AccessRole::EmergencyManager
+        ));
     }
 
     #[test]
@@ -658,25 +797,35 @@ mod tests {
         use crate::types::AccessRole;
         let env = Env::default();
         let user = Address::generate(&env);
-        
+
         // Mock auth for user but they don't have the role
-        user.require_auth(); 
+        user.require_auth();
         AccessControlManager::check_role(&env, &user, AccessRole::BridgeOperator);
     }
 
     #[test]
     fn test_rbac_grant_role() {
         use crate::access_control::AccessControlManager;
-        use crate::types::AccessRole;
         use crate::storage::ADMIN;
+        use crate::types::AccessRole;
         let env = Env::default();
         let admin = Address::generate(&env);
         let user = Address::generate(&env);
-        
+
         env.storage().instance().set(&ADMIN, &admin);
         admin.require_auth();
-        
-        assert!(AccessControlManager::grant_role(&env, admin, user.clone(), AccessRole::BridgeOperator).is_ok());
-        assert!(AccessControlManager::has_role(&env, &user, AccessRole::BridgeOperator));
+
+        assert!(AccessControlManager::grant_role(
+            &env,
+            admin,
+            user.clone(),
+            AccessRole::BridgeOperator
+        )
+        .is_ok());
+        assert!(AccessControlManager::has_role(
+            &env,
+            &user,
+            AccessRole::BridgeOperator
+        ));
     }
 }
