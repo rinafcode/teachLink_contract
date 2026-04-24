@@ -656,7 +656,10 @@ impl AdvancedReputationManager {
             InsuranceType::CompletionGuarantee => 60,
         };
 
-        (coverage_amount * base_rate as u64) / 10000
+        coverage_amount
+            .checked_mul(base_rate as u64)
+            .and_then(|v| v.checked_div(10_000))
+            .unwrap_or(u64::MAX)
     }
 
     // ========== Storage Functions ==========

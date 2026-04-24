@@ -263,6 +263,10 @@ impl LiquidityManager {
         amount: i128,
         user_volume_24h: i128,
     ) -> Result<i128, BridgeError> {
+        if amount <= 0 {
+            return Err(BridgeError::AmountMustBePositive);
+        }
+
         // Get fee structure
         let fee_structure: BridgeFeeStructure = env
             .storage()
@@ -293,14 +297,34 @@ impl LiquidityManager {
         let volume_discount =
             Self::calculate_volume_discount(&fee_structure.volume_discount_tiers, user_volume_24h);
 
+        let discount_factor = 10_000i128 - volume_discount as i128;
+        if discount_factor < 0 {
+            return Err(BridgeError::InvalidInput);
+        }
+
         // Calculate final fee
-        let base_fee_amount = (amount * fee_structure.base_fee) / 10000;
-        let congestion_adjusted = (base_fee_amount * congestion_multiplier as i128) / 100;
-        let final_fee = (congestion_adjusted * (10000 - volume_discount as i128)) / 10000;
+        let base_fee_amount = amount
+            .checked_mul(fee_structure.base_fee)
+            .and_then(|v| v.checked_div(10_000))
+            .ok_or(BridgeError::InvalidInput)?;
+        let congestion_adjusted = base_fee_amount
+            .checked_mul(congestion_multiplier as i128)
+            .and_then(|v| v.checked_div(100))
+            .ok_or(BridgeError::InvalidInput)?;
+        let final_fee = congestion_adjusted
+            .checked_mul(discount_factor)
+            .and_then(|v| v.checked_div(10_000))
+            .ok_or(BridgeError::InvalidInput)?;
 
         // Ensure fee is within bounds
-        let min_fee = (amount * MIN_FEE_BPS) / 10000;
-        let max_fee = (amount * MAX_FEE_BPS) / 10000;
+        let min_fee = amount
+            .checked_mul(MIN_FEE_BPS)
+            .and_then(|v| v.checked_div(10_000))
+            .ok_or(BridgeError::InvalidInput)?;
+        let max_fee = amount
+            .checked_mul(MAX_FEE_BPS)
+            .and_then(|v| v.checked_div(10_000))
+            .ok_or(BridgeError::InvalidInput)?;
 
         Ok(final_fee.clamp(min_fee, max_fee))
     }
@@ -357,7 +381,12 @@ impl LiquidityManager {
             return 100;
         }
 
-        let utilization = ((pool.locked_liquidity * 10000) / pool.total_liquidity) as u32;
+        let utilization = pool
+            .locked_liquidity
+            .checked_mul(10_000)
+            .and_then(|v| v.checked_div(pool.total_liquidity))
+            .unwrap_or(10_000)
+            .clamp(0, 10_000) as u32;
 
         if utilization < CONGESTION_STEP_1 {
             100 // 1x
