@@ -47,10 +47,10 @@ pub type ValidationResult<T> = core::result::Result<T, ValidationError>;
 pub trait Sanitizable {
     /// Performs basic structural validation
     fn validate_basic(&self, env: &Env) -> ValidationResult<()>;
-    
+
     /// Performs logical/business rule validation
     fn validate_logic(&self, env: &Env) -> ValidationResult<()>;
-    
+
     /// Comprehensive validation combining all layers
     fn validate_comprehensive(&self, env: &Env) -> ValidationResult<()> {
         self.validate_basic(env)?;
@@ -77,12 +77,12 @@ impl Sanitizable for crate::types::EscrowParameters {
     fn validate_basic(&self, _env: &Env) -> ValidationResult<()> {
         NumberValidator::validate_amount(self.amount)?;
         NumberValidator::validate_signer_count(self.signers.len() as usize)?;
-        
+
         let mut total_weight: u32 = 0;
         for signer in self.signers.iter() {
             total_weight += signer.weight;
         }
-        
+
         NumberValidator::validate_threshold(self.threshold, total_weight)?;
         Ok(())
     }
@@ -362,13 +362,10 @@ impl EscrowValidator {
         arbitrator: &Address,
     ) -> Result<(), EscrowError> {
         // Multi-layered address validation
-        AddressValidator::validate(env, depositor)
-            .map_err(|_| EscrowError::InvalidBeneficiary)?;
-        AddressValidator::validate(env, beneficiary)
-            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, depositor).map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, beneficiary).map_err(|_| EscrowError::InvalidBeneficiary)?;
         AddressValidator::validate(env, token).map_err(|_| EscrowError::InvalidToken)?;
-        AddressValidator::validate(env, arbitrator)
-            .map_err(|_| EscrowError::InvalidArbitrator)?;
+        AddressValidator::validate(env, arbitrator).map_err(|_| EscrowError::InvalidArbitrator)?;
 
         // Specific logical checks: depositor cannot be beneficiary
         if *depositor == *beneficiary {
