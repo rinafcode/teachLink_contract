@@ -535,6 +535,7 @@ pub struct EscrowMetrics {
     pub total_disputes: u64,
     pub total_resolved: u64,
     pub average_resolution_time: u64,
+    pub resets: u64,
 }
 
 #[contracttype]
