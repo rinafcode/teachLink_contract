@@ -12,6 +12,7 @@ use crate::storage::{
     NOTIFICATION_COUNTER, NOTIFICATION_LOGS, NOTIFICATION_PREFERENCES, NOTIFICATION_TEMPLATES,
     NOTIFICATION_TRACKING, SCHEDULED_NOTIFICATIONS, USER_NOTIFICATION_SETTINGS,
 };
+use crate::safe_stats::safe_inc_u64;
 use crate::types::{
     ChannelStats, NotificationChannel, NotificationContent, NotificationDeliveryStatus,
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
@@ -526,18 +527,34 @@ impl NotificationManager {
 
         for tracking in tracking_map.values() {
             if tracking.sent_at >= start_time && tracking.sent_at <= end_time {
-                analytics.total_sent += 1;
+                let (tsent, overflowed) = safe_inc_u64(analytics.total_sent);
+                analytics.total_sent = tsent;
+                if overflowed {
+                    // on overflow we reset totals to zero (resilient fallback)
+                    analytics.total_sent = 0;
+                    analytics.total_delivered = 0;
+                    analytics.total_failed = 0;
+                    analytics.channel_stats = Map::new(env);
+                }
 
                 match tracking.status {
                     NotificationDeliveryStatus::Delivered => {
-                        analytics.total_delivered += 1;
+                        let (tdel, of) = safe_inc_u64(analytics.total_delivered);
+                        analytics.total_delivered = tdel;
+                        if of {
+                            analytics.total_delivered = 0;
+                        }
                         if tracking.delivered_at > 0 {
                             total_delivery_time += tracking.delivered_at - tracking.sent_at;
                             delivered_count += 1;
                         }
                     }
                     NotificationDeliveryStatus::Failed => {
-                        analytics.total_failed += 1;
+                        let (tfail, of) = safe_inc_u64(analytics.total_failed);
+                        analytics.total_failed = tfail;
+                        if of {
+                            analytics.total_failed = 0;
+                        }
                     }
                     _ => {}
                 }
@@ -553,10 +570,20 @@ impl NotificationManager {
                             delivered: 0,
                             failed: 0,
                         });
-                channel_stat.sent += 1;
+                let (csent, of) = safe_inc_u64(channel_stat.sent);
+                channel_stat.sent = csent;
+                if of { channel_stat.sent = 0; }
                 match tracking.status {
-                    NotificationDeliveryStatus::Delivered => channel_stat.delivered += 1,
-                    NotificationDeliveryStatus::Failed => channel_stat.failed += 1,
+                    NotificationDeliveryStatus::Delivered => {
+                        let (cdel, of2) = safe_inc_u64(channel_stat.delivered);
+                        channel_stat.delivered = cdel;
+                        if of2 { channel_stat.delivered = 0; }
+                    }
+                    NotificationDeliveryStatus::Failed => {
+                        let (cfail, of3) = safe_inc_u64(channel_stat.failed);
+                        channel_stat.failed = cfail;
+                        if of3 { channel_stat.failed = 0; }
+                    }
                     _ => {}
                 }
                 analytics.channel_stats.set(channel_key, channel_stat);
@@ -583,11 +610,32 @@ impl NotificationManager {
             .instance()
             .get(&NOTIFICATION_COUNTER)
             .unwrap_or(0u64);
-        let next_id = counter + 1;
+        let (next_id, overflowed) = safe_inc_u64(counter);
+        // if overflow, reset counter to zero and return 1 as next id
+        let final_id = if overflowed { 1u64 } else { next_id };
         env.storage()
             .instance()
-            .set(&NOTIFICATION_COUNTER, &next_id);
-        next_id
+            .set(&NOTIFICATION_COUNTER, &final_id);
+        final_id
+    }
+
+    /// Reset notification counters and tracking (admin only)
+    pub fn reset_counters(env: &Env, admin: Address) -> Result<(), BridgeError> {
+        admin.require_auth();
+        // Reset ID counter
+        env.storage().instance().set(&NOTIFICATION_COUNTER, &0u64);
+        // Clear logs and tracking maps
+        let empty_logs: Map<u64, NotificationContent> = Map::new(env);
+        env.storage().instance().set(&NOTIFICATION_LOGS, &empty_logs);
+        let empty_tracking: Map<u64, NotificationTracking> = Map::new(env);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_TRACKING, &empty_tracking);
+        let empty_scheduled: Map<u64, NotificationSchedule> = Map::new(env);
+        env.storage()
+            .instance()
+            .set(&SCHEDULED_NOTIFICATIONS, &empty_scheduled);
+        Ok(())
     }
 
     fn get_user_settings(env: &Env, user: Address) -> UserNotificationSettings {

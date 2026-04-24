@@ -101,6 +101,7 @@ mod emergency;
 mod errors;
 // mod escrow; // Removed - broken implementation
 mod escrow_analytics;
+mod safe_stats;
 mod event_query;
 mod events;
 mod insurance;
