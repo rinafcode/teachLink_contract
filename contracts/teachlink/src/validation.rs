@@ -242,32 +242,32 @@ impl TimeValidator {
     /// Validates if a timestamp is within the global sanity bound (10 years)
     pub fn validate_global_bounds(env: &Env, timestamp: u64) -> ValidationResult<()> {
         let current_time = env.ledger().timestamp();
-        
+
         // Prevent far-future timestamps
         if timestamp > current_time + config::MAX_TIMEOUT_SECONDS {
             return Err(ValidationError::InvalidTimestamp);
         }
-        
+
         // Prevent far-past timestamps (saturating sub for safety)
         if timestamp < current_time.saturating_sub(config::MAX_TIMEOUT_SECONDS) {
             return Err(ValidationError::InvalidTimestamp);
         }
-        
+
         Ok(())
     }
 
     /// Validates if a timestamp is within operational bounds (90 days)
     pub fn validate_operational_bounds(env: &Env, timestamp: u64) -> ValidationResult<()> {
         let current_time = env.ledger().timestamp();
-        
+
         if timestamp > current_time + config::MAX_OPERATIONAL_TIMEOUT {
             return Err(ValidationError::InvalidTimestamp);
         }
-        
+
         if timestamp < current_time.saturating_sub(config::MAX_OPERATIONAL_TIMEOUT) {
             return Err(ValidationError::InvalidTimestamp);
         }
-        
+
         Ok(())
     }
 
@@ -287,13 +287,13 @@ impl TimeValidator {
         } else {
             current_time - external_timestamp
         };
-        
+
         if diff > config::MAX_TIME_SKEW {
             return Err(ValidationError::TimestampSkewExceeded);
         }
         Ok(())
     }
-    
+
     /// Validates that a deadline is actually in the future
     pub fn validate_is_future(env: &Env, deadline: u64) -> ValidationResult<()> {
         if deadline <= env.ledger().timestamp() {
