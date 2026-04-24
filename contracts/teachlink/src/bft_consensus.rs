@@ -594,8 +594,7 @@ impl BFTConsensus {
     /// and trigger rotation if so.
     pub fn maybe_rotate(env: &Env) -> Result<bool, BridgeError> {
         let state = Self::get_consensus_state(env);
-        if state.last_consensus_round > 0
-            && state.last_consensus_round % ROTATION_EPOCH_ROUNDS == 0
+        if state.last_consensus_round > 0 && state.last_consensus_round % ROTATION_EPOCH_ROUNDS == 0
         {
             Self::rotate_validators(env)?;
             return Ok(true);
@@ -754,6 +753,9 @@ mod tests {
             infos.get(validator.clone()).unwrap().reputation_score
         });
 
-        assert!(after_rep > initial_rep, "reputation should increase after voting");
+        assert!(
+            after_rep > initial_rep,
+            "reputation should increase after voting"
+        );
     }
 }
