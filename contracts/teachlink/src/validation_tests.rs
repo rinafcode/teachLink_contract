@@ -636,4 +636,47 @@ mod tests {
         );
         assert!(result.is_ok());
     }
+
+    #[test]
+    fn test_rbac_admin_has_all_roles() {
+        use crate::access_control::AccessControlManager;
+        use crate::types::AccessRole;
+        use crate::storage::ADMIN;
+        let env = Env::default();
+        let admin = Address::generate(&env);
+        
+        env.storage().instance().set(&ADMIN, &admin);
+        
+        assert!(AccessControlManager::has_role(&env, &admin, AccessRole::BridgeOperator));
+        assert!(AccessControlManager::has_role(&env, &admin, AccessRole::EmergencyManager));
+    }
+
+    #[test]
+    #[should_panic(expected = "Unauthorized: Missing required role")]
+    fn test_rbac_unauthorized_fails() {
+        use crate::access_control::AccessControlManager;
+        use crate::types::AccessRole;
+        let env = Env::default();
+        let user = Address::generate(&env);
+        
+        // Mock auth for user but they don't have the role
+        user.require_auth(); 
+        AccessControlManager::check_role(&env, &user, AccessRole::BridgeOperator);
+    }
+
+    #[test]
+    fn test_rbac_grant_role() {
+        use crate::access_control::AccessControlManager;
+        use crate::types::AccessRole;
+        use crate::storage::ADMIN;
+        let env = Env::default();
+        let admin = Address::generate(&env);
+        let user = Address::generate(&env);
+        
+        env.storage().instance().set(&ADMIN, &admin);
+        admin.require_auth();
+        
+        assert!(AccessControlManager::grant_role(&env, admin, user.clone(), AccessRole::BridgeOperator).is_ok());
+        assert!(AccessControlManager::has_role(&env, &user, AccessRole::BridgeOperator));
+    }
 }
