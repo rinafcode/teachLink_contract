@@ -235,8 +235,8 @@ mod tests {
         env.as_contract(&contract_id, || {
             let admin = Address::generate(&env);
 
-            // Initialize upgrade system
-            ContractUpgrader::initialize(&env).unwrap();
+            // Note: Contract initialization already calls ContractUpgrader::initialize
+            // So we skip explicit initialization here
 
             // Verify initial version
             assert_eq!(ContractUpgrader::get_current_version(&env), 1);
@@ -280,7 +280,7 @@ mod tests {
         env.as_contract(&contract_id, || {
             let admin = Address::generate(&env);
 
-            ContractUpgrader::initialize(&env).unwrap();
+            // Note: Contract initialization already calls ContractUpgrader::initialize
 
             // Prepare and execute upgrade
             let state_hash = Bytes::from_slice(&env, b"state_hash");
