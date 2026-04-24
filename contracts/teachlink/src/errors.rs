@@ -61,6 +61,7 @@ pub enum BridgeError {
     IncompatibleInterfaceVersion = 145,
     InvalidInterfaceVersionRange = 146,
     ReentrancyDetected = 147,
+    InvalidTimestamp = 148,
 }
 
 /// Escrow module errors
@@ -96,6 +97,7 @@ pub enum EscrowError {
     InvalidArbitrator = 224,
     DepositorCannotBeBeneficiary = 225,
     ReentrancyDetected = 227,
+    InvalidTimestamp = 228,
 }
 
 /// Rewards module errors

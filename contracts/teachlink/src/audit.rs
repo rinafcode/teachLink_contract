@@ -38,6 +38,10 @@ impl AuditManager {
 
         audit_counter += 1;
 
+        // Validate timestamp sanity
+        crate::validation::TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+            .map_err(|_| BridgeError::InvalidTimestamp)?;
+
         // Create audit record
         let record = AuditRecord {
             record_id: audit_counter,
