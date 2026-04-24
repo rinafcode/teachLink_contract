@@ -35,7 +35,7 @@ jobs:
       - name: Run integration tests
         run: cargo test --workspace --test cross_chain_integration
 
-  regression:
+  performance:
     runs-on: ubuntu-latest
     needs: rust
     steps:
@@ -43,6 +43,8 @@ jobs:
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32v1-none
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -52,37 +54,29 @@ jobs:
         with:
           tool: cargo-nextest
 
-      - name: Run regression tests (JUnit XML)
+      - name: Run tests with timing
         run: |
-          cargo nextest run --workspace --lib \
-            --profile ci \
-            2>&1 | tee test-output.txt
+          START=$(date +%s)
+          cargo nextest run --workspace --lib --profile ci 2>&1 | tee test-output.txt
+          END=$(date +%s)
+          echo "unit_test_duration=$((END - START))" >> "$GITHUB_ENV"
+
+      - name: Build WASM (release)
+        run: cargo build --target wasm32v1-none --release -p teachlink-contract
+
+      - name: Capture performance baseline
+        run: bash scripts/perf-baseline.sh
 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: ci-test-results
           path: target/nextest/ci/junit.xml
 
-  performance:
-    runs-on: ubuntu-latest
-    needs: rust
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
-
-      - name: Run performance baseline check
-        run: bash scripts/perf-baseline.sh
-
-      - name: Upload performance report
+      - name: Upload performance baseline
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: performance-report
-          path: perf-report.json
+          name: ci-performance-baseline
+          path: baseline_current.json
