@@ -434,7 +434,7 @@ impl Bridge {
         // Usually, the contract entry point (in lib.rs) handles the caller.
         // If this is an internal implementation, it should take the caller.
         let _caller = validator.clone();
-        
+
         // Actually, let's look at the original code:
         // let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
         // admin.require_auth();
