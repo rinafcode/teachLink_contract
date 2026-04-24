@@ -365,20 +365,20 @@ mod tests {
         let env = Env::default();
         env.mock_all_auths();
         let contract_id = env.register(TeachLinkBridge, ());
-    
+
         env.as_contract(&contract_id, || {
             let funder = Address::generate(&env);
             let token = Address::generate(&env);
             let admin = Address::generate(&env);
-                
+
             // Initialize rewards
             Rewards::initialize_rewards(&env, token.clone(), admin.clone()).unwrap();
-                
+
             // Test with max allowed amount
             let max_amount = super::MAX_REWARD_AMOUNT;
             let result = Rewards::fund_reward_pool(&env, funder.clone(), max_amount);
             assert!(result.is_ok());
-                
+
             // Test that a very large amount fails validation
             // We can't test MAX_REWARD_AMOUNT + 1 directly due to overflow
             let large_amount = i128::MAX;
