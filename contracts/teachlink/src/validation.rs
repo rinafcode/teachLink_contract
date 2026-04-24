@@ -14,7 +14,9 @@ pub mod config {
     pub const MAX_CHAIN_ID: u32 = 999999;
     pub const MAX_ESCROW_DESCRIPTION_LENGTH: u32 = 1000;
     pub const MIN_TIMEOUT_SECONDS: u64 = 60; // 1 minute minimum
-    pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum
+    pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum (global sanity bound)
+    pub const MAX_OPERATIONAL_TIMEOUT: u64 = 3600 * 24 * 90; // 90 days (for bridge/swaps)
+    pub const MAX_TIME_SKEW: u64 = 900; // 15 minutes tolerance
     pub const MAX_PAYLOAD_SIZE: u32 = 4096; // 4 KB max packet payload
     /// Bridge-specific amount bounds
     pub const MIN_BRIDGE_AMOUNT: i128 = 1;
@@ -36,6 +38,9 @@ pub enum ValidationError {
     DuplicateSigners,
     InvalidBytesLength,
     InvalidCrossChainData,
+    InvalidTimestamp,
+    TimestampNotMonotonic,
+    TimestampSkewExceeded,
 }
 
 /// Result type for validation operations
@@ -230,6 +235,74 @@ impl BytesValidator {
     }
 }
 
+/// Time validation utilities
+pub struct TimeValidator;
+
+impl TimeValidator {
+    /// Validates if a timestamp is within the global sanity bound (10 years)
+    pub fn validate_global_bounds(env: &Env, timestamp: u64) -> ValidationResult<()> {
+        let current_time = env.ledger().timestamp();
+
+        // Prevent far-future timestamps
+        if timestamp > current_time + config::MAX_TIMEOUT_SECONDS {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        // Prevent far-past timestamps (saturating sub for safety)
+        if timestamp < current_time.saturating_sub(config::MAX_TIMEOUT_SECONDS) {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        Ok(())
+    }
+
+    /// Validates if a timestamp is within operational bounds (90 days)
+    pub fn validate_operational_bounds(env: &Env, timestamp: u64) -> ValidationResult<()> {
+        let current_time = env.ledger().timestamp();
+
+        if timestamp > current_time + config::MAX_OPERATIONAL_TIMEOUT {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        if timestamp < current_time.saturating_sub(config::MAX_OPERATIONAL_TIMEOUT) {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        Ok(())
+    }
+
+    /// Ensures that time has progressed monotonically
+    pub fn check_monotonic(last_timestamp: u64, current_timestamp: u64) -> ValidationResult<()> {
+        if current_timestamp < last_timestamp {
+            return Err(ValidationError::TimestampNotMonotonic);
+        }
+        Ok(())
+    }
+
+    /// Validates a timestamp with network skew tolerance (15 minutes)
+    pub fn validate_skew(env: &Env, external_timestamp: u64) -> ValidationResult<()> {
+        let current_time = env.ledger().timestamp();
+        let diff = if external_timestamp > current_time {
+            external_timestamp - current_time
+        } else {
+            current_time - external_timestamp
+        };
+
+        if diff > config::MAX_TIME_SKEW {
+            return Err(ValidationError::TimestampSkewExceeded);
+        }
+        Ok(())
+    }
+
+    /// Validates that a deadline is actually in the future
+    pub fn validate_is_future(env: &Env, deadline: u64) -> ValidationResult<()> {
+        if deadline <= env.ledger().timestamp() {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+        Ok(())
+    }
+}
+
 /// Cross-chain data validation utilities
 pub struct CrossChainValidator;
 
@@ -307,10 +380,23 @@ impl EscrowValidator {
         }
 
         // Validate time constraints
+        if let Some(release) = release_time {
+            TimeValidator::validate_global_bounds(env, release)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
+            TimeValidator::validate_is_future(env, release)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
+        }
+
+        if let Some(refund) = refund_time {
+            TimeValidator::validate_global_bounds(env, refund)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
+            TimeValidator::validate_is_future(env, refund)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
+        }
+
         if let (Some(release), Some(refund)) = (release_time, refund_time) {
-            if refund <= release {
-                return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
-            }
+            TimeValidator::check_monotonic(release, refund)
+                .map_err(|_| EscrowError::RefundTimeMustBeAfterReleaseTime)?;
         }
 
         // Check for duplicate signers
@@ -492,6 +578,10 @@ impl BridgeValidator {
         InputSanitizer::sanitize_destination_address(destination_address)
             .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
 
+        // Validate current timestamp sanity
+        TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+            .map_err(|_| crate::errors::BridgeError::InvalidTimestamp)?;
+
         Ok(())
     }
 
@@ -516,6 +606,10 @@ impl BridgeValidator {
             &message.recipient,
         )
         .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
+
+        // Validate cross-chain message timestamp sanity (use current ledger time)
+        TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+            .map_err(|_| crate::errors::BridgeError::InvalidTimestamp)?;
 
         Ok(())
     }
