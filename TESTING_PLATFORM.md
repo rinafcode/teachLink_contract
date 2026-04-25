@@ -61,36 +61,43 @@ cargo audit
 ## Features
 
 ### 1. Automated Test Generation
+
 - Auto-generate unit tests from contract interfaces
 - Property-based testing with proptest
 - Fuzz testing support
 - Snapshot testing
 
 ### 2. Performance Testing
+
 - Criterion benchmarks for all operations
 - Load testing with configurable scenarios
 - Latency measurement (p50, p95, p99)
 - Gas optimization analysis
 
 ### 3. Security Testing
+
 - Vulnerability scanning (reentrancy, overflow, access control)
 - Dependency audit
 - Attack vector testing
 - Security score calculation
 
 ### 4. Test Data Management
+
 - Reusable test fixtures
 - Mock data generators
 - Test environment isolation
 - Deterministic test data
+- Shared TeachLink test helpers in `contracts/teachlink/tests/common/mod.rs` for consistent environment setup, bridge registration, and binary data creation
 
 ### 5. Analytics & Reporting
+
 - Code coverage tracking
 - Test execution metrics
 - Quality score calculation
 - Trend analysis
 
 ### 6. CI/CD Integration
+
 - GitHub Actions workflows
 - Automated test execution
 - Coverage reporting
@@ -99,21 +106,25 @@ cargo audit
 ## Test Categories
 
 ### Unit Tests (32 passing)
+
 - Insurance contract: 13 tests
 - Governance contract: 19 tests
 - Located in `contracts/*/tests/`
 
 ### Integration Tests
+
 - Full flow testing
 - Cross-contract interactions
 - Located in `testing/integration/`
 
 ### Property Tests
+
 - Mathematical invariants
 - Input validation
 - Located in `testing/property/`
 
 ### Performance Tests
+
 - Bridge operations benchmarks
 - Escrow operations benchmarks
 - Located in `benches/`
@@ -121,23 +132,28 @@ cargo audit
 ## Configuration
 
 ### Load Testing
+
 Edit `testing/load/load_test_config.toml`:
+
 - Concurrent users
 - Test duration
 - Operation weights
 - Performance thresholds
 
 ### Coverage
+
 Minimum coverage target: 80%
 Current coverage: Check `testing/reports/coverage/`
 
 ### Security
+
 Security score target: 90%
 Run: `cargo audit` for dependency vulnerabilities
 
 ## CI/CD Pipeline
 
 ### On Push/PR
+
 1. Code formatting check
 2. Clippy linting
 3. Unit tests
@@ -146,6 +162,7 @@ Run: `cargo audit` for dependency vulnerabilities
 6. Coverage report
 
 ### Nightly
+
 1. Full test suite
 2. Performance benchmarks
 3. Load testing
@@ -154,12 +171,14 @@ Run: `cargo audit` for dependency vulnerabilities
 ## Quality Metrics
 
 ### Current Status
+
 - Total tests: 32 passing
 - Code coverage: TBD
 - Security score: TBD
 - Performance: TBD
 
 ### Targets
+
 - Test coverage: >80%
 - Security score: >90%
 - Bridge latency: <100ms
@@ -168,6 +187,7 @@ Run: `cargo audit` for dependency vulnerabilities
 ## Usage Examples
 
 ### Generate Tests
+
 ```rust
 use testing::automated::TestGenerator;
 
@@ -177,12 +197,14 @@ generator.write_tests(Path::new("tests/generated"))?;
 ```
 
 ### Run Benchmarks
+
 ```bash
 cargo bench --bench bridge_operations
 cargo bench --bench escrow_operations -- --save-baseline main
 ```
 
 ### Security Scan
+
 ```rust
 use testing::security::VulnerabilityScanner;
 
@@ -192,6 +214,7 @@ println!("{}", scanner.generate_report());
 ```
 
 ### Load Testing
+
 ```bash
 # Configure in testing/load/load_test_config.toml
 # Run load test
@@ -201,6 +224,7 @@ cargo test --test load_test -- --ignored
 ## Contributing
 
 When adding new features:
+
 1. Write unit tests
 2. Add integration tests
 3. Update benchmarks
@@ -210,6 +234,7 @@ When adding new features:
 ## Reports
 
 Generated reports location:
+
 - Coverage: `testing/reports/coverage/`
 - Benchmarks: `target/criterion/`
 - Security: `testing/reports/security_audit.json`
