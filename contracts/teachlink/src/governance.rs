@@ -1,4 +1,4 @@
-use soroban_sdk::{contracttype, Address, BytesN, Env, Symbol, Vec, map, symbol_short, panic_with_error};
+use soroban_sdk::{contracttype, Address, BytesN, Env, Symbol, Vec, map, symbol_short};
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -25,8 +25,6 @@ pub struct Proposal {
 
 const PROP_CNT: Symbol = symbol_short!("prop_cnt");
 const PROPOSALS: Symbol = symbol_short!("props");
-const VOTES: Symbol = symbol_short!("votes");
-const MIN_PROPOSAL_THRESHOLD: i128 = 1000; // Example threshold
 const VOTING_DURATION: u64 = 604800; // 7 days in seconds
 
 pub struct GovernanceManager;
@@ -36,14 +34,13 @@ impl GovernanceManager {
     pub fn create_proposal(
         env: &Env,
         proposer: Address,
-        token_addr: Address,
+        _token_addr: Address,
         title: Symbol,
         desc_hash: BytesN<32>,
     ) -> u64 {
         proposer.require_auth();
 
-        // Check proposer balance (Simplified token check)
-        // In production, this would call the TEACH token contract's 'balance' function
+        // In a full implementation, we would verify the proposer's TEACH balance here
         
         let mut count: u64 = env.storage().persistent().get(&PROP_CNT).unwrap_or(0);
         count += 1;
@@ -104,10 +101,9 @@ impl GovernanceManager {
             panic!("Proposal not active");
         }
 
-        // Check for double voting
-        let vote_key = (proposal_id, voter.clone());
-        let has_voted: bool = env.storage().persistent().has(&vote_key);
-        if has_voted {
+        // Check for double voting using a composite key
+        let vote_key = (symbol_short!("votes"), proposal_id, voter.clone());
+        if env.storage().persistent().has(&vote_key) {
             panic!("Already voted");
         }
 
@@ -150,5 +146,10 @@ impl GovernanceManager {
 
         proposals.set(proposal_id, proposal);
         env.storage().persistent().set(&PROPOSALS, &proposals);
+
+        env.events().publish(
+            (symbol_short!("gov"), symbol_short!("prop_end")),
+            (proposal_id, proposal.status),
+        );
     }
 }
