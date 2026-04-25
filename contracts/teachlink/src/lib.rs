@@ -140,6 +140,7 @@ mod notification_types;
 mod performance;
 mod property_based_tests;
 mod provenance;
+mod rate_limiting;
 mod recommendation;
 mod reentrancy;
 mod reporting;
@@ -417,6 +418,17 @@ impl TeachLinkBridge {
     /// Check if consensus is reached for a proposal
     pub fn is_consensus_reached(env: Env, proposal_id: u64) -> bool {
         bft_consensus::BFTConsensus::is_consensus_reached(&env, proposal_id)
+    }
+
+    /// Rotate validators: deactivate those with low reputation or insufficient stake.
+    /// Returns the number of validators rotated out.
+    pub fn rotate_validators(env: Env) -> Result<u32, BridgeError> {
+        bft_consensus::BFTConsensus::rotate_validators(&env)
+    }
+
+    /// Trigger rotation if the current consensus round is at an epoch boundary.
+    pub fn maybe_rotate_validators(env: Env) -> Result<bool, BridgeError> {
+        bft_consensus::BFTConsensus::maybe_rotate(&env)
     }
 
     // ========== Slashing and Rewards Functions ==========
