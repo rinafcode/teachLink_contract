@@ -108,3 +108,31 @@ pub struct RiskMultiplierRanges {
     pub high_risk_min: u32,   // 61-100 risk score
     pub high_risk_max: u32,   // 30000 = 3.0x
 }
+
+
+/// Risk distribution statistics
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RiskDistribution {
+    pub low_risk_count: u64,    // 0-30
+    pub medium_risk_count: u64, // 31-60
+    pub high_risk_count: u64,   // 61-100
+    pub average_risk_score: u32,
+    pub risk_std_dev: u32,
+}
+
+/// Pool performance metrics
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct PoolPerformance {
+    pub pool_id: u64,
+    pub period_start: u64,
+    pub period_end: u64,
+    pub total_assets: i128,
+    pub premiums_earned: i128,
+    pub claims_paid: i128,
+    pub net_profit: i128,
+    pub utilization_rate: u32,
+    pub loss_ratio: u32,
+    pub roi_percentage: i32, // Basis points, can be negative
+}
