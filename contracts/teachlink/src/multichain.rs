@@ -7,6 +7,7 @@ use crate::errors::BridgeError;
 use crate::events::{AssetRegisteredEvent, ChainAddedEvent, ChainUpdatedEvent};
 use crate::storage::{ASSET_COUNTER, CHAIN_CONFIGS, MULTI_CHAIN_ASSETS, SUPPORTED_CHAINS};
 use crate::types::{ChainAssetInfo, ChainConfig, MultiChainAsset};
+use crate::validation::NumberValidator;
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
 /// Maximum number of supported chains
@@ -238,9 +239,7 @@ impl MultiChainManager {
         amount: i128,
         is_outgoing: bool,
     ) -> Result<(), BridgeError> {
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         let mut assets: Map<u64, MultiChainAsset> = env
             .storage()

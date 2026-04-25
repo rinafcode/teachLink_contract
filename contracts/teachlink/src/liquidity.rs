@@ -7,6 +7,7 @@ use crate::errors::BridgeError;
 use crate::events::{FeeUpdatedEvent, LiquidityAddedEvent, LiquidityRemovedEvent};
 use crate::storage::{FEE_STRUCTURE, LIQUIDITY_POOLS, LP_POSITIONS};
 use crate::types::{BridgeFeeStructure, LPPosition, LiquidityPool};
+use crate::validation::NumberValidator;
 use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Base fee in basis points (0.1%)
@@ -61,9 +62,7 @@ impl LiquidityManager {
     ) -> Result<u32, BridgeError> {
         provider.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get pool
         let mut pools: Map<u32, LiquidityPool> = env
@@ -131,9 +130,7 @@ impl LiquidityManager {
     ) -> Result<i128, BridgeError> {
         provider.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get pool
         let mut pools: Map<u32, LiquidityPool> = env
@@ -199,9 +196,7 @@ impl LiquidityManager {
 
     /// Lock liquidity for a bridge transaction
     pub fn lock_liquidity(env: &Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get pool
         let mut pools: Map<u32, LiquidityPool> = env
@@ -231,9 +226,7 @@ impl LiquidityManager {
 
     /// Unlock liquidity after bridge completion
     pub fn unlock_liquidity(env: &Env, chain_id: u32, amount: i128) -> Result<(), BridgeError> {
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get pool
         let mut pools: Map<u32, LiquidityPool> = env

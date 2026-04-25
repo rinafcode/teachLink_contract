@@ -12,6 +12,7 @@ use crate::storage::{
     VALIDATOR_REWARDS, VALIDATOR_STAKES,
 };
 use crate::types::{RewardType, SlashingReason, SlashingRecord, ValidatorInfo, ValidatorReward};
+use crate::validation::{NumberValidator, ValidationError};
 use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Slashing percentages (in basis points, 10000 = 100%)
@@ -35,9 +36,7 @@ impl SlashingManager {
     pub fn deposit_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get current stake
         let mut stakes: Map<Address, i128> = env
@@ -81,9 +80,7 @@ impl SlashingManager {
     pub fn withdraw_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get current stake
         let mut stakes: Map<Address, i128> = env
@@ -240,9 +237,7 @@ impl SlashingManager {
         amount: i128,
         reward_type: RewardType,
     ) -> Result<(), BridgeError> {
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Check reward pool
         let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
@@ -347,9 +342,7 @@ impl SlashingManager {
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
         funder.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         let new_balance = reward_pool + amount;
