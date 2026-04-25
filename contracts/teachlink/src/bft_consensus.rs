@@ -2,6 +2,49 @@
 //!
 //! This module implements a BFT consensus mechanism for bridge validators,
 //! ensuring that the bridge can tolerate up to f faulty validators out of 3f+1 total validators.
+//!
+//! # BFT Threshold Algorithm
+//!
+//! The Byzantine threshold (minimum votes required to approve a proposal) is
+//! computed as:
+//!
+//! ```text
+//! byzantine_threshold = floor(2 * n / 3) + 1
+//! ```
+//!
+//! where `n` is the number of active validators.  This satisfies the classic
+//! BFT requirement: a quorum of ⌈2n/3⌉ guarantees safety even when up to
+//! ⌊n/3⌋ validators are Byzantine (malicious or offline).
+//!
+//! Example: with 10 validators, threshold = (2*10/3)+1 = 7.  An attacker
+//! controlling 3 validators cannot reach quorum alone.
+//!
+//! # Proposal Lifecycle
+//!
+//! ```text
+//! create_proposal → Pending
+//!     ↓ (votes accumulate)
+//! vote_count >= byzantine_threshold → execute_proposal → Approved
+//!     ↓ (timeout reached)
+//! expires_at exceeded → Expired
+//! ```
+//!
+//! # Expiry Dual-Signal
+//!
+//! Proposals store both a wall-clock `expires_at` timestamp and a
+//! `PROPOSAL_EXPIRES_SEQ` ledger-sequence deadline.  Expiry is triggered if
+//! *either* signal indicates the deadline has passed.  This guards against
+//! networks where `ledger().timestamp()` is frozen or unreliable.
+//!
+//! # Validator Rotation
+//!
+//! Every `ROTATION_EPOCH_ROUNDS` consensus rounds, validators with
+//! `reputation_score < MIN_ACTIVE_REPUTATION` are rotated out of the active
+//! set.  Active voters receive a reputation boost to reward participation.
+//!
+//! # Spec Reference
+//! See `contracts/documentation/COLLABORATION.md` §Consensus for the
+//! governance rationale behind the rotation policy.
 
 use crate::errors::BridgeError;
 use crate::events::{
@@ -178,7 +221,24 @@ impl BFTConsensus {
         Ok(())
     }
 
-    /// Create a new bridge proposal
+    /// Create a new bridge proposal.
+    ///
+    /// Proposals represent a cross-chain message that validators must reach
+    /// consensus on before the bridge releases funds on the destination chain.
+    ///
+    /// # Expiry Dual-Signal
+    ///
+    /// Two independent expiry signals are stored:
+    /// - `expires_at`: wall-clock timestamp (`now + PROPOSAL_TIMEOUT`).
+    /// - `PROPOSAL_EXPIRES_SEQ`: ledger sequence deadline, computed via
+    ///   `ledger_time::seconds_to_ledger_delta` as a fallback for networks
+    ///   where `timestamp()` is unreliable.
+    ///
+    /// A proposal is considered expired if *either* signal is exceeded.
+    ///
+    /// # TODO
+    /// - Add a proposer field so off-chain indexers can attribute proposals
+    ///   to specific relayers for analytics and accountability.
     pub fn create_proposal(env: &Env, message: CrossChainMessage) -> Result<u64, BridgeError> {
         // Get proposal counter
         let mut proposal_counter: u64 = env
@@ -254,7 +314,29 @@ impl BFTConsensus {
         Ok(proposal_counter)
     }
 
-    /// Vote on a bridge proposal
+    /// Vote on a bridge proposal.
+    ///
+    /// # Voting Algorithm
+    ///
+    /// 1. Verify the caller is an active validator (registered and not rotated out).
+    /// 2. Check proposal expiry using the dual-signal approach (timestamp + sequence).
+    /// 3. Reject duplicate votes (one vote per validator per proposal).
+    /// 4. Record the vote; increment `vote_count` only for approvals.
+    /// 5. Update the validator's `last_activity` timestamp and ledger sequence
+    ///    to prevent false inactivity slashing.
+    /// 6. Boost the validator's reputation score for participating.
+    /// 7. If `vote_count >= required_votes`, immediately execute the proposal
+    ///    (mark as Approved and emit `ProposalExecutedEvent`).
+    ///
+    /// # Note on Rejection Votes
+    ///
+    /// Rejection votes are recorded in `proposal.votes` but do not increment
+    /// `vote_count`.  A proposal can only be approved, not explicitly rejected —
+    /// it expires if it fails to accumulate enough approvals within the timeout.
+    ///
+    /// # TODO
+    /// - Implement explicit rejection: if `reject_count > n - byzantine_threshold`,
+    ///   mark the proposal as `Rejected` early to free storage.
     pub fn vote_on_proposal(
         env: &Env,
         validator: Address,
@@ -379,7 +461,27 @@ impl BFTConsensus {
         Ok(())
     }
 
-    /// Update the consensus state based on current validators
+    /// Update the consensus state based on current validators.
+    ///
+    /// # Algorithm
+    ///
+    /// Iterates all registered validators, summing stake and counting active
+    /// entries.  Then computes the Byzantine threshold:
+    ///
+    /// ```text
+    /// byzantine_threshold = floor(2 * active_validators / 3) + 1
+    /// ```
+    ///
+    /// This is the minimum number of approving votes required for a proposal
+    /// to reach consensus.  The formula satisfies BFT safety: with `n = 3f+1`
+    /// validators, `2f+1` votes are needed, tolerating `f` Byzantine nodes.
+    ///
+    /// Called after every validator registration or unregistration to keep the
+    /// threshold in sync with the current validator set size.
+    ///
+    /// # TODO
+    /// - Weight the threshold by stake rather than validator count to make
+    ///   Sybil attacks more expensive (stake-weighted BFT).
     fn update_consensus_state(env: &Env) -> Result<(), BridgeError> {
         let validators: Map<Address, bool> = env
             .storage()

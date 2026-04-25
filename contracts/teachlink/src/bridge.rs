@@ -15,8 +15,23 @@ use crate::types::{BridgeTransaction, CrossChainMessage};
 use crate::validation::BridgeValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
+/// Bridge transaction timeout (7 days).  After this period a pending
+/// transaction can be cancelled and the locked tokens refunded.
 const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
+
+/// Maximum number of retry attempts before a bridge transaction is permanently
+/// marked as failed.  Prevents infinite retry loops consuming gas.
 const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
+
+/// Base delay between retry attempts (5 minutes).  Combined with the attempt
+/// counter this implements an exponential back-off:
+///   delay = BASE * 2^(attempt - 1)
+/// so retries are spaced at 5 min, 10 min, 20 min, 40 min, 80 min.
+///
+/// # TODO
+/// - Expose `MAX_BRIDGE_RETRY_ATTEMPTS` and `BRIDGE_RETRY_DELAY_BASE_SECONDS`
+///   as admin-configurable parameters so they can be tuned without a contract
+///   upgrade.
 const BRIDGE_RETRY_DELAY_BASE_SECONDS: u64 = 300;
 
 pub struct Bridge;
