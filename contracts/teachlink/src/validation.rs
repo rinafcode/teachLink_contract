@@ -1,4 +1,4 @@
-﻿use crate::errors::EscrowError;
+use crate::errors::EscrowError;
 use crate::types::EscrowSigner;
 use soroban_sdk::{Address, Bytes, Env, String, Vec};
 
