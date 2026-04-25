@@ -108,6 +108,7 @@ mod bridge;
 mod emergency;
 mod errors;
 mod escrow_analytics;
+mod safe_stats;
 mod event_query;
 // TODO: Fix event_tests module compilation errors (pre-existing issue)
 // mod event_tests;
