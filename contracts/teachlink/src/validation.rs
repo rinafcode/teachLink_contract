@@ -36,6 +36,8 @@ pub enum ValidationError {
     DuplicateSigners,
     InvalidBytesLength,
     InvalidCrossChainData,
+    /// String contains a character outside the allowed set.
+    InvalidCharacters,
 }
 
 /// Result type for validation operations
@@ -152,16 +154,15 @@ impl StringValidator {
         Ok(())
     }
 
-    /// Validates string contains only allowed characters
+    /// Validates string contains only allowed characters (alphanumeric + safe punctuation).
     pub fn validate_characters(string: &String) -> ValidationResult<()> {
-        // Allow alphanumeric, spaces, and basic punctuation
         let string_bytes = string.to_bytes();
         for byte in string_bytes.iter() {
-            let char = byte as char;
-            if !char.is_alphanumeric()
-                && !char.is_whitespace()
+            let ch = byte as char;
+            if !ch.is_alphanumeric()
+                && !ch.is_whitespace()
                 && !matches!(
-                    char,
+                    ch,
                     '-' | '_'
                         | '.'
                         | ','
@@ -178,17 +179,60 @@ impl StringValidator {
                         | ':'
                 )
             {
-                return Err(ValidationError::InvalidStringLength);
+                return Err(ValidationError::InvalidCharacters);
             }
         }
         Ok(())
     }
 
-    /// Comprehensive string validation
+    /// Comprehensive string validation (length + character set).
     pub fn validate(string: &String, max_length: u32) -> ValidationResult<()> {
         Self::validate_length(string, max_length)?;
         Self::validate_characters(string)?;
         Ok(())
+    }
+
+    /// Validate after stripping ASCII whitespace from both ends.
+    ///
+    /// Returns `InvalidStringLength` if the trimmed result is empty or exceeds
+    /// `max_length`; returns `InvalidCharacters` if forbidden bytes are present.
+    pub fn trim_and_validate(env: &Env, string: &String, max_length: u32) -> ValidationResult<String> {
+        let bytes = string.to_bytes();
+        let len = bytes.len();
+
+        if len == 0 {
+            return Err(ValidationError::InvalidStringLength);
+        }
+
+        // Find first non-whitespace index.
+        let mut start = 0u32;
+        loop {
+            if start >= len {
+                return Err(ValidationError::InvalidStringLength); // entirely whitespace
+            }
+            if !(bytes.get(start).unwrap() as char).is_ascii_whitespace() {
+                break;
+            }
+            start += 1;
+        }
+
+        // Find last non-whitespace index.
+        let mut end = len - 1;
+        while end > start && (bytes.get(end).unwrap() as char).is_ascii_whitespace() {
+            end -= 1;
+        }
+
+        // Build trimmed Bytes by copying the [start, end] range.
+        let mut trimmed_bytes = Bytes::new(env);
+        let mut i = start;
+        while i <= end {
+            trimmed_bytes.push_back(bytes.get(i).unwrap());
+            i += 1;
+        }
+
+        let trimmed = String::from_bytes(env, &trimmed_bytes);
+        Self::validate(&trimmed, max_length)?;
+        Ok(trimmed)
     }
 }
 
@@ -451,6 +495,16 @@ impl InputSanitizer {
     pub fn sanitize_destination_address(bytes: &Bytes) -> ValidationResult<()> {
         BytesValidator::validate_cross_chain_address(bytes)
     }
+
+    /// Trim whitespace from `string`, then validate length and character set.
+    ///
+    /// Use this instead of calling `StringValidator::validate` directly when the
+    /// input originates from an untrusted user (description fields, reason strings,
+    /// reward-type labels, etc.) so that leading/trailing whitespace is always
+    /// stripped before the length cap is applied.
+    pub fn sanitize_string(env: &Env, string: &String, max_length: u32) -> ValidationResult<String> {
+        StringValidator::trim_and_validate(env, string, max_length)
+    }
 }
 
 /// Bridge-specific validation utilities
@@ -502,6 +556,13 @@ impl BridgeValidator {
         validator_signatures: &Vec<Address>,
         min_validators: u32,
     ) -> Result<(), crate::errors::BridgeError> {
+        // Enforce maximum validator count to prevent DoS via unbounded loop
+        #[allow(clippy::cast_possible_truncation)]
+        crate::dos_protection::check_batch_size(
+            validator_signatures.len() as u32,
+            crate::dos_protection::MAX_VALIDATORS_PER_COMPLETION,
+        )?;
+
         // Validate validator signatures count
         if validator_signatures.len() < min_validators {
             return Err(crate::errors::BridgeError::InsufficientValidatorSignatures);
@@ -538,7 +599,7 @@ impl RewardsValidator {
         NumberValidator::validate_amount(amount)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
-        StringValidator::validate(reward_type, config::MAX_STRING_LENGTH)
+        InputSanitizer::sanitize_string(env, reward_type, config::MAX_STRING_LENGTH)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
         Ok(())
