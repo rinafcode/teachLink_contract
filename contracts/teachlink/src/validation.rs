@@ -1,4 +1,4 @@
-use crate::errors::EscrowError;
+﻿use crate::errors::EscrowError;
 use crate::types::EscrowSigner;
 use soroban_sdk::{Address, Bytes, Env, String, Vec};
 
@@ -196,7 +196,11 @@ impl StringValidator {
     ///
     /// Returns `InvalidStringLength` if the trimmed result is empty or exceeds
     /// `max_length`; returns `InvalidCharacters` if forbidden bytes are present.
-    pub fn trim_and_validate(env: &Env, string: &String, max_length: u32) -> ValidationResult<String> {
+    pub fn trim_and_validate(
+        env: &Env,
+        string: &String,
+        max_length: u32,
+    ) -> ValidationResult<String> {
         let bytes = string.to_bytes();
         let len = bytes.len();
 
@@ -502,7 +506,11 @@ impl InputSanitizer {
     /// input originates from an untrusted user (description fields, reason strings,
     /// reward-type labels, etc.) so that leading/trailing whitespace is always
     /// stripped before the length cap is applied.
-    pub fn sanitize_string(env: &Env, string: &String, max_length: u32) -> ValidationResult<String> {
+    pub fn sanitize_string(
+        env: &Env,
+        string: &String,
+        max_length: u32,
+    ) -> ValidationResult<String> {
         StringValidator::trim_and_validate(env, string, max_length)
     }
 }
