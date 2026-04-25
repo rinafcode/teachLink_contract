@@ -15,8 +15,11 @@ use crate::types::{BridgeTransaction, CrossChainMessage};
 use crate::validation::BridgeValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
+/// Bridge packets are considered stale after seven days and can be cancelled.
 const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
+/// Retries are capped to keep failed transactions from being retried forever.
 const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
+/// Base delay (5 minutes) used by the exponential backoff retry schedule.
 const BRIDGE_RETRY_DELAY_BASE_SECONDS: u64 = 300;
 
 pub struct Bridge;
@@ -272,6 +275,11 @@ impl Bridge {
         })
     }
 
+    /// Mark an in-flight bridge transaction as failed and persist the failure reason.
+    ///
+    /// Assumptions:
+    /// - The `nonce` belongs to an existing bridge transaction.
+    /// - `reason` is a non-empty byte payload suitable for off-chain debugging.
     pub fn mark_bridge_failed(env: &Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
         if reason.is_empty() {
             return Err(BridgeError::InvalidInput);
@@ -286,6 +294,7 @@ impl Bridge {
         repo.retry
             .set_failure(nonce, &reason)
             .map_err(|_| BridgeError::StorageError)?;
+        // Keep an instance-level index for quick lookups by analytics/reporting components.
         let mut failures: Map<u64, Bytes> = env
             .storage()
             .instance()
@@ -305,6 +314,11 @@ impl Bridge {
         Ok(())
     }
 
+    /// Retry a failed bridge transaction while enforcing timeout and exponential backoff.
+    ///
+    /// Complex logic:
+    /// - Retry windows are computed as `base_delay * 2^retry_count`.
+    /// - A transaction cannot be retried after timeout or once max attempts are reached.
     pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
         let repo = BridgeRepository::new(env);
 
@@ -324,12 +338,14 @@ impl Bridge {
         }
 
         let last_retry_at = repo.retry.get_last_retry_time(nonce);
+        // For first retry, anchor backoff to original transaction timestamp.
         let last_retry_at = if last_retry_at == 0 {
             bridge_tx.timestamp
         } else {
             last_retry_at
         };
 
+        // Exponential backoff prevents repeated retries from overwhelming relayers.
         let backoff_multiplier = 1u64 << retry_count;
         let retry_delay = BRIDGE_RETRY_DELAY_BASE_SECONDS.saturating_mul(backoff_multiplier);
         let next_allowed_retry = last_retry_at.saturating_add(retry_delay);
@@ -417,6 +433,8 @@ impl Bridge {
         })
     }
 
+    /// Backwards-compatible alias for `cancel_bridge`.
+    /// Assumes existing integrations still call the legacy function name.
     pub fn refund_bridge_transaction(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         Self::cancel_bridge(env, nonce)
     }
@@ -426,31 +444,16 @@ impl Bridge {
     /// Add a validator (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
-        // Multi-layered authorization: Identity + Role check
-        // Wait, add_validator usually takes an admin caller.
-        // Let's assume the caller is passed or retrieved via require_auth() on the provided address.
-        // But add_validator signature usually implies adding a *new* validator.
-        // Let's check the caller's auth.
-        // Usually, the contract entry point (in lib.rs) handles the caller.
-        // If this is an internal implementation, it should take the caller.
-        let _caller = validator.clone();
-
-        // Actually, let's look at the original code:
-        // let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
-        // admin.require_auth();
-
-        // I will assume for now that we want the caller to be an authorized ValidatorManager.
-        // Since the caller isn't passed here, I'll use the one from repo.config or assume it's checked in lib.rs.
-        // Better: let's change the signature to take the admin/caller if possible,
-        // but if I can't change it easily, I'll use the one stored in repo.config as a fallback for the "current admin".
-
         let repo = BridgeRepository::new(env);
         let admin = repo
             .config
             .get_admin()
             .map_err(|_| BridgeError::NotInitialized)?;
+        // Assumption: admin account stored during initialization is the control-plane signer.
         admin.require_auth();
 
+        // Role gate is kept separate from signature auth so governance can revoke privileges
+        // without rotating the underlying admin address.
         crate::access_control::AccessControlManager::check_role(
             env,
             &admin,
@@ -517,7 +520,9 @@ impl Bridge {
         Ok(())
     }
 
-    /// Add a supported destination chain (admin only)
+    /// Add a supported destination chain (admin only).
+    ///
+    /// Assumption: `chain_id` uses the same chain registry format as off-chain relayers.
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
@@ -730,12 +735,16 @@ impl Bridge {
     }
 
     /// Get the token address
+    ///
+    /// Assumption: contract has already been initialized. This call panics otherwise.
     pub fn get_token(env: &Env) -> Address {
         let repo = BridgeRepository::new(env);
         repo.config.get_token().unwrap()
     }
 
     /// Get the admin address
+    ///
+    /// Assumption: contract has already been initialized. This call panics otherwise.
     pub fn get_admin(env: &Env) -> Address {
         let repo = BridgeRepository::new(env);
         repo.config.get_admin().unwrap()
