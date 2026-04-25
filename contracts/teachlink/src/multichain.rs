@@ -239,8 +239,7 @@ impl MultiChainManager {
         amount: i128,
         is_outgoing: bool,
     ) -> Result<(), BridgeError> {
-        NumberValidator::validate_amount(amount)
-            .map_err(|_| BridgeError::AmountMustBePositive)?;
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         let mut assets: Map<u64, MultiChainAsset> = env
             .storage()
