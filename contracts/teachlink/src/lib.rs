@@ -211,6 +211,7 @@ impl TeachLinkBridge {
     ) -> Result<(), BridgeError> {
         bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
         interface_versioning::InterfaceVersioning::initialize(&env);
+        upgrade::ContractUpgrader::initialize(&env)?;
         Ok(())
     }
 
