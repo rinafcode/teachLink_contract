@@ -1,0 +1,89 @@
+# Rust Code Formatting Configuration
+# This file configures rustfmt for consistent code formatting across the TeachLink contract project
+
+# Edition to use for formatting
+edition = "2021"
+
+# Column limit for code lines
+max_width = 100
+
+# Use small heuristics for indentation
+hard_tabs = false
+tab_spaces = 4
+
+# Normalize formatting for doc comments
+normalize_doc_attributes = true
+
+# Imports formatting
+imports_granularity = "Crate"
+reorder_imports = true
+reorder_modules = true
+
+# Function formatting
+fn_single_line = false
+where_single_line = false
+
+# Struct and enum formatting
+struct_literal_style = "Default"
+enum_discrim_align_threshold = 20
+
+# Match statement formatting
+match_arm_leading_pipes = "Never"
+match_block_trailing_comma = false
+
+# Formatting for closures
+closure_indent = "Block"
+
+# Arrow style for match arms
+match_arm_blocks = true
+
+# Force multiline formatting rules
+force_explicit_abi = true
+force_multiline_blocks = false
+
+# Comments formatting
+comment_width = 80
+normalize_comments = true
+wrap_comments = true
+
+# Chains formatting
+chain_width = 60
+
+# String formatting
+format_strings = true
+
+# Stability features
+unstable_features = true
+
+# Spaces around binops
+spaces_around_ranges = false
+
+# Newline formatting
+newline_style = "Unix"
+blank_lines_upper_bound = 1
+blank_lines_lower_bound = 0
+
+# Remove nested parentheses when possible
+remove_nested_parens = true
+
+# Space after colon in type annotations
+space_after_colon = true
+space_before_colon = false
+
+# Trailing comma in tuples, arrays, and function arguments
+trailing_comma = "Vertical"
+
+# Use field init shorthand
+use_field_init_shorthand = true
+use_try_shorthand = true
+
+# Fn args density
+fn_args_layout = "Tall"
+
+# Module resolution
+use_small_heuristics = "Default"
+
+# Other formatting options
+format_code_in_doc_comments = true
+format_macro_bodies = true
+format_macro_matchers = true

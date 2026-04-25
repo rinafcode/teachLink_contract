@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  rust:
+  quality:
+    name: Code Quality & Format Checks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,7 +16,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32v1-none
+          targets: wasm32-unknown-unknown
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -26,8 +27,24 @@ jobs:
       - name: Run clippy linter
         run: cargo clippy --workspace --all-features -- -D warnings
 
+  build-and-test:
+    name: Build & Test
+    needs: quality
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32-unknown-unknown
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
       - name: Build WASM (release)
-        run: cargo build --target wasm32v1-none --release
+        run: cargo build --target wasm32-unknown-unknown --release
 
       - name: Run unit tests
         run: cargo test --workspace --lib

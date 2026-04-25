@@ -1,0 +1,98 @@
+#!/bin/bash
+# Pre-commit hook for TeachLink contract
+# Runs formatting and linting checks before allowing commits
+# Install: cp scripts/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
+
+set -e
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+echo -e "${YELLOW}Running pre-commit checks...${NC}\n"
+
+# Check if we're in the right directory
+if [ ! -f "Cargo.toml" ]; then
+    echo -e "${RED}Error: Cargo.toml not found. Run from workspace root.${NC}"
+    exit 1
+fi
+
+FAILED=0
+
+# 1. Check code formatting
+echo -e "${YELLOW}1. Checking code formatting with rustfmt...${NC}"
+if cargo fmt --all -- --check > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Code formatting check passed${NC}\n"
+else
+    echo -e "${RED}✗ Code formatting failed. Run: cargo fmt --all${NC}\n"
+    FAILED=1
+fi
+
+# 2. Run clippy linter
+echo -e "${YELLOW}2. Running clippy linter...${NC}"
+if cargo clippy --workspace --all-features -- -D warnings > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Clippy check passed${NC}\n"
+else
+    echo -e "${RED}✗ Clippy check failed. See errors above.${NC}\n"
+    FAILED=1
+fi
+
+# 3. Check for merge conflicts
+echo -e "${YELLOW}3. Checking for merge conflicts...${NC}"
+if ! git diff --cached | grep -q "^<<<<<<< HEAD"; then
+    echo -e "${GREEN}✓ No merge conflicts detected${NC}\n"
+else
+    echo -e "${RED}✗ Merge conflict markers found${NC}\n"
+    FAILED=1
+fi
+
+# 4. Check for debug prints (println!, dbg!, etc.)
+echo -e "${YELLOW}4. Checking for debug statements...${NC}"
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.rs$' || true)
+if [ -z "$STAGED_FILES" ]; then
+    echo -e "${GREEN}✓ No Rust files staged (skipping debug check)${NC}\n"
+else
+    if echo "$STAGED_FILES" | xargs grep -l "println!\|dbg!\|eprintln!" > /dev/null 2>&1; then
+        echo -e "${YELLOW}⚠ Debug statements found (consider removing before commit)${NC}\n"
+    else
+        echo -e "${GREEN}✓ No debug statements found${NC}\n"
+    fi
+fi
+
+# 5. Check file permissions on scripts
+echo -e "${YELLOW}5. Checking script permissions...${NC}"
+SCRIPT_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.sh$' || true)
+if [ -n "$SCRIPT_FILES" ]; then
+    for script in $SCRIPT_FILES; do
+        if [ ! -x "$script" ]; then
+            echo -e "${YELLOW}⚠ Warning: $script is not executable${NC}"
+            chmod +x "$script"
+        fi
+    done
+fi
+echo -e "${GREEN}✓ Script permissions checked${NC}\n"
+
+# 6. Validate Cargo.toml files
+echo -e "${YELLOW}6. Validating Cargo.toml files...${NC}"
+if cargo check --message-format=short > /dev/null 2>&1; then
+    echo -e "${GREEN}✓ Cargo.toml validation passed${NC}\n"
+else
+    echo -e "${RED}✗ Cargo.toml validation failed${NC}\n"
+    FAILED=1
+fi
+
+# Final result
+if [ $FAILED -eq 0 ]; then
+    echo -e "${GREEN}═══════════════════════════════════════${NC}"
+    echo -e "${GREEN}✓ All pre-commit checks passed!${NC}"
+    echo -e "${GREEN}═══════════════════════════════════════${NC}"
+    exit 0
+else
+    echo -e "${RED}═══════════════════════════════════════${NC}"
+    echo -e "${RED}✗ Pre-commit checks failed!${NC}"
+    echo -e "${RED}═══════════════════════════════════════${NC}"
+    echo -e "${RED}Fix the errors above and run: git commit${NC}"
+    exit 1
+fi

@@ -1,0 +1,120 @@
+# Pre-commit hooks configuration for TeachLink contract
+# Install with: pre-commit install
+# Update hooks with: pre-commit autoupdate
+# Run manually with: pre-commit run --all-files
+
+repos:
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+        stages: [commit]
+
+      - id: end-of-file-fixer
+        name: Fix end of file
+        stages: [commit]
+
+      - id: check-yaml
+        name: Check YAML syntax
+        args: [--unsafe]
+        stages: [commit]
+
+      - id: check-toml
+        name: Check TOML syntax
+        stages: [commit]
+
+      - id: check-json
+        name: Check JSON syntax
+        stages: [commit]
+
+      - id: check-merge-conflict
+        name: Check for merge conflicts
+        stages: [commit]
+
+      - id: check-case-conflict
+        name: Check for case conflicts
+        stages: [commit]
+
+      - id: detect-private-key
+        name: Detect private keys
+        stages: [commit]
+
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        args: [--fix=lf]
+        stages: [commit]
+
+  # Rust formatting with rustfmt
+  - repo: https://github.com/doublify/pre-commit-rust
+    rev: v1.0
+    hooks:
+      - id: fmt
+        name: Rustfmt
+        entry: bash -c 'cargo fmt --all -- --check || (cargo fmt --all && exit 1)'
+        language: system
+        types: [rust]
+        pass_filenames: false
+        stages: [commit]
+
+      # Rust linting with clippy
+      - id: clippy
+        name: Clippy
+        entry: bash -c 'cargo clippy --workspace --all-features -- -D warnings'
+        language: system
+        types: [rust]
+        pass_filenames: false
+        stages: [commit]
+
+  # Security checks
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        name: Detect secrets
+        args: [--baseline, .secrets.baseline]
+        stages: [commit]
+
+  # Markdown linting
+  - repo: https://github.com/igorshubovych/markdownlint-cli
+    rev: v0.35.0
+    hooks:
+      - id: markdownlint
+        name: Markdown lint
+        stages: [commit]
+
+  # Spell checking for documentation
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.6
+    hooks:
+      - id: codespell
+        name: Codespell (spell checker)
+        args: [--ignore-words-list=crate, nd, sav]
+        stages: [commit]
+        exclude: |
+          (?x)^(
+            Cargo.lock|
+            gas_baseline.json|
+            gas_thresholds.json
+          )$
+
+# Configuration for all hooks
+default_language_version:
+  rust: stable
+
+# Files to exclude
+exclude: |
+  (?x)^(
+    \.git/|
+    target/|
+    Cargo.lock|
+    \.vscode/|
+    \.idea/|
+    node_modules/|
+    build/|
+    dist/
+  )$
+
+# Default stages
+default_stages: [commit]
