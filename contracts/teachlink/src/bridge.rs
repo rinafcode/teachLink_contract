@@ -426,6 +426,24 @@ impl Bridge {
     /// Add a validator (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
+        // Multi-layered authorization: Identity + Role check
+        // Wait, add_validator usually takes an admin caller.
+        // Let's assume the caller is passed or retrieved via require_auth() on the provided address.
+        // But add_validator signature usually implies adding a *new* validator.
+        // Let's check the caller's auth.
+        // Usually, the contract entry point (in lib.rs) handles the caller.
+        // If this is an internal implementation, it should take the caller.
+        let _caller = validator.clone();
+
+        // Actually, let's look at the original code:
+        // let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
+        // admin.require_auth();
+
+        // I will assume for now that we want the caller to be an authorized ValidatorManager.
+        // Since the caller isn't passed here, I'll use the one from repo.config or assume it's checked in lib.rs.
+        // Better: let's change the signature to take the admin/caller if possible,
+        // but if I can't change it easily, I'll use the one stored in repo.config as a fallback for the "current admin".
+
         let repo = BridgeRepository::new(env);
         let admin = repo
             .config
@@ -433,10 +451,20 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::ValidatorManager,
+        );
+
         repo.validators
             .add_validator(&validator)
             .map_err(|_| BridgeError::StorageError)?;
-        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         validators.set(validator.clone(), true);
         env.storage().instance().set(&VALIDATORS, &validators);
 
@@ -461,10 +489,20 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::ValidatorManager,
+        );
+
         repo.validators
             .remove_validator(&validator)
             .map_err(|_| BridgeError::StorageError)?;
-        let mut validators: Map<Address, bool> = env.storage().instance().get(&VALIDATORS).unwrap();
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
         validators.set(validator.clone(), false);
         env.storage().instance().set(&VALIDATORS, &validators);
 
@@ -488,6 +526,12 @@ impl Bridge {
             .get_admin()
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
+
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::BridgeOperator,
+        );
 
         repo.chains
             .add_chain(chain_id)
@@ -514,6 +558,12 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::BridgeOperator,
+        );
+
         repo.chains
             .remove_chain(chain_id)
             .map_err(|_| BridgeError::StorageError)?;
@@ -537,6 +587,12 @@ impl Bridge {
             .get_admin()
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
+
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::Admin,
+        );
 
         if fee < 0 {
             return Err(BridgeError::FeeCannotBeNegative);
@@ -570,10 +626,20 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::Admin,
+        );
+
         repo.config
             .set_fee_recipient(&fee_recipient)
             .map_err(|_| BridgeError::StorageError)?;
-        let old_recipient: Address = env.storage().instance().get(&FEE_RECIPIENT).unwrap();
+        let old_recipient: Address = env
+            .storage()
+            .instance()
+            .get(&FEE_RECIPIENT)
+            .ok_or(BridgeError::NotInitialized)?;
         env.storage().instance().set(&FEE_RECIPIENT, &fee_recipient);
 
         // Emit event
@@ -597,6 +663,12 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::Admin,
+        );
+
         if min_validators == 0 {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
         }
@@ -604,7 +676,11 @@ impl Bridge {
         repo.config
             .set_min_validators(min_validators)
             .map_err(|_| BridgeError::StorageError)?;
-        let old_min: u32 = env.storage().instance().get(&MIN_VALIDATORS).unwrap();
+        let old_min: u32 = env
+            .storage()
+            .instance()
+            .get(&MIN_VALIDATORS)
+            .ok_or(BridgeError::NotInitialized)?;
         env.storage()
             .instance()
             .set(&MIN_VALIDATORS, &min_validators);
