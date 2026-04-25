@@ -1,4 +1,4 @@
-﻿//! Emergency Pause and Recovery Module
+﻿﻿//! Emergency Pause and Recovery Module
 //!
 //! This module implements circuit breaker functionality and emergency controls
 //! to protect the bridge during critical situations.
@@ -131,7 +131,10 @@ impl EmergencyManager {
 
         #[allow(clippy::cast_possible_truncation)]
         let batch_len = chain_ids.len() as u32;
-        crate::dos_protection::check_batch_size(batch_len, crate::dos_protection::MAX_CHAIN_BATCH_SIZE)?;
+        crate::dos_protection::check_batch_size(
+            batch_len,
+            crate::dos_protection::MAX_CHAIN_BATCH_SIZE,
+        )?;
         crate::dos_protection::check_instruction_budget(
             batch_len,
             crate::dos_protection::INSTRUCTIONS_PER_CHAIN_OP,
@@ -178,7 +181,10 @@ impl EmergencyManager {
 
         #[allow(clippy::cast_possible_truncation)]
         let batch_len = chain_ids.len() as u32;
-        crate::dos_protection::check_batch_size(batch_len, crate::dos_protection::MAX_CHAIN_BATCH_SIZE)?;
+        crate::dos_protection::check_batch_size(
+            batch_len,
+            crate::dos_protection::MAX_CHAIN_BATCH_SIZE,
+        )?;
         crate::dos_protection::check_instruction_budget(
             batch_len,
             crate::dos_protection::INSTRUCTIONS_PER_CHAIN_OP,
