@@ -94,3 +94,17 @@ pub enum DataKey {
     GovernanceQuorum,
     VotingPeriod,
 }
+
+
+
+/// Risk multiplier ranges based on risk scores
+#[contracttype]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct RiskMultiplierRanges {
+    pub low_risk_min: u32,    // 0-30 risk score
+    pub low_risk_max: u32,    // 10000 = 1.0x
+    pub medium_risk_min: u32, // 31-60 risk score
+    pub medium_risk_max: u32, // 15000 = 1.5x
+    pub high_risk_min: u32,   // 61-100 risk score
+    pub high_risk_max: u32,   // 30000 = 3.0x
+}
