@@ -141,8 +141,6 @@ pub fn check_admin_rate_limit(env: &Env, admin: &Address) -> Result<(), BridgeEr
     }
 
     limits.set(admin.clone(), now);
-    env.storage()
-        .instance()
-        .set(&ADMIN_RATE_LIMIT_KEY, &limits);
+    env.storage().instance().set(&ADMIN_RATE_LIMIT_KEY, &limits);
     Ok(())
 }
