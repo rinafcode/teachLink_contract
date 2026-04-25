@@ -1,6 +1,33 @@
 //! TeachLink Contract Types
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
+//!
+//! # Type Categories
+//!
+//! - **Versioning** – `ContractSemVer`, `InterfaceVersionStatus`: semantic
+//!   versioning for contract interface compatibility checks.
+//! - **Chain Configuration** – `ChainConfig`, `MultiChainAsset`, `ChainAssetInfo`:
+//!   multi-chain bridge topology and asset mappings.
+//! - **BFT Consensus** – `ValidatorInfo`, `BridgeProposal`, `ConsensusState`:
+//!   validator registry and proposal voting state.
+//! - **Bridge** – `BridgeTransaction`, `CrossChainMessage`, `CrossChainPacket`:
+//!   cross-chain transfer lifecycle data.
+//! - **Liquidity** – `LiquidityPool`, `LPPosition`, `BridgeFeeStructure`:
+//!   AMM pool state and fee configuration.
+//! - **Escrow** – `Escrow`, `EscrowSigner`, `EscrowParameters`: multi-sig
+//!   escrow with dispute resolution.
+//! - **Tokenization** – `ContentToken`, `ContentMetadata`, `ProvenanceRecord`:
+//!   educational content NFTs and ownership history.
+//! - **Reputation** – `UserReputation`: participation, completion, and
+//!   contribution quality scores.
+//! - **Notifications** – `NotificationTemplate`, `NotificationTracking`,
+//!   `UserNotificationSettings`: multi-channel notification system.
+//!
+//! # Arithmetic Safety
+//!
+//! `ContractSemVer` comparison uses tuple ordering to avoid multi-field
+//! conditional chains.  All monetary fields use `i128` to match Soroban's
+//! native token amount type and avoid implicit truncation.
 
 use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, Symbol, Vec};
 
@@ -27,11 +54,19 @@ impl ContractSemVer {
         }
     }
 
+    /// Returns `true` if this version is strictly lower than `other`.
+    ///
+    /// Uses tuple comparison `(major, minor, patch)` which applies
+    /// lexicographic ordering — the same semantics as SemVer:
+    /// major takes precedence, then minor, then patch.
     #[must_use]
     pub fn is_lower_than(&self, other: &Self) -> bool {
         (self.major, self.minor, self.patch) < (other.major, other.minor, other.patch)
     }
 
+    /// Returns `true` if this version is strictly greater than `other`.
+    ///
+    /// See `is_lower_than` for the comparison semantics.
     #[must_use]
     pub fn is_greater_than(&self, other: &Self) -> bool {
         (self.major, self.minor, self.patch) > (other.major, other.minor, other.patch)
