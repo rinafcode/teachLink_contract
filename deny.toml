@@ -1,12 +1,9 @@
-﻿[advisories]
+[advisories]
 db-urls = ["https://github.com/rustsec/advisory-db"]
-vulnerability = "deny"
 unmaintained = "workspace"
-yanked = "deny"
 ignore = []
 
 [licenses]
-unlicensed = "deny"
 allow = [
     "MIT",
     "Apache-2.0",
@@ -16,11 +13,6 @@ allow = [
     "ISC",
     "Unicode-DFS-2016",
 ]
-deny = []
-copyleft = "warn"
-allow-osi-fsf-free = "neither"
-default = "deny"
-confidence-threshold = 0.8
 
 [bans]
 multiple-versions = "warn"
