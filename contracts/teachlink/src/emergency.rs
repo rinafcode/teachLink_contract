@@ -1,4 +1,4 @@
-﻿﻿//! Emergency Pause and Recovery Module
+﻿//! Emergency Pause and Recovery Module
 //!
 //! This module implements circuit breaker functionality and emergency controls
 //! to protect the bridge during critical situations.
