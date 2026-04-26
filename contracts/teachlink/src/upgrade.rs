@@ -333,7 +333,7 @@ mod tests {
             // Advance ledger past rollback window
             let backup = ContractUpgrader::get_state_backup(&env).unwrap();
             env.ledger().set(LedgerInfo {
-                timestamp: backup.backed_up_at + ROLLBACK_WINDOW_SECONDS + 1,
+                timestamp: backup.backed_up_at + crate::upgrade::ROLLBACK_WINDOW_SECONDS + 1,
                 protocol_version: 25,
                 sequence_number: 0,
                 network_id: Default::default(),
