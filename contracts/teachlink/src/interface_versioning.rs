@@ -310,6 +310,7 @@ impl InterfaceVersioning {
     // -----------------------------------------------------------------------
 
     fn require_admin_auth(env: &Env) {
+        // SAFETY: ADMIN is always set during contract initialization
         let admin: Address = env.storage().instance().get(&ADMIN).unwrap();
         admin.require_auth();
     }

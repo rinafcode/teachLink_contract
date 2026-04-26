@@ -7,7 +7,7 @@ use crate::errors::BridgeError;
 use crate::events::{
     BridgePausedEvent, BridgeResumedEvent, CircuitBreakerResetEvent, CircuitBreakerTriggeredEvent,
 };
-use crate::storage::{CIRCUIT_BREAKERS, EMERGENCY_STATE, PAUSED_CHAINS};
+use crate::storage::{CIRCUIT_BREAKERS, CIRCUIT_RESET_SEQ, EMERGENCY_STATE, PAUSED_CHAINS};
 use crate::types::{CircuitBreaker, EmergencyState};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
@@ -24,6 +24,11 @@ impl EmergencyManager {
     /// Pause the entire bridge
     pub fn pause_bridge(env: &Env, pauser: Address, reason: Bytes) -> Result<(), BridgeError> {
         pauser.require_auth();
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &pauser,
+            crate::types::AccessRole::EmergencyManager,
+        );
 
         // Check if already paused
         let emergency_state: EmergencyState = env
@@ -68,6 +73,11 @@ impl EmergencyManager {
     /// Resume the bridge
     pub fn resume_bridge(env: &Env, resumer: Address) -> Result<(), BridgeError> {
         resumer.require_auth();
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &resumer,
+            crate::types::AccessRole::EmergencyManager,
+        );
 
         // Check if paused
         let mut emergency_state: EmergencyState = env
@@ -111,6 +121,11 @@ impl EmergencyManager {
         reason: Bytes,
     ) -> Result<(), BridgeError> {
         pauser.require_auth();
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &pauser,
+            crate::types::AccessRole::EmergencyManager,
+        );
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()
@@ -143,6 +158,11 @@ impl EmergencyManager {
         chain_ids: Vec<u32>,
     ) -> Result<(), BridgeError> {
         resumer.require_auth();
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &resumer,
+            crate::types::AccessRole::EmergencyManager,
+        );
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()
@@ -193,6 +213,14 @@ impl EmergencyManager {
             .instance()
             .set(&CIRCUIT_BREAKERS, &circuit_breakers);
 
+        let mut reset_seq: Map<u32, u32> = env
+            .storage()
+            .instance()
+            .get(&CIRCUIT_RESET_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        reset_seq.set(chain_id, env.ledger().sequence());
+        env.storage().instance().set(&CIRCUIT_RESET_SEQ, &reset_seq);
+
         Ok(())
     }
 
@@ -219,9 +247,34 @@ impl EmergencyManager {
 
         // Reset daily volume if needed
         let current_time = env.ledger().timestamp();
-        if current_time - breaker.last_reset >= DAILY_VOLUME_RESET {
+        let mut should_reset = current_time - breaker.last_reset >= DAILY_VOLUME_RESET;
+
+        // Fallback: sequence-based reset if timestamps are unreliable.
+        if !should_reset {
+            let reset_seq: Map<u32, u32> = env
+                .storage()
+                .instance()
+                .get(&CIRCUIT_RESET_SEQ)
+                .unwrap_or_else(|| Map::new(env));
+            if let Some(last_seq) = reset_seq.get(chain_id) {
+                let threshold_ledgers =
+                    crate::ledger_time::seconds_to_ledger_delta(DAILY_VOLUME_RESET);
+                should_reset =
+                    env.ledger().sequence().saturating_sub(last_seq) >= threshold_ledgers;
+            }
+        }
+
+        if should_reset {
             breaker.current_daily_volume = 0;
             breaker.last_reset = current_time;
+
+            let mut reset_seq: Map<u32, u32> = env
+                .storage()
+                .instance()
+                .get(&CIRCUIT_RESET_SEQ)
+                .unwrap_or_else(|| Map::new(env));
+            reset_seq.set(chain_id, env.ledger().sequence());
+            env.storage().instance().set(&CIRCUIT_RESET_SEQ, &reset_seq);
         }
 
         // Check transaction amount limit
@@ -281,6 +334,11 @@ impl EmergencyManager {
         resetter: Address,
     ) -> Result<(), BridgeError> {
         resetter.require_auth();
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &resetter,
+            crate::types::AccessRole::EmergencyManager,
+        );
 
         let mut circuit_breakers: Map<u32, CircuitBreaker> = env
             .storage()
@@ -300,6 +358,14 @@ impl EmergencyManager {
         env.storage()
             .instance()
             .set(&CIRCUIT_BREAKERS, &circuit_breakers);
+
+        let mut reset_seq: Map<u32, u32> = env
+            .storage()
+            .instance()
+            .get(&CIRCUIT_RESET_SEQ)
+            .unwrap_or_else(|| Map::new(env));
+        reset_seq.set(chain_id, env.ledger().sequence());
+        env.storage().instance().set(&CIRCUIT_RESET_SEQ, &reset_seq);
 
         // Emit event
         CircuitBreakerResetEvent {
@@ -388,6 +454,11 @@ impl EmergencyManager {
         updater: Address,
     ) -> Result<(), BridgeError> {
         updater.require_auth();
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &updater,
+            crate::types::AccessRole::EmergencyManager,
+        );
 
         let mut circuit_breakers: Map<u32, CircuitBreaker> = env
             .storage()

@@ -2,11 +2,10 @@
 //!
 //! This module defines all events emitted by the comprehensive notification system.
 
-use soroban_sdk::{contractevent, Address, Bytes, Vec};
 use crate::notification_types::{
-    NotificationChannel, NotificationDeliveryStatus, NotificationPreference,
-    NotificationTemplate,
+    NotificationChannel, NotificationDeliveryStatus, NotificationPreference, NotificationTemplate,
 };
+use soroban_sdk::{contractevent, Address, Bytes, Vec};
 
 #[contractevent]
 #[derive(Clone, Debug)]
@@ -125,7 +124,7 @@ pub struct NotificationABTestStartedEvent {
 #[derive(Clone, Debug)]
 pub struct NotificationABTestCompletedEvent {
     pub test_id: u64,
-    pub winner: u32, // 0=A, 1=B, 2=tie
+    pub winner: u32,     // 0=A, 1=B, 2=tie
     pub confidence: u32, // basis points
     pub completed_at: u64,
 }
