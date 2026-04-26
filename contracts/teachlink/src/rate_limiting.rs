@@ -34,9 +34,9 @@ pub struct RateLimitState {
     pub call_count: u32,
 }
 
-/// Default per-user limit: 100 calls per ~600 ledgers (~1 hour at 6 s/ledger).
-pub const DEFAULT_MAX_CALLS: u32 = 100;
-pub const DEFAULT_WINDOW_LEDGERS: u32 = 600;
+/// Default per-user limit — re-exported from config.
+pub use crate::config::RATE_LIMIT_DEFAULT_MAX_CALLS as DEFAULT_MAX_CALLS;
+pub use crate::config::RATE_LIMIT_DEFAULT_WINDOW_LEDGERS as DEFAULT_WINDOW_LEDGERS;
 
 pub struct RateLimiter;
 

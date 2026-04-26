@@ -9,17 +9,14 @@ use crate::storage::{FEE_STRUCTURE, LIQUIDITY_POOLS, LP_POSITIONS};
 use crate::types::{BridgeFeeStructure, LPPosition, LiquidityPool};
 use soroban_sdk::{Address, Env, Map, Vec};
 
-/// Base fee in basis points (0.1%)
-pub const BASE_FEE_BPS: i128 = 10;
-
-/// Maximum fee in basis points (5%)
-pub const MAX_FEE_BPS: i128 = 500;
-
-/// Minimum fee in basis points (0.01%)
-pub const MIN_FEE_BPS: i128 = 1;
-
-/// Liquidity utilization threshold for dynamic pricing (80%)
-pub const UTILIZATION_THRESHOLD: u32 = 8000;
+/// Base fee in basis points — re-exported from config.
+pub use crate::config::LIQUIDITY_BASE_FEE_BPS as BASE_FEE_BPS;
+/// Maximum fee in basis points — re-exported from config.
+pub use crate::config::LIQUIDITY_MAX_FEE_BPS as MAX_FEE_BPS;
+/// Minimum fee in basis points — re-exported from config.
+pub use crate::config::LIQUIDITY_MIN_FEE_BPS as MIN_FEE_BPS;
+/// Utilization threshold for dynamic pricing — re-exported from config.
+pub use crate::config::LIQUIDITY_UTILIZATION_THRESHOLD as UTILIZATION_THRESHOLD;
 
 /// Congestion multiplier steps
 pub const CONGESTION_STEP_1: u32 = 5000; // 50% utilization

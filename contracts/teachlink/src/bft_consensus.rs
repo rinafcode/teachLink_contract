@@ -17,20 +17,14 @@ use crate::types::{
 };
 use soroban_sdk::{Address, Env, Map, Vec};
 
-/// Minimum stake required to become a validator
-pub const MIN_VALIDATOR_STAKE: i128 = 100_000_000; // 100 tokens with 6 decimals
-
-/// Proposal timeout in seconds (24 hours)
-pub const PROPOSAL_TIMEOUT: u64 = 86_400;
-
-/// Number of consensus rounds per rotation epoch.
-/// After this many rounds, the active validator set is re-evaluated and
-/// low-reputation validators may be rotated out.
-pub const ROTATION_EPOCH_ROUNDS: u64 = 100;
-
-/// Minimum reputation score required to remain in the active validator set.
-/// Validators below this threshold are rotated out during epoch transitions.
-pub const MIN_ACTIVE_REPUTATION: u32 = 40;
+/// Minimum stake required to become a validator — re-exported from config.
+pub use crate::config::BFT_MIN_VALIDATOR_STAKE as MIN_VALIDATOR_STAKE;
+/// Proposal timeout — re-exported from config.
+pub use crate::config::BFT_PROPOSAL_TIMEOUT as PROPOSAL_TIMEOUT;
+/// Rotation epoch rounds — re-exported from config.
+pub use crate::config::BFT_ROTATION_EPOCH_ROUNDS as ROTATION_EPOCH_ROUNDS;
+/// Minimum active reputation — re-exported from config.
+pub use crate::config::BFT_MIN_ACTIVE_REPUTATION as MIN_ACTIVE_REPUTATION;
 
 /// BFT Consensus Manager
 pub struct BFTConsensus;
