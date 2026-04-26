@@ -5,7 +5,6 @@
 
 use crate::errors::BridgeError;
 use crate::storage::ADMIN;
-use crate::upgrade::ROLLBACK_WINDOW_SECONDS;
 use soroban_sdk::{contracttype, Address, Bytes, Env, Map, String};
 
 /// Storage keys for upgrade mechanism
