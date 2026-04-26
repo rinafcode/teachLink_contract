@@ -75,21 +75,22 @@ impl LiquidityManager {
             .get(chain_id)
             .ok_or(BridgeError::DestinationChainNotSupported)?;
 
-        // Calculate share percentage
+        // Update pool totals first so share percentages are calculated against the correct total
+        pool.total_liquidity += amount;
+        pool.available_liquidity += amount;
+
+        // Calculate share percentage against updated total
         let share_percentage = if pool.total_liquidity == 0 {
-            10000u32 // 100% for first provider
+            10000u32 // 100% for first provider (unreachable after adding amount, but safe fallback)
         } else {
             ((amount * 10000) / pool.total_liquidity) as u32
         };
-
-        // Update pool
-        pool.total_liquidity += amount;
-        pool.available_liquidity += amount;
 
         // Create or update LP position
         let mut lp_positions: Map<Address, LPPosition> = pool.lp_providers;
         let position = if let Some(mut existing) = lp_positions.get(provider.clone()) {
             existing.amount += amount;
+            // Recalculate share against updated total
             existing.share_percentage = ((existing.amount * 10000) / pool.total_liquidity) as u32;
             existing
         } else {
@@ -161,16 +162,23 @@ impl LiquidityManager {
         position.amount -= amount;
         position.rewards_earned += rewards;
 
+        // Update pool totals before recalculating share so the percentage reflects the new total
+        pool.total_liquidity -= amount;
+        // Only reduce available_liquidity by what is actually available (guard against locked funds)
+        let deduct_available = amount.min(pool.available_liquidity);
+        pool.available_liquidity -= deduct_available;
+
         if position.amount == 0 {
             lp_positions.remove(provider.clone());
         } else {
-            position.share_percentage = ((position.amount * 10000) / pool.total_liquidity) as u32;
+            // Recalculate share against the post-removal total
+            position.share_percentage = if pool.total_liquidity == 0 {
+                0
+            } else {
+                ((position.amount * 10000) / pool.total_liquidity) as u32
+            };
             lp_positions.set(provider.clone(), position.clone());
         }
-
-        // Update pool
-        pool.total_liquidity -= amount;
-        pool.available_liquidity -= amount;
         pool.lp_providers = lp_positions;
 
         // Update pool storage
@@ -375,17 +383,22 @@ impl LiquidityManager {
         discount
     }
 
-    /// Calculate LP rewards based on position and pool performance
+    /// Calculate LP rewards based on position and pool performance.
+    /// Uses scaled arithmetic to avoid precision loss from integer division
+    /// truncating share_factor to zero for small positions.
     fn calculate_lp_rewards(_env: &Env, position: &LPPosition, total_liquidity: i128) -> i128 {
-        if total_liquidity == 0 {
+        if total_liquidity == 0 || position.amount == 0 {
             return 0;
         }
 
-        // Simple reward calculation based on share and time
-        let time_factor = 1i128; // Could be based on time in pool
-        let share_factor = (position.amount * 10000) / total_liquidity;
+        // Scale numerator before dividing to preserve precision:
+        // reward = (position.amount^2 * SCALE) / (total_liquidity * SCALE_DIVISOR)
+        // equivalent to: position.amount * (position.amount / total_liquidity)
+        // but avoids share_factor flooring to 0 for small positions.
+        const SCALE: i128 = 1_000_000;
+        let reward = (position.amount * SCALE) / total_liquidity * position.amount / SCALE;
 
-        (position.amount * share_factor * time_factor) / 1000000
+        reward
     }
 
     /// Default volume discount tiers

@@ -60,6 +60,7 @@ pub enum BridgeError {
     NotInitialized = 144,
     IncompatibleInterfaceVersion = 145,
     InvalidInterfaceVersionRange = 146,
+    ReentrancyDetected = 147,
 }
 
 /// Escrow module errors
@@ -94,6 +95,7 @@ pub enum EscrowError {
     InvalidToken = 223,
     InvalidArbitrator = 224,
     DepositorCannotBeBeneficiary = 225,
+    ReentrancyDetected = 227,
 }
 
 /// Rewards module errors
@@ -106,6 +108,9 @@ pub enum RewardsError {
     NoRewardsAvailable = 303,
     NoPendingRewards = 304,
     RateCannotBeNegative = 305,
+    ReentrancyDetected = 306,
+    ArithmeticOverflow = 307,
+    AmountExceedsMaxLimit = 308,
 }
 
 /// Mobile platform module errors
