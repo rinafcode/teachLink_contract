@@ -189,4 +189,65 @@ export class DashboardService {
       .take(limit);
     return qb.getMany();
   }
+
+  /**
+   * Sustainability metrics snapshot: real-time KPIs derived from current analytics
+   * plus Prometheus-ready gauge values pushed via MetricsService.
+   */
+  async getSustainabilitySnapshot(): Promise<{
+    efficiencyScore: number;
+    healthScore: number;
+    bridgeSuccessRate: number;
+    escrowDisputeRateBps: number;
+    rewardClaimRate: number;
+    totalTransactions: number;
+    totalRewardsIssued: string;
+    generatedAt: string;
+  }> {
+    const a = await this.getCurrentAnalytics();
+
+    const escrowDisputeRateBps =
+      a.escrowTotalCount > 0
+        ? Math.round((a.escrowDisputeCount / a.escrowTotalCount) * 10000)
+        : 0;
+
+    const rewardClaimRate =
+      a.rewardClaimCount > 0
+        ? Math.round((a.rewardClaimCount / Math.max(a.rewardClaimCount, 1)) * 10000)
+        : 0;
+
+    // Efficiency: bridge success rate as proxy (basis points)
+    const efficiencyScore = a.bridgeSuccessRate;
+    // Health: weighted composite (50% efficiency, 25% low dispute rate, 25% reward activity)
+    const disputeComponent = Math.max(0, 100 - Math.round(escrowDisputeRateBps / 100));
+    const rewardComponent = Math.min(100, Math.round(rewardClaimRate / 100));
+    const healthScore = Math.round(
+      (Math.min(100, Math.round(efficiencyScore / 100)) * 50 +
+        disputeComponent * 25 +
+        rewardComponent * 25) /
+        100,
+    );
+
+    this.metricsService.updateSustainabilityMetrics({
+      totalInvocations: a.bridgeTotalTransactions,
+      totalStorageWrites: a.bridgeTotalTransactions,
+      totalEventsEmitted: a.bridgeTotalTransactions + a.escrowTotalCount,
+      totalRewardsDistributed: Number(a.totalRewardsIssued),
+      totalContentMinted: 0,
+      totalActiveUsers: a.rewardClaimCount,
+      efficiencyScore,
+      healthScore,
+    });
+
+    return {
+      efficiencyScore,
+      healthScore,
+      bridgeSuccessRate: a.bridgeSuccessRate,
+      escrowDisputeRateBps,
+      rewardClaimRate,
+      totalTransactions: a.bridgeTotalTransactions,
+      totalRewardsIssued: a.totalRewardsIssued,
+      generatedAt: a.generatedAt,
+    };
+  }
 }
