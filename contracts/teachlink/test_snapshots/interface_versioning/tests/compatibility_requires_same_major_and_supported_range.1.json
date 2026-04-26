@@ -200,6 +200,30 @@
                       "val": {
                         "address": "CBUSYNQKASUYFWYC3M2GUEDMX4AIVWPALDBYJPNK6554BREHTGZ2IUNF"
                       }
+                    },
+                    {
+                      "key": {
+                        "symbol": "upg_hist"
+                      },
+                      "val": {
+                        "map": []
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "upg_rbok"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
+                        "symbol": "upg_ver"
+                      },
+                      "val": {
+                        "u32": 1
+                      }
                     }
                   ]
                 }
