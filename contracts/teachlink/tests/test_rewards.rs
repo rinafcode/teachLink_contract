@@ -4,9 +4,12 @@
 #![allow(clippy::unreadable_literal)]
 #![allow(unused_variables)]
 
-use soroban_sdk::{testutils::Address as _, Address, Env};
+mod common;
 
+use soroban_sdk::testutils::Address as _;
+use soroban_sdk::{Address, Env};
 use teachlink_contract::TeachLinkBridge;
+use common::test_env;
 
 #[test]
 fn test_teachlink_contract_creation() {
@@ -20,8 +23,7 @@ fn test_teachlink_contract_creation() {
 
 #[test]
 fn test_address_generation() {
-    let env = Env::default();
-    env.mock_all_auths();
+    let env = test_env();
 
     let addr1 = Address::generate(&env);
     let addr2 = Address::generate(&env);
@@ -32,8 +34,7 @@ fn test_address_generation() {
 
 #[test]
 fn test_multiple_contract_instances() {
-    let env = Env::default();
-    env.mock_all_auths();
+    let env = test_env();
 
     let contract_id_1 = env.register(TeachLinkBridge, ());
     let contract_id_2 = env.register(TeachLinkBridge, ());
@@ -44,8 +45,7 @@ fn test_multiple_contract_instances() {
 
 #[test]
 fn test_environment_setup() {
-    let env = Env::default();
-    env.mock_all_auths();
+    let env = test_env();
 
     // Verify environment is initialized
     let addr = Address::generate(&env);
@@ -57,8 +57,7 @@ fn test_environment_setup() {
 
 #[test]
 fn test_multiple_addresses_unique() {
-    let env = Env::default();
-    env.mock_all_auths();
+    let env = test_env();
 
     let addresses: Vec<Address> = (0..5).map(|_| Address::generate(&env)).collect();
 
@@ -72,8 +71,7 @@ fn test_multiple_addresses_unique() {
 
 #[test]
 fn test_address_consistency() {
-    let env = Env::default();
-    env.mock_all_auths();
+    let env = test_env();
 
     let addr = Address::generate(&env);
 
@@ -83,8 +81,7 @@ fn test_address_consistency() {
 
 #[test]
 fn test_contract_registration_success() {
-    let env = Env::default();
-    env.mock_all_auths();
+    let env = test_env();
 
     let contract_id = env.register(TeachLinkBridge, ());
     let admin = Address::generate(&env);
