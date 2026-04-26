@@ -171,7 +171,7 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use errors::{BridgeError, EscrowError, MobilePlatformError, ReputationError, RewardsError};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -211,6 +211,7 @@ impl TeachLinkBridge {
     ) -> Result<(), BridgeError> {
         bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
         interface_versioning::InterfaceVersioning::initialize(&env);
+        upgrade::ContractUpgrader::initialize(&env)?;
         Ok(())
     }
 
@@ -254,23 +255,23 @@ impl TeachLinkBridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
-    pub fn add_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::add_validator(&env, validator);
+    pub fn add_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::add_validator(&env, validator)
     }
 
     /// Remove a validator (admin only)
-    pub fn remove_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::remove_validator(&env, validator);
+    pub fn remove_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_validator(&env, validator)
     }
 
     /// Add a supported destination chain (admin only)
-    pub fn add_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::add_supported_chain(&env, chain_id);
+    pub fn add_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::add_supported_chain(&env, chain_id)
     }
 
     /// Remove a supported destination chain (admin only)
-    pub fn remove_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::remove_supported_chain(&env, chain_id);
+    pub fn remove_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_supported_chain(&env, chain_id)
     }
 
     /// Set bridge fee (admin only)
@@ -279,8 +280,8 @@ impl TeachLinkBridge {
     }
 
     /// Set fee recipient (admin only)
-    pub fn set_fee_recipient(env: Env, fee_recipient: Address) {
-        let _ = bridge::Bridge::set_fee_recipient(&env, fee_recipient);
+    pub fn set_fee_recipient(env: Env, fee_recipient: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::set_fee_recipient(&env, fee_recipient)
     }
 
     /// Set minimum validators (admin only)
@@ -357,12 +358,12 @@ impl TeachLinkBridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: Env) -> Address {
+    pub fn get_token(env: Env) -> Result<Address, BridgeError> {
         bridge::Bridge::get_token(&env)
     }
 
     /// Get the admin address
-    pub fn get_admin(env: Env) -> Address {
+    pub fn get_admin(env: Env) -> Result<Address, BridgeError> {
         bridge::Bridge::get_admin(&env)
     }
 
@@ -1122,8 +1123,8 @@ impl TeachLinkBridge {
     }
 
     /// Update rewards admin (admin only)
-    pub fn update_rewards_admin(env: Env, new_admin: Address) {
-        rewards::Rewards::update_rewards_admin(&env, new_admin);
+    pub fn update_rewards_admin(env: Env, new_admin: Address) -> Result<(), RewardsError> {
+        rewards::Rewards::update_rewards_admin(&env, new_admin)
     }
 
     /// Get user reward information
@@ -1147,7 +1148,7 @@ impl TeachLinkBridge {
     }
 
     /// Get rewards admin address
-    pub fn get_rewards_admin(env: Env) -> Address {
+    pub fn get_rewards_admin(env: Env) -> Result<Address, RewardsError> {
         rewards::Rewards::get_rewards_admin(&env)
     }
 
@@ -1297,10 +1298,16 @@ impl TeachLinkBridge {
     // ========== Credit Scoring Functions (feat/credit_score) ==========
 
     /// Record course completion
-    pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
-        let admin = bridge::Bridge::get_admin(&env);
+    pub fn record_course_completion(
+        env: Env,
+        user: Address,
+        course_id: u64,
+        points: u64,
+    ) -> Result<(), BridgeError> {
+        let admin = bridge::Bridge::get_admin(&env)?;
         admin.require_auth();
         score::ScoreManager::record_course_completion(&env, user, course_id, points);
+        Ok(())
     }
 
     /// Record contribution
@@ -1331,16 +1338,24 @@ impl TeachLinkBridge {
 
     // ========== Reputation Functions (main) ==========
 
-    pub fn update_participation(env: Env, user: Address, points: u32) {
-        reputation::update_participation(&env, user, points);
+    pub fn update_participation(
+        env: Env,
+        user: Address,
+        points: u32,
+    ) -> Result<(), ReputationError> {
+        reputation::update_participation(&env, user, points)
     }
 
-    pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
-        reputation::update_course_progress(&env, user, is_completion);
+    pub fn update_course_progress(
+        env: Env,
+        user: Address,
+        is_completion: bool,
+    ) -> Result<(), ReputationError> {
+        reputation::update_course_progress(&env, user, is_completion)
     }
 
-    pub fn rate_contribution(env: Env, user: Address, rating: u32) {
-        reputation::rate_contribution(&env, user, rating);
+    pub fn rate_contribution(env: Env, user: Address, rating: u32) -> Result<(), ReputationError> {
+        reputation::rate_contribution(&env, user, rating)
     }
 
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {

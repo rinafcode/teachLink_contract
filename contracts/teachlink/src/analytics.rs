@@ -2,7 +2,7 @@
 
 //! Bridge monitoring and analytics for bridge operations, validator performance, and chain metrics.
 
-use crate::errors::BridgeError;
+use crate::errors::{AnalyticsError, AnalyticsResult, BridgeError};
 use crate::events::{BridgeMetricsUpdatedEvent, ChainMetricsUpdatedEvent};
 use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};
 use crate::types::{BridgeMetrics, ChainMetrics};
@@ -340,7 +340,10 @@ impl AnalyticsManager {
     const MAX_CHAINS_ITER: u32 = 50;
 
     /// Get top chains by volume with bounded iteration (for performance cache).
-    pub fn get_top_chains_by_volume_bounded(env: &Env, limit: u32) -> Vec<(u32, i128)> {
+    pub fn get_top_chains_by_volume_bounded(
+        env: &Env,
+        limit: u32,
+    ) -> AnalyticsResult<Vec<(u32, i128)>> {
         let chain_metrics: Map<u32, ChainMetrics> = env
             .storage()
             .instance()
@@ -362,11 +365,11 @@ impl AnalyticsManager {
         if len > 1 {
             for i in 0..len {
                 for j in 0..len.saturating_sub(i + 1) {
-                    let (_, vol_a) = chains.get(j).unwrap();
-                    let (_, vol_b) = chains.get(j + 1).unwrap();
+                    let (_, vol_a) = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                    let (_, vol_b) = chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?;
                     if vol_a < vol_b {
-                        let temp = chains.get(j).unwrap();
-                        chains.set(j, chains.get(j + 1).unwrap());
+                        let temp = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                        chains.set(j, chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?);
                         chains.set(j + 1, temp);
                     }
                 }
@@ -379,11 +382,11 @@ impl AnalyticsManager {
                 result.push_back(chain);
             }
         }
-        result
+        Ok(result)
     }
 
     /// Get top chains by volume (unbounded; use get_top_chains_by_volume_bounded for caching).
-    pub fn get_top_chains_by_volume(env: &Env, limit: u32) -> Vec<(u32, i128)> {
+    pub fn get_top_chains_by_volume(env: &Env, limit: u32) -> AnalyticsResult<Vec<(u32, i128)>> {
         let chain_metrics: Map<u32, ChainMetrics> = env
             .storage()
             .instance()
@@ -401,11 +404,11 @@ impl AnalyticsManager {
         if len > 1 {
             for i in 0..len {
                 for j in 0..len.saturating_sub(i + 1) {
-                    let (_, vol_a) = chains.get(j).unwrap();
-                    let (_, vol_b) = chains.get(j + 1).unwrap();
+                    let (_, vol_a) = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                    let (_, vol_b) = chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?;
                     if vol_a < vol_b {
-                        let temp = chains.get(j).unwrap();
-                        chains.set(j, chains.get(j + 1).unwrap());
+                        let temp = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                        chains.set(j, chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?);
                         chains.set(j + 1, temp);
                     }
                 }
@@ -419,7 +422,7 @@ impl AnalyticsManager {
                 result.push_back(chain);
             }
         }
-        result
+        Ok(result)
     }
 
     /// Get bridge statistics

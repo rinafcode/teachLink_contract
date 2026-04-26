@@ -63,8 +63,7 @@ impl Bridge {
         // Initialize nonce to 0
         repo.transactions
             .get_current_nonce()
-            .map_err(|_| BridgeError::StorageError)
-            .ok();
+            .map_err(|_| BridgeError::StorageError)?;
 
         Ok(())
     }
@@ -107,7 +106,10 @@ impl Bridge {
 
             // Apply bridge fee if configured
             let fee = repo.config.get_bridge_fee().unwrap_or(0);
-            let fee_recipient = repo.config.get_fee_recipient().unwrap();
+            let fee_recipient = repo
+                .config
+                .get_fee_recipient()
+                .map_err(|_| BridgeError::StorageError)?;
             let amount_after_fee = if fee > 0 && fee < amount {
                 amount - fee
             } else {
@@ -455,7 +457,8 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         repo.validators
             .add_validator(&validator)
@@ -493,7 +496,8 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         repo.validators
             .remove_validator(&validator)
@@ -531,7 +535,8 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         repo.chains
             .add_chain(chain_id)
@@ -562,7 +567,8 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         repo.chains
             .remove_chain(chain_id)
@@ -592,7 +598,8 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         if fee < 0 {
             return Err(BridgeError::FeeCannotBeNegative);
@@ -630,7 +637,8 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         repo.config
             .set_fee_recipient(&fee_recipient)
@@ -667,7 +675,8 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         if min_validators == 0 {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
@@ -730,15 +739,19 @@ impl Bridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: &Env) -> Address {
+    pub fn get_token(env: &Env) -> Result<Address, BridgeError> {
         let repo = BridgeRepository::new(env);
-        repo.config.get_token().unwrap()
+        repo.config
+            .get_token()
+            .map_err(|_| BridgeError::StorageError)
     }
 
     /// Get the admin address
-    pub fn get_admin(env: &Env) -> Address {
+    pub fn get_admin(env: &Env) -> Result<Address, BridgeError> {
         let repo = BridgeRepository::new(env);
-        repo.config.get_admin().unwrap()
+        repo.config
+            .get_admin()
+            .map_err(|_| BridgeError::StorageError)
     }
 }
 

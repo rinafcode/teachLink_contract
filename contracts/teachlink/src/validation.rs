@@ -279,20 +279,17 @@ impl EscrowValidator {
         arbitrator: &Address,
     ) -> Result<(), EscrowError> {
         // Validate addresses
-        AddressValidator::validate(env, depositor)
-            .map_err(|_| EscrowError::AmountMustBePositive)?;
-        AddressValidator::validate(env, beneficiary)
-            .map_err(|_| EscrowError::AmountMustBePositive)?;
-        AddressValidator::validate(env, token).map_err(|_| EscrowError::AmountMustBePositive)?;
-        AddressValidator::validate(env, arbitrator)
-            .map_err(|_| EscrowError::AmountMustBePositive)?;
+        AddressValidator::validate(env, depositor).map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, beneficiary).map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, token).map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, arbitrator).map_err(|_| EscrowError::InvalidAddress)?;
 
         // Validate amount
         NumberValidator::validate_amount(amount).map_err(|_| EscrowError::AmountMustBePositive)?;
 
         // Validate signers
         NumberValidator::validate_signer_count(signers.len() as usize)
-            .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
+            .map_err(|_| EscrowError::InvalidSignerCount)?;
 
         let mut total_weight: u32 = 0;
         for signer in signers.iter() {
@@ -323,8 +320,10 @@ impl EscrowValidator {
     pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
         let len = signers.len();
         for i in 0..len {
+            let signer_i = signers.get(i).ok_or(EscrowError::InvalidSignerCount)?;
             for j in (i + 1)..len {
-                if signers.get(i).unwrap().address == signers.get(j).unwrap().address {
+                let signer_j = signers.get(j).ok_or(EscrowError::InvalidSignerCount)?;
+                if signer_i.address == signer_j.address {
                     return Err(EscrowError::DuplicateSigner);
                 }
             }
@@ -339,16 +338,15 @@ impl EscrowValidator {
     ) -> Result<(), EscrowError> {
         // Validate addresses
         AddressValidator::validate(env, &params.depositor)
-            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+            .map_err(|_| EscrowError::InvalidAddress)?;
         AddressValidator::validate(env, &params.beneficiary)
-            .map_err(|_| EscrowError::InvalidBeneficiary)?;
-        AddressValidator::validate(env, &params.token).map_err(|_| EscrowError::InvalidToken)?;
+            .map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, &params.token).map_err(|_| EscrowError::InvalidAddress)?;
         AddressValidator::validate(env, &params.arbitrator)
-            .map_err(|_| EscrowError::InvalidArbitrator)?;
+            .map_err(|_| EscrowError::InvalidAddress)?;
 
         // Validate amount
-        NumberValidator::validate_amount(params.amount)
-            .map_err(|_| EscrowError::AmountMustBePositive)?;
+        NumberValidator::validate_amount(params.amount).map_err(|_| EscrowError::InvalidAmount)?;
 
         // Validate signers
         NumberValidator::validate_signer_count(params.signers.len() as usize)
@@ -414,13 +412,13 @@ impl EscrowValidator {
 
     /// Checks if caller is authorized to release escrow
     pub fn is_authorized_caller(escrow: &crate::types::Escrow, caller: &Address) -> bool {
-        if caller.clone() == escrow.depositor || caller.clone() == escrow.beneficiary {
+        if caller == &escrow.depositor || caller == &escrow.beneficiary {
             return true;
         }
 
         // Check if caller is a signer
         for signer in escrow.signers.iter() {
-            if signer.address == caller.clone() {
+            if &signer.address == caller {
                 return true;
             }
         }
