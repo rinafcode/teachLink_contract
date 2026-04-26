@@ -111,6 +111,7 @@ pub enum RewardsError {
     ReentrancyDetected = 306,
     ArithmeticOverflow = 307,
     AmountExceedsMaxLimit = 308,
+    StorageError = 309,
 }
 
 /// Mobile platform module errors
@@ -153,3 +154,82 @@ pub type RewardsResult<T> = core::result::Result<T, RewardsError>;
 /// Result type alias for common operations
 #[allow(dead_code)]
 pub type CommonResult<T> = core::result::Result<T, CommonError>;
+
+/// Access Control module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AccessControlError {
+    Unauthorized = 500,
+    InvalidRole = 501,
+    MissingRole = 502,
+    RoleAlreadyGranted = 503,
+    RoleNotGranted = 504,
+    StorageError = 505,
+}
+
+/// Analytics module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AnalyticsError {
+    InvalidIndex = 510,
+    InsufficientData = 511,
+    ChainNotFound = 512,
+    MetricsNotAvailable = 513,
+    StorageError = 514,
+}
+
+/// Reputation module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ReputationError {
+    InvalidPoints = 520,
+    InvalidRating = 521,
+    InvalidThreshold = 522,
+    UserNotFound = 523,
+    StorageError = 524,
+    Unauthorized = 525,
+}
+
+/// Tokenization module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TokenizationError {
+    TokenNotFound = 530,
+    InvalidTokenId = 531,
+    UnauthorizedMint = 532,
+    UnauthorizedBurn = 533,
+    InvalidMetadata = 534,
+    StorageError = 535,
+    AmountMustBePositive = 536,
+}
+
+/// Advanced Reputation module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AdvancedReputationError {
+    UnauthorizedAccess = 540,
+    InvalidInput = 541,
+    CalculationOverflow = 542,
+    StorageError = 543,
+    NotInitialized = 544,
+}
+
+/// Result type alias for access control operations
+#[allow(dead_code)]
+pub type AccessControlResult<T> = core::result::Result<T, AccessControlError>;
+
+/// Result type alias for analytics operations
+#[allow(dead_code)]
+pub type AnalyticsResult<T> = core::result::Result<T, AnalyticsError>;
+
+/// Result type alias for reputation operations
+#[allow(dead_code)]
+pub type ReputationResult<T> = core::result::Result<T, ReputationError>;
+
+/// Result type alias for tokenization operations
+#[allow(dead_code)]
+pub type TokenizationResult<T> = core::result::Result<T, TokenizationError>;
+
+/// Result type alias for advanced reputation operations
+#[allow(dead_code)]
+pub type AdvancedReputationResult<T> = core::result::Result<T, AdvancedReputationError>;

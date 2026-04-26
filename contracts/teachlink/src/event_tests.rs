@@ -297,7 +297,7 @@ fn test_reputation_updates_emit_events() {
         let user = Address::generate(&env);
 
         // Update participation
-        update_participation(&env, user.clone(), 100);
+        let _ = update_participation(&env, user.clone(), 100);
 
         // Verify event was emitted
         let events = env.events().all();
@@ -314,7 +314,7 @@ fn test_reputation_updates_emit_events() {
         }));
 
         // Update course progress
-        update_course_progress(&env, user.clone(), false);
+        let _ = update_course_progress(&env, user.clone(), false);
 
         // Verify event was emitted
         let events = env.events().all();
@@ -331,7 +331,7 @@ fn test_reputation_updates_emit_events() {
         }));
 
         // Rate contribution
-        rate_contribution(&env, user.clone(), 4);
+        let _ = rate_contribution(&env, user.clone(), 4);
 
         // Verify event was emitted
         let events = env.events().all();

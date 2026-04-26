@@ -323,8 +323,14 @@ impl EscrowValidator {
     pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
         let len = signers.len();
         for i in 0..len {
+            let signer_i = signers
+                .get(i)
+                .ok_or(EscrowError::InvalidSignerCount)?;
             for j in (i + 1)..len {
-                if signers.get(i).unwrap().address == signers.get(j).unwrap().address {
+                let signer_j = signers
+                    .get(j)
+                    .ok_or(EscrowError::InvalidSignerCount)?;
+                if signer_i.address == signer_j.address {
                     return Err(EscrowError::DuplicateSigner);
                 }
             }

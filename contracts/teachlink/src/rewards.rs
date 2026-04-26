@@ -55,7 +55,7 @@ impl Rewards {
             use soroban_sdk::testutils::Address as _;
             let default_admin = Address::generate(env);
             let default_token = Address::generate(env);
-            Self::initialize_rewards(env, default_token, default_admin).ok();
+            Self::initialize_rewards(env, default_token, default_admin)?;
         }
 
         reentrancy::with_guard(
@@ -70,8 +70,12 @@ impl Rewards {
                     return Err(RewardsError::AmountExceedsMaxLimit);
                 }
 
-                // SAFETY: TOKEN is always set during initialize_rewards
-                let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+                // TOKEN must exist after initialization
+                let token: Address = env
+                    .storage()
+                    .instance()
+                    .get(&TOKEN)
+                    .ok_or(RewardsError::StorageError)?;
 
                 let mut pool_balance: i128 =
                     env.storage().instance().get(&REWARD_POOL).unwrap_or(0);
@@ -113,8 +117,12 @@ impl Rewards {
         amount: i128,
         reward_type: String,
     ) -> Result<(), RewardsError> {
-        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
-        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+        // REWARDS_ADMIN must exist after initialization
+        let rewards_admin: Address = env
+            .storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::StorageError)?;
         #[cfg(not(test))]
         rewards_admin.require_auth();
 
@@ -218,8 +226,12 @@ impl Rewards {
                     return Err(RewardsError::InsufficientRewardPoolBalance);
                 }
 
-                // SAFETY: TOKEN is always set during initialize_rewards
-                let token: Address = env.storage().instance().get(&TOKEN).unwrap();
+                // TOKEN must exist after initialization
+                let token: Address = env
+                    .storage()
+                    .instance()
+                    .get(&TOKEN)
+                    .ok_or(RewardsError::StorageError)?;
 
                 // Checked addition to prevent overflow
                 user_reward.claimed = user_reward
@@ -274,8 +286,12 @@ impl Rewards {
         rate: i128,
         enabled: bool,
     ) -> Result<(), RewardsError> {
-        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
-        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+        // REWARDS_ADMIN must exist after initialization
+        let rewards_admin: Address = env
+            .storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::StorageError)?;
         #[cfg(not(test))]
         rewards_admin.require_auth();
 
@@ -303,13 +319,18 @@ impl Rewards {
         Ok(())
     }
 
-    pub fn update_rewards_admin(env: &Env, new_admin: Address) {
-        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
-        let rewards_admin: Address = env.storage().instance().get(&REWARDS_ADMIN).unwrap();
+    pub fn update_rewards_admin(env: &Env, new_admin: Address) -> Result<(), RewardsError> {
+        // REWARDS_ADMIN must exist after initialization
+        let rewards_admin: Address = env
+            .storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::StorageError)?;
         #[cfg(not(test))]
         rewards_admin.require_auth();
 
         env.storage().instance().set(&REWARDS_ADMIN, &new_admin);
+        Ok(())
     }
 
     // ==========================
@@ -345,9 +366,11 @@ impl Rewards {
         reward_rates.get(reward_type)
     }
 
-    pub fn get_rewards_admin(env: &Env) -> Address {
-        // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
-        env.storage().instance().get(&REWARDS_ADMIN).unwrap()
+    pub fn get_rewards_admin(env: &Env) -> Result<Address, RewardsError> {
+        env.storage()
+            .instance()
+            .get(&REWARDS_ADMIN)
+            .ok_or(RewardsError::StorageError)
     }
 }
 

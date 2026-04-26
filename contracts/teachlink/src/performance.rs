@@ -35,8 +35,11 @@ impl PerformanceManager {
     /// Computes bridge summary (health score + top chains), writes cache, emits event.
     pub fn compute_and_cache_summary(env: &Env) -> Result<CachedBridgeSummary, BridgeError> {
         let health_score = analytics::AnalyticsManager::calculate_health_score(env);
-        let top_chains =
-            analytics::AnalyticsManager::get_top_chains_by_volume_bounded(env, MAX_TOP_CHAINS);
+        let top_chains = analytics::AnalyticsManager::get_top_chains_by_volume_bounded(
+            env,
+            MAX_TOP_CHAINS,
+        )
+        .map_err(|_| BridgeError::StorageError)?;
         let computed_at = env.ledger().timestamp();
         let summary = CachedBridgeSummary {
             health_score,

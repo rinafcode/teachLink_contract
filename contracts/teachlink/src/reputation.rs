@@ -2,12 +2,13 @@ use crate::events::{
     ContributionRatedEvent, CourseProgressUpdatedEvent, ParticipationUpdatedEvent,
 };
 use crate::types::UserReputation;
+use crate::errors::{ReputationError, ReputationResult};
 use soroban_sdk::{symbol_short, Address, Env, Symbol};
 
 const BASIS_POINTS: u32 = 10000;
 const REPUTATION: Symbol = symbol_short!("reptn");
 
-pub fn update_participation(env: &Env, user: Address, points: u32) {
+pub fn update_participation(env: &Env, user: Address, points: u32) -> ReputationResult<()> {
     user.require_auth();
     let mut reputation = get_reputation(env, &user);
     reputation.participation_score += points;
@@ -22,9 +23,11 @@ pub fn update_participation(env: &Env, user: Address, points: u32) {
         updated_at: env.ledger().timestamp(),
     }
     .publish(env);
+
+    Ok(())
 }
 
-pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
+pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) -> ReputationResult<()> {
     user.require_auth();
     let mut reputation = get_reputation(env, &user);
 
@@ -56,12 +59,16 @@ pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
         updated_at: env.ledger().timestamp(),
     }
     .publish(env);
+
+    Ok(())
 }
 
-pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
+pub fn rate_contribution(env: &Env, user: Address, rating: u32) -> ReputationResult<()> {
     // Rating should be 0-5 scaled (e.g. 0-100 or 0-500)
     // Here assuming 0-5
-    assert!(rating <= 5, "Rating must be between 0 and 5");
+    if rating > 5 {
+        return Err(ReputationError::InvalidRating);
+    }
 
     let mut reputation = get_reputation(env, &user);
 
@@ -84,6 +91,8 @@ pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
         rated_at: env.ledger().timestamp(),
     }
     .publish(env);
+
+    Ok(())
 }
 
 pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
