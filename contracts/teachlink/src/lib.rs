@@ -1338,7 +1338,11 @@ impl TeachLinkBridge {
 
     // ========== Reputation Functions (main) ==========
 
-    pub fn update_participation(env: Env, user: Address, points: u32) -> Result<(), ReputationError> {
+    pub fn update_participation(
+        env: Env,
+        user: Address,
+        points: u32,
+    ) -> Result<(), ReputationError> {
         reputation::update_participation(&env, user, points)
     }
 

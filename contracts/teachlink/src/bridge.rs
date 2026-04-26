@@ -741,13 +741,17 @@ impl Bridge {
     /// Get the token address
     pub fn get_token(env: &Env) -> Result<Address, BridgeError> {
         let repo = BridgeRepository::new(env);
-        repo.config.get_token().map_err(|_| BridgeError::StorageError)
+        repo.config
+            .get_token()
+            .map_err(|_| BridgeError::StorageError)
     }
 
     /// Get the admin address
     pub fn get_admin(env: &Env) -> Result<Address, BridgeError> {
         let repo = BridgeRepository::new(env);
-        repo.config.get_admin().map_err(|_| BridgeError::StorageError)
+        repo.config
+            .get_admin()
+            .map_err(|_| BridgeError::StorageError)
     }
 }
 
