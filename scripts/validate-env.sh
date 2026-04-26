@@ -207,6 +207,11 @@ check_disk_space
 check_optional_tools
 check_env_file
 
+section "Metrics and Coverage Tools"
+require_cmd cargo-llvm-cov "Install: cargo install cargo-llvm-cov" || true
+require_cmd cargo-tarpaulin "Install: cargo install cargo-tarpaulin" || true
+require_cmd jscpd "Install: npm install -g jscpd" || true
+
 # Summary
 printf "\n"
 printf "╔══════════════════════════════════════════════════════════╗\n"
