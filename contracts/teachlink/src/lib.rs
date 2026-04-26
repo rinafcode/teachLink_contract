@@ -1333,19 +1333,19 @@ impl TeachLinkBridge {
     // ========== Reputation Functions (main) ==========
 
     pub fn update_participation(env: Env, user: Address, points: u32) {
-        reputation::update_participation(&env, user, points);
+        reputation::ReputationManager::update_participation(&env, user, points);
     }
 
     pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
-        reputation::update_course_progress(&env, user, is_completion);
+        reputation::ReputationManager::update_course_progress(&env, user, is_completion);
     }
 
     pub fn rate_contribution(env: Env, user: Address, rating: u32) {
-        reputation::rate_contribution(&env, user, rating);
+        reputation::ReputationManager::rate_contribution(&env, user, rating);
     }
 
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
-        reputation::get_reputation(&env, &user)
+        reputation::ReputationManager::get_reputation(&env, &user)
     }
 
     // ========== Content Tokenization Functions ==========
