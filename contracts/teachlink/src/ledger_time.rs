@@ -5,11 +5,8 @@
 
 use soroban_sdk::Env;
 
-/// Conservative estimate of seconds per ledger close on Stellar.
-///
-/// Used only to derive a *fallback* ledger-sequence deadline when code is otherwise
-/// timestamp-gated.
-pub const EST_SECS_PER_LEDGER: u64 = 5;
+/// Conservative estimate of seconds per ledger close on Stellar — re-exported from config.
+pub use crate::config::LEDGER_EST_SECS as EST_SECS_PER_LEDGER;
 
 pub fn seconds_to_ledger_delta(seconds: u64) -> u32 {
     // Ceil division to avoid shortening timeouts.

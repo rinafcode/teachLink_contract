@@ -1,3 +1,11 @@
+//! Credit score calculation from on-chain activities.
+//!
+//! Responsibilities:
+//! - Award points for course completions and contributions
+//! - Maintain per-user score, course list, and contribution history
+//! - Emit events on every state change
+//! - Expose read-only views for scores and history
+
 use crate::events::{ContributionRecordedEvent, CourseCompletedEvent, CreditScoreUpdatedEvent};
 use crate::storage::{CONTRIBUTIONS, COURSE_COMPLETIONS, CREDIT_SCORE};
 use crate::types::{Contribution, ContributionType};
@@ -6,6 +14,8 @@ use soroban_sdk::{Address, Bytes, Env, Vec};
 pub struct ScoreManager;
 
 impl ScoreManager {
+    // ===== Mutations =====
+
     /// Update the user's score by adding points
     pub fn update_score(env: &Env, user: Address, points: u64) {
         // Use a tuple key (CREDIT_SCORE, user) for mapping user to score
@@ -82,7 +92,10 @@ impl ScoreManager {
         .publish(env);
     }
 
+    // ===== Queries =====
+
     /// Get the user's current credit score
+    #[must_use]
     pub fn get_score(env: &Env, user: Address) -> u64 {
         env.storage()
             .persistent()
@@ -91,6 +104,7 @@ impl ScoreManager {
     }
 
     /// Get valid course completions
+    #[must_use]
     pub fn get_courses(env: &Env, user: Address) -> Vec<u64> {
         env.storage()
             .persistent()
@@ -99,6 +113,7 @@ impl ScoreManager {
     }
 
     /// Get user contributions
+    #[must_use]
     pub fn get_contributions(env: &Env, user: Address) -> Vec<Contribution> {
         env.storage()
             .persistent()

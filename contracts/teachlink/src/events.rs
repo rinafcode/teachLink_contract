@@ -712,3 +712,21 @@ pub struct ChainMetricsUpdatedEvent {
     pub average_fee: i128,
     pub updated_at: u64,
 }
+Description
+No comprehensive monitoring dashboard exists.
+
+Acceptance Criteria
+ Create real-time metrics
+ Track historical trends
+ Manage alerts
+ Provide insights
+/// Emitted when sustainability metrics are updated.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct SustainabilityMetricsUpdatedEvent {
+    pub total_invocations: u64,
+    pub total_storage_writes: u64,
+    pub total_events_emitted: u64,
+    pub efficiency_score: u32,
+    pub updated_at: u64,
+}

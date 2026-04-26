@@ -20,14 +20,13 @@ use crate::types::{
 };
 use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
 
-/// Notification delivery intervals (in seconds)
-pub const IMMEDIATE_DELIVERY: u64 = 0;
-pub const MIN_DELAY_SECONDS: u64 = 60; // 1 minute
-pub const MAX_DELAY_SECONDS: u64 = 86400 * 30; // 30 days
-pub const BATCH_SIZE: u32 = 100;
-
-/// Event queue cleanup configuration
-pub const DEFAULT_EVENT_TTL_SECONDS: u64 = 86400 * 7; // 7 days
+/// Notification delivery intervals — re-exported from config.
+pub use crate::config::NOTIF_IMMEDIATE_DELIVERY as IMMEDIATE_DELIVERY;
+pub use crate::config::NOTIF_MIN_DELAY_SECS as MIN_DELAY_SECONDS;
+pub use crate::config::NOTIF_MAX_DELAY_SECS as MAX_DELAY_SECONDS;
+pub use crate::config::NOTIF_BATCH_SIZE as BATCH_SIZE;
+/// Event queue cleanup configuration — re-exported from config.
+pub use crate::config::NOTIF_DEFAULT_EVENT_TTL_SECS as DEFAULT_EVENT_TTL_SECONDS;
 pub const DEFAULT_MAX_QUEUE_SIZE: u32 = 10000;
 pub const CLEANUP_INTERVAL_SECONDS: u64 = 3600; // 1 hour
 

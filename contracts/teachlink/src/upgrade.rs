@@ -13,8 +13,8 @@ pub const UPGRADE_HISTORY: soroban_sdk::Symbol = soroban_sdk::symbol_short!("upg
 pub const UPGRADE_STATE_BACKUP: soroban_sdk::Symbol = soroban_sdk::symbol_short!("upg_back");
 pub const ROLLBACK_AVAILABLE: soroban_sdk::Symbol = soroban_sdk::symbol_short!("upg_rbok");
 
-/// Maximum rollback window in seconds (30 days)
-pub const ROLLBACK_WINDOW_SECONDS: u64 = 86400 * 30;
+/// Maximum rollback window — re-exported from config.
+pub use crate::config::UPGRADE_ROLLBACK_WINDOW_SECS as ROLLBACK_WINDOW_SECONDS;
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]

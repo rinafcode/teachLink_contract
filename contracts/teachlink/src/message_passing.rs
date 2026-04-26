@@ -12,14 +12,12 @@ use crate::types::{CrossChainPacket, MessageReceipt, PacketStatus};
 use crate::validation::NumberValidator;
 use soroban_sdk::{Bytes, Env, Map, Vec};
 
-/// Default packet timeout (24 hours)
-pub const DEFAULT_PACKET_TIMEOUT: u64 = 86_400;
-
-/// Maximum retry attempts
-pub const MAX_RETRY_ATTEMPTS: u32 = 5;
-
-/// Retry delay in seconds (exponential backoff)
-pub const RETRY_DELAY_BASE: u64 = 300; // 5 minutes
+/// Default packet timeout — re-exported from config.
+pub use crate::config::MSG_DEFAULT_PACKET_TIMEOUT as DEFAULT_PACKET_TIMEOUT;
+/// Maximum retry attempts — re-exported from config.
+pub use crate::config::MSG_MAX_RETRY_ATTEMPTS as MAX_RETRY_ATTEMPTS;
+/// Retry delay base — re-exported from config.
+pub use crate::config::MSG_RETRY_DELAY_BASE as RETRY_DELAY_BASE;
 
 /// Message Passing Manager
 pub struct MessagePassing;
