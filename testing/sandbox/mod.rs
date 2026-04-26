@@ -125,4 +125,4 @@ mod tests {
         assert_eq!(sb2.env.ledger().timestamp(), 0);
     }
 }
-EOF
+
