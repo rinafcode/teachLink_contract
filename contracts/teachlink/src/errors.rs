@@ -137,4 +137,3 @@ pub enum CommonError {
     TransferFailed = 403,
     StorageError = 404,
 }
-
