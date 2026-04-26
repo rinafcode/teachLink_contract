@@ -1,0 +1,53 @@
+name: Regression Testing
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    name: Tests & Regression Detection
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+          targets: wasm32v1-none
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Run unit tests
+        run: cargo test --workspace --lib 2>&1 | tee test_output.txt
+
+      - name: Run integration tests
+        run: cargo test --workspace --tests 2>&1 | tee -a test_output.txt
+
+      - name: Run gas benchmarks
+        run: |
+          cargo test --release -p teachlink-contract --test test_gas_benchmarks -- --nocapture \
+            2>&1 | tee gas_output.txt
+
+      - name: Check performance regressions
+        run: bash scripts/check_performance.sh
+
+      - name: Generate test report
+        if: always()
+        run: bash scripts/generate_test_report.sh
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-report-${{ github.sha }}
+          path: reports/
+
+      - name: Post report summary
+        if: always()
+        run: |
+          if [ -f reports/summary.md ]; then
+            cat reports/summary.md >> $GITHUB_STEP_SUMMARY
+          fi

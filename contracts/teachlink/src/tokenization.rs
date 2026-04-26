@@ -124,8 +124,7 @@ impl ContentTokenization {
             .get(&(OWNER_TOKENS, from.clone()))
             .unwrap_or(Vec::new(env));
         let mut new_from_tokens = Vec::new(env);
-        for i in 0..from_tokens.len() {
-            let id = from_tokens.get(i).unwrap();
+        for id in from_tokens.iter() {
             if id != token_id {
                 new_from_tokens.push_back(id);
             }

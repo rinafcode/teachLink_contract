@@ -8,8 +8,8 @@ use crate::events::{
     StakeDepositedEvent, StakeWithdrawnEvent, ValidatorRewardedEvent, ValidatorSlashedEvent,
 };
 use crate::storage::{
-    REWARD_POOL, SLASHING_COUNTER, SLASHING_RECORDS, VALIDATOR_INFO, VALIDATOR_REWARDS,
-    VALIDATOR_STAKES,
+    REWARD_POOL, SLASHING_COUNTER, SLASHING_RECORDS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO,
+    VALIDATOR_REWARDS, VALIDATOR_STAKES,
 };
 use crate::types::{RewardType, SlashingReason, SlashingRecord, ValidatorInfo, ValidatorReward};
 use soroban_sdk::{Address, Env, Map, Vec};
@@ -310,8 +310,24 @@ impl SlashingManager {
             .unwrap_or_else(|| Map::new(env));
 
         if let Some(info) = validator_infos.get(validator.clone()) {
-            let inactive_duration = env.ledger().timestamp() - info.last_activity;
-            if inactive_duration > INACTIVITY_THRESHOLD {
+            let mut inactive =
+                (env.ledger().timestamp() - info.last_activity) > INACTIVITY_THRESHOLD;
+
+            // Sequence-based fallback for environments where timestamps are unreliable.
+            if !inactive {
+                let activity_seq: Map<Address, u32> = env
+                    .storage()
+                    .instance()
+                    .get(&VALIDATOR_ACTIVITY_SEQ)
+                    .unwrap_or_else(|| Map::new(env));
+                if let Some(last_seq) = activity_seq.get(validator.clone()) {
+                    let threshold_ledgers =
+                        crate::ledger_time::seconds_to_ledger_delta(INACTIVITY_THRESHOLD);
+                    inactive = env.ledger().sequence().saturating_sub(last_seq) > threshold_ledgers;
+                }
+            }
+
+            if inactive {
                 // Slash for inactivity
                 Self::slash_validator(
                     env,
@@ -388,5 +404,62 @@ impl SlashingManager {
             .get(&VALIDATOR_REWARDS)
             .unwrap_or_else(|| Map::new(env));
         rewards.get(validator).unwrap_or_else(|| Vec::new(env))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SlashingManager;
+    use crate::errors::BridgeError;
+    use crate::storage::{VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO};
+    use crate::types::ValidatorInfo;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::{Address as _, Ledger};
+    use soroban_sdk::{Address, Env, Map};
+
+    fn set_ledger(env: &Env, timestamp: u64, sequence: u32) {
+        env.ledger().with_mut(|li| {
+            li.timestamp = timestamp;
+            li.sequence_number = sequence;
+        });
+    }
+
+    #[test]
+    fn inactivity_check_uses_sequence_fallback() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            let validator = Address::generate(&env);
+
+            // Timestamp indicates activity is fresh.
+            set_ledger(&env, 1_000, 1);
+            let info = ValidatorInfo {
+                address: validator.clone(),
+                stake: 100,
+                reputation_score: 100,
+                is_active: true,
+                joined_at: 1_000,
+                last_activity: 1_000,
+                total_validations: 0,
+                missed_validations: 0,
+                slashed_amount: 0,
+            };
+            let mut infos: Map<Address, ValidatorInfo> = Map::new(&env);
+            infos.set(validator.clone(), info);
+            env.storage().instance().set(&VALIDATOR_INFO, &infos);
+
+            // Sequence says it's been a long time since last activity.
+            let mut seqs: Map<Address, u32> = Map::new(&env);
+            seqs.set(validator.clone(), 1u32);
+            env.storage().instance().set(&VALIDATOR_ACTIVITY_SEQ, &seqs);
+
+            // Advance sequence far beyond the fallback threshold.
+            set_ledger(&env, 1_000, 1_000_000);
+            let r = SlashingManager::check_inactivity(&env, validator);
+
+            assert_eq!(r, Ok(true));
+        });
     }
 }

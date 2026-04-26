@@ -29,7 +29,7 @@ pub fn mint_content(
     assert!(royalty_percentage <= 2000); // max 20%
 
     let token_id = Self::next_token_id();
-    
+
     let nft = ContentNFT {
         token_id,
         creator,
