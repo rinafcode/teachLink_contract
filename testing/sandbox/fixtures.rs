@@ -1,4 +1,4 @@
-cat > testing/sandbox/fixtures.rs << 'EOF'
+
 //! # Test Fixtures
 //! Issue #381 — Pre-built test accounts and data helpers
 //!
