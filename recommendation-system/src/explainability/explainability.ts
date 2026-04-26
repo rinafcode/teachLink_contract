@@ -30,53 +30,17 @@ export class ExplanationGenerator {
     similarContent?: Array<[string, number]>,
     similarUsers?: string[]
   ): Types.RecommendationExplanation {
-    let primaryReason = '';
-    const supportingSignals: string[] = [];
-    const featureAttribution: Array<{
-      feature: string;
-      importance: number;
-      contribution: string;
-    }> = [];
-
     // Determine dominant signal
     const signals = Object.entries(rankingSignal);
     const [dominantSignal] = signals.reduce((a, b) => (a[1] > b[1] ? a : b));
 
     // Generate primary reason and supporting signals
-    if (dominantSignal === 'collaborativeSignal' && similarUsers && similarUsers.length > 0) {
-      primaryReason = `Users like you enjoyed this content`;
-      supportingSignals.push(`Liked by ${similarUsers.length} similar learners`);
-      featureAttribution.push({
-        feature: 'user_similarity',
-        importance: rankingSignal.collaborativeSignal,
-        contribution: `Based on similar learning patterns`,
-      });
-    } else if (dominantSignal === 'contentSignal') {
-      primaryReason = `Matches your interests`;
-      const topics = Array.from(userProfile.features.topicAffinities.keys()).slice(0, 2);
-      supportingSignals.push(`Related to your interest in ${topics.join(' and ')}`);
-      featureAttribution.push({
-        feature: 'topic_match',
-        importance: rankingSignal.contentSignal,
-        contribution: `Content topic alignment with your profile`,
-      });
-    } else if (dominantSignal === 'learningPathSignal') {
-      primaryReason = `Recommended based on your learning path`;
-      supportingSignals.push(`Prerequisite for your next goal`);
-      featureAttribution.push({
-        feature: 'learning_path_fit',
-        importance: rankingSignal.learningPathSignal,
-        contribution: `Aligns with recommended progression`,
-      });
-    } else if (dominantSignal === 'qualitySignal') {
-      primaryReason = `High-quality content`;
-      supportingSignals.push(`Highly rated by other learners`);
-      featureAttribution.push({
-        feature: 'content_quality',
-        importance: rankingSignal.qualitySignal,
-        contribution: `Strong engagement and completion metrics`,
-      });
-    }
+    const { primaryReason, supportingSignals, featureAttribution } = this.extractDominantSignalExplanation(
+      dominantSignal,
+      rankingSignal,
+      userProfile,
+      similarUsers
+    );
 
     // Add modality preference explanation
     if (userProfile.features.preferredModality === Types.ContentModality.VIDEO) {
@@ -106,19 +70,87 @@ export class ExplanationGenerator {
   }
 
   /**
+   * Extracts the explanation based on the dominant ranking signal
+   */
+  private extractDominantSignalExplanation(
+    dominantSignal: string,
+    rankingSignal: any,
+    userProfile: Types.UserProfile,
+    similarUsers?: string[]
+  ): {
+    primaryReason: string;
+    supportingSignals: string[];
+    featureAttribution: Array<{ feature: string; importance: number; contribution: string }>;
+  } {
+    const result = {
+      primaryReason: '',
+      supportingSignals: [] as string[],
+      featureAttribution: [] as Array<{ feature: string; importance: number; contribution: string }>,
+    };
+
+    switch (dominantSignal) {
+      case 'collaborativeSignal':
+        if (!similarUsers || similarUsers.length === 0) break; // Guard clause
+        result.primaryReason = `Users like you enjoyed this content`;
+        result.supportingSignals.push(`Liked by ${similarUsers.length} similar learners`);
+        result.featureAttribution.push({
+          feature: 'user_similarity',
+          importance: rankingSignal.collaborativeSignal,
+          contribution: `Based on similar learning patterns`,
+        });
+        break;
+      case 'contentSignal':
+        result.primaryReason = `Matches your interests`;
+        const topics = Array.from(userProfile.features.topicAffinities.keys()).slice(0, 2);
+        result.supportingSignals.push(`Related to your interest in ${topics.join(' and ')}`);
+        result.featureAttribution.push({
+          feature: 'topic_match',
+          importance: rankingSignal.contentSignal,
+          contribution: `Content topic alignment with your profile`,
+        });
+        break;
+      case 'learningPathSignal':
+        result.primaryReason = `Recommended based on your learning path`;
+        result.supportingSignals.push(`Prerequisite for your next goal`);
+        result.featureAttribution.push({
+          feature: 'learning_path_fit',
+          importance: rankingSignal.learningPathSignal,
+          contribution: `Aligns with recommended progression`,
+        });
+        break;
+      case 'qualitySignal':
+        result.primaryReason = `High-quality content`;
+        result.supportingSignals.push(`Highly rated by other learners`);
+        result.featureAttribution.push({
+          feature: 'content_quality',
+          importance: rankingSignal.qualitySignal,
+          contribution: `Strong engagement and completion metrics`,
+        });
+        break;
+    }
+
+    return result;
+  }
+
+  /**
    * Rule-based explanation generator
    */
   private generateRuleBasedExplanation(
     userProfile: Types.UserProfile,
     signals: string[]
   ): string {
+    if (!userProfile) return ''; // Guard clause
+
     const rules: string[] = [];
 
     // Learning pattern rules
-    if (userProfile.behavior.pattern === Types.UserBehaviorPattern.FAST_TRACK) {
-      rules.push('You are a fast learner, so we prioritize advanced content');
-    } else if (userProfile.behavior.pattern === Types.UserBehaviorPattern.STRUGGLING) {
-      rules.push('We detected you need support in this area, recommending foundational content');
+    switch (userProfile.behavior.pattern) {
+      case Types.UserBehaviorPattern.FAST_TRACK:
+        rules.push('You are a fast learner, so we prioritize advanced content');
+        break;
+      case Types.UserBehaviorPattern.STRUGGLING:
+        rules.push('We detected you need support in this area, recommending foundational content');
+        break;
     }
 
     // Engagement rules
@@ -380,9 +412,17 @@ export class TransparencyDashboard {
 
     for (const rec of recommendations) {
       const modality = rec.metadata.modality;
-      if (modality === Types.ContentModality.VIDEO) videoCount++;
-      else if (modality === Types.ContentModality.TEXT) textCount++;
-      else if (modality === Types.ContentModality.INTERACTIVE) interactiveCount++;
+      switch (modality) {
+        case Types.ContentModality.VIDEO:
+          videoCount++;
+          break;
+        case Types.ContentModality.TEXT:
+          textCount++;
+          break;
+        case Types.ContentModality.INTERACTIVE:
+          interactiveCount++;
+          break;
+      }
 
       const difficulty = rec.metadata.difficulty;
       const diffKey = Object.keys(Types.DifficultyLevel)[difficulty - 1]?.toLowerCase() || 'unknown';
