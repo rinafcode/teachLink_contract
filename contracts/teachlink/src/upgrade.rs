@@ -66,8 +66,7 @@ impl ContractUpgrader {
         #[cfg(not(test))]
         admin.require_auth();
 
-        // Initialize if not already initialized (for testing)
-        #[cfg(test)]
+        // Initialize if not already initialized
         if !env.storage().instance().has(&UPGRADE_VERSION) {
             Self::initialize(env)?;
         }
@@ -76,6 +75,11 @@ impl ContractUpgrader {
 
         // Validate version increment
         if new_version <= current_version {
+            return Err(BridgeError::InvalidInput);
+        }
+
+        // Validate state snapshot integrity
+        if state_hash.is_empty() {
             return Err(BridgeError::InvalidInput);
         }
 
@@ -105,8 +109,7 @@ impl ContractUpgrader {
         #[cfg(not(test))]
         admin.require_auth();
 
-        // Initialize if not already initialized (for testing)
-        #[cfg(test)]
+        // Initialize if not already initialized
         if !env.storage().instance().has(&UPGRADE_VERSION) {
             Self::initialize(env)?;
         }
@@ -115,6 +118,11 @@ impl ContractUpgrader {
 
         // Validate version increment
         if new_version <= current_version {
+            return Err(BridgeError::InvalidInput);
+        }
+
+        // Validate migration metadata
+        if migration_hash.is_empty() {
             return Err(BridgeError::InvalidInput);
         }
 
@@ -271,39 +279,83 @@ mod tests {
         let admin = Address::generate(&env);
 
         env.as_contract(&contract_id, || {
-            // Initialize upgrade system
             ContractUpgrader::initialize(&env).unwrap();
 
-            // Verify initial version
             assert_eq!(ContractUpgrader::get_current_version(&env), 1);
 
-            // Prepare upgrade
             let state_hash = Bytes::from_slice(&env, b"state_hash_v1");
             ContractUpgrader::prepare_upgrade(&env, admin.clone(), 2, state_hash).unwrap();
 
-            // Verify rollback is available
-            assert!(ContractUpgrader::is_rollback_available(&env));
-
-            // Execute upgrade
             let migration_hash = Bytes::from_slice(&env, b"migration_v1_to_v2");
             ContractUpgrader::execute_upgrade(&env, admin.clone(), 2, migration_hash).unwrap();
 
-            // Verify new version
             assert_eq!(ContractUpgrader::get_current_version(&env), 2);
 
-            // Verify upgrade history
             let history = ContractUpgrader::get_upgrade_history(&env, 2);
             assert!(history.is_some());
+
             let record = history.unwrap();
             assert_eq!(record.previous_version, 1);
             assert_eq!(record.version, 2);
 
-            // Test rollback
             ContractUpgrader::rollback(&env, admin.clone()).unwrap();
 
-            // Verify rolled back to version 1
             assert_eq!(ContractUpgrader::get_current_version(&env), 1);
             assert!(!ContractUpgrader::is_rollback_available(&env));
-        }); // closes env.as_contract
+        });
     }
-} // closes mod tests
+
+    #[test]
+    fn test_prepare_upgrade_auto_initializes() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let admin = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            let state_hash = Bytes::from_slice(&env, b"state_hash");
+            ContractUpgrader::prepare_upgrade(&env, admin.clone(), 2, state_hash).unwrap();
+
+            assert_eq!(ContractUpgrader::get_current_version(&env), 1);
+            assert!(ContractUpgrader::is_rollback_available(&env));
+        });
+    }
+
+    #[test]
+    fn test_rollback_window_expiry() {
+        use soroban_sdk::testutils::{Ledger, LedgerInfo};
+
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let admin = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            // Initialize upgrade system
+            ContractUpgrader::initialize(&env).unwrap();
+
+            // Prepare and execute upgrade
+            let state_hash = Bytes::from_slice(&env, b"state_hash");
+            ContractUpgrader::prepare_upgrade(&env, admin.clone(), 2, state_hash).unwrap();
+
+            let migration_hash = Bytes::from_slice(&env, b"migration");
+            ContractUpgrader::execute_upgrade(&env, admin.clone(), 2, migration_hash).unwrap();
+
+            // Advance ledger past rollback window
+            let backup = ContractUpgrader::get_state_backup(&env).unwrap();
+            env.ledger().set(LedgerInfo {
+                timestamp: backup.backed_up_at + ROLLBACK_WINDOW_SECONDS + 1,
+                protocol_version: 25,
+                sequence_number: 0,
+                network_id: Default::default(),
+                base_reserve: 0,
+                min_temp_entry_ttl: 0,
+                min_persistent_entry_ttl: 0,
+                max_entry_ttl: 2_000_000,
+            });
+
+            assert!(ContractUpgrader::rollback(&env, admin.clone()).is_err());
+            assert!(!ContractUpgrader::is_rollback_available(&env));
+        });
+    }
+}
