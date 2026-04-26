@@ -340,7 +340,10 @@ impl AnalyticsManager {
     const MAX_CHAINS_ITER: u32 = 50;
 
     /// Get top chains by volume with bounded iteration (for performance cache).
-    pub fn get_top_chains_by_volume_bounded(env: &Env, limit: u32) -> AnalyticsResult<Vec<(u32, i128)>> {
+    pub fn get_top_chains_by_volume_bounded(
+        env: &Env,
+        limit: u32,
+    ) -> AnalyticsResult<Vec<(u32, i128)>> {
         let chain_metrics: Map<u32, ChainMetrics> = env
             .storage()
             .instance()

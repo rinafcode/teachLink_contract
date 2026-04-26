@@ -1,8 +1,8 @@
+use crate::errors::{ReputationError, ReputationResult};
 use crate::events::{
     ContributionRatedEvent, CourseProgressUpdatedEvent, ParticipationUpdatedEvent,
 };
 use crate::types::UserReputation;
-use crate::errors::{ReputationError, ReputationResult};
 use soroban_sdk::{symbol_short, Address, Env, Symbol};
 
 const BASIS_POINTS: u32 = 10000;
@@ -27,7 +27,11 @@ pub fn update_participation(env: &Env, user: Address, points: u32) -> Reputation
     Ok(())
 }
 
-pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) -> ReputationResult<()> {
+pub fn update_course_progress(
+    env: &Env,
+    user: Address,
+    is_completion: bool,
+) -> ReputationResult<()> {
     user.require_auth();
     let mut reputation = get_reputation(env, &user);
 

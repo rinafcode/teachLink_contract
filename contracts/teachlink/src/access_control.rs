@@ -51,8 +51,7 @@ impl AccessControlManager {
         role: AccessRole,
     ) -> Result<(), BridgeError> {
         // Only Admin can grant roles
-        Self::check_role(env, &caller, AccessRole::Admin)
-            .map_err(|_| BridgeError::Unauthorized)?;
+        Self::check_role(env, &caller, AccessRole::Admin).map_err(|_| BridgeError::Unauthorized)?;
 
         let mut roles: Map<Address, Vec<AccessRole>> = env
             .storage()
@@ -90,8 +89,7 @@ impl AccessControlManager {
         target: Address,
         role: AccessRole,
     ) -> Result<(), BridgeError> {
-        Self::check_role(env, &caller, AccessRole::Admin)
-            .map_err(|_| BridgeError::Unauthorized)?;
+        Self::check_role(env, &caller, AccessRole::Admin).map_err(|_| BridgeError::Unauthorized)?;
 
         let mut roles: Map<Address, Vec<AccessRole>> = env
             .storage()
