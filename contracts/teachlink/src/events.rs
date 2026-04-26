@@ -9,7 +9,7 @@ use crate::types::{
 // Include notification events
 // pub use crate::notification_events::*;
 
-use soroban_sdk::{Address, Bytes, String};
+use soroban_sdk::{Address, Bytes, String, Symbol};
 
 // ================= Bridge Events =================
 
@@ -707,4 +707,31 @@ pub struct AccessLogFailedEvent {
     pub caller: Address,
     pub operation: Symbol,
     pub timestamp: u64,
+}
+
+// ================= Observability Events =================
+
+/// Emitted when bridge-level metrics are updated.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BridgeMetricsUpdatedEvent {
+    pub total_volume: i128,
+    pub total_transactions: u64,
+    pub active_validators: u32,
+    pub average_confirmation_time: u64,
+    /// Basis points (10000 = 100%).
+    pub success_rate: u32,
+    pub updated_at: u64,
+}
+
+/// Emitted when per-chain metrics are updated.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ChainMetricsUpdatedEvent {
+    pub chain_id: u32,
+    pub volume_in: i128,
+    pub volume_out: i128,
+    pub transaction_count: u64,
+    pub average_fee: i128,
+    pub updated_at: u64,
 }

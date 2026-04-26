@@ -91,53 +91,78 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod access_logger;
+mod access_control;
 mod analytics;
 mod arbitration;
 mod assessment;
 mod atomic_swap;
 mod audit;
+mod backup;
 mod bft_consensus;
 mod bridge;
+// TODO: Fix collaboration module compilation errors (pre-existing issue)
+// mod collaboration;
+// TODO: Fix content_nft module compilation errors (pre-existing issue)
+// mod content_nft;
+// TODO: Fix content_quality module compilation errors (pre-existing issue - symbol too long)
+// mod content_quality;
 mod emergency;
 mod errors;
-// mod escrow; // Removed - broken implementation
 mod escrow_analytics;
 mod event_query;
+// TODO: Fix event_tests module compilation errors (pre-existing issue)
+// mod event_tests;
 mod events;
+// TODO: Fix fractional module compilation errors (pre-existing issue)
+// mod fractional;
 mod insurance;
 mod interface_versioning;
-// FUTURE: Implement governance module (tracked in TRACKING.md)
-// mod governance;
+// TODO: Fix learning_paths module compilation errors (pre-existing issue - symbol too long)
 // mod learning_paths;
+mod ledger_time;
+// TODO: Fix licensing module compilation errors (pre-existing issue)
+// mod licensing;
 mod liquidity;
+// TODO: Fix marketplace module compilation errors (pre-existing issue)
+// mod marketplace;
 mod message_passing;
 mod mobile_platform;
 mod multichain;
+mod network_recovery;
 mod notification;
+// TODO: Fix notification_events module compilation errors (pre-existing issue - event name too long)
+// mod notification_events;
 mod notification_events_basic;
-// mod content_quality;
-// mod notification_tests; // Removed - test module causing issues
-// mod event_tests; // Requires testutils feature - depends on removed escrow module
-mod backup;
+// TODO: Fix notification_events_simple module compilation errors (pre-existing issue)
+// mod notification_events_simple;
+// TODO: Fix notification_tests module (pre-existing issue - tests fail with AlreadyInitialized)
+// mod notification_tests;
 mod notification_types;
 mod performance;
-pub mod property_based_tests;
+mod property_based_tests;
 mod provenance;
+mod rate_limiting;
+mod recommendation;
 mod reentrancy;
 mod reporting;
 mod repository;
 mod reputation;
 mod rewards;
+// TODO: Fix royalty module compilation errors (pre-existing issue - incomplete implementation)
+// mod royalty;
 mod score;
 mod slashing;
-// mod social_learning; // Removed - broken implementation with API mismatches
+// TODO: Fix social_events module compilation errors (pre-existing issue)
+// mod social_events;
+// TODO: Fix social_learning module compilation errors (pre-existing issue)
+// mod social_learning;
 mod storage;
 mod tokenization;
 mod types;
-// pub mod property_based_tests; // Requires proptest and quickcheck dependencies
-pub mod validation;
-// TODO: Fix property_based_tests module (requires test dependencies)
-// pub mod property_based_tests;
+mod upgrade;
+mod validation;
+// TODO: Fix validation_tests compilation errors (pre-existing issue)
+// mod validation_tests;
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
@@ -156,16 +181,29 @@ pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, ContractSemVer, CrossChainMessage, CrossChainPacket,
-    DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics, EscrowParameters,
-    EscrowRole, EscrowSigner, EscrowStatus, InterfaceVersionStatus, LiquidityPool, MultiChainAsset,
-    NotificationChannel, NotificationContent, NotificationPreference, NotificationSchedule,
-    NotificationTemplate, NotificationTracking, OperationType, PacketStatus, ProposalStatus,
-    ProvenanceRecord, RecoveryRecord, ReportComment, ReportSchedule, ReportSnapshot,
-    ReportTemplate, ReportType, ReportUsage, RewardRate, RewardType, RtoTier, SlashingReason,
-    SlashingRecord, SwapStatus, TransferType, UserNotificationSettings, UserReputation, UserReward,
-    ValidatorInfo, ValidatorReward, ValidatorSignature, VisualizationDataPoint,
-    AccessLogEntry, AccessOutcome, AuditQuery,
+ContentTokenParameters, ContentType, ContractSemVer,
+ContributionType, CrossChainMessage, CrossChainPacket,
+DashboardAnalytics, DisputeOutcome, EmergencyState,
+Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
+EscrowSigner, EscrowStatus, InterfaceVersionStatus,
+LiquidityPool, MultiChainAsset,
+NotificationChannel, NotificationContent,
+NotificationPreference, NotificationSchedule,
+NotificationTemplate, NotificationTracking,
+OperationType, PacketStatus, ProposalStatus,
+ProvenanceRecord, RecoveryRecord, ReportComment,
+ReportSchedule, ReportSnapshot, ReportTemplate,
+ReportType, ReportUsage, RewardRate,
+RewardType, RtoTier, SlashingReason,
+SlashingRecord, SwapStatus, TransferType,
+UserNotificationSettings, UserReputation,
+UserReward, ValidatorInfo, ValidatorReward,
+ValidatorSignature, VisualizationDataPoint,
+
+// access logging types
+AccessLogEntry,
+AccessOutcome,
+AuditQuery,
 };
 
 /// TeachLink main contract.
@@ -394,6 +432,17 @@ impl TeachLinkBridge {
     /// Check if consensus is reached for a proposal
     pub fn is_consensus_reached(env: Env, proposal_id: u64) -> bool {
         bft_consensus::BFTConsensus::is_consensus_reached(&env, proposal_id)
+    }
+
+    /// Rotate validators: deactivate those with low reputation or insufficient stake.
+    /// Returns the number of validators rotated out.
+    pub fn rotate_validators(env: Env) -> Result<u32, BridgeError> {
+        bft_consensus::BFTConsensus::rotate_validators(&env)
+    }
+
+    /// Trigger rotation if the current consensus round is at an epoch boundary.
+    pub fn maybe_rotate_validators(env: Env) -> Result<bool, BridgeError> {
+        bft_consensus::BFTConsensus::maybe_rotate(&env)
     }
 
     // ========== Slashing and Rewards Functions ==========
@@ -946,6 +995,16 @@ impl TeachLinkBridge {
     /// Get alert rules for an owner
     pub fn get_alert_rules(env: Env, owner: Address) -> Vec<AlertRule> {
         reporting::ReportingManager::get_alert_rules(&env, owner)
+    }
+
+    /// Bootstrap a baseline set of alert rules for production monitoring.
+    ///
+    /// Returns the created rule IDs.
+    pub fn bootstrap_default_alert_rules(
+        env: Env,
+        owner: Address,
+    ) -> Result<Vec<u64>, BridgeError> {
+        reporting::ReportingManager::bootstrap_default_alert_rules(&env, owner)
     }
 
     /// Evaluate alert rules (returns triggered rule ids)
@@ -1645,32 +1704,202 @@ impl TeachLinkBridge {
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
 
-    // ========== Access Logging Functions ==========
+// ========== Access Logging Functions ==========
 
-    /// Record an access attempt (caller, operation tag, outcome).
-    /// Called internally after any significant contract invocation.
-    pub fn log_access(env: Env, caller: Address, operation: Symbol, outcome: AccessOutcome) {
-        access_logger::AccessLogger::log_access(&env, caller, operation, outcome);
-    }
+pub fn log_access(
+    env: Env,
+    caller: Address,
+    operation: Symbol,
+    outcome: AccessOutcome,
+) {
+    access_logger::AccessLogger::log_access(
+        &env,
+        caller,
+        operation,
+        outcome,
+    );
+}
 
-    /// Retrieve a single access log entry by ID. Returns None if not found.
-    pub fn get_log_entry(env: Env, entry_id: u64) -> Option<AccessLogEntry> {
-        access_logger::AccessLogger::get_log_entry(&env, entry_id)
-    }
+pub fn get_log_entry(
+    env: Env,
+    entry_id: u64,
+) -> Option<AccessLogEntry> {
+    access_logger::AccessLogger::get_log_entry(
+        &env,
+        entry_id,
+    )
+}
 
-    /// Return the total number of access log entries ever recorded.
-    pub fn get_total_log_count(env: Env) -> u64 {
-        access_logger::AccessLogger::get_total_log_count(&env)
-    }
+pub fn get_total_log_count(
+    env: Env,
+) -> u64 {
+    access_logger::AccessLogger::get_total_log_count(
+        &env,
+    )
+}
 
-    /// Query access log entries with optional filters (most-recent-first).
-    /// Returns at most `query.limit` matching entries.
-    pub fn query_logs(env: Env, query: AuditQuery) -> Vec<AccessLogEntry> {
-        access_logger::AccessLogger::query_logs(&env, query)
-    }
+pub fn query_logs(
+    env: Env,
+    query: AuditQuery,
+) -> Vec<AccessLogEntry> {
+    access_logger::AccessLogger::query_logs(
+        &env,
+        query,
+    )
+}
 
-    /// Return the per-address call count for a given hourly window.
-    pub fn get_temporal_pattern(env: Env, caller: Address, window_start: u64) -> u32 {
-        access_logger::AccessLogger::get_temporal_pattern(&env, caller, window_start)
+pub fn get_temporal_pattern(
+    env: Env,
+    caller: Address,
+    window_start: u64,
+) -> u32 {
+    access_logger::AccessLogger::get_temporal_pattern(
+        &env,
+        caller,
+        window_start,
+    )
+}
+
+
+// ========== Contract Upgrade Functions ==========
+
+pub fn prepare_upgrade(
+    env: Env,
+    admin: Address,
+    new_version: u32,
+    state_hash: Bytes,
+) -> Result<(), BridgeError> {
+    upgrade::ContractUpgrader::prepare_upgrade(
+        &env,
+        admin,
+        new_version,
+        state_hash,
+    )
+}
+
+pub fn execute_upgrade(
+    env: Env,
+    admin: Address,
+    new_version: u32,
+    migration_hash: Bytes,
+) -> Result<(), BridgeError> {
+    upgrade::ContractUpgrader::execute_upgrade(
+        &env,
+        admin,
+        new_version,
+        migration_hash,
+    )
+}
+
+pub fn rollback_upgrade(
+    env: Env,
+    admin: Address,
+) -> Result<(), BridgeError> {
+    upgrade::ContractUpgrader::rollback(
+        &env,
+        admin,
+    )
+}
+
+pub fn get_contract_version(
+    env: Env,
+) -> u32 {
+    upgrade::ContractUpgrader::get_current_version(
+        &env,
+    )
+}
+
+pub fn get_upgrade_history(
+    env: Env,
+    version: u32,
+) -> Option<upgrade::UpgradeRecord> {
+    upgrade::ContractUpgrader::get_upgrade_history(
+        &env,
+        version,
+    )
+}
+
+pub fn is_rollback_available(
+    env: Env,
+) -> bool {
+    upgrade::ContractUpgrader::is_rollback_available(
+        &env,
+    )
+}
+
+pub fn get_state_backup(
+    env: Env,
+) -> Option<upgrade::StateBackup> {
+    upgrade::ContractUpgrader::get_state_backup(
+        &env,
+    )
+}
+
+
+// ========== Network Recovery Functions ==========
+
+pub fn register_failed_operation(
+    env: Env,
+    operation_id: u64,
+    operation_type: Bytes,
+    user: Address,
+    error_message: Bytes,
+) -> Result<(), BridgeError> {
+    network_recovery::NetworkRecovery::register_failed_operation(
+        &env,
+        operation_id,
+        operation_type,
+        user,
+        error_message,
+    )
+}
+
+pub fn can_retry_operation(
+    env: Env,
+    operation_id: u64,
+) -> Result<bool, BridgeError> {
+    network_recovery::NetworkRecovery::can_retry(
+        &env,
+        operation_id,
+    )
+}
+
+pub fn mark_operation_completed(
+    env: Env,
+    operation_id: u64,
+) -> Result<(), BridgeError> {
+    network_recovery::NetworkRecovery::mark_completed(
+        &env,
+        operation_id,
+    )
+}
+
+pub fn get_operation_state(
+    env: Env,
+    operation_id: u64,
+) -> Option<network_recovery::OperationState> {
+    network_recovery::NetworkRecovery::get_operation_state(
+        &env,
+        operation_id,
+    )
+}
+
+pub fn get_user_retry_notifications(
+    env: Env,
+    user: Address,
+) -> Vec<u64> {
+    network_recovery::NetworkRecovery::get_user_notifications(
+        &env,
+        user,
+    )
+}
+
+pub fn is_fallback_active(
+    env: Env,
+) -> bool {
+    network_recovery::NetworkRecovery::is_fallback_active(
+        &env,
+    )
+}
     }
 }
