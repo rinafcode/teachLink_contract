@@ -2,8 +2,6 @@
 //!
 //! This module provides a safe upgrade path for the contract while preserving state.
 //! It supports version tracking, state migration, and rollback capabilities.
-
-
 use crate::errors::BridgeError;
 use crate::storage::ADMIN;
 use soroban_sdk::{contracttype, Address, Bytes, Env, Map, String};
