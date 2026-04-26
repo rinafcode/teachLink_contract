@@ -1,3 +1,4 @@
+use crate::bulk_limits;
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
 use crate::events::{ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent};
@@ -32,6 +33,9 @@ impl ContentTokenization {
         is_transferable: bool,
         royalty_percentage: u32,
     ) -> u64 {
+        // Batch size check for tags to prevent DoS
+        bulk_limits::check_batch_size_limit(tags.len(), bulk_limits::MAX_CONTENT_TAGS).expect("Too many tags");
+
         let timestamp = env.ledger().timestamp();
         let token_id = Self::get_next_token_id(env);
 
@@ -241,6 +245,8 @@ impl ContentTokenization {
         }
 
         if let Some(new_tags) = tags {
+            // Batch size check for tags to prevent DoS
+            bulk_limits::check_batch_size_limit(new_tags.len(), bulk_limits::MAX_CONTENT_TAGS).expect("Too many tags");
             token.metadata.tags = new_tags;
         }
 

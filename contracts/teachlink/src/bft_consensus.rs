@@ -3,6 +3,7 @@
 //! This module implements a BFT consensus mechanism for bridge validators,
 //! ensuring that the bridge can tolerate up to f faulty validators out of 3f+1 total validators.
 
+use crate::bulk_limits;
 use crate::errors::BridgeError;
 use crate::events::{
     ProposalCreatedEvent, ProposalExecutedEvent, ProposalVotedEvent, ValidatorRegisteredEvent,
@@ -347,6 +348,8 @@ impl BFTConsensus {
         let mut active_validators: u32 = 0;
 
         for (validator, is_active) in validators.iter() {
+            // Gas budget check to prevent DoS from large validator sets
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if is_active {
                 active_validators += 1;
                 if let Some(stake) = stakes.get(validator.clone()) {
@@ -449,6 +452,8 @@ impl BFTConsensus {
             .unwrap_or_else(|| Map::new(env));
         let mut active = Vec::new(env);
         for (validator, is_active) in validators.iter() {
+            // Gas budget check to prevent DoS from large validator sets
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if is_active {
                 active.push_back(validator.clone());
             }

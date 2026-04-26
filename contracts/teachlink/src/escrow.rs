@@ -1,4 +1,5 @@
 use crate::arbitration::ArbitrationManager;
+use crate::bulk_limits;
 use crate::errors::EscrowError;
 use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
@@ -27,6 +28,10 @@ impl EscrowManager {
         arbitrator: Address,
     ) -> Result<u64, EscrowError> {
         depositor.require_auth();
+
+        // Batch size check for signers to prevent DoS
+        bulk_limits::check_batch_size_limit(signers.len(), bulk_limits::MAX_ESCROW_SIGNERS)
+            .expect("Too many signers");
 
         EscrowValidator::validate_create_escrow(
             env,

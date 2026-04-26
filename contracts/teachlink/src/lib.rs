@@ -97,6 +97,7 @@ mod atomic_swap;
 mod audit;
 mod bft_consensus;
 mod bridge;
+mod bulk_limits;
 mod emergency;
 mod errors;
 mod escrow;

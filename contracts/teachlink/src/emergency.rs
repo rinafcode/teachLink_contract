@@ -3,6 +3,7 @@
 //! This module implements circuit breaker functionality and emergency controls
 //! to protect the bridge during critical situations.
 
+use crate::bulk_limits;
 use crate::errors::BridgeError;
 use crate::events::{BridgePausedEvent, BridgeResumedEvent, CircuitBreakerTriggeredEvent};
 use crate::storage::{CIRCUIT_BREAKERS, EMERGENCY_STATE, PAUSED_CHAINS};
@@ -110,6 +111,9 @@ impl EmergencyManager {
     ) -> Result<(), BridgeError> {
         pauser.require_auth();
 
+        // Batch size check for chains to prevent DoS
+        bulk_limits::check_batch_size_limit(chain_ids.len(), bulk_limits::MAX_CHAIN_ID_BATCH)?;
+
         let mut paused_chains: Map<u32, bool> = env
             .storage()
             .instance()
@@ -141,6 +145,9 @@ impl EmergencyManager {
         chain_ids: Vec<u32>,
     ) -> Result<(), BridgeError> {
         resumer.require_auth();
+
+        // Batch size check for chains to prevent DoS
+        bulk_limits::check_batch_size_limit(chain_ids.len(), bulk_limits::MAX_CHAIN_ID_BATCH)?;
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()

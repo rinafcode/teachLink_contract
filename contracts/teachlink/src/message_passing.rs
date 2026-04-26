@@ -3,6 +3,7 @@
 //! This module implements guaranteed message delivery between chains
 //! with retry mechanisms and timeout handling.
 
+use crate::bulk_limits;
 use crate::errors::BridgeError;
 use crate::events::{PacketDeliveredEvent, PacketFailedEvent, PacketSentEvent};
 use crate::storage::{
@@ -272,6 +273,9 @@ impl MessagePassing {
         let current_time = env.ledger().timestamp();
 
         for (packet_id, mut packet) in packets.iter() {
+            // Gas budget check inside the loop to prevent DoS from large maps
+            bulk_limits::check_gas_budget(env)?;
+
             if packet.status == PacketStatus::Pending || packet.status == PacketStatus::Retrying {
                 if current_time > packet.timeout {
                     packet.status = PacketStatus::TimedOut;

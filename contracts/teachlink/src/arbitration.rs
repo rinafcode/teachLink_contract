@@ -1,3 +1,4 @@
+use crate::bulk_limits;
 use crate::errors::EscrowError;
 use crate::storage::{ARBITRATORS, ESCROWS};
 use crate::types::{ArbitratorProfile, Escrow, EscrowStatus};
@@ -9,6 +10,10 @@ impl ArbitrationManager {
     /// Register a new professional arbitrator
     pub fn register_arbitrator(env: &Env, profile: ArbitratorProfile) -> Result<(), EscrowError> {
         profile.address.require_auth();
+
+        // Batch size check for DoS protection
+        bulk_limits::check_batch_size(profile.specialization.len()).expect("Too many specializations");
+        bulk_limits::check_batch_size(profile.dispute_types_handled.len()).expect("Too many dispute types");
 
         let mut arbitrators: Map<Address, ArbitratorProfile> = env
             .storage()
@@ -29,6 +34,11 @@ impl ArbitrationManager {
         profile: ArbitratorProfile,
     ) -> Result<(), EscrowError> {
         address.require_auth();
+
+        // Batch size check for DoS protection
+        bulk_limits::check_batch_size(profile.specialization.len()).expect("Too many specializations");
+        bulk_limits::check_batch_size(profile.dispute_types_handled.len()).expect("Too many dispute types");
+
         if address != profile.address {
             return Err(EscrowError::SignerNotAuthorized);
         }
