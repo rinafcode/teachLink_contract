@@ -1638,3 +1638,28 @@ pub struct MobileSocialFeatures {
     pub study_buddies: Vec<Address>,
     pub mentor_quick_connect: bool,
 }
+
+// ========== Sustainability Metrics Types ==========
+
+/// Tracks contract-level sustainability KPIs: resource usage, efficiency, and platform health.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SustainabilityMetrics {
+    /// Total number of contract invocations (resource usage proxy)
+    pub total_invocations: u64,
+    /// Total storage entries written (resource usage)
+    pub total_storage_writes: u64,
+    /// Total events emitted (activity indicator)
+    pub total_events_emitted: u64,
+    /// Total rewards distributed (platform value flow)
+    pub total_rewards_distributed: i128,
+    /// Total content tokens minted (content creation KPI)
+    pub total_content_minted: u64,
+    /// Total active users (unique addresses that have interacted)
+    pub total_active_users: u64,
+    /// Efficiency score in basis points (0-10000 = 0%-100%)
+    /// Computed as: successful_ops / total_ops * 10000
+    pub efficiency_score: u32,
+    /// Timestamp of last metrics update
+    pub last_updated: u64,
+}
