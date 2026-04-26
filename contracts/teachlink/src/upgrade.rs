@@ -84,11 +84,7 @@ impl ContractUpgrader {
             return Err(BridgeError::Unauthorized);
         }
 
-        let current_version: u32 = env
-            .storage()
-            .instance()
-            .get(&UPGRADE_VERSION)
-            .unwrap_or(1);
+        let current_version: u32 = env.storage().instance().get(&UPGRADE_VERSION).unwrap_or(1);
 
         if new_version <= current_version {
             return Err(BridgeError::InvalidInput);
@@ -125,11 +121,7 @@ impl ContractUpgrader {
             return Err(BridgeError::Unauthorized);
         }
 
-        let current_version: u32 = env
-            .storage()
-            .instance()
-            .get(&UPGRADE_VERSION)
-            .unwrap_or(1);
+        let current_version: u32 = env.storage().instance().get(&UPGRADE_VERSION).unwrap_or(1);
 
         if new_version <= current_version {
             return Err(BridgeError::InvalidInput);
@@ -296,10 +288,10 @@ mod tests {
 
         env.as_contract(&contract_id, || {
             ContractUpgrader::initialize(&env, admin.clone()).unwrap();
-        
+
             let state_hash = Bytes::from_slice(&env, b"state_hash");
             ContractUpgrader::prepare_upgrade(&env, admin.clone(), 2, state_hash).unwrap();
-        
+
             assert_eq!(ContractUpgrader::get_current_version(&env), 1);
             assert!(ContractUpgrader::is_rollback_available(&env));
         });
