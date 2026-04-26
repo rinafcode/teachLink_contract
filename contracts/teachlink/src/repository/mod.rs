@@ -11,6 +11,8 @@ pub mod bridge_repository;
 pub mod escrow_repository;
 pub mod generic;
 pub mod traits;
+#[cfg(test)]
+pub mod concurrency_tests;
 // pub mod facade; // Removed - broken tests
 
 // #[cfg(test)]
