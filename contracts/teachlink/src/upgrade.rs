@@ -3,18 +3,19 @@
 //! This module provides a safe upgrade path for the contract while preserving state.
 //! It supports version tracking, state migration, and rollback capabilities.
 
+
 use crate::errors::BridgeError;
 use crate::storage::ADMIN;
 use soroban_sdk::{contracttype, Address, Bytes, Env, Map, String};
+
+/// Maximum rollback window in seconds (30 days)
+pub const ROLLBACK_WINDOW_SECONDS: u64 = 86400 * 30;
 
 /// Storage keys for upgrade mechanism
 pub const UPGRADE_VERSION: soroban_sdk::Symbol = soroban_sdk::symbol_short!("upg_ver");
 pub const UPGRADE_HISTORY: soroban_sdk::Symbol = soroban_sdk::symbol_short!("upg_hist");
 pub const UPGRADE_STATE_BACKUP: soroban_sdk::Symbol = soroban_sdk::symbol_short!("upg_back");
 pub const ROLLBACK_AVAILABLE: soroban_sdk::Symbol = soroban_sdk::symbol_short!("upg_rbok");
-
-/// Maximum rollback window in seconds (30 days)
-pub const ROLLBACK_WINDOW_SECONDS: u64 = 86400 * 30;
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
