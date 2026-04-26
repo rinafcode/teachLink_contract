@@ -1784,3 +1784,6 @@ impl TeachLinkBridge {
         network_recovery::NetworkRecovery::is_fallback_active(&env)
     }
 }
+
+#[cfg(test)]
+mod cross_chain_tests;
