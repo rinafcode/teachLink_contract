@@ -1638,3 +1638,37 @@ pub struct MobileSocialFeatures {
     pub study_buddies: Vec<Address>,
     pub mentor_quick_connect: bool,
 }
+
+// ========== Access Logging Types ==========
+
+/// The outcome of a single access attempt.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AccessOutcome {
+    Success,
+    Failure { error_code: u32 },
+}
+
+/// A single immutable record of one access attempt.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AccessLogEntry {
+    pub entry_id: u64,
+    pub caller: Address,
+    pub operation: Symbol,
+    pub outcome: AccessOutcome,
+    pub ledger_timestamp: u64,
+    pub window_start: u64,
+}
+
+/// Filter parameters for audit log queries.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuditQuery {
+    pub caller: Option<Address>,
+    pub operation: Option<Symbol>,
+    pub outcome_filter: Option<AccessOutcome>,
+    pub from_timestamp: Option<u64>,
+    pub to_timestamp: Option<u64>,
+    pub limit: u32,
+}
