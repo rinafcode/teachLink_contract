@@ -2,7 +2,6 @@
 //!
 //! This module provides a safe upgrade path for the contract while preserving state.
 //! It supports version tracking, state migration, and rollback capabilities.
-
 use crate::errors::BridgeError;
 use crate::storage::ADMIN;
 use soroban_sdk::{contracttype, Address, Bytes, Env, Map, String};
@@ -242,6 +241,29 @@ mod tests {
     use soroban_sdk::{Address, Bytes, Env};
 
     #[test]
+    fn test_rollback_window_expiry() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let admin = Address::generate(&env);
+
+        env.as_contract(&contract_id, || {
+            // Initialize upgrade system
+            ContractUpgrader::initialize(&env).unwrap();
+
+            // Prepare and execute upgrade
+            let state_hash = Bytes::from_slice(&env, b"state_hash");
+            ContractUpgrader::prepare_upgrade(&env, admin.clone(), 2, state_hash).unwrap();
+
+            let migration_hash = Bytes::from_slice(&env, b"migration");
+            ContractUpgrader::execute_upgrade(&env, admin.clone(), 2, migration_hash).unwrap();
+
+            // Verify rollback is available immediately after upgrade
+            assert!(ContractUpgrader::is_rollback_available(&env));
+        }); // closes env.as_contract
+    }
+
+    #[test]
     fn test_upgrade_lifecycle() {
         let env = Env::default();
         env.mock_all_auths();
@@ -282,29 +304,6 @@ mod tests {
             // Verify rolled back to version 1
             assert_eq!(ContractUpgrader::get_current_version(&env), 1);
             assert!(!ContractUpgrader::is_rollback_available(&env));
-        });
+        }); // closes env.as_contract
     }
-
-    #[test]
-    fn test_rollback_window_expiry() {
-        let env = Env::default();
-        env.mock_all_auths();
-        let contract_id = env.register(TeachLinkBridge, ());
-        let admin = Address::generate(&env);
-
-        env.as_contract(&contract_id, || {
-            // Initialize upgrade system
-            ContractUpgrader::initialize(&env).unwrap();
-
-            // Prepare and execute upgrade
-            let state_hash = Bytes::from_slice(&env, b"state_hash");
-            ContractUpgrader::prepare_upgrade(&env, admin.clone(), 2, state_hash).unwrap();
-
-            let migration_hash = Bytes::from_slice(&env, b"migration");
-            ContractUpgrader::execute_upgrade(&env, admin.clone(), 2, migration_hash).unwrap();
-
-            // Verify rollback is available immediately after upgrade
-            assert!(ContractUpgrader::is_rollback_available(&env));
-        });
-    }
-}
+} // closes mod tests
