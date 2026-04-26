@@ -278,19 +278,14 @@ impl EscrowValidator {
         refund_time: Option<u64>,
         arbitrator: &Address,
     ) -> Result<(), EscrowError> {
-       // Validate addresses
-        AddressValidator::validate(env, depositor)
-        .map_err(|_| EscrowError::InvalidAddress)?;
-        AddressValidator::validate(env, beneficiary)
-        .map_err(|_| EscrowError::InvalidAddress)?;
-        AddressValidator::validate(env, token)
-        .map_err(|_| EscrowError::InvalidAddress)?;
-        AddressValidator::validate(env, arbitrator)
-        .map_err(|_| EscrowError::InvalidAddress)?;
+        // Validate addresses
+        AddressValidator::validate(env, depositor).map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, beneficiary).map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, token).map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, arbitrator).map_err(|_| EscrowError::InvalidAddress)?;
 
         // Validate amount
-        NumberValidator::validate_amount(amount)
-            .map_err(|_| EscrowError::AmountMustBePositive)?;
+        NumberValidator::validate_amount(amount).map_err(|_| EscrowError::AmountMustBePositive)?;
 
         // Validate signers
         NumberValidator::validate_signer_count(signers.len() as usize)
@@ -346,14 +341,12 @@ impl EscrowValidator {
             .map_err(|_| EscrowError::InvalidAddress)?;
         AddressValidator::validate(env, &params.beneficiary)
             .map_err(|_| EscrowError::InvalidAddress)?;
-        AddressValidator::validate(env, &params.token)
-            .map_err(|_| EscrowError::InvalidAddress)?;
+        AddressValidator::validate(env, &params.token).map_err(|_| EscrowError::InvalidAddress)?;
         AddressValidator::validate(env, &params.arbitrator)
             .map_err(|_| EscrowError::InvalidAddress)?;
 
         // Validate amount
-        NumberValidator::validate_amount(params.amount)
-            .map_err(|_| EscrowError::InvalidAmount)?;
+        NumberValidator::validate_amount(params.amount).map_err(|_| EscrowError::InvalidAmount)?;
 
         // Validate signers
         NumberValidator::validate_signer_count(params.signers.len() as usize)
