@@ -244,7 +244,7 @@ impl ContractUpgrader {
 
 #[cfg(test)]
 mod tests {
-    use super::ContractUpgrader;
+    use super::{ContractUpgrader, ROLLBACK_WINDOW_SECONDS};
     use crate::TeachLinkBridge;
     use soroban_sdk::testutils::Address as _;
     use soroban_sdk::{Address, Bytes, Env};
