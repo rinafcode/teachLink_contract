@@ -1638,3 +1638,45 @@ pub struct MobileSocialFeatures {
     pub study_buddies: Vec<Address>,
     pub mentor_quick_connect: bool,
 }
+
+// ========== API Versioning Types ==========
+
+/// A single deprecated function entry in the deprecation registry.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeprecatedFunction {
+    /// The symbol name of the deprecated entry point (≤ 9 chars).
+    pub function_name: Symbol,
+    /// Version in which the deprecation was announced.
+    pub deprecated_in: ContractSemVer,
+    /// Version in which the function will be removed.
+    pub removal_in: ContractSemVer,
+    /// Optional symbol name of the replacement function.
+    pub replacement: Option<Symbol>,
+    /// Human-readable reason for deprecation.
+    pub reason: Bytes,
+}
+
+/// The full deprecation policy: current version + all deprecated functions.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeprecationPolicy {
+    pub current_version: ContractSemVer,
+    pub deprecated_functions: Vec<DeprecatedFunction>,
+}
+
+/// A migration path documenting how to upgrade from one version to another.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MigrationPath {
+    /// The version callers are migrating from.
+    pub from_version: ContractSemVer,
+    /// The version callers are migrating to.
+    pub to_version: ContractSemVer,
+    /// Human-readable description of the migration.
+    pub description: Bytes,
+    /// List of breaking changes introduced in `to_version`.
+    pub breaking_changes: Vec<Bytes>,
+    /// Ordered list of steps callers must follow to migrate.
+    pub migration_steps: Vec<Bytes>,
+}
