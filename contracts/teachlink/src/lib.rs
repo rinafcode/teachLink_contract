@@ -156,6 +156,7 @@ mod slashing;
 // TODO: Fix social_learning module compilation errors (pre-existing issue)
 // mod social_learning;
 mod storage;
+mod sustainability;
 mod tokenization;
 mod types;
 mod upgrade;
@@ -187,9 +188,9 @@ pub use types::{
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
     OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
     ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
-    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
-    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature, VisualizationDataPoint,
+    RewardType, RtoTier, SlashingReason, SlashingRecord, SustainabilityMetrics, SwapStatus,
+    TransferType, UserNotificationSettings, UserReputation, UserReward, ValidatorInfo,
+    ValidatorReward, ValidatorSignature, VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -1332,19 +1333,19 @@ impl TeachLinkBridge {
     // ========== Reputation Functions (main) ==========
 
     pub fn update_participation(env: Env, user: Address, points: u32) {
-        reputation::update_participation(&env, user, points);
+        reputation::ReputationManager::update_participation(&env, user, points);
     }
 
     pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
-        reputation::update_course_progress(&env, user, is_completion);
+        reputation::ReputationManager::update_course_progress(&env, user, is_completion);
     }
 
     pub fn rate_contribution(env: Env, user: Address, rating: u32) {
-        reputation::rate_contribution(&env, user, rating);
+        reputation::ReputationManager::rate_contribution(&env, user, rating);
     }
 
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
-        reputation::get_reputation(&env, &user)
+        reputation::ReputationManager::get_reputation(&env, &user)
     }
 
     // ========== Content Tokenization Functions ==========
@@ -1782,5 +1783,33 @@ impl TeachLinkBridge {
     /// Check if fallback mechanism is active
     pub fn is_fallback_active(env: Env) -> bool {
         network_recovery::NetworkRecovery::is_fallback_active(&env)
+    }
+
+    // ========== Sustainability Metrics Functions ==========
+
+    /// Get current sustainability metrics snapshot.
+    pub fn get_sustainability_metrics(env: Env) -> SustainabilityMetrics {
+        sustainability::SustainabilityManager::get_metrics(&env)
+    }
+
+    /// Compute composite sustainability health score (0-100).
+    pub fn get_sustainability_health_score(env: Env) -> u32 {
+        sustainability::SustainabilityManager::health_score(&env)
+    }
+
+    /// Update the efficiency score from a caller-supplied ops window.
+    /// `successful_ops` / `total_ops` determines the basis-point score.
+    pub fn update_sustainability_efficiency(
+        env: Env,
+        successful_ops: u64,
+        total_ops: u64,
+    ) {
+        sustainability::SustainabilityManager::update_efficiency(&env, successful_ops, total_ops)
+    }
+
+    /// Record a contract invocation for resource-usage tracking.
+    /// Set `storage_write` to true when the invocation writes to storage.
+    pub fn record_sustainability_invocation(env: Env, storage_write: bool) {
+        sustainability::SustainabilityManager::record_invocation(&env, storage_write)
     }
 }
