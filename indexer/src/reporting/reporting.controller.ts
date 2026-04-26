@@ -35,6 +35,12 @@ export class ReportingController {
     return this.dashboardService.getCurrentAnalytics();
   }
 
+  /** Real-time sustainability KPIs and health score */
+  @Get('sustainability')
+  async getSustainability() {
+    return this.dashboardService.getSustainabilitySnapshot();
+  }
+
   /** Generate and persist a report snapshot (manual trigger) */
   @Post('reports/snapshots')
   async generateSnapshot(
