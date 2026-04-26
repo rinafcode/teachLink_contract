@@ -6,6 +6,7 @@
 
 use crate::analytics::AnalyticsManager;
 use crate::audit::AuditManager;
+use crate::bulk_limits;
 use crate::errors::BridgeError;
 use crate::escrow_analytics::EscrowAnalyticsManager;
 use crate::events::{
@@ -139,6 +140,7 @@ impl ReportingManager {
 
         let mut result = Vec::new(env);
         for (_id, s) in schedules.iter() {
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if s.owner == owner {
                 result.push_back(s);
             }
@@ -255,6 +257,7 @@ impl ReportingManager {
 
         let mut count: u32 = 0;
         for ((rid, _), _) in usage_map.iter() {
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if rid == report_id {
                 count += 1;
             }
@@ -321,6 +324,7 @@ impl ReportingManager {
 
         let mut result = Vec::new(env);
         for (_id, c) in comments.iter() {
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if c.report_id == report_id {
                 result.push_back(c);
             }
@@ -377,6 +381,7 @@ impl ReportingManager {
 
         let mut result = Vec::new(env);
         for (_id, r) in rules.iter() {
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if r.owner == owner {
                 result.push_back(r);
             }
@@ -398,6 +403,7 @@ impl ReportingManager {
 
         let mut triggered = Vec::new(env);
         for (rule_id, rule) in rules.iter() {
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if !rule.enabled {
                 continue;
             }

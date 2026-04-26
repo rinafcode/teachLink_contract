@@ -3,6 +3,7 @@
 //! This module extends bridge functionality to support multiple blockchain networks
 //! with configurable chain parameters and asset mappings.
 
+use crate::bulk_limits;
 use crate::errors::BridgeError;
 use crate::events::{AssetRegisteredEvent, ChainAddedEvent, ChainUpdatedEvent};
 use crate::storage::{ASSET_COUNTER, CHAIN_CONFIGS, MULTI_CHAIN_ASSETS, SUPPORTED_CHAINS};
@@ -158,8 +159,14 @@ impl MultiChainManager {
             return Err(BridgeError::InvalidInput);
         }
 
+        // Validate chain configs batch size
+        bulk_limits::check_batch_size_limit(chain_configs.len(), bulk_limits::MAX_CHAIN_ID_BATCH)?;
+
         // Validate chain configs
         for (chain_id, config) in chain_configs.iter() {
+            // Gas budget check to prevent DoS
+            bulk_limits::check_gas_budget(env)?;
+
             // Check if chain is supported
             let chains: Map<u32, bool> = env
                 .storage()

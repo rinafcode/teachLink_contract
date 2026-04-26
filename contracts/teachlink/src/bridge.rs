@@ -1,3 +1,4 @@
+use crate::bulk_limits;
 use crate::errors::BridgeError;
 use crate::events::{BridgeCompletedEvent, BridgeInitiatedEvent, DepositEvent, ReleaseEvent};
 use crate::storage::{
@@ -76,6 +77,9 @@ impl Bridge {
             destination_chain,
             &destination_address,
         )?;
+
+        // Rate limiting for DoS protection
+        bulk_limits::check_rate_limit(env, &from)?;
 
         // Check if destination chain is supported
         let supported_chains: Map<u32, bool> = env
@@ -201,6 +205,12 @@ impl Bridge {
             &message,
             &validator_signatures,
             min_validators,
+        )?;
+
+        // Batch size check for validator signatures to prevent DoS
+        bulk_limits::check_batch_size_limit(
+            validator_signatures.len(),
+            bulk_limits::MAX_VALIDATOR_BATCH,
         )?;
 
         // Verify all signatures are from valid validators
