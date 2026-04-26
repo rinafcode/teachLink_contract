@@ -23,6 +23,7 @@ TeachLink is a Soroban smart contract that powers tokenized learning rewards on 
 - Architecture
 - Development Workflow
 - Contribution Guidelines
+- Changelog
 - Troubleshooting
 - License
 
@@ -281,7 +282,7 @@ See:
 
 ## Architecture
 
-For full architecture documentation including system diagrams, data flow diagrams, and component interaction maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+For full architecture documentation including system diagrams, data flow diagrams, and component interaction maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For a high-level overview of the entire ecosystem, see [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md).
 
 **High-level overview:**
 
@@ -441,6 +442,10 @@ On Windows, `cargo test` may fail with **`link.exe` not found** (MSVC) or **`exp
   Or: `cargo build -p teachlink-contract --target wasm32-unknown-unknown`
 - **Run full tests:** Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++", then use the default (MSVC) toolchain and run `cargo test -p teachlink-contract`.
 - **Otherwise:** Rely on CI (GitHub Actions) for `cargo test`; the WASM build is what gets deployed.
+
+## Changelog
+
+For a detailed history of changes to this project, see [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
