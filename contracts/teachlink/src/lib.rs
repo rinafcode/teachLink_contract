@@ -96,6 +96,7 @@ mod arbitration;
 mod assessment;
 mod atomic_swap;
 mod audit;
+mod auto_scaling;
 mod backup;
 mod bft_consensus;
 mod bridge;
@@ -436,6 +437,64 @@ impl TeachLinkBridge {
     /// Trigger rotation if the current consensus round is at an epoch boundary.
     pub fn maybe_rotate_validators(env: Env) -> Result<bool, BridgeError> {
         bft_consensus::BFTConsensus::maybe_rotate(&env)
+    }
+
+    // ========== Auto-Scaling & Load Management Functions ==========
+
+    /// Initialize auto-scaling configuration (admin only)
+    pub fn initialize_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::initialize(&env, &admin)
+    }
+
+    /// Get current system load level
+    pub fn get_load_level(env: Env) -> crate::types::LoadLevel {
+        auto_scaling::AutoScaler::get_current_load_level(&env)
+    }
+
+    /// Calculate optimal batch size based on current load
+    pub fn get_optimal_batch_size(env: Env) -> u32 {
+        auto_scaling::AutoScaler::calculate_optimal_batch_size(&env)
+    }
+
+    /// Check if an operation should be shed based on priority and load
+    pub fn should_shed_operation(env: Env, priority: u8) -> bool {
+        auto_scaling::AutoScaler::should_shed_operation(&env, priority)
+    }
+
+    /// Update load metrics with recent operation data
+    pub fn update_load_metrics(
+        env: Env,
+        operations_processed: u64,
+        operations_shed: u64,
+        current_gas_usage: u64,
+    ) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::update_load_metrics(
+            &env,
+            operations_processed,
+            operations_shed,
+            current_gas_usage,
+        )
+    }
+
+    /// Determine if an operation should be queued based on priority
+    pub fn should_queue_operation(env: Env, priority: u8) -> bool {
+        auto_scaling::AutoScaler::should_queue_operation(&env, priority)
+    }
+
+    /// Get gas allocation for an operation based on load and priority
+    pub fn allocate_gas_budget(env: Env, priority: u8, base_gas: u64) -> u64 {
+        auto_scaling::AutoScaler::allocate_gas_budget(&env, priority, base_gas)
+    }
+
+    /// Trigger emergency scaling (admin only)
+    pub fn trigger_emergency_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        admin.require_auth();
+        auto_scaling::AutoScaler::emergency_scaling(&env)
+    }
+
+    /// Reset scaling configuration to defaults (admin only)
+    pub fn reset_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::reset_scaling(&env, &admin)
     }
 
     // ========== Slashing and Rewards Functions ==========

@@ -34,6 +34,10 @@ jobs:
       - name: Check performance regressions
         run: bash scripts/check_performance.sh
 
+      - name: Enforce performance budgets
+        if: always()
+        run: bash scripts/enforce_budgets.sh --verbose
+
       - name: Generate test report
         if: always()
         run: bash scripts/generate_test_report.sh

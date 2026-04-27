@@ -1673,3 +1673,38 @@ pub struct MobileSocialFeatures {
     pub study_buddies: Vec<Address>,
     pub mentor_quick_connect: bool,
 }
+
+// ========== Auto-Scaling & Load Management Types ==========
+
+/// Load level indicating current system capacity utilization
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LoadLevel {
+    Low,       // < 50% capacity
+    Medium,    // 50-75% capacity
+    High,      // 75-90% capacity
+    Critical,  // > 90% capacity
+}
+
+/// Scaling policy configuration for auto-scaling behavior
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScalingPolicy {
+    pub max_batch_size: u32,
+    pub min_batch_size: u32,
+    pub gas_budget_per_batch: u64,
+    pub enable_load_shedding: bool,
+    pub load_shedding_threshold: u64,
+    pub priority_queue_enabled: bool,
+}
+
+/// Runtime metrics for scaling decisions
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScalingMetrics {
+    pub current_load: u64,
+    pub processed_operations: u64,
+    pub shed_operations: u64,
+    pub average_batch_size: u32,
+    pub last_scaling_adjustment: u64,
+}
