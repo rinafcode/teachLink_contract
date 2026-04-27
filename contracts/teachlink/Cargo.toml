@@ -36,3 +36,7 @@ path = "tests/test_module_interactions.rs"
 [[test]]
 name = "test_e2e"
 path = "tests/test_e2e.rs"
+
+[[test]]
+name = "test_migration"
+path = "tests/test_migration.rs"
