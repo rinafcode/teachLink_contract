@@ -28,7 +28,7 @@ impl EmergencyManager {
             env,
             &pauser,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         // Check if already paused
         let emergency_state: EmergencyState = env
@@ -77,7 +77,7 @@ impl EmergencyManager {
             env,
             &resumer,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         // Check if paused
         let mut emergency_state: EmergencyState = env
@@ -125,7 +125,7 @@ impl EmergencyManager {
             env,
             &pauser,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()
@@ -162,7 +162,7 @@ impl EmergencyManager {
             env,
             &resumer,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()
@@ -338,7 +338,7 @@ impl EmergencyManager {
             env,
             &resetter,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         let mut circuit_breakers: Map<u32, CircuitBreaker> = env
             .storage()
@@ -458,7 +458,7 @@ impl EmergencyManager {
             env,
             &updater,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         let mut circuit_breakers: Map<u32, CircuitBreaker> = env
             .storage()

@@ -163,6 +163,12 @@ mod validation;
 // TODO: Fix validation_tests compilation errors (pre-existing issue)
 // mod validation_tests;
 
+pub use validation::{
+    config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
+    EscrowValidator, InputSanitizer, NumberValidator, RewardsValidator, StringValidator,
+    ValidationError, ValidationResult,
+};
+
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
     LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
@@ -171,7 +177,7 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use errors::{BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -209,8 +215,9 @@ impl TeachLinkBridge {
         min_validators: u32,
         fee_recipient: Address,
     ) -> Result<(), BridgeError> {
-        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
+        bridge::Bridge::initialize(&env, token, admin.clone(), min_validators, fee_recipient)?;
         interface_versioning::InterfaceVersioning::initialize(&env);
+        upgrade::ContractUpgrader::initialize(&env, admin.clone())?;
         Ok(())
     }
 
@@ -254,23 +261,23 @@ impl TeachLinkBridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
-    pub fn add_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::add_validator(&env, validator);
+    pub fn add_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::add_validator(&env, validator)
     }
 
     /// Remove a validator (admin only)
-    pub fn remove_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::remove_validator(&env, validator);
+    pub fn remove_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_validator(&env, validator)
     }
 
     /// Add a supported destination chain (admin only)
-    pub fn add_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::add_supported_chain(&env, chain_id);
+    pub fn add_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::add_supported_chain(&env, chain_id)
     }
 
     /// Remove a supported destination chain (admin only)
-    pub fn remove_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::remove_supported_chain(&env, chain_id);
+    pub fn remove_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_supported_chain(&env, chain_id)
     }
 
     /// Set bridge fee (admin only)
@@ -279,8 +286,8 @@ impl TeachLinkBridge {
     }
 
     /// Set fee recipient (admin only)
-    pub fn set_fee_recipient(env: Env, fee_recipient: Address) {
-        let _ = bridge::Bridge::set_fee_recipient(&env, fee_recipient);
+    pub fn set_fee_recipient(env: Env, fee_recipient: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::set_fee_recipient(&env, fee_recipient)
     }
 
     /// Set minimum validators (admin only)

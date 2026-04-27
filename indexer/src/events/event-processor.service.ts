@@ -287,14 +287,18 @@ export class EventProcessorService {
       },
     });
 
-    // Mark rewards as claimed
-    for (const reward of rewards) {
+    // Mark rewards as claimed — batch update in parallel
+    const updatedRewards = rewards.map((reward) => {
       reward.status = RewardStatus.CLAIMED;
       reward.claimedAt = data.timestamp;
-      await this.rewardRepo.save(reward);
+      return reward;
+    });
+
+    if (updatedRewards.length > 0) {
+      await this.rewardRepo.save(updatedRewards);
     }
 
-    this.logger.log(`Indexed RewardClaimedEvent for ${data.user}`);
+    this.logger.log(`Indexed RewardClaimedEvent for ${data.user} (${updatedRewards.length} rewards claimed)`);
   }
 
   private async handleRewardPoolFundedEvent(event: ProcessedEvent): Promise<void> {
@@ -455,18 +459,19 @@ export class EventProcessorService {
       mintedTimestamp: event.timestamp,
     });
 
-    await this.contentTokenRepo.save(token);
-
-    // Create provenance record
-    await this.createProvenanceRecord({
-      tokenId: data.token_id,
-      eventType: ProvenanceEventType.MINT,
-      fromAddress: null,
-      toAddress: data.creator,
-      timestamp: event.timestamp,
-      ledger: event.ledger,
-      txHash: event.txHash,
-    });
+    // Save token and create provenance record in parallel
+    await Promise.all([
+      this.contentTokenRepo.save(token),
+      this.createProvenanceRecord({
+        tokenId: data.token_id,
+        eventType: ProvenanceEventType.MINT,
+        fromAddress: null,
+        toAddress: data.creator,
+        timestamp: event.timestamp,
+        ledger: event.ledger,
+        txHash: event.txHash,
+      }),
+    ]);
 
     this.logger.log(`Indexed ContentMintedEvent for token ${data.token_id}`);
   }
@@ -484,18 +489,20 @@ export class EventProcessorService {
       token.lastTransferLedger = event.ledger;
       token.lastTransferTxHash = event.txHash;
       token.lastTransferTimestamp = data.timestamp;
-      await this.contentTokenRepo.save(token);
 
-      // Create provenance record
-      await this.createProvenanceRecord({
-        tokenId: data.token_id,
-        eventType: ProvenanceEventType.TRANSFER,
-        fromAddress: data.from,
-        toAddress: data.to,
-        timestamp: data.timestamp,
-        ledger: event.ledger,
-        txHash: event.txHash,
-      });
+      // Save token update and create provenance record in parallel
+      await Promise.all([
+        this.contentTokenRepo.save(token),
+        this.createProvenanceRecord({
+          tokenId: data.token_id,
+          eventType: ProvenanceEventType.TRANSFER,
+          fromAddress: data.from,
+          toAddress: data.to,
+          timestamp: data.timestamp,
+          ledger: event.ledger,
+          txHash: event.txHash,
+        }),
+      ]);
 
       this.logger.log(`Indexed OwnershipTransferredEvent for token ${data.token_id}`);
     }

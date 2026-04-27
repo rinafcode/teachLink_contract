@@ -63,11 +63,8 @@ impl Bridge {
             .set_fee_recipient(&fee_recipient)
             .map_err(|_| BridgeError::StorageError)?;
 
-        // Initialize nonce to 0
-        repo.transactions
-            .get_current_nonce()
-            .map_err(|_| BridgeError::StorageError)
-            .ok();
+        // Nonce initializes lazily on first use; ignore if absent
+        let _ = repo.transactions.get_current_nonce();
 
         Ok(())
     }
@@ -110,7 +107,10 @@ impl Bridge {
 
             // Apply bridge fee if configured
             let fee = repo.config.get_bridge_fee().unwrap_or(0);
-            let fee_recipient = repo.config.get_fee_recipient().unwrap();
+            let fee_recipient = repo
+                .config
+                .get_fee_recipient()
+                .map_err(|_| BridgeError::NotInitialized)?;
             let amount_after_fee = if fee > 0 && fee < amount {
                 amount - fee
             } else {
@@ -458,7 +458,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        );
+        )?;
 
         repo.validators
             .add_validator(&validator)
@@ -496,7 +496,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        );
+        )?;
 
         repo.validators
             .remove_validator(&validator)
@@ -536,7 +536,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        );
+        )?;
 
         repo.chains
             .add_chain(chain_id)
@@ -567,7 +567,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        );
+        )?;
 
         repo.chains
             .remove_chain(chain_id)
@@ -597,7 +597,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )?;
 
         if fee < 0 {
             return Err(BridgeError::FeeCannotBeNegative);
@@ -635,7 +635,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )?;
 
         repo.config
             .set_fee_recipient(&fee_recipient)
@@ -672,7 +672,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )?;
 
         if min_validators == 0 {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
