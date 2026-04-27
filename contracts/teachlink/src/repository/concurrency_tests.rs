@@ -6,8 +6,8 @@
 use crate::repository::escrow_repository::EscrowAggregateRepository;
 use crate::repository::StorageError;
 use crate::types::{Escrow, EscrowRole, EscrowSigner, EscrowStatus};
-use soroban_sdk::{Address, Env, Vec};
 use soroban_sdk::testutils::Address as _;
+use soroban_sdk::{Address, Env, Vec};
 
 #[test]
 fn test_atomic_escrow_approval_prevents_race_conditions() {
