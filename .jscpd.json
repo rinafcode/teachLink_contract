@@ -1,0 +1,14 @@
+{
+  "threshold": 5,
+  "reporters": ["html", "console", "json"],
+  "ignore": [
+    "**/target/**",
+    "**/tests/**",
+    "**/benches/**",
+    "**/scripts/**",
+    "**/*.json",
+    "**/*.md"
+  ],
+  "absolute": true,
+  "output": "reports/duplication"
+}
