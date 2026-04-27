@@ -106,14 +106,14 @@ impl AutoScaler {
             // Scale down from 50% to min as load goes from HIGH to CRITICAL
             let range = LOAD_THRESHOLD_CRITICAL - LOAD_THRESHOLD_HIGH;
             let position = load - LOAD_THRESHOLD_HIGH;
-            let ratio = (range - position) as u64 * 100 / range;
+            let ratio = ((range - position) as u32 * 100 / range as u32) as u32;
             let batch_range = policy.max_batch_size - policy.min_batch_size;
             policy.min_batch_size + (batch_range * ratio / 200) // 50% at HIGH threshold
         } else if load >= LOAD_THRESHOLD_MEDIUM {
             // Scale down from max to 50% as load goes from MEDIUM to HIGH
             let range = LOAD_THRESHOLD_HIGH - LOAD_THRESHOLD_MEDIUM;
             let position = load - LOAD_THRESHOLD_MEDIUM;
-            let ratio = 100 - (position as u64 * 100 / range / 2);
+            let ratio = (100 - (position as u32 * 100 / range as u32 / 2)) as u32;
             let batch_range = policy.max_batch_size - policy.min_batch_size;
             policy.min_batch_size + (batch_range * ratio / 100)
         } else {
@@ -123,7 +123,7 @@ impl AutoScaler {
     }
 
     /// Determine if an operation should be shed based on priority and load
-    pub fn should_shed_operation(env: &Env, priority: u8) -> bool {
+    pub fn should_shed_operation(env: &Env, priority: u32) -> bool {
         let metrics: ScalingMetrics = env
             .storage()
             .instance()
@@ -154,7 +154,7 @@ impl AutoScaler {
             200 // Shed only low priority
         };
 
-        priority > shed_threshold
+        priority > shed_threshold as u32
     }
 
     /// Update load metrics with new operation data
@@ -219,7 +219,7 @@ impl AutoScaler {
     }
 
     /// Get priority-based queuing decision
-    pub fn should_queue_operation(env: &Env, priority: u8) -> bool {
+    pub fn should_queue_operation(env: &Env, priority: u32) -> bool {
         let policy: ScalingPolicy = env
             .storage()
             .instance()
@@ -241,7 +241,7 @@ impl AutoScaler {
     }
 
     /// Get gas allocation for operation based on current load and priority
-    pub fn allocate_gas_budget(env: &Env, priority: u8, base_gas: u64) -> u64 {
+    pub fn allocate_gas_budget(env: &Env, priority: u32, base_gas: u64) -> u64 {
         let metrics: ScalingMetrics = env
             .storage()
             .instance()

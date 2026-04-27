@@ -457,7 +457,7 @@ impl TeachLinkBridge {
     }
 
     /// Check if an operation should be shed based on priority and load
-    pub fn should_shed_operation(env: Env, priority: u8) -> bool {
+    pub fn should_shed_operation(env: Env, priority: u32) -> bool {
         auto_scaling::AutoScaler::should_shed_operation(&env, priority)
     }
 
@@ -477,12 +477,12 @@ impl TeachLinkBridge {
     }
 
     /// Determine if an operation should be queued based on priority
-    pub fn should_queue_operation(env: Env, priority: u8) -> bool {
+    pub fn should_queue_operation(env: Env, priority: u32) -> bool {
         auto_scaling::AutoScaler::should_queue_operation(&env, priority)
     }
 
     /// Get gas allocation for an operation based on load and priority
-    pub fn allocate_gas_budget(env: Env, priority: u8, base_gas: u64) -> u64 {
+    pub fn allocate_gas_budget(env: Env, priority: u32, base_gas: u64) -> u64 {
         auto_scaling::AutoScaler::allocate_gas_budget(&env, priority, base_gas)
     }
 
