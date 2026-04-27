@@ -35,7 +35,7 @@ use crate::repository::traits::InstanceStorage;
 use crate::repository::StorageError;
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{Escrow, EscrowApprovalKey};
-use soroban_sdk::{Address, Env, Map};
+use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Repository for escrow management
 pub struct EscrowRepository<'a> {
@@ -193,7 +193,10 @@ impl<'a> EscrowAggregateRepository<'a> {
         }
 
         // Get the escrow to validate signer authorization
-        let escrow = self.escrows.get_escrow(escrow_id).ok_or(StorageError::NotFound)?;
+        let escrow = self
+            .escrows
+            .get_escrow(escrow_id)
+            .ok_or(StorageError::NotFound)?;
 
         // Validate that the signer is authorized for this escrow
         if !escrow.signers.iter().any(|s| &s.address == signer) {
@@ -218,8 +221,13 @@ impl<'a> EscrowAggregateRepository<'a> {
 
     /// Get all approvals for an escrow
     pub fn get_escrow_approvals(&self, escrow_id: u64) -> Result<Vec<Address>, StorageError> {
-        let escrow = self.escrows.get_escrow(escrow_id).ok_or(StorageError::NotFound)?;
-        Ok(self.approvals.get_escrow_approvals(escrow_id, &escrow.signers))
+        let escrow = self
+            .escrows
+            .get_escrow(escrow_id)
+            .ok_or(StorageError::NotFound)?;
+        Ok(self
+            .approvals
+            .get_escrow_approvals(escrow_id, &escrow.signers))
     }
 }
 
@@ -241,7 +249,7 @@ impl<'a> EscrowAggregateRepository<'a> {
 //         let escrow = Escrow {
 //             id: 1,
 //             depositor: depositor.clone(),
-             beneficiary: beneficiary.clone(),
+//             beneficiary: beneficiary.clone(),
 //             token: token.clone(),
 //             amount: 1000,
 //             signers: soroban_sdk::Vec::new(&env),
