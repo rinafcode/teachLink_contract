@@ -163,6 +163,12 @@ mod validation;
 // TODO: Fix validation_tests compilation errors (pre-existing issue)
 // mod validation_tests;
 
+pub use validation::{
+    config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
+    EscrowValidator, InputSanitizer, NumberValidator, RewardsValidator, StringValidator,
+    ValidationError, ValidationResult,
+};
+
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
     LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
