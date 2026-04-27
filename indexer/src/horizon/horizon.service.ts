@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as StellarSdk from '@stellar/stellar-sdk';
 import { Server, ServerApi } from '@stellar/stellar-sdk/lib/horizon';
+import { parallelBatch } from '../utils/parallel';
 
 export interface ProcessedEvent {
   type: string;
@@ -90,18 +91,29 @@ export class HorizonService implements OnModuleInit {
   }
 
   /**
-   * Fetch operations for a specific ledger range
+   * Fetch operations for a specific ledger range.
+   *
+   * Uses parallel batched fetching (concurrency=10) to speed up
+   * historical backfill by fetching multiple ledgers simultaneously.
    */
   async fetchOperationsInRange(
     startLedger: number,
     endLedger: number,
   ): Promise<ProcessedEvent[]> {
-    this.logger.log(`Fetching operations from ledger ${startLedger} to ${endLedger}`);
+    const totalLedgers = endLedger - startLedger + 1;
+    this.logger.log(
+      `Fetching operations from ledger ${startLedger} to ${endLedger} (${totalLedgers} ledgers, parallel)`,
+    );
 
-    const allEvents: ProcessedEvent[] = [];
+    const ledgerNumbers = Array.from(
+      { length: totalLedgers },
+      (_, i) => startLedger + i,
+    );
 
-    for (let ledger = startLedger; ledger <= endLedger; ledger++) {
-      try {
+    const { results, errors, durationMs } = await parallelBatch(
+      ledgerNumbers,
+      async (ledger) => {
+        const events: ProcessedEvent[] = [];
         const operations = await this.server
           .operations()
           .forLedger(ledger.toString())
@@ -113,15 +125,28 @@ export class HorizonService implements OnModuleInit {
             const invokeOp = operation as ServerApi.InvokeHostFunctionOperationRecord;
 
             if (this.isContractOperation(invokeOp)) {
-              const events = await this.extractEventsFromOperation(invokeOp);
-              allEvents.push(...events);
+              const extracted = await this.extractEventsFromOperation(invokeOp);
+              events.push(...extracted);
             }
           }
         }
-      } catch (error) {
-        this.logger.warn(`Error fetching ledger ${ledger}: ${error.message}`);
-      }
+        return events;
+      },
+      { concurrency: 10, continueOnError: true },
+    );
+
+    if (errors.length > 0) {
+      this.logger.warn(
+        `${errors.length}/${totalLedgers} ledger fetches failed during parallel fetch`,
+      );
     }
+
+    // Flatten results (each element is an array of events for one ledger)
+    const allEvents = results.filter(Boolean).flat();
+
+    this.logger.log(
+      `Parallel fetch complete: ${allEvents.length} events from ${totalLedgers} ledgers in ${durationMs}ms`,
+    );
 
     return allEvents;
   }
