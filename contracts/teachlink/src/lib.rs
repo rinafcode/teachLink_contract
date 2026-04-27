@@ -215,8 +215,9 @@ impl TeachLinkBridge {
         min_validators: u32,
         fee_recipient: Address,
     ) -> Result<(), BridgeError> {
-        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
+        bridge::Bridge::initialize(&env, token, admin.clone(), min_validators, fee_recipient)?;
         interface_versioning::InterfaceVersioning::initialize(&env);
+        upgrade::ContractUpgrader::initialize(&env, admin.clone())?;
         Ok(())
     }
 
