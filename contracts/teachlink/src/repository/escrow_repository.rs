@@ -35,7 +35,7 @@ use crate::repository::traits::InstanceStorage;
 use crate::repository::StorageError;
 use crate::storage::{ESCROWS, ESCROW_COUNT};
 use crate::types::{Escrow, EscrowApprovalKey};
-use soroban_sdk::{Address, Env, Map};
+use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Repository for escrow management
 pub struct EscrowRepository<'a> {
