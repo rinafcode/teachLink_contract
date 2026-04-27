@@ -470,6 +470,15 @@ impl AnalyticsManager {
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
 
+        // Audit: admin reset of metrics
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 

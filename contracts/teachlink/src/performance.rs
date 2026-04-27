@@ -10,7 +10,7 @@ use crate::events::PerfCacheInvalidatedEvent;
 use crate::events::PerfMetricsComputedEvent;
 use crate::storage::{PERF_CACHE, PERF_TS};
 use crate::types::CachedBridgeSummary;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{Address, Bytes, Env};
 
 /// Cache TTL in ledger seconds (1 hour).
 pub const CACHE_TTL_SECS: u64 = 3_600;
@@ -70,6 +70,14 @@ impl PerformanceManager {
             invalidated_at: env.ledger().timestamp(),
         }
         .publish(env);
+        // Audit: performance cache invalidation
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
         Ok(())
     }
 }
