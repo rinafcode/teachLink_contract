@@ -2,6 +2,70 @@
 //!
 //! This module implements liquidity pool management and automated market making
 //! for optimizing bridge operations and dynamic fee pricing.
+//!
+//! # Dynamic Fee Algorithm
+//!
+//! The bridge fee is computed in three stages:
+//!
+//! ```text
+//! 1. base_fee_amount   = amount * base_fee_bps / 10_000
+//! 2. congestion_adj    = base_fee_amount * congestion_multiplier / 100
+//! 3. final_fee         = congestion_adj * (10_000 - volume_discount_bps) / 10_000
+//! ```
+//!
+//! The result is clamped to `[MIN_FEE_BPS, MAX_FEE_BPS]` of the transfer amount.
+//!
+//! ## Congestion Multiplier
+//!
+//! Derived from pool utilisation (`locked / total`):
+//!
+//! | Utilisation | Multiplier |
+//! |-------------|-----------|
+//! | < 50 %      | 1.0×      |
+//! | 50 – 70 %   | 1.5×      |
+//! | 70 – 90 %   | 2.0×      |
+//! | ≥ 90 %      | 3.0×      |
+//!
+//! ## Volume Discount
+//!
+//! Users with higher 24-hour trading volume receive a fee discount.  The
+//! discount is looked up from a configurable tier map (threshold → discount_bps).
+//! The highest matching tier wins.
+//!
+//! Default tiers:
+//! | 24h Volume  | Discount |
+//! |-------------|---------|
+//! | < $10k      |  0 %    |
+//! | $10k–$100k  |  5 %    |
+//! | $100k–$500k | 10 %    |
+//! | > $500k     | 20 %    |
+//!
+//! # LP Share Calculation
+//!
+//! LP share percentages are stored in basis points (10 000 = 100 %).
+//! When a provider adds liquidity, their share is recalculated against the
+//! *post-deposit* total to avoid inflating the percentage:
+//!
+//! ```text
+//! share_bps = (provider_amount * 10_000) / new_total_liquidity
+//! ```
+//!
+//! # LP Reward Calculation
+//!
+//! Rewards use scaled integer arithmetic to avoid precision loss:
+//!
+//! ```text
+//! reward = (position.amount * SCALE / total_liquidity) * position.amount / SCALE
+//!        ≈ position.amount² / total_liquidity
+//! ```
+//!
+//! where `SCALE = 1_000_000`.  This is equivalent to `amount * (amount / total)`
+//! but avoids the inner division truncating to zero for small positions.
+//!
+//! # TODO
+//! - Implement time-weighted LP rewards so long-term providers earn more than
+//!   flash liquidity providers.
+//! - Add slippage protection for large bridge transactions relative to pool size.
 
 use crate::errors::BridgeError;
 use crate::events::{FeeUpdatedEvent, LiquidityAddedEvent, LiquidityRemovedEvent};
@@ -256,7 +320,32 @@ impl LiquidityManager {
         Ok(())
     }
 
-    /// Calculate dynamic bridge fee
+    /// Calculate dynamic bridge fee.
+    ///
+    /// # Algorithm
+    ///
+    /// Three-stage computation (all arithmetic in basis points):
+    ///
+    /// ```text
+    /// base_fee_amount = amount * base_fee_bps / 10_000
+    /// congestion_adj  = base_fee_amount * congestion_multiplier / 100
+    /// final_fee       = congestion_adj * (10_000 - volume_discount_bps) / 10_000
+    /// ```
+    ///
+    /// The result is clamped to `[MIN_FEE_BPS, MAX_FEE_BPS]` of `amount` to
+    /// prevent fees from being zero (dust attacks) or excessively large.
+    ///
+    /// If no pool exists for `chain_id`, the congestion multiplier defaults to
+    /// 1× (100) so the fee degrades gracefully to the base rate.
+    ///
+    /// # Parameters
+    /// - `chain_id`       – Target chain; used to look up pool utilisation.
+    /// - `amount`         – Transfer amount in token base units.
+    /// - `user_volume_24h`– Caller's 24-hour trading volume for discount lookup.
+    ///
+    /// # TODO
+    /// - Cache the fee structure in a performance layer to avoid repeated
+    ///   storage reads on high-frequency bridging.
     pub fn calculate_bridge_fee(
         env: &Env,
         chain_id: u32,
@@ -351,7 +440,25 @@ impl LiquidityManager {
         Ok(())
     }
 
-    /// Calculate congestion multiplier based on pool utilization
+    /// Calculate congestion multiplier based on pool utilization.
+    ///
+    /// # Algorithm
+    ///
+    /// Computes utilisation as `locked_liquidity * 10_000 / total_liquidity`
+    /// (basis points), then maps it to a step-function multiplier:
+    ///
+    /// | Utilisation (bp) | Multiplier (%) | Effective fee multiplier |
+    /// |-----------------|---------------|--------------------------|
+    /// | < 5 000 (50 %)  | 100           | 1.0×                     |
+    /// | 5 000 – 7 000   | 150           | 1.5×                     |
+    /// | 7 000 – 9 000   | 200           | 2.0×                     |
+    /// | ≥ 9 000 (90 %)  | 300           | 3.0×                     |
+    ///
+    /// Returns 100 (1×) when the pool is empty to avoid division by zero.
+    ///
+    /// # TODO
+    /// - Replace the step function with a smooth curve (e.g., linear or
+    ///   exponential) to reduce fee cliff effects at utilisation boundaries.
     fn calculate_congestion_multiplier(pool: &LiquidityPool) -> u32 {
         if pool.total_liquidity == 0 {
             return 100;
@@ -370,7 +477,23 @@ impl LiquidityManager {
         }
     }
 
-    /// Calculate volume discount based on 24h volume
+    /// Calculate volume discount based on 24h volume.
+    ///
+    /// Iterates all configured discount tiers and returns the highest discount
+    /// whose threshold the user's 24-hour volume meets or exceeds.
+    ///
+    /// # Algorithm
+    ///
+    /// ```text
+    /// discount = max { tier_discount | threshold ≤ user_volume_24h }
+    /// ```
+    ///
+    /// Returns 0 if no tier is matched (volume below the lowest threshold).
+    ///
+    /// # Note
+    /// The tier map key is a `u32` threshold cast to `i128` for comparison.
+    /// Ensure tier thresholds are set in the same units as `user_volume_24h`
+    /// (token base units, not USD) to avoid mismatches.
     fn calculate_volume_discount(volume_tiers: &Map<u32, u32>, user_volume_24h: i128) -> u32 {
         let mut discount = 0u32;
 
@@ -384,8 +507,29 @@ impl LiquidityManager {
     }
 
     /// Calculate LP rewards based on position and pool performance.
-    /// Uses scaled arithmetic to avoid precision loss from integer division
-    /// truncating share_factor to zero for small positions.
+    ///
+    /// # Algorithm
+    ///
+    /// Uses scaled integer arithmetic to avoid precision loss from integer
+    /// division truncating `share_factor` to zero for small positions:
+    ///
+    /// ```text
+    /// reward = (position.amount * SCALE / total_liquidity) * position.amount / SCALE
+    ///        ≈ position.amount² / total_liquidity
+    /// ```
+    ///
+    /// where `SCALE = 1_000_000`.  This is mathematically equivalent to
+    /// `amount * (amount / total)` but avoids the inner division flooring to
+    /// zero when `amount << total`.
+    ///
+    /// # Note
+    /// This is a simplified proportional reward model.  In production, rewards
+    /// should also factor in time-in-pool and accumulated fee revenue.
+    ///
+    /// # TODO
+    /// - Integrate actual fee revenue collected by the pool so LP rewards
+    ///   reflect real earnings rather than a synthetic proportional amount.
+    /// - Add time-weighting: providers who stay longer earn a multiplier.
     fn calculate_lp_rewards(_env: &Env, position: &LPPosition, total_liquidity: i128) -> i128 {
         if total_liquidity == 0 || position.amount == 0 {
             return 0;
