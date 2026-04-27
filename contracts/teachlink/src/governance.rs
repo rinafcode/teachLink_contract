@@ -1,4 +1,5 @@
-use soroban_sdk::{contracttype, Address, BytesN, Env, Symbol, Vec, map, symbol_short};
+use crate::errors::GovernanceError;
+use soroban_sdk::{contracttype, map, symbol_short, Address, BytesN, Env, Symbol, Vec};
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -41,7 +42,7 @@ impl GovernanceManager {
         proposer.require_auth();
 
         // In a full implementation, we would verify the proposer's TEACH balance here
-        
+
         let mut count: u64 = env.storage().persistent().get(&PROP_CNT).unwrap_or(0);
         count += 1;
 
@@ -82,29 +83,30 @@ impl GovernanceManager {
         proposal_id: u64,
         support: bool,
         weight: i128,
-    ) {
+    ) -> Result<(), GovernanceError> {
         voter.require_auth();
 
         let mut proposals: soroban_sdk::Map<u64, Proposal> = env
             .storage()
             .persistent()
             .get(&PROPOSALS)
-            .expect("Proposals not initialized");
+            .ok_or(GovernanceError::ProposalsNotInitialized)?;
 
-        let mut proposal = proposals.get(proposal_id).expect("Proposal not found");
+        let mut proposal = proposals
+            .get(proposal_id)
+            .ok_or(GovernanceError::GovernanceProposalNotFound)?;
 
-        // Validation
         if env.ledger().timestamp() > proposal.end_time {
-            panic!("Voting period ended");
+            return Err(GovernanceError::VotingPeriodEnded);
         }
         if proposal.status != ProposalStatus::Active {
-            panic!("Proposal not active");
+            return Err(GovernanceError::GovernanceProposalNotActive);
         }
 
         // Check for double voting using a composite key
         let vote_key = (symbol_short!("votes"), proposal_id, voter.clone());
         if env.storage().persistent().has(&vote_key) {
-            panic!("Already voted");
+            return Err(GovernanceError::AlreadyVoted);
         }
 
         // Update Tally
@@ -122,20 +124,24 @@ impl GovernanceManager {
             (symbol_short!("gov"), symbol_short!("vote")),
             (proposal_id, voter, weight, support),
         );
+
+        Ok(())
     }
 
     /// Finalizes a proposal after the voting period has ended.
-    pub fn finalize_proposal(env: &Env, proposal_id: u64) {
+    pub fn finalize_proposal(env: &Env, proposal_id: u64) -> Result<(), GovernanceError> {
         let mut proposals: soroban_sdk::Map<u64, Proposal> = env
             .storage()
             .persistent()
             .get(&PROPOSALS)
-            .expect("Proposals not initialized");
+            .ok_or(GovernanceError::ProposalsNotInitialized)?;
 
-        let mut proposal = proposals.get(proposal_id).expect("Proposal not found");
+        let mut proposal = proposals
+            .get(proposal_id)
+            .ok_or(GovernanceError::GovernanceProposalNotFound)?;
 
         if env.ledger().timestamp() <= proposal.end_time {
-            panic!("Voting still in progress");
+            return Err(GovernanceError::VotingStillInProgress);
         }
 
         if proposal.for_votes > proposal.against_votes {
@@ -151,5 +157,7 @@ impl GovernanceManager {
             (symbol_short!("gov"), symbol_short!("prop_end")),
             (proposal_id, proposal.status),
         );
+
+        Ok(())
     }
 }

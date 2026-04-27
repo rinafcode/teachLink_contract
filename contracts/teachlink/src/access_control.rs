@@ -34,11 +34,12 @@ impl AccessControlManager {
         }
     }
 
-    /// Enforce a role check, panicking if unauthorized
-    pub fn check_role(env: &Env, address: &Address, role: AccessRole) {
+    /// Enforce a role check, returning an error if unauthorized
+    pub fn check_role(env: &Env, address: &Address, role: AccessRole) -> Result<(), BridgeError> {
         if !Self::has_role(env, address, role) {
-            panic!("Unauthorized: Missing required role");
+            return Err(BridgeError::Unauthorized);
         }
+        Ok(())
     }
 
     /// Grant a role to an address (Admin only)
@@ -50,7 +51,7 @@ impl AccessControlManager {
     ) -> Result<(), BridgeError> {
         caller.require_auth();
         // Only Admin can grant roles
-        Self::check_role(env, &caller, AccessRole::Admin);
+        Self::check_role(env, &caller, AccessRole::Admin)?;
 
         let mut roles: Map<Address, Vec<AccessRole>> = env
             .storage()
@@ -89,7 +90,7 @@ impl AccessControlManager {
         role: AccessRole,
     ) -> Result<(), BridgeError> {
         caller.require_auth();
-        Self::check_role(env, &caller, AccessRole::Admin);
+        Self::check_role(env, &caller, AccessRole::Admin)?;
 
         let mut roles: Map<Address, Vec<AccessRole>> = env
             .storage()

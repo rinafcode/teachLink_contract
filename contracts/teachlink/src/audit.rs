@@ -341,7 +341,7 @@ impl AuditManager {
             env,
             &admin,
             crate::types::AccessRole::AuditManager,
-        );
+        )?;
 
         let audit_records: Map<u64, AuditRecord> = env
             .storage()

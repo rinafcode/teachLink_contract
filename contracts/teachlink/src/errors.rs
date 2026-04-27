@@ -149,12 +149,28 @@ pub enum MobilePlatformError {
 }
 
 /// Common errors that can be used across modules
+///
+/// Error codes are in the range 500–504.
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum CommonError {
-    Unauthorized = 400,
-    InvalidInput = 401,
-    InsufficientBalance = 402,
-    TransferFailed = 403,
-    StorageError = 404,
+    Unauthorized = 500,
+    InvalidInput = 501,
+    InsufficientBalance = 502,
+    TransferFailed = 503,
+    StorageError = 504,
+}
+
+/// Governance module errors
+///
+/// Error codes are in the range 600–605.
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum GovernanceError {
+    ProposalsNotInitialized = 600,
+    GovernanceProposalNotFound = 601,
+    VotingPeriodEnded = 602,
+    GovernanceProposalNotActive = 603,
+    AlreadyVoted = 604,
+    VotingStillInProgress = 605,
 }
