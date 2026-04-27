@@ -1680,10 +1680,10 @@ pub struct MobileSocialFeatures {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LoadLevel {
-    Low,       // < 50% capacity
-    Medium,    // 50-75% capacity
-    High,      // 75-90% capacity
-    Critical,  // > 90% capacity
+    Low,      // < 50% capacity
+    Medium,   // 50-75% capacity
+    High,     // 75-90% capacity
+    Critical, // > 90% capacity
 }
 
 /// Scaling policy configuration for auto-scaling behavior

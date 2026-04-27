@@ -70,9 +70,7 @@ impl AutoScaler {
         };
 
         env.storage().instance().set(&LOAD_METRICS, &metrics);
-        env.storage()
-            .instance()
-            .set(&LOAD_LEVEL, &LoadLevel::Low);
+        env.storage().instance().set(&LOAD_LEVEL, &LoadLevel::Low);
 
         Ok(())
     }
@@ -191,8 +189,7 @@ impl AutoScaler {
 
         // Update average batch size (exponential moving average)
         let current_batch = operations_processed;
-        metrics.average_batch_size =
-            (metrics.average_batch_size * 7 + current_batch as u32) / 8;
+        metrics.average_batch_size = (metrics.average_batch_size * 7 + current_batch as u32) / 8;
 
         metrics.last_scaling_adjustment = env.ledger().timestamp();
 
@@ -239,7 +236,7 @@ impl AutoScaler {
             LoadLevel::Critical => priority < 100, // Queue non-critical
             LoadLevel::High => priority < 150,     // Queue normal and low
             LoadLevel::Medium => priority < 200,   // Queue low priority only
-            LoadLevel::Low => false,                // No queuing needed
+            LoadLevel::Low => false,               // No queuing needed
         }
     }
 
@@ -311,9 +308,7 @@ impl AutoScaler {
         let metrics = Self::default_metrics(env);
         env.storage().instance().set(&LOAD_METRICS, &metrics);
 
-        env.storage()
-            .instance()
-            .set(&LOAD_LEVEL, &LoadLevel::Low);
+        env.storage().instance().set(&LOAD_LEVEL, &LoadLevel::Low);
 
         Ok(())
     }
