@@ -11,4 +11,3 @@ pub struct LicenseAgreement {
     pub license_type: LicenseType,
     pub expires_at: Option<u64>,
 }
-

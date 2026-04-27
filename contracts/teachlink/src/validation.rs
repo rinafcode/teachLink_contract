@@ -382,10 +382,13 @@ impl EscrowValidator {
 
         let mut total_weight: u32 = 0;
         for signer in signers.iter() {
+            if signer.weight == 0 {
+                return Err(EscrowError::InvalidSignerThreshold);
+            }
             total_weight += signer.weight;
         }
 
-        if threshold < 1 || threshold > total_weight {
+        if threshold < 1 || total_weight == 0 || threshold > total_weight {
             return Err(EscrowError::InvalidSignerThreshold);
         }
 
@@ -401,6 +404,20 @@ impl EscrowValidator {
     }
 
     /// Validates EscrowParameters struct
+    /// Checks for duplicate signers in the list
+    pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
+        let len = signers.len();
+        for i in 0..len {
+            for j in (i + 1)..len {
+                if signers.get(i).unwrap().address == signers.get(j).unwrap().address {
+                    return Err(EscrowError::DuplicateSigner);
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Validates EscrowParameters struct (refactored from individual parameters)
     pub fn validate_escrow_parameters(
         env: &Env,
         params: &crate::types::EscrowParameters,
@@ -417,6 +434,52 @@ impl EscrowValidator {
             params.refund_time,
             &params.arbitrator,
         )
+        // Validate addresses
+        AddressValidator::validate(env, &params.depositor)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, &params.beneficiary)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, &params.token).map_err(|_| EscrowError::InvalidToken)?;
+        AddressValidator::validate(env, &params.arbitrator)
+            .map_err(|_| EscrowError::InvalidArbitrator)?;
+
+        // Validate amount
+        NumberValidator::validate_amount(params.amount)
+            .map_err(|_| EscrowError::AmountMustBePositive)?;
+
+        // Validate signers
+        NumberValidator::validate_signer_count(params.signers.len() as usize)
+            .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
+
+        // Validate threshold against total signer weight
+        let mut total_weight: u32 = 0;
+        for signer in params.signers.iter() {
+            if signer.weight == 0 {
+                return Err(EscrowError::InvalidSignerThreshold);
+            }
+            total_weight += signer.weight;
+        }
+
+        if params.threshold < 1 || total_weight == 0 || params.threshold > total_weight {
+            return Err(EscrowError::InvalidSignerThreshold);
+        }
+
+        // Validate time constraints
+        if let (Some(release), Some(refund)) = (params.release_time, params.refund_time) {
+            if refund <= release {
+                return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
+            }
+        }
+
+        // Check for duplicate signers
+        Self::check_duplicate_signers(&params.signers)?;
+
+        // Additional validation: depositor must be different from beneficiary
+        if params.depositor == params.beneficiary {
+            return Err(EscrowError::DepositorCannotBeBeneficiary);
+        }
+
+        Ok(())
     }
 
     /// Validates escrow release conditions
