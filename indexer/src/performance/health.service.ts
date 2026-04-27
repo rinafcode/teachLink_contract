@@ -35,17 +35,17 @@ export class HealthService {
       ledgerLagSeconds: number;
       staleAfterSeconds: number;
     };
+    durationMs: number;
   }> {
+    const startMs = Date.now();
     const staleAfterSeconds = this.configService.get<number>('indexer.staleAfterSeconds') ?? 900;
-    const checks = {
-      database: await this.checkDatabase(),
-      horizon: await this.checkHorizon(),
-      indexerState: 'error' as ServiceStatus,
-    };
 
-    const state = await this.indexerStateRepo.findOne({
-      where: { key: this.stateKey },
-    });
+    // Run all independent checks in parallel
+    const [dbStatus, horizonStatus, state] = await Promise.all([
+      this.checkDatabase(),
+      this.checkHorizon(),
+      this.indexerStateRepo.findOne({ where: { key: this.stateKey } }),
+    ]);
 
     const lastProcessedTimestamp = Number(state?.lastProcessedTimestamp ?? '0');
     const ledgerLagSeconds =
@@ -53,9 +53,12 @@ export class HealthService {
         ? Math.max(0, Math.floor(Date.now() / 1000) - lastProcessedTimestamp)
         : staleAfterSeconds + 1;
 
-    checks.indexerState = !state || ledgerLagSeconds > staleAfterSeconds ? 'degraded' : 'ok';
-    this.metricsService.updateDependencyHealth('indexer_state', checks.indexerState === 'ok');
+    const indexerState: ServiceStatus =
+      !state || ledgerLagSeconds > staleAfterSeconds ? 'degraded' : 'ok';
 
+    this.metricsService.updateDependencyHealth('indexer_state', indexerState === 'ok');
+
+    const checks = { database: dbStatus, horizon: horizonStatus, indexerState };
     const statuses = Object.values(checks);
     const overallStatus: ServiceStatus = statuses.includes('error')
       ? 'error'
@@ -83,6 +86,7 @@ export class HealthService {
         ledgerLagSeconds,
         staleAfterSeconds,
       },
+      durationMs: Date.now() - startMs,
     };
   }
 
