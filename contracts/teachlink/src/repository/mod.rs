@@ -33,4 +33,3 @@ pub use traits::{
     CounterRepository, InstanceStorage, MapRepository, PersistentStorage, StorageError,
     TemporaryStorage,
 };
-// pub use facade::{StorageFacade, StorageBuilder}; // Removed - broken tests

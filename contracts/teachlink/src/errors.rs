@@ -1,6 +1,27 @@
 use soroban_sdk::contracterror;
 
-/// Bridge module errors
+/// Bridge module errors.
+///
+/// Error codes are in the range 100–147.  Each code is stable across contract
+/// upgrades — never reuse or renumber a code, only append new ones.
+///
+/// # Code Ranges
+/// | Range   | Domain                          |
+/// |---------|---------------------------------|
+/// | 100–110 | Core bridge operations          |
+/// | 111–117 | BFT consensus                   |
+/// | 118–120 | Validator slashing              |
+/// | 121–123 | Multi-chain configuration       |
+/// | 124–126 | Liquidity pool                  |
+/// | 127–130 | Emergency / circuit breaker     |
+/// | 131–133 | Cross-chain message passing     |
+/// | 134–137 | Atomic swaps (HTLC)             |
+/// | 138–142 | General / retry                 |
+/// | 143–147 | Storage / versioning / reentrancy|
+///
+/// # TODO
+/// - Add `BridgeError::RateLimitExceeded` (148) for per-user rate limiting
+///   once the rate-limiting module is fully integrated.
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum BridgeError {
@@ -137,19 +158,3 @@ pub enum CommonError {
     TransferFailed = 403,
     StorageError = 404,
 }
-
-/// Result type alias for bridge operations
-#[allow(dead_code)]
-pub type BridgeResult<T> = core::result::Result<T, BridgeError>;
-
-/// Result type alias for escrow operations
-#[allow(dead_code)]
-pub type EscrowResult<T> = core::result::Result<T, EscrowError>;
-
-/// Result type alias for rewards operations
-#[allow(dead_code)]
-pub type RewardsResult<T> = core::result::Result<T, RewardsError>;
-
-/// Result type alias for common operations
-#[allow(dead_code)]
-pub type CommonResult<T> = core::result::Result<T, CommonError>;
