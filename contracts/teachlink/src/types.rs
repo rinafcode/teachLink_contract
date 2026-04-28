@@ -115,6 +115,32 @@ pub struct ChainAssetInfo {
 
 // ========== BFT Consensus Types ==========
 
+/// Network health level used to drive adaptive consensus timeouts.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NetworkHealth {
+    /// Normal operation – use base timeout.
+    Healthy,
+    /// Elevated latency – apply moderate multiplier.
+    Degraded,
+    /// Severe degradation – apply maximum multiplier (graceful degradation mode).
+    Critical,
+}
+
+/// Snapshot of observed network conditions stored on-chain.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NetworkCondition {
+    /// Current health classification.
+    pub health: NetworkHealth,
+    /// Rolling average round-trip latency in milliseconds (0 if unknown).
+    pub avg_latency_ms: u64,
+    /// Consecutive rounds where quorum was not reached in time (miss counter).
+    pub consecutive_misses: u32,
+    /// Ledger timestamp of the last update.
+    pub last_updated: u64,
+}
+
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ValidatorInfo {
@@ -582,6 +608,7 @@ pub struct EscrowMetrics {
     pub total_disputes: u64,
     pub total_resolved: u64,
     pub average_resolution_time: u64,
+    pub resets: u64,
 }
 
 #[contracttype]
@@ -1674,16 +1701,50 @@ pub struct MobileSocialFeatures {
     pub mentor_quick_connect: bool,
 }
 
+// ========== Access Logging Types ==========
+
+/// The outcome of a single access attempt.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AccessOutcome {
+    Success,
+    Failure { error_code: u32 },
+}
+
+/// A single immutable record of one access attempt.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AccessLogEntry {
+    pub entry_id: u64,
+    pub caller: Address,
+    pub operation: Symbol,
+    pub outcome: AccessOutcome,
+    pub ledger_timestamp: u64,
+    pub window_start: u64,
+}
+
+/// Filter parameters for audit log queries.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuditQuery {
+    pub caller: Option<Address>,
+    pub operation: Option<Symbol>,
+    pub outcome_filter: Option<AccessOutcome>,
+    pub from_timestamp: Option<u64>,
+    pub to_timestamp: Option<u64>,
+    pub limit: u32,
+}
+
 // ========== Auto-Scaling & Load Management Types ==========
 
 /// Load level indicating current system capacity utilization
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LoadLevel {
-    Low,      // < 50% capacity
-    Medium,   // 50-75% capacity
-    High,     // 75-90% capacity
-    Critical, // > 90% capacity
+    Low,
+    Medium,
+    High,
+    Critical,
 }
 
 /// Scaling policy configuration for auto-scaling behavior

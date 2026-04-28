@@ -33,9 +33,11 @@
 use crate::repository::generic::{GenericCounterRepository, GenericMapRepository};
 use crate::repository::traits::InstanceStorage;
 use crate::repository::StorageError;
-use crate::storage::{ESCROWS, ESCROW_COUNT};
+use crate::reentrancy;
+use crate::storage::{ESCROWS, ESCROW_COUNT, ESCROW_GUARD};
 use crate::types::{Escrow, EscrowApprovalKey};
-use soroban_sdk::{Address, Env, Map, Vec};
+use crate::errors::EscrowError;
+use soroban_sdk::{Address, Env, Map};
 
 /// Repository for escrow management
 pub struct EscrowRepository<'a> {
@@ -132,6 +134,25 @@ impl<'a> EscrowApprovalRepository<'a> {
     pub fn approve(&self, key: &EscrowApprovalKey) -> Result<(), StorageError> {
         self.storage.set(key, &true);
         Ok(())
+    }
+
+    /// Atomically check for duplicate approval, record it, and increment the escrow's
+    /// approval count — all under the ESCROW_GUARD reentrancy lock.
+    pub fn approve_with_guard(
+        &self,
+        key: &EscrowApprovalKey,
+        escrow_repo: &EscrowRepository,
+    ) -> Result<u32, EscrowError> {
+        let env = self.storage.env();
+        reentrancy::with_guard(env, &ESCROW_GUARD, EscrowError::ReentrancyDetected, || {
+            if self.has_approved(key) {
+                return Err(EscrowError::SignerAlreadyApproved);
+            }
+            self.storage.set(key, &true);
+            escrow_repo
+                .increment_approval_count(key.escrow_id)
+                .map_err(|_| EscrowError::StorageError)
+        })
     }
 
     /// Check if signer has approved

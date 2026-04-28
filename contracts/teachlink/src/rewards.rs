@@ -1,3 +1,11 @@
+//! Reward pool management and distribution.
+//!
+//! Responsibilities:
+//! - Initialize and fund the reward pool
+//! - Issue rewards to users (admin-gated)
+//! - Allow users to claim pending rewards
+//! - Expose read-only views for pool and user reward state
+
 use crate::errors::RewardsError;
 use crate::events::{RewardClaimedEvent, RewardIssuedEvent, RewardPoolFundedEvent};
 use crate::reentrancy;
@@ -8,7 +16,7 @@ use crate::storage::{
 use crate::types::{RewardRate, UserReward};
 use crate::validation::RewardsValidator;
 
-use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, String};
+use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, String};
 
 // Maximum reward amount to prevent overflow (i128::MAX / 2)
 const MAX_REWARD_AMOUNT: i128 = 170141183460469231731687303715884105727;
@@ -16,6 +24,8 @@ const MAX_REWARD_AMOUNT: i128 = 170141183460469231731687303715884105727;
 pub struct Rewards;
 
 impl Rewards {
+    // ===== Initialization =====
+
     /// Initialize the rewards system
     pub fn initialize_rewards(
         env: &Env,
@@ -40,9 +50,7 @@ impl Rewards {
         Ok(())
     }
 
-    // ==========================
-    // Pool Management
-    // ==========================
+    // ===== Mutations =====
 
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), RewardsError> {
         #[cfg(not(test))]
@@ -184,9 +192,7 @@ impl Rewards {
         Ok(())
     }
 
-    // ==========================
-    // Claiming
-    // ==========================
+    // ===== Mutations (continued) =====
 
     pub fn claim_rewards(env: &Env, user: Address) -> Result<(), RewardsError> {
         #[cfg(not(test))]
@@ -263,9 +269,7 @@ impl Rewards {
         )
     }
 
-    // ==========================
-    // Admin Functions
-    // ==========================
+    // ===== Admin =====
 
     /// Set reward rate for a specific reward type
     pub fn set_reward_rate(
@@ -310,12 +314,20 @@ impl Rewards {
         rewards_admin.require_auth();
 
         env.storage().instance().set(&REWARDS_ADMIN, &new_admin);
+
+        // Audit: rewards admin updated
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            rewards_admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
     }
 
-    // ==========================
-    // View Functions
-    // ==========================
+    // ===== Queries =====
 
+    #[must_use]
     pub fn get_user_rewards(env: &Env, user: Address) -> Option<UserReward> {
         let user_rewards: Map<Address, UserReward> = env
             .storage()
@@ -325,10 +337,12 @@ impl Rewards {
         user_rewards.get(user)
     }
 
+    #[must_use]
     pub fn get_reward_pool_balance(env: &Env) -> i128 {
         env.storage().instance().get(&REWARD_POOL).unwrap_or(0)
     }
 
+    #[must_use]
     pub fn get_total_rewards_issued(env: &Env) -> i128 {
         env.storage()
             .instance()
@@ -336,6 +350,7 @@ impl Rewards {
             .unwrap_or(0)
     }
 
+    #[must_use]
     pub fn get_reward_rate(env: &Env, reward_type: String) -> Option<RewardRate> {
         let reward_rates: Map<String, RewardRate> = env
             .storage()
@@ -345,6 +360,7 @@ impl Rewards {
         reward_rates.get(reward_type)
     }
 
+    #[must_use]
     pub fn get_rewards_admin(env: &Env) -> Address {
         // SAFETY: REWARDS_ADMIN is always set during initialize_rewards
         env.storage().instance().get(&REWARDS_ADMIN).unwrap()

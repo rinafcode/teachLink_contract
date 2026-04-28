@@ -1,0 +1,691 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "description": "Comprehensive TeachLink monitoring: real-time metrics, historical trends, alert management, and platform insights",
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "Service Overview",
+      "type": "link",
+      "url": "/d/teachlink-service-overview",
+      "icon": "external link"
+    }
+  ],
+  "panels": [
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 },
+      "id": 100,
+      "title": "Real-Time Platform Health",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 60 },
+              { "color": "green", "value": 80 }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "max": 100
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 4, "x": 0, "y": 1 },
+      "id": 1,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "teachlink_contract_sustainability_health_score",
+          "legendFormat": "Health Score",
+          "refId": "A"
+        }
+      ],
+      "title": "Sustainability Health Score",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 7000 },
+              { "color": "green", "value": 9000 }
+            ]
+          },
+          "unit": "short",
+          "min": 0,
+          "max": 10000
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 4, "x": 4, "y": 1 },
+      "id": 2,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "teachlink_contract_sustainability_efficiency_score",
+          "legendFormat": "Efficiency (bps)",
+          "refId": "A"
+        }
+      ],
+      "title": "Contract Efficiency Score",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "green", "value": 2 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 4, "x": 8, "y": 1 },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "up{job=\"teachlink-indexer\"} + probe_success{job=\"teachlink-indexer-health\"}",
+          "legendFormat": "Availability",
+          "refId": "A"
+        }
+      ],
+      "title": "Indexer Availability",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 300 },
+              { "color": "red", "value": 900 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 4, "x": 12, "y": 1 },
+      "id": 4,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "teachlink_indexer_ledger_lag_seconds",
+          "legendFormat": "Ledger Lag",
+          "refId": "A"
+        }
+      ],
+      "title": "Ledger Lag",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.05 },
+              { "color": "red", "value": 0.10 }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 4, "x": 16, "y": 1 },
+      "id": 5,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "sum(rate(teachlink_indexer_http_requests_total{status_code=~\"5..\"}[5m])) / clamp_min(sum(rate(teachlink_indexer_http_requests_total[5m])), 1)",
+          "legendFormat": "Error Rate",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Error Rate",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 1.0 }
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 4, "x": 20, "y": 1 },
+      "id": 6,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "area",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "rate(teachlink_indexer_http_request_duration_seconds_sum[5m]) / clamp_min(rate(teachlink_indexer_http_request_duration_seconds_count[5m]), 1)",
+          "legendFormat": "Avg Latency",
+          "refId": "A"
+        }
+      ],
+      "title": "API Avg Latency",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 7 },
+      "id": 101,
+      "title": "Historical Trends",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 10,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "teachlink_contract_sustainability_health_score",
+          "legendFormat": "Health Score",
+          "refId": "A"
+        },
+        {
+          "expr": "teachlink_contract_sustainability_efficiency_score / 100",
+          "legendFormat": "Efficiency %",
+          "refId": "B"
+        }
+      ],
+      "title": "Sustainability Scores Over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 11,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "teachlink_contract_sustainability_invocations_total",
+          "legendFormat": "Invocations",
+          "refId": "A"
+        },
+        {
+          "expr": "teachlink_contract_sustainability_storage_writes_total",
+          "legendFormat": "Storage Writes",
+          "refId": "B"
+        },
+        {
+          "expr": "teachlink_contract_sustainability_events_emitted_total",
+          "legendFormat": "Events Emitted",
+          "refId": "C"
+        }
+      ],
+      "title": "Contract Resource Usage Over Time",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "ops"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 12,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "rate(teachlink_indexer_http_requests_total[5m])",
+          "legendFormat": "{{method}} {{route}} {{status_code}}",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Throughput (req/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 13,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "teachlink_contract_sustainability_content_minted_total",
+          "legendFormat": "Content Minted",
+          "refId": "A"
+        },
+        {
+          "expr": "teachlink_contract_sustainability_active_users_total",
+          "legendFormat": "Active Users",
+          "refId": "B"
+        },
+        {
+          "expr": "teachlink_contract_sustainability_rewards_distributed_total / 1e7",
+          "legendFormat": "Rewards Distributed (XLM)",
+          "refId": "C"
+        }
+      ],
+      "title": "Platform Growth Over Time",
+      "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 24 },
+      "id": 102,
+      "title": "Alert Management",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 25 },
+      "id": 20,
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "single" }
+      },
+      "targets": [
+        {
+          "expr": "ALERTS{alertstate=\"firing\"}",
+          "legendFormat": "{{alertname}} ({{severity}})",
+          "refId": "A"
+        }
+      ],
+      "title": "Firing Alerts",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 3 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 25 },
+      "id": 21,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "count(ALERTS{alertstate=\"firing\"}) or vector(0)",
+          "legendFormat": "Firing",
+          "refId": "A"
+        }
+      ],
+      "title": "Active Alert Count",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 25 },
+      "id": 22,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "value_and_name"
+      },
+      "pluginVersion": "11.1.4",
+      "targets": [
+        {
+          "expr": "count(ALERTS{alertstate=\"firing\", severity=\"critical\"}) or vector(0)",
+          "legendFormat": "Critical",
+          "refId": "A"
+        }
+      ],
+      "title": "Critical Alerts",
+      "type": "stat"
+    },
+    {
+      "collapsed": false,
+      "gridPos": { "h": 1, "w": 24, "x": 0, "y": 33 },
+      "id": 103,
+      "title": "Platform Insights",
+      "type": "row"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 34 },
+      "id": 30,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(teachlink_indexer_dashboard_cache_requests_total{result=\"hit\"}[5m])) / clamp_min(sum(rate(teachlink_indexer_dashboard_cache_requests_total[5m])), 1)",
+          "legendFormat": "Cache Hit Ratio",
+          "refId": "A"
+        }
+      ],
+      "title": "Dashboard Cache Hit Ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 8, "y": 34 },
+      "id": 31,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "rate(teachlink_indexer_http_request_duration_seconds_sum[5m]) / clamp_min(rate(teachlink_indexer_http_request_duration_seconds_count[5m]), 1)",
+          "legendFormat": "Avg Latency",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.95, rate(teachlink_indexer_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95 Latency",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(teachlink_indexer_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p99 Latency",
+          "refId": "C"
+        }
+      ],
+      "title": "API Latency Percentiles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 34 },
+      "id": 32,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "teachlink_indexer_dependency_up{dependency=\"database\"}",
+          "legendFormat": "Database",
+          "refId": "A"
+        },
+        {
+          "expr": "teachlink_indexer_dependency_up{dependency=\"horizon\"}",
+          "legendFormat": "Horizon",
+          "refId": "B"
+        },
+        {
+          "expr": "teachlink_indexer_dependency_up{dependency=\"indexer_state\"}",
+          "legendFormat": "Indexer State",
+          "refId": "C"
+        }
+      ],
+      "title": "Dependency Health (1=up, 0=down)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 42 },
+      "id": 33,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "teachlink_indexer_events_processed_total",
+          "legendFormat": "Events Processed",
+          "refId": "A"
+        },
+        {
+          "expr": "teachlink_indexer_errors_total",
+          "legendFormat": "Errors",
+          "refId": "B"
+        },
+        {
+          "expr": "teachlink_indexer_last_processed_ledger",
+          "legendFormat": "Last Ledger",
+          "refId": "C"
+        }
+      ],
+      "title": "Indexer Progress & Errors",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "Prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 42 },
+      "id": 34,
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "rate(teachlink_indexer_http_requests_total{status_code=~\"2..\"}[5m])",
+          "legendFormat": "2xx {{route}}",
+          "refId": "A"
+        },
+        {
+          "expr": "rate(teachlink_indexer_http_requests_total{status_code=~\"4..\"}[5m])",
+          "legendFormat": "4xx {{route}}",
+          "refId": "B"
+        },
+        {
+          "expr": "rate(teachlink_indexer_http_requests_total{status_code=~\"5..\"}[5m])",
+          "legendFormat": "5xx {{route}}",
+          "refId": "C"
+        }
+      ],
+      "title": "HTTP Status Code Breakdown",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "30s",
+  "schemaVersion": 39,
+  "style": "dark",
+  "tags": ["teachlink", "monitoring", "sustainability", "alerts"],
+  "templating": { "list": [] },
+  "time": { "from": "now-6h", "to": "now" },
+  "timepicker": {},
+  "timezone": "",
+  "title": "TeachLink Comprehensive Monitoring",
+  "uid": "teachlink-monitoring-dashboard",
+  "version": 1,
+  "weekStart": ""
+}

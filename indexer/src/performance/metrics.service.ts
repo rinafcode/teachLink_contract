@@ -18,6 +18,16 @@ export class MetricsService {
   private readonly indexerLedgerLagSeconds: Gauge<string>;
   private readonly dependencyUp: Gauge<string>;
 
+  // Sustainability KPI gauges
+  private readonly sustainabilityInvocations: Gauge<string>;
+  private readonly sustainabilityStorageWrites: Gauge<string>;
+  private readonly sustainabilityEventsEmitted: Gauge<string>;
+  private readonly sustainabilityRewardsDistributed: Gauge<string>;
+  private readonly sustainabilityContentMinted: Gauge<string>;
+  private readonly sustainabilityActiveUsers: Gauge<string>;
+  private readonly sustainabilityEfficiencyScore: Gauge<string>;
+  private readonly sustainabilityHealthScore: Gauge<string>;
+
   constructor() {
     collectDefaultMetrics({
       prefix: 'teachlink_indexer_',
@@ -95,6 +105,47 @@ export class MetricsService {
       labelNames: ['dependency'],
       registers: [this.registry],
     });
+
+    this.sustainabilityInvocations = new Gauge({
+      name: 'teachlink_contract_sustainability_invocations_total',
+      help: 'Total contract invocations tracked for sustainability',
+      registers: [this.registry],
+    });
+    this.sustainabilityStorageWrites = new Gauge({
+      name: 'teachlink_contract_sustainability_storage_writes_total',
+      help: 'Total contract storage writes tracked for sustainability',
+      registers: [this.registry],
+    });
+    this.sustainabilityEventsEmitted = new Gauge({
+      name: 'teachlink_contract_sustainability_events_emitted_total',
+      help: 'Total contract events emitted tracked for sustainability',
+      registers: [this.registry],
+    });
+    this.sustainabilityRewardsDistributed = new Gauge({
+      name: 'teachlink_contract_sustainability_rewards_distributed_total',
+      help: 'Total rewards distributed (stroops)',
+      registers: [this.registry],
+    });
+    this.sustainabilityContentMinted = new Gauge({
+      name: 'teachlink_contract_sustainability_content_minted_total',
+      help: 'Total content tokens minted',
+      registers: [this.registry],
+    });
+    this.sustainabilityActiveUsers = new Gauge({
+      name: 'teachlink_contract_sustainability_active_users_total',
+      help: 'Total unique active users recorded',
+      registers: [this.registry],
+    });
+    this.sustainabilityEfficiencyScore = new Gauge({
+      name: 'teachlink_contract_sustainability_efficiency_score',
+      help: 'Contract efficiency score in basis points (0-10000)',
+      registers: [this.registry],
+    });
+    this.sustainabilityHealthScore = new Gauge({
+      name: 'teachlink_contract_sustainability_health_score',
+      help: 'Composite sustainability health score (0-100)',
+      registers: [this.registry],
+    });
   }
 
   recordHttpRequest(
@@ -149,6 +200,26 @@ export class MetricsService {
 
   updateDependencyHealth(dependency: HealthDependency, isUp: boolean): void {
     this.dependencyUp.set({ dependency }, isUp ? 1 : 0);
+  }
+
+  updateSustainabilityMetrics(m: {
+    totalInvocations: number;
+    totalStorageWrites: number;
+    totalEventsEmitted: number;
+    totalRewardsDistributed: number;
+    totalContentMinted: number;
+    totalActiveUsers: number;
+    efficiencyScore: number;
+    healthScore: number;
+  }): void {
+    this.sustainabilityInvocations.set(m.totalInvocations);
+    this.sustainabilityStorageWrites.set(m.totalStorageWrites);
+    this.sustainabilityEventsEmitted.set(m.totalEventsEmitted);
+    this.sustainabilityRewardsDistributed.set(m.totalRewardsDistributed);
+    this.sustainabilityContentMinted.set(m.totalContentMinted);
+    this.sustainabilityActiveUsers.set(m.totalActiveUsers);
+    this.sustainabilityEfficiencyScore.set(m.efficiencyScore);
+    this.sustainabilityHealthScore.set(m.healthScore);
   }
 
   async getPrometheusMetrics(): Promise<string> {

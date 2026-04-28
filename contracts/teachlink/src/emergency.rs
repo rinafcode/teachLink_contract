@@ -1,4 +1,4 @@
-//! Emergency Pause and Recovery Module
+﻿//! Emergency Pause and Recovery Module
 //!
 //! This module implements circuit breaker functionality and emergency controls
 //! to protect the bridge during critical situations.
@@ -11,11 +11,10 @@ use crate::storage::{CIRCUIT_BREAKERS, CIRCUIT_RESET_SEQ, EMERGENCY_STATE, PAUSE
 use crate::types::{CircuitBreaker, EmergencyState};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
-/// Authorized pausers (admin + security council)
-pub const SECURITY_COUNCIL_SIZE: u32 = 5;
-
-/// Daily volume reset period (24 hours)
-pub const DAILY_VOLUME_RESET: u64 = 86_400;
+/// Authorized pausers (admin + security council) — re-exported from config.
+pub use crate::config::EMERGENCY_SECURITY_COUNCIL_SIZE as SECURITY_COUNCIL_SIZE;
+/// Daily volume reset period — re-exported from config.
+pub use crate::config::EMERGENCY_DAILY_VOLUME_RESET as DAILY_VOLUME_RESET;
 
 /// Emergency Manager
 pub struct EmergencyManager;
@@ -127,6 +126,19 @@ impl EmergencyManager {
             crate::types::AccessRole::EmergencyManager,
         )?;
 
+        crate::dos_protection::check_admin_rate_limit(env, &pauser)?;
+
+        #[allow(clippy::cast_possible_truncation)]
+        let batch_len = chain_ids.len() as u32;
+        crate::dos_protection::check_batch_size(
+            batch_len,
+            crate::dos_protection::MAX_CHAIN_BATCH_SIZE,
+        )?;
+        crate::dos_protection::check_instruction_budget(
+            batch_len,
+            crate::dos_protection::INSTRUCTIONS_PER_CHAIN_OP,
+        )?;
+
         let mut paused_chains: Map<u32, bool> = env
             .storage()
             .instance()
@@ -162,6 +174,19 @@ impl EmergencyManager {
             env,
             &resumer,
             crate::types::AccessRole::EmergencyManager,
+        )?;
+
+        crate::dos_protection::check_admin_rate_limit(env, &resumer)?;
+
+        #[allow(clippy::cast_possible_truncation)]
+        let batch_len = chain_ids.len() as u32;
+        crate::dos_protection::check_batch_size(
+            batch_len,
+            crate::dos_protection::MAX_CHAIN_BATCH_SIZE,
+        )?;
+        crate::dos_protection::check_instruction_budget(
+            batch_len,
+            crate::dos_protection::INSTRUCTIONS_PER_CHAIN_OP,
         )?;
 
         let mut paused_chains: Map<u32, bool> = env
