@@ -128,12 +128,12 @@ impl NumberValidator {
         Ok(())
     }
 
-    /// Validates threshold against signer count
-    pub fn validate_threshold(threshold: u32, signer_count: u32) -> ValidationResult<()> {
+    /// Validates threshold against total signer weight
+    pub fn validate_threshold(threshold: u32, total_weight: u32) -> ValidationResult<()> {
         if threshold < config::MIN_THRESHOLD {
             return Err(ValidationError::InvalidThreshold);
         }
-        if threshold > signer_count {
+        if threshold > total_weight {
             return Err(ValidationError::InvalidThreshold);
         }
         Ok(())
@@ -335,9 +335,6 @@ impl EscrowValidator {
             }
         }
 
-        // Check for duplicate signers
-        Self::check_duplicate_signers(signers)?;
-
         Ok(())
     }
 
@@ -395,9 +392,6 @@ impl EscrowValidator {
                 return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
             }
         }
-
-        // Check for duplicate signers
-        Self::check_duplicate_signers(&params.signers)?;
 
         // Additional validation: depositor must be different from beneficiary
         if params.depositor == params.beneficiary {
