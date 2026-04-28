@@ -1,5 +1,6 @@
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
+use crate::errors::{ProvenanceError, ProvenanceResult};
 use crate::events::ProvenanceRecordedEvent;
 use crate::storage::PROVENANCE;
 use crate::types::{ProvenanceRecord, TransferType};
@@ -15,7 +16,7 @@ impl ProvenanceTracker {
         to: Address,
         transfer_type: TransferType,
         notes: Option<Bytes>,
-    ) {
+    ) -> ProvenanceResult<()> {
         let timestamp = env.ledger().timestamp();
 
         // Get transaction hash (using ledger sequence as a proxy)
@@ -48,10 +49,17 @@ impl ProvenanceTracker {
 
         // Emit event
         ProvenanceRecordedEvent { token_id, record }.publish(env);
+
+        Ok(())
     }
 
     /// Record initial mint in provenance
-    pub fn record_mint(env: &Env, token_id: u64, creator: Address, notes: Option<Bytes>) {
+    pub fn record_mint(
+        env: &Env,
+        token_id: u64,
+        creator: Address,
+        notes: Option<Bytes>,
+    ) -> ProvenanceResult<()> {
         Self::record_transfer(
             env,
             token_id,
@@ -59,7 +67,7 @@ impl ProvenanceTracker {
             creator,
             TransferType::Mint,
             notes,
-        );
+        )
     }
 
     /// Get full provenance history for a token

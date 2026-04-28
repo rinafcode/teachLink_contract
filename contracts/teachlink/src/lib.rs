@@ -171,7 +171,11 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, ReputationError, RewardsError};
+pub use errors::{
+    AdvancedReputationError, AtomicSwapError, BridgeError, EscrowAnalyticsError, EscrowError,
+    MobilePlatformError, ProvenanceError, RateLimitingError, ReputationError, RewardsError,
+    RoyaltyError, ScoreError, SocialLearningError, TokenizationError,
+};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -1303,11 +1307,12 @@ impl TeachLinkBridge {
         user: Address,
         course_id: u64,
         points: u64,
-    ) -> Result<(), BridgeError> {
-        let admin = bridge::Bridge::get_admin(&env)?;
+    ) -> Result<(), ScoreError> {
+        // Check admin authorization
+        let admin_result = bridge::Bridge::get_admin(&env);
+        let admin = admin_result.map_err(|_| ScoreError::StorageError)?; // Convert BridgeError to ScoreError
         admin.require_auth();
-        score::ScoreManager::record_course_completion(&env, user, course_id, points);
-        Ok(())
+        score::ScoreManager::record_course_completion(&env, user, course_id, points)
     }
 
     /// Record contribution
@@ -1317,8 +1322,8 @@ impl TeachLinkBridge {
         c_type: types::ContributionType,
         description: Bytes,
         points: u64,
-    ) {
-        score::ScoreManager::record_contribution(&env, user, c_type, description, points);
+    ) -> Result<(), ScoreError> {
+        score::ScoreManager::record_contribution(&env, user, c_type, description, points)
     }
 
     /// Get user's credit score
@@ -1365,7 +1370,10 @@ impl TeachLinkBridge {
     // ========== Content Tokenization Functions ==========
 
     /// Mint a new educational content token
-    pub fn mint_content_token(env: Env, params: ContentTokenParameters) -> u64 {
+    pub fn mint_content_token(
+        env: Env,
+        params: ContentTokenParameters,
+    ) -> Result<u64, TokenizationError> {
         let token_id = tokenization::ContentTokenization::mint(
             &env,
             params.creator.clone(),
@@ -1377,9 +1385,10 @@ impl TeachLinkBridge {
             params.tags,
             params.is_transferable,
             params.royalty_percentage,
-        );
-        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
-        token_id
+        )?;
+        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None)
+            .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
+        Ok(token_id)
     }
 
     /// Transfer ownership of a content token
@@ -1389,8 +1398,8 @@ impl TeachLinkBridge {
         to: Address,
         token_id: u64,
         notes: Option<Bytes>,
-    ) {
-        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes);
+    ) -> Result<(), TokenizationError> {
+        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes)
     }
 
     /// Get a content token by ID
@@ -1575,7 +1584,10 @@ impl TeachLinkBridge {
     }
 
     /// Set design system configuration (admin only)
-    pub fn set_design_system_config(env: Env, config: ComponentConfig) {
+    pub fn set_design_system_config(
+        env: Env,
+        config: ComponentConfig,
+    ) -> Result<(), MobilePlatformError> {
         // In a real implementation, we would check for admin authorization here
         mobile_platform::MobilePlatformManager::set_design_system_config(&env, config)
     }

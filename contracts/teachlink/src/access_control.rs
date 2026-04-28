@@ -43,6 +43,19 @@ impl AccessControlManager {
         Ok(())
     }
 
+    /// Check if an address has a specific role WITHOUT calling require_auth()
+    /// Use this when require_auth() has already been called on the address
+    pub fn assert_has_role(
+        env: &Env,
+        address: &Address,
+        role: AccessRole,
+    ) -> AccessControlResult<()> {
+        if !Self::has_role(env, address, role) {
+            return Err(AccessControlError::MissingRole);
+        }
+        Ok(())
+    }
+
     /// Grant a role to an address (Admin only)
     pub fn grant_role(
         env: &Env,

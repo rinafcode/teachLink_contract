@@ -217,6 +217,96 @@ pub enum AdvancedReputationError {
     NotInitialized = 544,
 }
 
+/// Score module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ScoreError {
+    InvalidPoints = 550,
+    InvalidCourseId = 551,
+    CourseAlreadyCompleted = 552,
+    StorageError = 553,
+    ArithmeticOverflow = 554,
+}
+
+/// Escrow Analytics module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum EscrowAnalyticsError {
+    StorageError = 560,
+    ArithmeticOverflow = 561,
+}
+
+/// Provenance module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ProvenanceError {
+    TokenNotFound = 570,
+    InvalidNotes = 571,
+    StorageError = 572,
+}
+
+/// Royalty module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RoyaltyError {
+    InvalidTokenId = 580,
+    InvalidAmount = 581,
+    StorageError = 582,
+}
+
+/// Rate Limiting module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RateLimitingError {
+    RateLimitExceeded = 590,
+    InvalidEndpoint = 591,
+    StorageError = 592,
+}
+
+/// Social Learning module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum SocialLearningError {
+    InvalidAnalytics = 600,
+    StorageError = 601,
+}
+
+/// Atomic Swap module errors
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AtomicSwapError {
+    InvalidTransfer = 610,
+    StorageError = 611,
+}
+
+/// Result type alias for score operations
+#[allow(dead_code)]
+pub type ScoreResult<T> = core::result::Result<T, ScoreError>;
+
+/// Result type alias for escrow analytics operations
+#[allow(dead_code)]
+pub type EscrowAnalyticsResult<T> = core::result::Result<T, EscrowAnalyticsError>;
+
+/// Result type alias for provenance operations
+#[allow(dead_code)]
+pub type ProvenanceResult<T> = core::result::Result<T, ProvenanceError>;
+
+/// Result type alias for royalty operations
+#[allow(dead_code)]
+pub type RoyaltyResult<T> = core::result::Result<T, RoyaltyError>;
+
+/// Result type alias for rate limiting operations
+#[allow(dead_code)]
+pub type RateLimitingResult<T> = core::result::Result<T, RateLimitingError>;
+
+/// Result type alias for social learning operations
+#[allow(dead_code)]
+pub type SocialLearningResult<T> = core::result::Result<T, SocialLearningError>;
+
+/// Result type alias for atomic swap operations
+#[allow(dead_code)]
+pub type AtomicSwapResult<T> = core::result::Result<T, AtomicSwapError>;
+
 /// Result type alias for access control operations
 #[allow(dead_code)]
 pub type AccessControlResult<T> = core::result::Result<T, AccessControlError>;

@@ -1,3 +1,4 @@
+use crate::errors::{EscrowAnalyticsError, EscrowAnalyticsResult};
 use crate::storage::ESCROW_ANALYTICS;
 use crate::types::EscrowMetrics;
 use soroban_sdk::{Env, Map};
@@ -5,20 +6,25 @@ use soroban_sdk::{Env, Map};
 pub struct EscrowAnalyticsManager;
 
 impl EscrowAnalyticsManager {
-    pub fn update_creation(env: &Env, amount: i128) {
+    pub fn update_creation(env: &Env, amount: i128) -> EscrowAnalyticsResult<()> {
         let mut metrics = Self::get_metrics(env);
         metrics.total_escrows += 1;
-        metrics.total_volume += amount;
+        metrics.total_volume = metrics
+            .total_volume
+            .checked_add(amount)
+            .ok_or(EscrowAnalyticsError::ArithmeticOverflow)?;
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
+        Ok(())
     }
 
-    pub fn update_dispute(env: &Env) {
+    pub fn update_dispute(env: &Env) -> EscrowAnalyticsResult<()> {
         let mut metrics = Self::get_metrics(env);
         metrics.total_disputes += 1;
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
+        Ok(())
     }
 
-    pub fn update_resolution(env: &Env, resolution_time: u64) {
+    pub fn update_resolution(env: &Env, resolution_time: u64) -> EscrowAnalyticsResult<()> {
         let mut metrics = Self::get_metrics(env);
         metrics.total_resolved += 1;
 
@@ -32,6 +38,7 @@ impl EscrowAnalyticsManager {
         }
 
         env.storage().instance().set(&ESCROW_ANALYTICS, &metrics);
+        Ok(())
     }
 
     pub fn get_metrics(env: &Env) -> EscrowMetrics {

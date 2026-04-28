@@ -1,3 +1,4 @@
+use crate::access_control::AccessControlManager;
 use crate::errors::BridgeError;
 use crate::events::{
     BridgeCancelledEvent, BridgeCompletedEvent, BridgeFailedEvent, BridgeFeeUpdatedEvent,
@@ -11,7 +12,7 @@ use crate::storage::{
     ADMIN, BRIDGE_FAILURES, BRIDGE_FEE, BRIDGE_GUARD, BRIDGE_LAST_RETRY, BRIDGE_RETRY_COUNTS,
     BRIDGE_TXS, FEE_RECIPIENT, MIN_VALIDATORS, NONCE, SUPPORTED_CHAINS, TOKEN, VALIDATORS,
 };
-use crate::types::{BridgeTransaction, CrossChainMessage};
+use crate::types::{AccessRole, BridgeTransaction, CrossChainMessage};
 use crate::validation::BridgeValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
@@ -64,6 +65,22 @@ impl Bridge {
         repo.transactions
             .get_current_nonce()
             .map_err(|_| BridgeError::StorageError)?;
+
+        // Grant admin the necessary roles for emergency and validator management
+        let mut roles: Map<Address, Vec<AccessRole>> = env
+            .storage()
+            .instance()
+            .get(&crate::storage::ACCESS_CONTROL)
+            .unwrap_or_else(|| Map::new(env));
+
+        let mut admin_roles = Vec::new(env);
+        admin_roles.push_back(AccessRole::Admin);
+        admin_roles.push_back(AccessRole::EmergencyManager);
+        admin_roles.push_back(AccessRole::ValidatorManager);
+        roles.set(admin.clone(), admin_roles);
+        env.storage()
+            .instance()
+            .set(&crate::storage::ACCESS_CONTROL, &roles);
 
         Ok(())
     }
@@ -453,7 +470,7 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        crate::access_control::AccessControlManager::check_role(
+        crate::access_control::AccessControlManager::assert_has_role(
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
@@ -492,7 +509,7 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        crate::access_control::AccessControlManager::check_role(
+        crate::access_control::AccessControlManager::assert_has_role(
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
@@ -531,7 +548,7 @@ impl Bridge {
             .map_err(|_| BridgeError::NotInitialized)?;
         admin.require_auth();
 
-        crate::access_control::AccessControlManager::check_role(
+        crate::access_control::AccessControlManager::assert_has_role(
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,

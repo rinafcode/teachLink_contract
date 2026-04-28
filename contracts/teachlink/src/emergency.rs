@@ -24,11 +24,12 @@ impl EmergencyManager {
     /// Pause the entire bridge
     pub fn pause_bridge(env: &Env, pauser: Address, reason: Bytes) -> Result<(), BridgeError> {
         pauser.require_auth();
-        crate::access_control::AccessControlManager::check_role(
+        crate::access_control::AccessControlManager::assert_has_role(
             env,
             &pauser,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         // Check if already paused
         let emergency_state: EmergencyState = env
@@ -73,11 +74,12 @@ impl EmergencyManager {
     /// Resume the bridge
     pub fn resume_bridge(env: &Env, resumer: Address) -> Result<(), BridgeError> {
         resumer.require_auth();
-        crate::access_control::AccessControlManager::check_role(
+        crate::access_control::AccessControlManager::assert_has_role(
             env,
             &resumer,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         // Check if paused
         let mut emergency_state: EmergencyState = env
@@ -121,11 +123,12 @@ impl EmergencyManager {
         reason: Bytes,
     ) -> Result<(), BridgeError> {
         pauser.require_auth();
-        crate::access_control::AccessControlManager::check_role(
+        crate::access_control::AccessControlManager::assert_has_role(
             env,
             &pauser,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )
+        .map_err(|_| BridgeError::Unauthorized)?;
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()
