@@ -66,6 +66,11 @@ We welcome various types of contributions:
 | 🔧 **Tooling** | Improve scripts, CI/CD, or DX | `tooling` |
 | 🔒 **Security** | Security improvements or fixes | `security` |
 | ♿ **Accessibility** | Improve accessibility | `accessibility` |
+| 🌍 **Translation** | Translate docs or UI strings | `i18n` |
+| 🤝 **Community** | Mentoring, answering questions, event hosting | `community` |
+| 🎨 **Design** | UX, diagrams, visual assets | `design` |
+
+> **Non-code contributions are equally valued.** Helping newcomers in Discord, writing tutorials, organizing events, and improving documentation all count toward contributor tiers and token rewards.
 
 ### Contribution Workflow
 
@@ -199,6 +204,10 @@ Closes #42
 
 ## Development Standards
 
+### First-Time Contributors
+
+If this is your first contribution, look for issues labeled [`good first issue`](https://github.com/rinafcode/teachLink_contract/labels/good%20first%20issue). These are scoped to be approachable without deep project knowledge. Feel free to comment on an issue to claim it before starting work.
+
 ### Code Style
 
 - Follow Rust idioms and best practices
@@ -258,6 +267,12 @@ Closes #42
 - Distinguish between required changes and suggestions
 - Approve promptly when requirements are met
 
+### Escalation & Stale PRs
+
+- If your PR has not received a review within the expected timeline, leave a comment pinging `@rinafcode/maintainers`.
+- PRs with no activity for **30 days** after review feedback will be marked `stale` and closed after a further 7-day notice. You may reopen at any time.
+- Disagreements between reviewer and author that cannot be resolved in comments should be escalated to a maintainer via Discord `#code-review`.
+
 ---
 
 ## Recognition & Rewards
@@ -308,9 +323,15 @@ Active contributors may be eligible for TEACH token rewards:
 ### Attribution
 
 All contributors are listed in:
-- [CONTRIBUTORS.md](CONTRIBUTORS.md) - Full contributor list
+- [CONTRIBUTORS.md](CONTRIBUTORS.md) - Full contributor list with tiers
 - Git commit history
 - Release notes for significant contributions
+
+### How to Claim Recognition
+
+1. **Contributor tier upgrade**: Open a PR updating your entry in [CONTRIBUTORS.md](CONTRIBUTORS.md) with your merged PR count. A maintainer will verify and approve.
+2. **Token rewards**: After a PR is merged, comment on it with `@rinafcode/maintainers reward request` and a maintainer will process the allocation.
+3. **Hall of Fame nomination**: Open a [Hall of Fame discussion](https://github.com/rinafcode/teachLink_contract/discussions/new?category=hall-of-fame-nominations) using the nomination template. Nominations are reviewed quarterly.
 
 ---
 

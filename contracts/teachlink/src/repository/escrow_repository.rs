@@ -6,8 +6,10 @@
 use crate::repository::generic::{GenericCounterRepository, GenericMapRepository};
 use crate::repository::traits::InstanceStorage;
 use crate::repository::StorageError;
-use crate::storage::{ESCROWS, ESCROW_COUNT};
+use crate::reentrancy;
+use crate::storage::{ESCROWS, ESCROW_COUNT, ESCROW_GUARD};
 use crate::types::{Escrow, EscrowApprovalKey};
+use crate::errors::EscrowError;
 use soroban_sdk::{Address, Env, Map};
 
 /// Repository for escrow management
@@ -107,6 +109,25 @@ impl<'a> EscrowApprovalRepository<'a> {
         Ok(())
     }
 
+    /// Atomically check for duplicate approval, record it, and increment the escrow's
+    /// approval count — all under the ESCROW_GUARD reentrancy lock.
+    pub fn approve_with_guard(
+        &self,
+        key: &EscrowApprovalKey,
+        escrow_repo: &EscrowRepository,
+    ) -> Result<u32, EscrowError> {
+        let env = self.storage.env();
+        reentrancy::with_guard(env, &ESCROW_GUARD, EscrowError::ReentrancyDetected, || {
+            if self.has_approved(key) {
+                return Err(EscrowError::SignerAlreadyApproved);
+            }
+            self.storage.set(key, &true);
+            escrow_repo
+                .increment_approval_count(key.escrow_id)
+                .map_err(|_| EscrowError::StorageError)
+        })
+    }
+
     /// Check if signer has approved
     pub fn has_approved(&self, key: &EscrowApprovalKey) -> bool {
         self.storage.has(key)
@@ -146,82 +167,3 @@ impl<'a> EscrowAggregateRepository<'a> {
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests { // Removed - tests require env.as_contract() wrapper
-//     use super::*;
-//     use crate::types::EscrowSigner;
-//     use soroban_sdk::testutils::Address as _;
-//
-//     #[test]
-//     fn test_escrow_repository_create_and_get() {
-//         let env = Env::default();
-//         let repo = EscrowRepository::new(&env);
-//
-//         let depositor = Address::generate(&env);
-//         let beneficiary = Address::generate(&env);
-//         let token = Address::generate(&env);
-//
-//         let escrow = Escrow {
-//             id: 1,
-//             depositor: depositor.clone(),
-//             beneficiary: beneficiary.clone(),
-//             token: token.clone(),
-//             amount: 1000,
-//             signers: soroban_sdk::Vec::new(&env),
-//             threshold: 1,
-//             approval_count: 0,
-//             release_time: None,
-//             refund_time: None,
-//             arbitrator: depositor.clone(),
-//             status: crate::types::EscrowStatus::Pending,
-//             created_at: env.ledger().timestamp(),
-//             dispute_reason: None,
-//         };
-//
-//         repo.save_escrow(&escrow).expect("Should save escrow");
-//
-//         let retrieved = repo.get_escrow(1);
-//         assert!(retrieved.is_some());
-//         assert_eq!(retrieved.unwrap().amount, 1000);
-//     }
-//
-//     #[test]
-//     fn test_escrow_repository_counter() {
-//         let env = Env::default();
-//         let repo = EscrowRepository::new(&env);
-//
-//         let initial_count = repo.get_count().expect("Should get count");
-//         let next_id = repo.get_next_id().expect("Should get next ID");
-//
-//         assert_eq!(initial_count, 0);
-//         assert_eq!(next_id, 1);
-//
-//         let second_id = repo.get_next_id().expect("Should get second ID");
-//         assert_eq!(second_id, 2);
-//     }
-//
-//     #[test]
-//     fn test_approval_repository() {
-//         let env = Env::default();
-//         let escrow_repo = EscrowRepository::new(&env);
-//         let approval_repo = EscrowApprovalRepository::new(&env);
-//
-//         let signer = Address::generate(&env);
-//         let escrow_id = 1u64;
-//
-//         let key = EscrowApprovalKey {
-//             escrow_id,
-//             signer: signer.clone(),
-//         };
-//
-//         // Initially should not be approved
-//         assert!(!approval_repo.has_approved(&key));
-//
-//         // Approve
-//         approval_repo.approve(&key).expect("Should approve");
-//
-//         // Now should be approved
-//         assert!(approval_repo.has_approved(&key));
-//     }
-// }
