@@ -160,6 +160,7 @@ mod slashing;
 // TODO: Fix social_learning module compilation errors (pre-existing issue)
 // mod social_learning;
 mod storage;
+mod sustainability;
 mod tokenization;
 mod types;
 mod upgrade;
