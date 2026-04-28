@@ -585,7 +585,8 @@ impl EscrowValidator {
             params.release_time,
             params.refund_time,
             &params.arbitrator,
-        )
+        )?;
+
         // Validate addresses
         AddressValidator::validate(env, &params.depositor)
             .map_err(|_| EscrowError::InvalidAddress)?;

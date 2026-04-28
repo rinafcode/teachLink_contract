@@ -35,10 +35,10 @@ use crate::storage::{AUDIT_COUNTER, AUDIT_RECORDS, COMPLIANCE_REPORTS};
 use crate::types::{AuditRecord, ComplianceReport, OperationType};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
-/// Maximum audit records to store — re-exported from config.
-pub use crate::config::AUDIT_MAX_RECORDS as MAX_AUDIT_RECORDS;
 /// Compliance report period — re-exported from config.
 pub use crate::config::AUDIT_COMPLIANCE_PERIOD as COMPLIANCE_PERIOD;
+/// Maximum audit records to store — re-exported from config.
+pub use crate::config::AUDIT_MAX_RECORDS as MAX_AUDIT_RECORDS;
 
 /// Audit Manager
 pub struct AuditManager;

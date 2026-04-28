@@ -80,4 +80,5 @@ pub enum BridgeError {
     StorageError = 143,
     NotInitialized = 144,
     IncompatibleInterfaceVersion = 145,
-    InvalidInterfaceVersionRange
+    InvalidInterfaceVersionRange = 146,
+}

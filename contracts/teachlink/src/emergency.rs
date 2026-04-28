@@ -1,4 +1,4 @@
-﻿//! Emergency Pause and Recovery Module
+//! Emergency Pause and Recovery Module
 //!
 //! This module implements circuit breaker functionality and emergency controls
 //! to protect the bridge during critical situations.
@@ -11,10 +11,10 @@ use crate::storage::{CIRCUIT_BREAKERS, CIRCUIT_RESET_SEQ, EMERGENCY_STATE, PAUSE
 use crate::types::{CircuitBreaker, EmergencyState};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
-/// Authorized pausers (admin + security council) — re-exported from config.
-pub use crate::config::EMERGENCY_SECURITY_COUNCIL_SIZE as SECURITY_COUNCIL_SIZE;
 /// Daily volume reset period — re-exported from config.
 pub use crate::config::EMERGENCY_DAILY_VOLUME_RESET as DAILY_VOLUME_RESET;
+/// Authorized pausers (admin + security council) — re-exported from config.
+pub use crate::config::EMERGENCY_SECURITY_COUNCIL_SIZE as SECURITY_COUNCIL_SIZE;
 
 /// Emergency Manager
 pub struct EmergencyManager;

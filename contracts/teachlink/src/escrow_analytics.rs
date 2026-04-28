@@ -1,7 +1,7 @@
 use crate::errors::{EscrowAnalyticsError, EscrowAnalyticsResult};
+use crate::safe_stats::{safe_add_i128, safe_inc_u64};
 use crate::storage::ESCROW_ANALYTICS;
 use crate::types::EscrowMetrics;
-use crate::safe_stats::{safe_add_i128, safe_inc_u64};
 use soroban_sdk::{Env, Map};
 
 pub struct EscrowAnalyticsManager;

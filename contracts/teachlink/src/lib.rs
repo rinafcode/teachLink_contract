@@ -90,8 +90,8 @@
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
-mod access_logger;
 mod access_control;
+mod access_logger;
 mod analytics;
 mod arbitration;
 mod assessment;
@@ -111,8 +111,8 @@ mod dos_protection;
 mod emergency;
 mod errors;
 mod escrow_analytics;
-mod safe_stats;
 mod event_query;
+mod safe_stats;
 // TODO: Fix event_tests module compilation errors (pre-existing issue)
 // mod event_tests;
 mod events;
@@ -190,32 +190,76 @@ pub use repository::{
     SingleValueRepository, StorageError,
 };
 pub use types::{
-    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
-    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
-    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, ContractSemVer,
-    ContributionType, CrossChainMessage, CrossChainPacket,
-    DashboardAnalytics, DisputeOutcome, EmergencyState,
-    Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
-    EscrowSigner, EscrowStatus, InterfaceVersionStatus,
-    LiquidityPool, MultiChainAsset,
-    NotificationChannel, NotificationContent,
-    NotificationPreference, NotificationSchedule,
-    NotificationTemplate, NotificationTracking,
-    OperationType, PacketStatus, ProposalStatus,
-    ProvenanceRecord, RecoveryRecord, ReportComment,
-    ReportSchedule, ReportSnapshot, ReportTemplate,
-    ReportType, ReportUsage, RewardRate,
-    RewardType, RtoTier, SlashingReason,
-    SlashingRecord, SwapStatus, TransferType,
-    UserNotificationSettings, UserReputation,
-    UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature, VisualizationDataPoint,
-
     // access logging types
     AccessLogEntry,
     AccessOutcome,
+    AlertConditionType,
+    AlertRule,
+    ArbitratorProfile,
+    AtomicSwap,
     AuditQuery,
+    AuditRecord,
+    BackupManifest,
+    BackupSchedule,
+    BridgeMetrics,
+    BridgeProposal,
+    BridgeTransaction,
+    CachedBridgeSummary,
+    ChainConfig,
+    ChainMetrics,
+    ComplianceReport,
+    ConsensusState,
+    ContentMetadata,
+    ContentToken,
+    ContentTokenParameters,
+    ContentType,
+    ContractSemVer,
+    ContributionType,
+    CrossChainMessage,
+    CrossChainPacket,
+    DashboardAnalytics,
+    DisputeOutcome,
+    EmergencyState,
+    Escrow,
+    EscrowMetrics,
+    EscrowParameters,
+    EscrowRole,
+    EscrowSigner,
+    EscrowStatus,
+    InterfaceVersionStatus,
+    LiquidityPool,
+    MultiChainAsset,
+    NotificationChannel,
+    NotificationContent,
+    NotificationPreference,
+    NotificationSchedule,
+    NotificationTemplate,
+    NotificationTracking,
+    OperationType,
+    PacketStatus,
+    ProposalStatus,
+    ProvenanceRecord,
+    RecoveryRecord,
+    ReportComment,
+    ReportSchedule,
+    ReportSnapshot,
+    ReportTemplate,
+    ReportType,
+    ReportUsage,
+    RewardRate,
+    RewardType,
+    RtoTier,
+    SlashingReason,
+    SlashingRecord,
+    SwapStatus,
+    TransferType,
+    UserNotificationSettings,
+    UserReputation,
+    UserReward,
+    ValidatorInfo,
+    ValidatorReward,
+    ValidatorSignature,
+    VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -421,7 +465,11 @@ impl TeachLinkBridge {
         from_version: ContractSemVer,
         to_version: ContractSemVer,
     ) -> Option<MigrationPath> {
-        interface_versioning::InterfaceVersioning::get_migration_path(&env, from_version, to_version)
+        interface_versioning::InterfaceVersioning::get_migration_path(
+            &env,
+            from_version,
+            to_version,
+        )
     }
 
     /// Get all registered migration paths
@@ -1867,58 +1915,24 @@ impl TeachLinkBridge {
 
     // ========== Access Logging Functions ==========
 
-    pub fn log_access(
-        env: Env,
-        caller: Address,
-        operation: Symbol,
-        outcome: AccessOutcome,
-    ) {
-        access_logger::AccessLogger::log_access(
-            &env,
-            caller,
-            operation,
-            outcome,
-        );
+    pub fn log_access(env: Env, caller: Address, operation: Symbol, outcome: AccessOutcome) {
+        access_logger::AccessLogger::log_access(&env, caller, operation, outcome);
     }
 
-    pub fn get_log_entry(
-        env: Env,
-        entry_id: u64,
-    ) -> Option<AccessLogEntry> {
-        access_logger::AccessLogger::get_log_entry(
-            &env,
-            entry_id,
-        )
+    pub fn get_log_entry(env: Env, entry_id: u64) -> Option<AccessLogEntry> {
+        access_logger::AccessLogger::get_log_entry(&env, entry_id)
     }
 
-    pub fn get_total_log_count(
-        env: Env,
-    ) -> u64 {
-        access_logger::AccessLogger::get_total_log_count(
-            &env,
-        )
+    pub fn get_total_log_count(env: Env) -> u64 {
+        access_logger::AccessLogger::get_total_log_count(&env)
     }
 
-    pub fn query_logs(
-        env: Env,
-        query: AuditQuery,
-    ) -> Vec<AccessLogEntry> {
-        access_logger::AccessLogger::query_logs(
-            &env,
-            query,
-        )
+    pub fn query_logs(env: Env, query: AuditQuery) -> Vec<AccessLogEntry> {
+        access_logger::AccessLogger::query_logs(&env, query)
     }
 
-    pub fn get_temporal_pattern(
-        env: Env,
-        caller: Address,
-        window_start: u64,
-    ) -> u32 {
-        access_logger::AccessLogger::get_temporal_pattern(
-            &env,
-            caller,
-            window_start,
-        )
+    pub fn get_temporal_pattern(env: Env, caller: Address, window_start: u64) -> u32 {
+        access_logger::AccessLogger::get_temporal_pattern(&env, caller, window_start)
     }
 
     // ========== Contract Upgrade Functions ==========
@@ -1929,12 +1943,7 @@ impl TeachLinkBridge {
         new_version: u32,
         state_hash: Bytes,
     ) -> Result<(), BridgeError> {
-        upgrade::ContractUpgrader::prepare_upgrade(
-            &env,
-            admin,
-            new_version,
-            state_hash,
-        )
+        upgrade::ContractUpgrader::prepare_upgrade(&env, admin, new_version, state_hash)
     }
 
     pub fn execute_upgrade(
@@ -1943,56 +1952,27 @@ impl TeachLinkBridge {
         new_version: u32,
         migration_hash: Bytes,
     ) -> Result<(), BridgeError> {
-        upgrade::ContractUpgrader::execute_upgrade(
-            &env,
-            admin,
-            new_version,
-            migration_hash,
-        )
+        upgrade::ContractUpgrader::execute_upgrade(&env, admin, new_version, migration_hash)
     }
 
-    pub fn rollback_upgrade(
-        env: Env,
-        admin: Address,
-    ) -> Result<(), BridgeError> {
-        upgrade::ContractUpgrader::rollback(
-            &env,
-            admin,
-        )
+    pub fn rollback_upgrade(env: Env, admin: Address) -> Result<(), BridgeError> {
+        upgrade::ContractUpgrader::rollback(&env, admin)
     }
 
-    pub fn get_contract_version(
-        env: Env,
-    ) -> u32 {
-        upgrade::ContractUpgrader::get_current_version(
-            &env,
-        )
+    pub fn get_contract_version(env: Env) -> u32 {
+        upgrade::ContractUpgrader::get_current_version(&env)
     }
 
-    pub fn get_upgrade_history(
-        env: Env,
-        version: u32,
-    ) -> Option<upgrade::UpgradeRecord> {
-        upgrade::ContractUpgrader::get_upgrade_history(
-            &env,
-            version,
-        )
+    pub fn get_upgrade_history(env: Env, version: u32) -> Option<upgrade::UpgradeRecord> {
+        upgrade::ContractUpgrader::get_upgrade_history(&env, version)
     }
 
-    pub fn is_rollback_available(
-        env: Env,
-    ) -> bool {
-        upgrade::ContractUpgrader::is_rollback_available(
-            &env,
-        )
+    pub fn is_rollback_available(env: Env) -> bool {
+        upgrade::ContractUpgrader::is_rollback_available(&env)
     }
 
-    pub fn get_state_backup(
-        env: Env,
-    ) -> Option<upgrade::StateBackup> {
-        upgrade::ContractUpgrader::get_state_backup(
-            &env,
-        )
+    pub fn get_state_backup(env: Env) -> Option<upgrade::StateBackup> {
+        upgrade::ContractUpgrader::get_state_backup(&env)
     }
 
     // ========== Network Recovery Functions ==========
@@ -2013,52 +1993,27 @@ impl TeachLinkBridge {
         )
     }
 
-    pub fn can_retry_operation(
-        env: Env,
-        operation_id: u64,
-    ) -> Result<bool, BridgeError> {
-        network_recovery::NetworkRecovery::can_retry(
-            &env,
-            operation_id,
-        )
+    pub fn can_retry_operation(env: Env, operation_id: u64) -> Result<bool, BridgeError> {
+        network_recovery::NetworkRecovery::can_retry(&env, operation_id)
     }
 
-    pub fn mark_operation_completed(
-        env: Env,
-        operation_id: u64,
-    ) -> Result<(), BridgeError> {
-        network_recovery::NetworkRecovery::mark_completed(
-            &env,
-            operation_id,
-        )
+    pub fn mark_operation_completed(env: Env, operation_id: u64) -> Result<(), BridgeError> {
+        network_recovery::NetworkRecovery::mark_completed(&env, operation_id)
     }
 
     pub fn get_operation_state(
         env: Env,
         operation_id: u64,
     ) -> Option<network_recovery::OperationState> {
-        network_recovery::NetworkRecovery::get_operation_state(
-            &env,
-            operation_id,
-        )
+        network_recovery::NetworkRecovery::get_operation_state(&env, operation_id)
     }
 
-    pub fn get_user_retry_notifications(
-        env: Env,
-        user: Address,
-    ) -> Vec<u64> {
-        network_recovery::NetworkRecovery::get_user_notifications(
-            &env,
-            user,
-        )
+    pub fn get_user_retry_notifications(env: Env, user: Address) -> Vec<u64> {
+        network_recovery::NetworkRecovery::get_user_notifications(&env, user)
     }
 
-    pub fn is_fallback_active(
-        env: Env,
-    ) -> bool {
-        network_recovery::NetworkRecovery::is_fallback_active(
-            &env,
-        )
+    pub fn is_fallback_active(env: Env) -> bool {
+        network_recovery::NetworkRecovery::is_fallback_active(&env)
     }
 }
 

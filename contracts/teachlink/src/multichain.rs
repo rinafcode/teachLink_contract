@@ -10,10 +10,10 @@ use crate::types::{ChainAssetInfo, ChainConfig, MultiChainAsset};
 use crate::validation::NumberValidator;
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
-/// Maximum number of supported chains — re-exported from config.
-pub use crate::config::MULTICHAIN_MAX_CHAINS as MAX_SUPPORTED_CHAINS;
 /// Maximum number of multi-chain assets — re-exported from config.
 pub use crate::config::MULTICHAIN_MAX_ASSETS as MAX_MULTI_CHAIN_ASSETS;
+/// Maximum number of supported chains — re-exported from config.
+pub use crate::config::MULTICHAIN_MAX_CHAINS as MAX_SUPPORTED_CHAINS;
 
 /// Multi-Chain Manager
 pub struct MultiChainManager;
