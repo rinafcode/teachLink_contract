@@ -12,11 +12,10 @@ use crate::storage::{PERF_CACHE, PERF_TS};
 use crate::types::CachedBridgeSummary;
 use soroban_sdk::{Address, Env};
 
-/// Cache TTL in ledger seconds (1 hour).
-pub const CACHE_TTL_SECS: u64 = 3_600;
-
-/// Max chains to include in cached top-by-volume (bounds gas).
-pub const MAX_TOP_CHAINS: u32 = 20;
+/// Cache TTL in ledger seconds — re-exported from config.
+pub use crate::config::PERF_CACHE_TTL_SECS as CACHE_TTL_SECS;
+/// Max chains to include in cached top-by-volume — re-exported from config.
+pub use crate::config::PERF_MAX_TOP_CHAINS as MAX_TOP_CHAINS;
 
 /// Performance cache manager.
 pub struct PerformanceManager;

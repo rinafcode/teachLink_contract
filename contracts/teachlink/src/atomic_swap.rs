@@ -2,6 +2,43 @@
 //!
 //! This module implements atomic swap functionality for cross-chain token exchanges
 //! using hash time-locked contracts (HTLC).
+//!
+//! # HTLC Protocol
+//!
+//! An atomic swap between two parties (initiator A and counterparty B) proceeds
+//! as follows:
+//!
+//! ```text
+//! 1. A chooses a secret `preimage` and computes `hashlock = SHA256(preimage)`.
+//! 2. A calls `initiate_swap`, locking their tokens and publishing `hashlock`.
+//! 3. B calls `accept_swap` with the correct `preimage` to claim A's tokens
+//!    and simultaneously release their own tokens to A.
+//! 4. If B does not act before `timelock` expires, A calls `refund_swap`
+//!    to recover their locked tokens.
+//! ```
+//!
+//! Atomicity is guaranteed because B can only claim A's tokens by revealing
+//! `preimage`, which A can then use to claim B's tokens on the other chain.
+//!
+//! # Timelock Dual-Signal
+//!
+//! Like proposals, swaps store both a wall-clock `timelock` timestamp and a
+//! `SWAP_TIMELOCK_SEQ` ledger-sequence deadline.  Expiry is triggered if
+//! *either* signal is exceeded, guarding against frozen-clock test networks.
+//!
+//! # Hashlock Verification
+//!
+//! The 32-byte `hashlock` must equal `SHA256(preimage)`.  The contract
+//! enforces `hashlock.len() == HASH_LENGTH (32)` at initiation time.
+//!
+//! # Reentrancy Protection
+//!
+//! Both `initiate_swap` and `accept_swap` are wrapped in `reentrancy::with_guard`
+//! using `SWAP_GUARD` to prevent recursive calls during token transfers.
+//!
+//! # Spec Reference
+//! See `contracts/documentation/COLLABORATION.md` §Atomic Swaps for the
+//! cross-chain exchange specification.
 
 use crate::errors::BridgeError;
 use crate::events::{SwapCompletedEvent, SwapInitiatedEvent, SwapRefundedEvent};
@@ -10,19 +47,29 @@ use crate::storage::{ATOMIC_SWAPS, SWAP_COUNTER, SWAP_GUARD, SWAP_TIMELOCK_SEQ};
 use crate::types::{AtomicSwap, SwapStatus};
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
-/// Minimum timelock duration (1 hour)
-pub const MIN_TIMELOCK: u64 = 3_600;
-
-/// Maximum timelock duration (7 days)
-pub const MAX_TIMELOCK: u64 = 604_800;
-
-/// Hash length (32 bytes for SHA256)
-pub const HASH_LENGTH: u32 = 32;
+/// Minimum timelock duration — re-exported from config.
+pub use crate::config::SWAP_MIN_TIMELOCK as MIN_TIMELOCK;
+/// Maximum timelock duration — re-exported from config.
+pub use crate::config::SWAP_MAX_TIMELOCK as MAX_TIMELOCK;
+/// Required hash length — re-exported from config.
+pub use crate::config::SWAP_HASH_LENGTH as HASH_LENGTH;
 
 /// Atomic Swap Manager
 pub struct AtomicSwapManager;
 
 impl AtomicSwapManager {
+    /// Checks whether a swap's timelock has expired using a dual-signal approach.
+    ///
+    /// # Algorithm
+    ///
+    /// 1. **Primary – wall-clock timestamp**: expired if `now > timelock_ts`.
+    /// 2. **Fallback – ledger sequence**: if the timestamp check passes, also
+    ///    check the stored `SWAP_TIMELOCK_SEQ` entry.  Expired if
+    ///    `current_sequence > seq_deadline`.
+    ///
+    /// Returns `true` if *either* signal indicates expiry.  This dual-signal
+    /// approach prevents swaps from being stuck open on networks where
+    /// `ledger().timestamp()` is not advancing (e.g., local test environments).
     fn timelock_expired(env: &Env, swap_id: u64, timelock_ts: u64) -> bool {
         if env.ledger().timestamp() > timelock_ts {
             return true;
@@ -77,6 +124,14 @@ impl AtomicSwapManager {
             if initiator == counterparty {
                 return Err(BridgeError::InvalidInput);
             }
+
+            // Temporal Validation
+            crate::validation::TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+                .map_err(|_| BridgeError::InvalidTimestamp)?;
+
+            let future_timelock = env.ledger().timestamp().saturating_add(timelock);
+            crate::validation::TimeValidator::validate_operational_bounds(env, future_timelock)
+                .map_err(|_| BridgeError::InvalidTimestamp)?;
 
             let mut swap_counter: u64 = env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64);
             swap_counter += 1;

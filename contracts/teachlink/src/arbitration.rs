@@ -121,3 +121,133 @@ impl ArbitrationManager {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::Address as _;
+
+    fn make_profile(env: &Env, address: Address, reputation_score: u32) -> ArbitratorProfile {
+        let mut specialization = Vec::new(env);
+        specialization.push_back(String::from_str(env, "General"));
+
+        let mut dispute_types_handled = Vec::new(env);
+        dispute_types_handled.push_back(String::from_str(env, "Payment"));
+
+        ArbitratorProfile {
+            address,
+            name: String::from_str(env, "Arbiter One"),
+            specialization,
+            reputation_score,
+            total_resolved: 0,
+            dispute_types_handled,
+            is_active: true,
+        }
+    }
+
+    fn with_contract<T>(env: &Env, contract_id: &Address, f: impl FnOnce() -> T) -> T {
+        env.as_contract(contract_id, f)
+    }
+
+    #[test]
+    fn update_reputation_increases_on_success() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        let arbitrator = Address::generate(&env);
+        let profile = make_profile(&env, arbitrator.clone(), 500);
+
+        with_contract(&env, &contract_id, || {
+            ArbitrationManager::register_arbitrator(&env, profile).unwrap();
+            ArbitrationManager::update_reputation(&env, arbitrator.clone(), true).unwrap();
+        });
+
+        let updated = with_contract(&env, &contract_id, || {
+            ArbitrationManager::get_arbitrator(&env, arbitrator).unwrap()
+        });
+        assert_eq!(updated.reputation_score, 510);
+        assert_eq!(updated.total_resolved, 1);
+    }
+
+    #[test]
+    fn update_reputation_decreases_on_failure() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        let arbitrator = Address::generate(&env);
+        let profile = make_profile(&env, arbitrator.clone(), 500);
+
+        with_contract(&env, &contract_id, || {
+            ArbitrationManager::register_arbitrator(&env, profile).unwrap();
+            ArbitrationManager::update_reputation(&env, arbitrator.clone(), false).unwrap();
+        });
+
+        let updated = with_contract(&env, &contract_id, || {
+            ArbitrationManager::get_arbitrator(&env, arbitrator).unwrap()
+        });
+        assert_eq!(updated.reputation_score, 480);
+        assert_eq!(updated.total_resolved, 1);
+    }
+
+    #[test]
+    fn update_reputation_respects_upper_boundary() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        let arbitrator = Address::generate(&env);
+        let profile = make_profile(&env, arbitrator.clone(), 995);
+
+        with_contract(&env, &contract_id, || {
+            ArbitrationManager::register_arbitrator(&env, profile).unwrap();
+            ArbitrationManager::update_reputation(&env, arbitrator.clone(), true).unwrap();
+        });
+
+        let updated = with_contract(&env, &contract_id, || {
+            ArbitrationManager::get_arbitrator(&env, arbitrator).unwrap()
+        });
+        assert_eq!(updated.reputation_score, 1000);
+        assert_eq!(updated.total_resolved, 1);
+    }
+
+    #[test]
+    fn update_reputation_respects_lower_boundary() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        let arbitrator = Address::generate(&env);
+        let profile = make_profile(&env, arbitrator.clone(), 15);
+
+        with_contract(&env, &contract_id, || {
+            ArbitrationManager::register_arbitrator(&env, profile).unwrap();
+            ArbitrationManager::update_reputation(&env, arbitrator.clone(), false).unwrap();
+        });
+
+        let updated = with_contract(&env, &contract_id, || {
+            ArbitrationManager::get_arbitrator(&env, arbitrator).unwrap()
+        });
+        assert_eq!(updated.reputation_score, 0);
+        assert_eq!(updated.total_resolved, 1);
+    }
+
+    #[test]
+    fn update_reputation_is_noop_for_unregistered_arbitrator() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let unregistered = Address::generate(&env);
+
+        let result = with_contract(&env, &contract_id, || {
+            ArbitrationManager::update_reputation(&env, unregistered.clone(), true)
+        });
+        assert_eq!(result, Ok(()));
+
+        let stored = with_contract(&env, &contract_id, || {
+            ArbitrationManager::get_arbitrator(&env, unregistered)
+        });
+        assert!(stored.is_none());
+    }
+}
