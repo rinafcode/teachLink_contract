@@ -49,6 +49,10 @@ pub enum StorageKey {
     ValidatorRotationSet,
     // Rate limiting
     RateLimitState,
+    // Auto-scaling and load management
+    ScalingConfig,
+    LoadMetrics,
+    LoadLevel,
 }
 
 /// Returns true if the given symbol string matches any known legacy key,
@@ -219,6 +223,11 @@ pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
 pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+
+// Auto-scaling and load management (symbol_short! max 9 chars)
+pub const SCALING_CONFIG: Symbol = symbol_short!("scale_cfg");
+pub const LOAD_METRICS: Symbol = symbol_short!("load_met");
+pub const LOAD_LEVEL: Symbol = symbol_short!("load_lvl");
 
 #[cfg(test)]
 mod tests {

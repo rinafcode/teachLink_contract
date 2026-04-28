@@ -97,6 +97,7 @@ mod arbitration;
 mod assessment;
 mod atomic_swap;
 mod audit;
+mod auto_scaling;
 mod backup;
 mod bft_consensus;
 mod bridge;
@@ -164,6 +165,12 @@ mod validation;
 // TODO: Fix validation_tests compilation errors (pre-existing issue)
 // mod validation_tests;
 
+pub use validation::{
+    config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
+    EscrowValidator, InputSanitizer, NumberValidator, RewardsValidator, StringValidator,
+    ValidationError, ValidationResult,
+};
+
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
     LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
@@ -172,7 +179,9 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{AccessLogError, BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use errors::{
+    AccessLogError, BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError,
+};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -181,29 +190,29 @@ pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-ContentTokenParameters, ContentType, ContractSemVer,
-ContributionType, CrossChainMessage, CrossChainPacket,
-DashboardAnalytics, DisputeOutcome, EmergencyState,
-Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
-EscrowSigner, EscrowStatus, InterfaceVersionStatus,
-LiquidityPool, MultiChainAsset,
-NotificationChannel, NotificationContent,
-NotificationPreference, NotificationSchedule,
-NotificationTemplate, NotificationTracking,
-OperationType, PacketStatus, ProposalStatus,
-ProvenanceRecord, RecoveryRecord, ReportComment,
-ReportSchedule, ReportSnapshot, ReportTemplate,
-ReportType, ReportUsage, RewardRate,
-RewardType, RtoTier, SlashingReason,
-SlashingRecord, SwapStatus, TransferType,
-UserNotificationSettings, UserReputation,
-UserReward, ValidatorInfo, ValidatorReward,
-ValidatorSignature, VisualizationDataPoint,
+    ContentTokenParameters, ContentType, ContractSemVer,
+    ContributionType, CrossChainMessage, CrossChainPacket,
+    DashboardAnalytics, DisputeOutcome, EmergencyState,
+    Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
+    EscrowSigner, EscrowStatus, InterfaceVersionStatus,
+    LiquidityPool, MultiChainAsset,
+    NotificationChannel, NotificationContent,
+    NotificationPreference, NotificationSchedule,
+    NotificationTemplate, NotificationTracking,
+    OperationType, PacketStatus, ProposalStatus,
+    ProvenanceRecord, RecoveryRecord, ReportComment,
+    ReportSchedule, ReportSnapshot, ReportTemplate,
+    ReportType, ReportUsage, RewardRate,
+    RewardType, RtoTier, SlashingReason,
+    SlashingRecord, SwapStatus, TransferType,
+    UserNotificationSettings, UserReputation,
+    UserReward, ValidatorInfo, ValidatorReward,
+    ValidatorSignature, VisualizationDataPoint,
 
-// access logging types
-AccessLogEntry,
-AccessOutcome,
-AuditQuery,
+    // access logging types
+    AccessLogEntry,
+    AccessOutcome,
+    AuditQuery,
 };
 
 /// TeachLink main contract.
@@ -223,8 +232,9 @@ impl TeachLinkBridge {
         min_validators: u32,
         fee_recipient: Address,
     ) -> Result<(), BridgeError> {
-        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
+        bridge::Bridge::initialize(&env, token, admin.clone(), min_validators, fee_recipient)?;
         interface_versioning::InterfaceVersioning::initialize(&env);
+        upgrade::ContractUpgrader::initialize(&env, admin.clone())?;
         Ok(())
     }
 
@@ -268,23 +278,23 @@ impl TeachLinkBridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
-    pub fn add_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::add_validator(&env, validator);
+    pub fn add_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::add_validator(&env, validator)
     }
 
     /// Remove a validator (admin only)
-    pub fn remove_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::remove_validator(&env, validator);
+    pub fn remove_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_validator(&env, validator)
     }
 
     /// Add a supported destination chain (admin only)
-    pub fn add_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::add_supported_chain(&env, chain_id);
+    pub fn add_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::add_supported_chain(&env, chain_id)
     }
 
     /// Remove a supported destination chain (admin only)
-    pub fn remove_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::remove_supported_chain(&env, chain_id);
+    pub fn remove_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_supported_chain(&env, chain_id)
     }
 
     /// Set bridge fee (admin only)
@@ -293,8 +303,8 @@ impl TeachLinkBridge {
     }
 
     /// Set fee recipient (admin only)
-    pub fn set_fee_recipient(env: Env, fee_recipient: Address) {
-        let _ = bridge::Bridge::set_fee_recipient(&env, fee_recipient);
+    pub fn set_fee_recipient(env: Env, fee_recipient: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::set_fee_recipient(&env, fee_recipient)
     }
 
     /// Set minimum validators (admin only)
@@ -443,6 +453,64 @@ impl TeachLinkBridge {
     /// Trigger rotation if the current consensus round is at an epoch boundary.
     pub fn maybe_rotate_validators(env: Env) -> Result<bool, BridgeError> {
         bft_consensus::BFTConsensus::maybe_rotate(&env)
+    }
+
+    // ========== Auto-Scaling & Load Management Functions ==========
+
+    /// Initialize auto-scaling configuration (admin only)
+    pub fn initialize_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::initialize(&env, &admin)
+    }
+
+    /// Get current system load level
+    pub fn get_load_level(env: Env) -> crate::types::LoadLevel {
+        auto_scaling::AutoScaler::get_current_load_level(&env)
+    }
+
+    /// Calculate optimal batch size based on current load
+    pub fn get_optimal_batch_size(env: Env) -> u32 {
+        auto_scaling::AutoScaler::calculate_optimal_batch_size(&env)
+    }
+
+    /// Check if an operation should be shed based on priority and load
+    pub fn should_shed_operation(env: Env, priority: u32) -> bool {
+        auto_scaling::AutoScaler::should_shed_operation(&env, priority)
+    }
+
+    /// Update load metrics with recent operation data
+    pub fn update_load_metrics(
+        env: Env,
+        operations_processed: u64,
+        operations_shed: u64,
+        current_gas_usage: u64,
+    ) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::update_load_metrics(
+            &env,
+            operations_processed,
+            operations_shed,
+            current_gas_usage,
+        )
+    }
+
+    /// Determine if an operation should be queued based on priority
+    pub fn should_queue_operation(env: Env, priority: u32) -> bool {
+        auto_scaling::AutoScaler::should_queue_operation(&env, priority)
+    }
+
+    /// Get gas allocation for an operation based on load and priority
+    pub fn allocate_gas_budget(env: Env, priority: u32, base_gas: u64) -> u64 {
+        auto_scaling::AutoScaler::allocate_gas_budget(&env, priority, base_gas)
+    }
+
+    /// Trigger emergency scaling (admin only)
+    pub fn trigger_emergency_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        admin.require_auth();
+        auto_scaling::AutoScaler::emergency_scaling(&env)
+    }
+
+    /// Reset scaling configuration to defaults (admin only)
+    pub fn reset_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::reset_scaling(&env, &admin)
     }
 
     // ========== Slashing and Rewards Functions ==========
@@ -1704,202 +1772,199 @@ impl TeachLinkBridge {
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
 
-// ========== Access Logging Functions ==========
+    // ========== Access Logging Functions ==========
 
-pub fn log_access(
-    env: Env,
-    caller: Address,
-    operation: Symbol,
-    outcome: AccessOutcome,
-) {
-    access_logger::AccessLogger::log_access(
-        &env,
-        caller,
-        operation,
-        outcome,
-    );
-}
+    pub fn log_access(
+        env: Env,
+        caller: Address,
+        operation: Symbol,
+        outcome: AccessOutcome,
+    ) {
+        access_logger::AccessLogger::log_access(
+            &env,
+            caller,
+            operation,
+            outcome,
+        );
+    }
 
-pub fn get_log_entry(
-    env: Env,
-    entry_id: u64,
-) -> Option<AccessLogEntry> {
-    access_logger::AccessLogger::get_log_entry(
-        &env,
-        entry_id,
-    )
-}
+    pub fn get_log_entry(
+        env: Env,
+        entry_id: u64,
+    ) -> Option<AccessLogEntry> {
+        access_logger::AccessLogger::get_log_entry(
+            &env,
+            entry_id,
+        )
+    }
 
-pub fn get_total_log_count(
-    env: Env,
-) -> u64 {
-    access_logger::AccessLogger::get_total_log_count(
-        &env,
-    )
-}
+    pub fn get_total_log_count(
+        env: Env,
+    ) -> u64 {
+        access_logger::AccessLogger::get_total_log_count(
+            &env,
+        )
+    }
 
-pub fn query_logs(
-    env: Env,
-    query: AuditQuery,
-) -> Vec<AccessLogEntry> {
-    access_logger::AccessLogger::query_logs(
-        &env,
-        query,
-    )
-}
+    pub fn query_logs(
+        env: Env,
+        query: AuditQuery,
+    ) -> Vec<AccessLogEntry> {
+        access_logger::AccessLogger::query_logs(
+            &env,
+            query,
+        )
+    }
 
-pub fn get_temporal_pattern(
-    env: Env,
-    caller: Address,
-    window_start: u64,
-) -> u32 {
-    access_logger::AccessLogger::get_temporal_pattern(
-        &env,
-        caller,
-        window_start,
-    )
-}
+    pub fn get_temporal_pattern(
+        env: Env,
+        caller: Address,
+        window_start: u64,
+    ) -> u32 {
+        access_logger::AccessLogger::get_temporal_pattern(
+            &env,
+            caller,
+            window_start,
+        )
+    }
 
+    // ========== Contract Upgrade Functions ==========
 
-// ========== Contract Upgrade Functions ==========
+    pub fn prepare_upgrade(
+        env: Env,
+        admin: Address,
+        new_version: u32,
+        state_hash: Bytes,
+    ) -> Result<(), BridgeError> {
+        upgrade::ContractUpgrader::prepare_upgrade(
+            &env,
+            admin,
+            new_version,
+            state_hash,
+        )
+    }
 
-pub fn prepare_upgrade(
-    env: Env,
-    admin: Address,
-    new_version: u32,
-    state_hash: Bytes,
-) -> Result<(), BridgeError> {
-    upgrade::ContractUpgrader::prepare_upgrade(
-        &env,
-        admin,
-        new_version,
-        state_hash,
-    )
-}
+    pub fn execute_upgrade(
+        env: Env,
+        admin: Address,
+        new_version: u32,
+        migration_hash: Bytes,
+    ) -> Result<(), BridgeError> {
+        upgrade::ContractUpgrader::execute_upgrade(
+            &env,
+            admin,
+            new_version,
+            migration_hash,
+        )
+    }
 
-pub fn execute_upgrade(
-    env: Env,
-    admin: Address,
-    new_version: u32,
-    migration_hash: Bytes,
-) -> Result<(), BridgeError> {
-    upgrade::ContractUpgrader::execute_upgrade(
-        &env,
-        admin,
-        new_version,
-        migration_hash,
-    )
-}
+    pub fn rollback_upgrade(
+        env: Env,
+        admin: Address,
+    ) -> Result<(), BridgeError> {
+        upgrade::ContractUpgrader::rollback(
+            &env,
+            admin,
+        )
+    }
 
-pub fn rollback_upgrade(
-    env: Env,
-    admin: Address,
-) -> Result<(), BridgeError> {
-    upgrade::ContractUpgrader::rollback(
-        &env,
-        admin,
-    )
-}
+    pub fn get_contract_version(
+        env: Env,
+    ) -> u32 {
+        upgrade::ContractUpgrader::get_current_version(
+            &env,
+        )
+    }
 
-pub fn get_contract_version(
-    env: Env,
-) -> u32 {
-    upgrade::ContractUpgrader::get_current_version(
-        &env,
-    )
-}
+    pub fn get_upgrade_history(
+        env: Env,
+        version: u32,
+    ) -> Option<upgrade::UpgradeRecord> {
+        upgrade::ContractUpgrader::get_upgrade_history(
+            &env,
+            version,
+        )
+    }
 
-pub fn get_upgrade_history(
-    env: Env,
-    version: u32,
-) -> Option<upgrade::UpgradeRecord> {
-    upgrade::ContractUpgrader::get_upgrade_history(
-        &env,
-        version,
-    )
-}
+    pub fn is_rollback_available(
+        env: Env,
+    ) -> bool {
+        upgrade::ContractUpgrader::is_rollback_available(
+            &env,
+        )
+    }
 
-pub fn is_rollback_available(
-    env: Env,
-) -> bool {
-    upgrade::ContractUpgrader::is_rollback_available(
-        &env,
-    )
-}
+    pub fn get_state_backup(
+        env: Env,
+    ) -> Option<upgrade::StateBackup> {
+        upgrade::ContractUpgrader::get_state_backup(
+            &env,
+        )
+    }
 
-pub fn get_state_backup(
-    env: Env,
-) -> Option<upgrade::StateBackup> {
-    upgrade::ContractUpgrader::get_state_backup(
-        &env,
-    )
-}
+    // ========== Network Recovery Functions ==========
 
+    pub fn register_failed_operation(
+        env: Env,
+        operation_id: u64,
+        operation_type: Bytes,
+        user: Address,
+        error_message: Bytes,
+    ) -> Result<(), BridgeError> {
+        network_recovery::NetworkRecovery::register_failed_operation(
+            &env,
+            operation_id,
+            operation_type,
+            user,
+            error_message,
+        )
+    }
 
-// ========== Network Recovery Functions ==========
+    pub fn can_retry_operation(
+        env: Env,
+        operation_id: u64,
+    ) -> Result<bool, BridgeError> {
+        network_recovery::NetworkRecovery::can_retry(
+            &env,
+            operation_id,
+        )
+    }
 
-pub fn register_failed_operation(
-    env: Env,
-    operation_id: u64,
-    operation_type: Bytes,
-    user: Address,
-    error_message: Bytes,
-) -> Result<(), BridgeError> {
-    network_recovery::NetworkRecovery::register_failed_operation(
-        &env,
-        operation_id,
-        operation_type,
-        user,
-        error_message,
-    )
-}
+    pub fn mark_operation_completed(
+        env: Env,
+        operation_id: u64,
+    ) -> Result<(), BridgeError> {
+        network_recovery::NetworkRecovery::mark_completed(
+            &env,
+            operation_id,
+        )
+    }
 
-pub fn can_retry_operation(
-    env: Env,
-    operation_id: u64,
-) -> Result<bool, BridgeError> {
-    network_recovery::NetworkRecovery::can_retry(
-        &env,
-        operation_id,
-    )
-}
+    pub fn get_operation_state(
+        env: Env,
+        operation_id: u64,
+    ) -> Option<network_recovery::OperationState> {
+        network_recovery::NetworkRecovery::get_operation_state(
+            &env,
+            operation_id,
+        )
+    }
 
-pub fn mark_operation_completed(
-    env: Env,
-    operation_id: u64,
-) -> Result<(), BridgeError> {
-    network_recovery::NetworkRecovery::mark_completed(
-        &env,
-        operation_id,
-    )
-}
+    pub fn get_user_retry_notifications(
+        env: Env,
+        user: Address,
+    ) -> Vec<u64> {
+        network_recovery::NetworkRecovery::get_user_notifications(
+            &env,
+            user,
+        )
+    }
 
-pub fn get_operation_state(
-    env: Env,
-    operation_id: u64,
-) -> Option<network_recovery::OperationState> {
-    network_recovery::NetworkRecovery::get_operation_state(
-        &env,
-        operation_id,
-    )
-}
-
-pub fn get_user_retry_notifications(
-    env: Env,
-    user: Address,
-) -> Vec<u64> {
-    network_recovery::NetworkRecovery::get_user_notifications(
-        &env,
-        user,
-    )
-}
-
-pub fn is_fallback_active(
-    env: Env,
-) -> bool {
-    network_recovery::NetworkRecovery::is_fallback_active(
-        &env,
-    )
-}
+    pub fn is_fallback_active(
+        env: Env,
+    ) -> bool {
+        network_recovery::NetworkRecovery::is_fallback_active(
+            &env,
+        )
     }
 }

@@ -2,8 +2,8 @@ use soroban_sdk::contractevent;
 
 use crate::types::{
     BridgeTransaction, ContentMetadata, ContributionType, CrossChainMessage, DisputeOutcome,
-    Escrow, EscrowStatus, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    RewardType, SlashingReason, SwapStatus,
+    Escrow, EscrowStatus, OperationType, ProposalStatus, ProvenanceRecord, RewardType,
+    SlashingReason,
 };
 
 // Include notification events
@@ -344,15 +344,6 @@ pub struct AuditRecordCreatedEvent {
     pub operator: Address,
     pub timestamp: u64,
 }
-
-// #[contractevent]
-// #[derive(Clone, Debug)]
-// pub struct ComplianceReportGeneratedEvent {
-//     pub report_id: u64,
-//     pub period_start: u64,
-//     pub period_end: u64,
-//     pub total_volume: i128,
-// }
 
 // ================= Atomic Swap Events =================
 

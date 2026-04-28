@@ -1,0 +1,158 @@
+# Performance Budgets Configuration
+#
+# This file defines performance budgets for the TeachLink contract suite.
+# Budgets are enforced during CI/CD and local development to prevent regressions.
+#
+# Format: Each section defines budgets for a specific metric category.
+# Values are thresholds that should not be exceeded.
+
+## Gas Budgets (in Soroban WASM instructions)
+# These represent maximum allowed gas consumption for critical operations.
+
+[gas_budgets]
+# Contract initialization
+initialize = 500_000
+add_validator = 200_000
+register_validator = 250_000
+
+# Bridge operations
+create_bridge_proposal = 300_000
+vote_on_proposal = 150_000
+execute_proposal = 400_000
+bridge_transfer = 350_000
+
+# BFT Consensus
+create_proposal = 250_000
+cast_vote = 180_000
+finalize_consensus = 450_000
+rotate_validators = 500_000
+
+# Token operations
+mint_token = 300_000
+transfer_token = 150_000
+burn_token = 200_000
+
+# Assessment & Learning
+create_assessment = 250_000
+submit_answer = 180_000
+calculate_score = 200_000
+
+# Marketplace
+list_item = 220_000
+purchase_item = 350_000
+cancel_listing = 150_000
+
+# Escrow
+create_escrow = 280_000
+release_escrow = 200_000
+dispute_escrow = 300_000
+
+# Insurance
+create_policy = 300_000
+file_claim = 250_000
+settle_claim = 400_000
+
+# Governance
+create_proposal_gov = 250_000
+vote_governance = 180_000
+execute_governance = 350_000
+
+# Performance & Caching
+compute_metrics = 400_000
+cache_summary = 300_000
+invalidate_cache = 100_000
+
+## Size Budgets (in bytes)
+# Maximum allowed sizes for contract artifacts and data structures.
+
+[size_budgets]
+# WASM binary size
+max_wasm_size = 307_200  # 300 KB (Stellar limit)
+target_wasm_size = 256_000  # 250 KB (recommended)
+
+# Storage entry sizes
+max_storage_entry = 65_536  # 64 KB
+max_map_entries = 10_000
+max_vec_entries = 10_000
+
+# Event data
+max_event_data = 4_096  # 4 KB
+max_events_per_tx = 10
+
+# Transaction envelope
+max_tx_envelope = 5_120  # 5 KB
+
+## Time Budgets (in milliseconds)
+# Maximum allowed execution times for off-chain operations.
+
+[time_budgets]
+# Contract compilation
+compile_contract = 30_000  # 30 seconds
+compile_release = 60_000  # 60 seconds
+
+# Test execution
+unit_tests = 30_000  # 30 seconds
+integration_tests = 60_000  # 60 seconds
+property_tests = 90_000  # 90 seconds
+all_tests = 180_000  # 3 minutes
+
+# Benchmark execution
+gas_benchmarks = 60_000  # 60 seconds
+micro_benchmarks = 30_000  # 30 seconds
+
+# Deployment
+deploy_testnet = 30_000  # 30 seconds
+deploy_mainnet = 60_000  # 60 seconds
+
+# Build pipeline
+full_build = 120_000  # 2 minutes
+ci_pipeline = 300_000  # 5 minutes
+
+## Performance Regression Thresholds
+# Percentage increase allowed before flagging as regression.
+
+[regression_thresholds]
+# Gas usage increase percentage
+gas_increase_warning = 3  # 3%
+gas_increase_critical = 5  # 5%
+
+# Size increase percentage
+size_increase_warning = 2  # 2%
+size_increase_critical = 5  # 5%
+
+# Time increase percentage
+time_increase_warning = 10  # 10%
+time_increase_critical = 20  # 20%
+
+## Budget Enforcement Rules
+# How strictly to enforce budgets in different environments.
+
+[enforcement]
+# Local development (warnings only)
+local_enforcement = "warn"
+
+# CI/CD pipeline (fail on critical)
+ci_enforcement = "fail_critical"
+
+# Production deployment (fail on warning)
+production_enforcement = "fail_warning"
+
+# Budget review required for increases over threshold
+review_threshold = 10  # 10% increase requires team review
+
+## Monitoring and Alerting
+# Integration with monitoring systems.
+
+[monitoring]
+# Enable continuous monitoring
+enabled = true
+
+# Metrics collection interval (seconds)
+collection_interval = 60
+
+# Alert thresholds
+alert_warning = 80  # 80% of budget
+alert_critical = 95  # 95% of budget
+
+# Dashboard refresh rate (seconds)
+dashboard_refresh = 30

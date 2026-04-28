@@ -23,6 +23,7 @@ TeachLink is a Soroban smart contract that powers tokenized learning rewards on 
 - Architecture
 - Development Workflow
 - Contribution Guidelines
+- Glossary
 - Changelog
 - Troubleshooting
 - License
@@ -365,6 +366,10 @@ We welcome contributions that improve contract quality, developer experience, an
 2. Make focused changes with tests.
 3. Run the full test and lint suite.
 4. Open a PR with a clear summary and testing notes.
+
+## Glossary
+
+For definitions of key terms and concepts used across the TeachLink ecosystem, see [GLOSSARY.md](GLOSSARY.md).
 
 ### Code example (contract + test)
 
