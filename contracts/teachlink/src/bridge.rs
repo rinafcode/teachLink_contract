@@ -670,7 +670,9 @@ impl Bridge {
 mod tests {
     use super::{Bridge, BRIDGE_RETRY_DELAY_BASE_SECONDS};
     use crate::errors::BridgeError;
-    use crate::storage::{BRIDGE_GUARD, BRIDGE_TXS, BRIDGE_FAILURES, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS};
+    use crate::storage::{
+        BRIDGE_FAILURES, BRIDGE_GUARD, BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS,
+    };
     use crate::types::{BridgeTransaction, CrossChainMessage};
     use crate::TeachLinkBridge;
     use soroban_sdk::testutils::{Address as _, Ledger};
