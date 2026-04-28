@@ -6,10 +6,7 @@ pub fn distribute(token_id: u64, amount: u128) {
     let splits = Self::get_royalty_split(token_id);
 
     // Guard: ensure total basis points do not exceed 10000 to prevent over-distribution
-    let total_bps: u32 = splits
-        .iter()
-        .map(|(_, pct)| pct as u32)
-        .sum();
+    let total_bps: u32 = splits.iter().map(|(_, pct)| pct as u32).sum();
     assert!(
         total_bps <= 10000,
         "royalty split exceeds 100% ({}bps)",

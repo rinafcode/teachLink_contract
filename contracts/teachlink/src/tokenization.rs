@@ -35,6 +35,19 @@ impl ContentTokenization {
         is_transferable: bool,
         royalty_percentage: u32,
     ) -> u64 {
+        // Validation Layer
+        crate::validation::AddressValidator::validate(env, &creator).unwrap();
+
+        // Metadata validation (if title/description were String, we'd use StringValidator)
+        // Since they are Bytes, we check length
+        crate::validation::BytesValidator::validate_length(&title, 1, 100).unwrap();
+        crate::validation::BytesValidator::validate_length(&description, 1, 1000).unwrap();
+        crate::validation::BytesValidator::validate_length(&content_hash, 32, 32).unwrap();
+
+        if royalty_percentage > 100 {
+            panic!("Royalty percentage cannot exceed 100");
+        }
+
         let timestamp = env.ledger().timestamp();
         let token_id = Self::get_next_token_id(env);
 
@@ -124,8 +137,7 @@ impl ContentTokenization {
             .get(&(OWNER_TOKENS, from.clone()))
             .unwrap_or(Vec::new(env));
         let mut new_from_tokens = Vec::new(env);
-        for i in 0..from_tokens.len() {
-            let id = from_tokens.get(i).unwrap();
+        for id in from_tokens.iter() {
             if id != token_id {
                 new_from_tokens.push_back(id);
             }

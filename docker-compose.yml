@@ -1,7 +1,62 @@
 version: '3.8'
 
 services:
-  # Development environment with all tools
+  # ─────────────────────────────────────────────
+  # LOCAL STELLAR NODE (sandbox network)
+  # Issue #381 — provides isolated local blockchain
+  # ─────────────────────────────────────────────
+  stellar-local:
+    image: stellar/quickstart:latest
+    container_name: teachlink-stellar-local
+    ports:
+      - "8000:8000"   # Horizon API
+      - "8001:8001"   # Friendbot (free test XLM)
+    environment:
+      - ENABLE_SOROBAN_RPC=true
+    command: --local --enable-soroban-rpc
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - teachlink-network
+
+  # ─────────────────────────────────────────────
+  # SANDBOX — full isolated test environment
+  # Run: docker-compose up sandbox
+  # ─────────────────────────────────────────────
+  sandbox:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    container_name: teachlink-sandbox
+    depends_on:
+      stellar-local:
+        condition: service_healthy
+    volumes:
+      - .:/workspace
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/workspace/target
+    environment:
+      - RUST_BACKTRACE=1
+      - CARGO_TERM_COLOR=always
+      - STELLAR_NETWORK=sandbox
+      - STELLAR_HORIZON_URL=http://stellar-local:8000
+      - STELLAR_SOROBAN_RPC_URL=http://stellar-local:8000/soroban/rpc
+      - DEPLOYER_SECRET_KEY=SCZANGBA5YHTNYVS23C4QSQH5ODHVIMTQJZNFNLXFMG7VZ57SB42ONHU
+      - TEST_ACCOUNT_1_SECRET=SDHOAMBNLGCE27Q64SHG6KBSSRMLV3QLVJSRMGM65JJXTVFVKGAL4LGS
+      - TEST_ACCOUNT_2_SECRET=SBQPDFUGLMWJYEYXFRM5TQX3AX2BR47WKI8FDS2VAKZ4YKQZRP64FGP5
+      - SANDBOX_BLOCK_TIME_MS=500
+    working_dir: /workspace
+    command: cargo test --all-features -- --test-threads=1
+    networks:
+      - teachlink-network
+
+  # ─────────────────────────────────────────────
+  # EXISTING SERVICES (unchanged)
+  # ─────────────────────────────────────────────
   dev:
     build:
       context: .
@@ -24,7 +79,6 @@ services:
     networks:
       - teachlink-network
 
-  # Builder service for creating optimized WASM
   builder:
     build:
       context: .
@@ -39,7 +93,6 @@ services:
     networks:
       - teachlink-network
 
-  # Test runner service
   test:
     build:
       context: .
@@ -55,7 +108,6 @@ services:
     networks:
       - teachlink-network
 
-  # Linter/formatter service
   lint:
     build:
       context: .
@@ -79,24 +131,3 @@ volumes:
 networks:
   teachlink-network:
     driver: bridge
-
-# Usage instructions:
-#
-# Start development environment:
-#   docker-compose up dev
-#   docker-compose exec dev bash
-#
-# Build WASM:
-#   docker-compose run --rm builder
-#
-# Run tests:
-#   docker-compose run --rm test
-#
-# Run linter:
-#   docker-compose run --rm lint
-#
-# Build all services:
-#   docker-compose build
-#
-# Clean up:
-#   docker-compose down -v

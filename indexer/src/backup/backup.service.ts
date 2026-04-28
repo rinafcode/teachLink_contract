@@ -122,23 +122,29 @@ export class BackupService {
     };
   }
 
-  /** Compliance: backup and recovery audit trail for a period */
+  /** Compliance: backup and recovery audit trail for a period.
+   *
+   * Backups and recovery records are fetched in parallel since
+   * both are independent read queries.
+   */
   async getBackupAuditTrail(since: string, limit = 200): Promise<{
     backups: BackupManifestRecord[];
     recoveries: RecoveryRecordEntity[];
   }> {
-    const backups = await this.backupManifestRepo
-      .createQueryBuilder('b')
-      .where('b.createdAt >= :since', { since })
-      .orderBy('b.createdAt', 'DESC')
-      .take(limit)
-      .getMany();
-    const recoveries = await this.recoveryRecordRepo
-      .createQueryBuilder('r')
-      .where('r.executedAt >= :since', { since })
-      .orderBy('r.executedAt', 'DESC')
-      .take(limit)
-      .getMany();
+    const [backups, recoveries] = await Promise.all([
+      this.backupManifestRepo
+        .createQueryBuilder('b')
+        .where('b.createdAt >= :since', { since })
+        .orderBy('b.createdAt', 'DESC')
+        .take(limit)
+        .getMany(),
+      this.recoveryRecordRepo
+        .createQueryBuilder('r')
+        .where('r.executedAt >= :since', { since })
+        .orderBy('r.executedAt', 'DESC')
+        .take(limit)
+        .getMany(),
+    ]);
     return { backups, recoveries };
   }
 
