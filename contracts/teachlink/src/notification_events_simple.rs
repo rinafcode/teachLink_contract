@@ -2,11 +2,10 @@
 //!
 //! This module defines essential events emitted by the notification system.
 
-use soroban_sdk::{contractevent, Address, Bytes, Vec};
 use crate::notification_types::{
-    NotificationChannel, NotificationDeliveryStatus, NotificationPreference,
-    NotificationTemplate,
+    NotificationChannel, NotificationDeliveryStatus, NotificationPreference, NotificationTemplate,
 };
+use soroban_sdk::{contractevent, Address, Bytes, Vec};
 
 #[contractevent]
 #[derive(Clone, Debug)]

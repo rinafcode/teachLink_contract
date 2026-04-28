@@ -2,22 +2,44 @@ use crate::errors::EscrowError;
 use crate::types::EscrowSigner;
 use soroban_sdk::{Address, Bytes, Env, String, Vec};
 
-/// Validation configuration constants
+/// Validation configuration constants.
+///
+/// Centralising limits here makes it easy to adjust bounds without hunting
+/// through business logic.  All monetary amounts are in token base units
+/// (smallest indivisible unit, e.g. stroops for XLM).
 pub mod config {
+    /// Minimum transfer/escrow amount (1 base unit — prevents dust attacks).
     pub const MIN_AMOUNT: i128 = 1;
+    /// Maximum transfer/escrow amount — set to half of i128::MAX to leave
+    /// headroom for fee addition without overflow.
     pub const MAX_AMOUNT: i128 = i128::MAX / 2; // Prevent overflow
+    /// Minimum number of escrow signers (at least one required).
     pub const MIN_SIGNERS: u32 = 1;
+    /// Maximum number of escrow signers (prevents unbounded iteration cost).
     pub const MAX_SIGNERS: u32 = 100;
+    /// Minimum approval threshold (must require at least one signer).
     pub const MIN_THRESHOLD: u32 = 1;
+    /// Maximum string length for titles, descriptions, etc.
     pub const MAX_STRING_LENGTH: u32 = 256;
+    /// Minimum valid chain ID (0 is reserved as "unset").
     pub const MIN_CHAIN_ID: u32 = 1;
+    /// Maximum valid chain ID (supports up to ~1 million chains).
     pub const MAX_CHAIN_ID: u32 = 999999;
+    /// Maximum escrow description length (longer than general strings to
+    /// accommodate detailed payment terms).
     pub const MAX_ESCROW_DESCRIPTION_LENGTH: u32 = 1000;
+    /// Minimum timeout duration (1 minute — prevents immediately-expired locks).
     pub const MIN_TIMEOUT_SECONDS: u64 = 60; // 1 minute minimum
+    /// Maximum timeout duration (10 years — prevents effectively-permanent locks).
     pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum
+    /// Maximum cross-chain packet payload size (4 KB — balances expressiveness
+    /// with on-chain storage cost).
     pub const MAX_PAYLOAD_SIZE: u32 = 4096; // 4 KB max packet payload
-    /// Bridge-specific amount bounds
+    /// Bridge-specific minimum amount (same as MIN_AMOUNT, kept separate for
+    /// independent tuning).
     pub const MIN_BRIDGE_AMOUNT: i128 = 1;
+    /// Bridge-specific maximum amount (1e18 base units — ~1 billion tokens
+    /// with 9 decimals; prevents single transactions from draining the pool).
     pub const MAX_BRIDGE_AMOUNT: i128 = 1_000_000_000_000_000_000; // 1e18
 }
 
@@ -290,8 +312,21 @@ impl EscrowValidator {
         // Validate amount
         NumberValidator::validate_amount(amount).map_err(|_| EscrowError::AmountMustBePositive)?;
 
-        // Validate signers (duplicates, weights, threshold)
-        Self::validate_multisig(signers, threshold)?;
+        // Validate signers
+        NumberValidator::validate_signer_count(signers.len() as usize)
+            .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
+
+        let mut total_weight: u32 = 0;
+        for signer in signers.iter() {
+            if signer.weight == 0 {
+                return Err(EscrowError::InvalidSignerThreshold);
+            }
+            total_weight += signer.weight;
+        }
+
+        if threshold < 1 || total_weight == 0 || threshold > total_weight {
+            return Err(EscrowError::InvalidSignerThreshold);
+        }
 
         // Validate time constraints
         if let (Some(release), Some(refund)) = (release_time, refund_time) {
@@ -316,34 +351,6 @@ impl EscrowValidator {
         Ok(())
     }
 
-    /// Validates multi-signature configuration: no duplicates, non-zero weights,
-    /// no weight overflow, and threshold within [1, total_weight].
-    pub fn validate_multisig(
-        signers: &Vec<EscrowSigner>,
-        threshold: u32,
-    ) -> Result<(), EscrowError> {
-        NumberValidator::validate_signer_count(signers.len() as usize)
-            .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
-
-        Self::check_duplicate_signers(signers)?;
-
-        let mut total_weight: u32 = 0;
-        for signer in signers.iter() {
-            if signer.weight == 0 {
-                return Err(EscrowError::InvalidSignerThreshold);
-            }
-            total_weight = total_weight
-                .checked_add(signer.weight)
-                .ok_or(EscrowError::InvalidSignerThreshold)?;
-        }
-
-        if threshold < 1 || threshold > total_weight {
-            return Err(EscrowError::InvalidSignerThreshold);
-        }
-
-        Ok(())
-    }
-
     /// Validates EscrowParameters struct (refactored from individual parameters)
     pub fn validate_escrow_parameters(
         env: &Env,
@@ -362,8 +369,22 @@ impl EscrowValidator {
         NumberValidator::validate_amount(params.amount)
             .map_err(|_| EscrowError::AmountMustBePositive)?;
 
-        // Validate signers (duplicates, weights, threshold)
-        Self::validate_multisig(&params.signers, params.threshold)?;
+        // Validate signers
+        NumberValidator::validate_signer_count(params.signers.len() as usize)
+            .map_err(|_| EscrowError::AtLeastOneSignerRequired)?;
+
+        // Validate threshold against total signer weight
+        let mut total_weight: u32 = 0;
+        for signer in params.signers.iter() {
+            if signer.weight == 0 {
+                return Err(EscrowError::InvalidSignerThreshold);
+            }
+            total_weight += signer.weight;
+        }
+
+        if params.threshold < 1 || total_weight == 0 || params.threshold > total_weight {
+            return Err(EscrowError::InvalidSignerThreshold);
+        }
 
         // Validate time constraints
         if let (Some(release), Some(refund)) = (params.release_time, params.refund_time) {

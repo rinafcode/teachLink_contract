@@ -1,9 +1,70 @@
+use soroban_sdk::contracttype;
 use soroban_sdk::symbol_short;
 use soroban_sdk::Symbol;
 
+/// Namespaced storage key enum for TeachLink contract.
+///
+/// Using a `#[contracttype]` enum as a storage key ensures each variant is
+/// serialized with a unique discriminant, preventing key collisions in
+/// multi-contract scenarios where plain `Symbol` strings could overlap.
+///
+/// # Collision Detection
+/// All new storage access should use `StorageKey` variants. The legacy
+/// `Symbol` constants below are kept for backward compatibility but should
+/// not be used for new keys.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StorageKey {
+    // Bridge
+    Token,
+    Validators,
+    MinValidators,
+    Nonce,
+    BridgeTxs,
+    SupportedChains,
+    Admin,
+    FeeRecipient,
+    BridgeFee,
+    AccessControl,
+    BridgeRetryCounts,
+    BridgeLastRetry,
+    BridgeFailures,
+    InterfaceVersion,
+    MinCompatInterfaceVersion,
+    // BFT Consensus
+    ValidatorInfo,
+    BridgeProposals,
+    ProposalCounter,
+    ConsensusState,
+    ValidatorStakes,
+    ProposalExpiresSeq,
+    ValidatorActivitySeq,
+    // Slashing
+    SlashingRecords,
+    ValidatorRewards,
+    SlashingCounter,
+    RewardPool,
+    // Validator rotation tracking
+    ValidatorRotationEpoch,
+    ValidatorRotationSet,
+    // Rate limiting
+    RateLimitState,
+    // Auto-scaling and load management
+    ScalingConfig,
+    LoadMetrics,
+    LoadLevel,
+}
+
+/// Returns true if the given symbol string matches any known legacy key,
+/// providing a compile-time collision detection reference.
+/// Call this in tests to assert no two legacy keys share the same string.
+pub fn has_legacy_key_collision(a: &Symbol, b: &Symbol) -> bool {
+    a == b
+}
+
 // Storage keys for the bridge contract
 pub const TOKEN: Symbol = symbol_short!("token");
-pub const VALIDATORS: Symbol = symbol_short!("validtor");
+pub const VALIDATORS: Symbol = symbol_short!("validatr");
 pub const MIN_VALIDATORS: Symbol = symbol_short!("min_valid");
 pub const NONCE: Symbol = symbol_short!("nonce");
 pub const BRIDGE_TXS: Symbol = symbol_short!("bridge_tx");
@@ -11,6 +72,7 @@ pub const SUPPORTED_CHAINS: Symbol = symbol_short!("chains");
 pub const ADMIN: Symbol = symbol_short!("admin");
 pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
 pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
+pub const ACCESS_CONTROL: Symbol = symbol_short!("access");
 pub const BRIDGE_RETRY_COUNTS: Symbol = symbol_short!("br_rtryc");
 pub const BRIDGE_LAST_RETRY: Symbol = symbol_short!("br_lstry");
 pub const BRIDGE_FAILURES: Symbol = symbol_short!("br_fails");
@@ -116,6 +178,9 @@ pub const NOTIFICATION_FILTERS: Symbol = symbol_short!("notif_flt");
 pub const NOTIFICATION_SEGMENTS: Symbol = symbol_short!("notif_seg");
 pub const NOTIFICATION_CAMPAIGNS: Symbol = symbol_short!("notif_cpg");
 pub const NOTIFICATION_ANALYTICS: Symbol = symbol_short!("notif_anl");
+pub const NOTIFICATION_TTL: Symbol = symbol_short!("notif_ttl");
+pub const NOTIFICATION_MAX_SIZE: Symbol = symbol_short!("notif_max");
+pub const NOTIFICATION_LAST_CLEANUP: Symbol = symbol_short!("notif_cln");
 
 // Advanced Analytics & Reporting Storage (symbol_short! max 9 chars)
 pub const REPORT_TEMPLATE_COUNTER: Symbol = symbol_short!("rpt_tplcn");
@@ -148,8 +213,63 @@ pub const USER_FEEDBACK: Symbol = symbol_short!("feedback");
 pub const UX_EXPERIMENTS: Symbol = symbol_short!("ux_exp");
 pub const COMPONENT_CONFIG: Symbol = symbol_short!("comp_cfg");
 
+// Access Logging Storage (symbol_short! max 9 chars)
+pub const LOG_COUNTER: Symbol = symbol_short!("log_cnt");
+pub const ACCESS_LOGS: Symbol = symbol_short!("acc_logs");
+pub const ACCESS_TEMPORAL: Symbol = symbol_short!("acc_tmp");
+
 // Reentrancy guard locks
 pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
 pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+
+// Auto-scaling and load management (symbol_short! max 9 chars)
+pub const SCALING_CONFIG: Symbol = symbol_short!("scale_cfg");
+pub const LOAD_METRICS: Symbol = symbol_short!("load_met");
+pub const LOAD_LEVEL: Symbol = symbol_short!("load_lvl");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verify that no two legacy Symbol constants share the same string value.
+    /// This is the collision detection required by issue #242.
+    #[test]
+    fn no_legacy_key_collisions() {
+        let keys: &[(&str, Symbol)] = &[
+            ("TOKEN", TOKEN),
+            ("VALIDATORS", VALIDATORS),
+            ("MIN_VALIDATORS", MIN_VALIDATORS),
+            ("NONCE", NONCE),
+            ("BRIDGE_TXS", BRIDGE_TXS),
+            ("SUPPORTED_CHAINS", SUPPORTED_CHAINS),
+            ("ADMIN", ADMIN),
+            ("FEE_RECIPIENT", FEE_RECIPIENT),
+            ("BRIDGE_FEE", BRIDGE_FEE),
+            ("ACCESS_CONTROL", ACCESS_CONTROL),
+            ("VALIDATOR_INFO", VALIDATOR_INFO),
+            ("BRIDGE_PROPOSALS", BRIDGE_PROPOSALS),
+            ("PROPOSAL_COUNTER", PROPOSAL_COUNTER),
+            ("CONSENSUS_STATE", CONSENSUS_STATE),
+            ("VALIDATOR_STAKES", VALIDATOR_STAKES),
+            ("SLASHING_RECORDS", SLASHING_RECORDS),
+            ("VALIDATOR_REWARDS", VALIDATOR_REWARDS),
+            ("SLASHING_COUNTER", SLASHING_COUNTER),
+            ("PROPOSAL_EXPIRES_SEQ", PROPOSAL_EXPIRES_SEQ),
+            ("VALIDATOR_ACTIVITY_SEQ", VALIDATOR_ACTIVITY_SEQ),
+            ("REWARD_POOL", REWARD_POOL),
+        ];
+
+        for i in 0..keys.len() {
+            for j in (i + 1)..keys.len() {
+                assert!(
+                    !has_legacy_key_collision(&keys[i].1, &keys[j].1),
+                    "Storage key collision detected: '{}' == '{}'",
+                    keys[i].0,
+                    keys[j].0
+                );
+            }
+        }
+    }
+}

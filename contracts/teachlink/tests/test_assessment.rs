@@ -1,27 +1,17 @@
 #![allow(clippy::needless_pass_by_value)]
 
-use soroban_sdk::{testutils::Address as _, Address, Bytes, Env, Map, Vec};
-use teachlink_contract::{
-    AssessmentSettings, QuestionType, TeachLinkBridge, TeachLinkBridgeClient,
-};
+mod common;
 
-fn setup_test(env: &Env) -> (TeachLinkBridgeClient<'_>, Address, Address) {
-    let contract_id = env.register(TeachLinkBridge, ());
-    let client = TeachLinkBridgeClient::new(env, &contract_id);
-
-    let creator = Address::generate(env);
-    let student = Address::generate(env);
-
-    (client, creator, student)
-}
+use soroban_sdk::{Bytes, Env, Map, Vec};
+use teachlink_contract::{AssessmentSettings, QuestionType};
+use common::{bytes, setup_bridge_test, test_env};
 
 #[test]
 fn test_create_assessment() {
-    let env = Env::default();
-    let (client, creator, _) = setup_test(&env);
-    env.mock_all_auths();
+    let env = test_env();
+    let (client, creator, _) = setup_bridge_test(&env);
 
-    let title = Bytes::from_slice(&env, b"Rust Mastery Quiz");
+    let title = bytes(&env, "Rust Mastery Quiz");
     let description = Bytes::from_slice(&env, b"Test your Rust skills");
     let questions = Vec::new(&env);
     let settings = AssessmentSettings {
@@ -43,11 +33,10 @@ fn test_create_assessment() {
 
 #[test]
 fn test_add_question() {
-    let env = Env::default();
-    let (client, creator, _) = setup_test(&env);
-    env.mock_all_auths();
+    let env = test_env();
+    let (client, creator, _) = setup_bridge_test(&env);
 
-    let content_hash = Bytes::from_slice(&env, b"What is ownership?");
+    let content_hash = bytes(&env, "What is ownership?");
     let correct_hash = Bytes::from_slice(&env, b"Memory safety mechanism");
     let metadata = Map::new(&env);
 
@@ -66,9 +55,8 @@ fn test_add_question() {
 
 #[test]
 fn test_submit_assessment_grading() {
-    let env = Env::default();
-    let (client, creator, student) = setup_test(&env);
-    env.mock_all_auths();
+    let env = test_env();
+    let (client, creator, student) = setup_bridge_test(&env);
 
     // 1. Add questions
     let q1_correct = Bytes::from_slice(&env, b"A");
@@ -130,9 +118,8 @@ fn test_submit_assessment_grading() {
 
 #[test]
 fn test_adaptive_selection() {
-    let env = Env::default();
-    let (client, creator, _) = setup_test(&env);
-    env.mock_all_auths();
+    let env = test_env();
+    let (client, creator, _) = setup_bridge_test(&env);
 
     // Add easy, medium, hard questions
     let q_easy = client.add_assessment_question(
@@ -197,10 +184,9 @@ fn test_adaptive_selection() {
 #[test]
 #[should_panic(expected = "Error(Contract, #7)")] // PlagiarismDetected = 7
 fn test_plagiarism_detection() {
-    let env = Env::default();
-    let (client, creator, student1) = setup_test(&env);
-    let student2 = Address::generate(&env);
-    env.mock_all_auths();
+    let env = test_env();
+    let (client, creator, student1) = setup_bridge_test(&env);
+    let student2 = random_address(&env);
 
     let q1_id = client.add_assessment_question(
         &creator,

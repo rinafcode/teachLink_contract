@@ -1,0 +1,197 @@
+groups:
+  - name: teachlink_performance_budgets
+    interval: 30s
+    rules:
+      # Gas Budget Violations - Critical
+      - alert: CriticalGasBudgetViolation
+        expr: contract_gas_used > contract_gas_budget
+        for: 1m
+        labels:
+          severity: critical
+          type: performance_budget
+        annotations:
+          summary: "Critical gas budget violation for {{ $labels.operation }}"
+          description: "Operation {{ $labels.operation }} is using {{ $value }} gas, exceeding budget of {{ $labels.budget }} gas"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/PERFORMANCE_TESTING.md"
+
+      # Gas Budget Utilization - Warning (80%)
+      - alert: HighGasBudgetUtilization
+        expr: (contract_gas_used / contract_gas_budget) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          type: performance_budget
+        annotations:
+          summary: "High gas budget utilization for {{ $labels.operation }}"
+          description: "Operation {{ $labels.operation }} is using {{ $value }}% of its gas budget"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/PERFORMANCE_TESTING.md"
+
+      # Gas Budget Utilization - Critical (95%)
+      - alert: CriticalGasBudgetUtilization
+        expr: (contract_gas_used / contract_gas_budget) * 100 > 95
+        for: 2m
+        labels:
+          severity: critical
+          type: performance_budget
+        annotations:
+          summary: "Critical gas budget utilization for {{ $labels.operation }}"
+          description: "Operation {{ $labels.operation }} is using {{ $value }}% of its gas budget - immediate action required"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/PERFORMANCE_TESTING.md"
+
+      # WASM Size Budget
+      - alert: WasmSizeBudgetWarning
+        expr: contract_wasm_size_bytes > 256000
+        for: 0m
+        labels:
+          severity: warning
+          type: performance_budget
+        annotations:
+          summary: "WASM size approaching budget limit"
+          description: "Current WASM size is {{ $value }} bytes (target: 256KB, max: 300KB)"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/PERFORMANCE_TESTING.md"
+
+      - alert: WasmSizeBudgetCritical
+        expr: contract_wasm_size_bytes > 307200
+        for: 0m
+        labels:
+          severity: critical
+          type: performance_budget
+        annotations:
+          summary: "WASM size exceeds maximum budget"
+          description: "Current WASM size is {{ $value }} bytes exceeds Stellar limit of 300KB"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/PERFORMANCE_TESTING.md"
+
+      # Consensus Performance
+      - alert: HighConsensusLatency
+        expr: histogram_quantile(0.95, rate(consensus_duration_seconds_bucket[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          type: performance
+        annotations:
+          summary: "High consensus latency detected"
+          description: "p95 consensus time is {{ $value }}s, exceeding 1s threshold"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/ARCHITECTURE.md"
+
+      # Validator Count Issues
+      - alert: LowActiveValidators
+        expr: bridge_active_validators < 4
+        for: 2m
+        labels:
+          severity: critical
+          type: consensus_health
+        annotations:
+          summary: "Low number of active validators"
+          description: "Only {{ $value }} active validators, minimum for BFT is 4"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/ARCHITECTURE.md"
+
+      - alert: ValidatorCountDegraded
+        expr: bridge_active_validators < 10
+        for: 5m
+        labels:
+          severity: warning
+          type: consensus_health
+        annotations:
+          summary: "Validator count below optimal level"
+          description: "{{ $value }} active validators, recommended minimum is 10"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/ARCHITECTURE.md"
+
+      # Bridge Proposal Issues
+      - alert: HighProposalExpiryRate
+        expr: rate(bridge_proposals_expired_total[15m]) / rate(bridge_proposals_created_total[15m]) > 0.3
+        for: 10m
+        labels:
+          severity: warning
+          type: bridge_health
+        annotations:
+          summary: "High bridge proposal expiry rate"
+          description: "{{ $value | humanizePercentage }} of bridge proposals are expiring without execution"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/ARCHITECTURE.md"
+
+      - alert: BridgeConsensusStalled
+        expr: rate(bridge_proposals_executed_total[15m]) == 0 and rate(bridge_proposals_created_total[15m]) > 0
+        for: 15m
+        labels:
+          severity: critical
+          type: bridge_health
+        annotations:
+          summary: "Bridge consensus appears stalled"
+          description: "No proposals executed in the last 15 minutes despite new proposals being created"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/ARCHITECTURE.md"
+
+      # Performance Regression Detection
+      - alert: PerformanceRegressionDetected
+        expr: |
+          (
+            rate(contract_gas_used[1h]) - rate(contract_gas_used[24h] offset 24h)
+          ) / rate(contract_gas_used[24h] offset 24h) > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          type: performance_regression
+        annotations:
+          summary: "Performance regression detected in {{ $labels.operation }}"
+          description: "Gas usage increased by {{ $value | humanizePercentage }} compared to 24 hours ago"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/PERFORMANCE_TESTING.md"
+
+      # Transaction Throughput
+      - alert: LowTransactionThroughput
+        expr: rate(contract_transactions_total[5m]) < 1
+        for: 10m
+        labels:
+          severity: warning
+          type: throughput
+        annotations:
+          summary: "Low transaction throughput detected"
+          description: "Transaction rate is {{ $value }} per second, below expected minimum of 1 tx/s"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/ARCHITECTURE.md"
+
+      # Storage Growth Rate
+      - alert: RapidStorageGrowth
+        expr: rate(contract_storage_entries_total[1h]) > 100
+        for: 30m
+        labels:
+          severity: warning
+          type: storage
+        annotations:
+          summary: "Rapid storage growth detected"
+          description: "Storage growing at {{ $value }} entries per hour"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/ARCHITECTURE.md"
+
+      # Error Rate
+      - alert: HighContractErrorRate
+        expr: rate(contract_errors_total[5m]) / rate(contract_transactions_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: critical
+          type: reliability
+        annotations:
+          summary: "High contract error rate"
+          description: "{{ $value | humanizePercentage }} of transactions are failing"
+          runbook_url: "https://github.com/rinafcode/teachLink_contract/blob/main/docs/error-codes.md"
+
+  - name: teachlink_budget_trends
+    interval: 5m
+    rules:
+      # Budget trend analysis - record rules for dashboard
+      - record: budget_utilization_percent
+        expr: (contract_gas_used / contract_gas_budget) * 100
+
+      - record: budget_violations_critical
+        expr: contract_gas_used > contract_gas_budget
+
+      - record: budget_violations_warning
+        expr: (contract_gas_used / contract_gas_budget) * 100 > 80
+
+      # Performance trends
+      - record: gas_usage_trend_24h
+        expr: |
+          (
+            avg_over_time(contract_gas_used[1h]) - avg_over_time(contract_gas_used[1h] offset 24h)
+          ) / avg_over_time(contract_gas_used[1h] offset 24h)
+
+      - record: consensus_performance_p95
+        expr: histogram_quantile(0.95, rate(consensus_duration_seconds_bucket[5m]))
+
+      - record: consensus_performance_p50
+        expr: histogram_quantile(0.50, rate(consensus_duration_seconds_bucket[5m]))

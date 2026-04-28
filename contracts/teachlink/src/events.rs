@@ -2,14 +2,14 @@ use soroban_sdk::contractevent;
 
 use crate::types::{
     BridgeTransaction, ContentMetadata, ContributionType, CrossChainMessage, DisputeOutcome,
-    Escrow, EscrowStatus, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    RewardType, SlashingReason, SwapStatus,
+    Escrow, EscrowStatus, OperationType, ProposalStatus, ProvenanceRecord, RewardType,
+    SlashingReason,
 };
 
 // Include notification events
 // pub use crate::notification_events::*;
 
-use soroban_sdk::{Address, Bytes, String};
+use soroban_sdk::{Address, Bytes, String, Symbol};
 
 // ================= Bridge Events =================
 
@@ -345,15 +345,6 @@ pub struct AuditRecordCreatedEvent {
     pub timestamp: u64,
 }
 
-// #[contractevent]
-// #[derive(Clone, Debug)]
-// pub struct ComplianceReportGeneratedEvent {
-//     pub report_id: u64,
-//     pub period_start: u64,
-//     pub period_end: u64,
-//     pub total_volume: i128,
-// }
-
 // ================= Atomic Swap Events =================
 
 #[contractevent]
@@ -684,6 +675,29 @@ pub struct PerfMetricsComputedEvent {
 #[derive(Clone, Debug)]
 pub struct PerfCacheInvalidatedEvent {
     pub invalidated_at: u64,
+}
+
+// ================= Access Logging Events =================
+
+/// Emitted for every successfully recorded access log entry.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AccessAttemptEvent {
+    pub entry_id: u64,
+    pub caller: Address,
+    pub operation: Symbol,
+    pub success: bool,
+    pub error_code: u32,
+    pub timestamp: u64,
+}
+
+/// Emitted when the log write itself fails (fallback observability).
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AccessLogFailedEvent {
+    pub caller: Address,
+    pub operation: Symbol,
+    pub timestamp: u64,
 }
 
 // ================= Observability Events =================

@@ -2,6 +2,45 @@
 //!
 //! This module implements slashing mechanisms for malicious or negligent validators
 //! and reward distribution for honest validators.
+//!
+//! # Slashing Algorithm
+//!
+//! When a validator is slashed, the penalty is computed as a percentage of their
+//! current stake using basis-point arithmetic (10 000 bp = 100 %):
+//!
+//! ```text
+//! slash_amount = (stake * slash_percentage_bp) / 10_000
+//! ```
+//!
+//! Slashing percentages by offence type:
+//! | Reason              | Basis Points | Effective % |
+//! |---------------------|-------------|-------------|
+//! | DoubleVote          | 5 000       | 50 %        |
+//! | InvalidSignature    | 1 000       | 10 %        |
+//! | Inactivity          |   500       |  5 %        |
+//! | ByzantineBehavior   | 10 000      | 100 %       |
+//! | MaliciousProposal   | 10 000      | 100 %       |
+//!
+//! The slashed tokens are redirected into the shared reward pool so that honest
+//! validators benefit from penalising bad actors.
+//!
+//! # Reputation Decay
+//!
+//! Each slashing event also reduces the validator's `reputation_score`.  The
+//! decay amount mirrors the severity of the offence.  Reputation is clamped at
+//! zero to prevent underflow.
+//!
+//! # Inactivity Detection
+//!
+//! `check_inactivity` uses a dual-signal approach:
+//! 1. **Timestamp** – primary signal; inactive if `now - last_activity > 7 days`.
+//! 2. **Ledger sequence** – fallback for environments where `timestamp()` is
+//!    unreliable; converts the 7-day threshold to an approximate ledger delta
+//!    via `ledger_time::seconds_to_ledger_delta`.
+//!
+//! # Spec Reference
+//! See `contracts/documentation/TOKENIZATION.md` §Validator Economics for the
+//! economic rationale behind these percentages.
 
 use crate::errors::BridgeError;
 use crate::events::{
@@ -12,6 +51,7 @@ use crate::storage::{
     VALIDATOR_REWARDS, VALIDATOR_STAKES,
 };
 use crate::types::{RewardType, SlashingReason, SlashingRecord, ValidatorInfo, ValidatorReward};
+use crate::validation::{NumberValidator, ValidationError};
 use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Slashing percentages (in basis points, 10000 = 100%)
@@ -35,9 +75,7 @@ impl SlashingManager {
     pub fn deposit_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get current stake
         let mut stakes: Map<Address, i128> = env
@@ -81,9 +119,7 @@ impl SlashingManager {
     pub fn withdraw_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get current stake
         let mut stakes: Map<Address, i128> = env
@@ -240,9 +276,7 @@ impl SlashingManager {
         amount: i128,
         reward_type: RewardType,
     ) -> Result<(), BridgeError> {
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Check reward pool
         let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
@@ -301,7 +335,30 @@ impl SlashingManager {
         Ok(())
     }
 
-    /// Check and slash inactive validators
+    /// Check and slash inactive validators.
+    ///
+    /// # Inactivity Detection Algorithm
+    ///
+    /// Uses a dual-signal approach to handle environments where `ledger().timestamp()`
+    /// may be unreliable (e.g., local test networks with frozen clocks):
+    ///
+    /// 1. **Primary – wall-clock timestamp**: inactive if
+    ///    `now - last_activity > INACTIVITY_THRESHOLD` (7 days).
+    /// 2. **Fallback – ledger sequence**: if the timestamp check passes, also
+    ///    verify using ledger sequence numbers converted to an approximate delta
+    ///    via `ledger_time::seconds_to_ledger_delta`.  This prevents false
+    ///    negatives on networks where time is not advancing.
+    ///
+    /// If inactivity is confirmed, `slash_validator` is called with
+    /// `SlashingReason::Inactivity` and the contract itself as the slasher
+    /// (self-enforcing rule, no external reporter needed).
+    ///
+    /// # Returns
+    /// `Ok(true)` if the validator was slashed, `Ok(false)` if still active.
+    ///
+    /// # TODO
+    /// - Add a grace period counter so a validator gets one warning before
+    ///   being slashed (reduces false positives from transient network issues).
     pub fn check_inactivity(env: &Env, validator: Address) -> Result<bool, BridgeError> {
         let validator_infos: Map<Address, ValidatorInfo> = env
             .storage()
@@ -347,9 +404,7 @@ impl SlashingManager {
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
         funder.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
         let new_balance = reward_pool + amount;
@@ -358,7 +413,30 @@ impl SlashingManager {
         Ok(())
     }
 
-    /// Calculate new reputation score after slashing
+    /// Calculate new reputation score after slashing.
+    ///
+    /// # Algorithm
+    ///
+    /// Applies a fixed reputation penalty that scales with offence severity.
+    /// `saturating_sub` is used to clamp the result at zero, preventing
+    /// underflow on validators that have already been penalised heavily.
+    ///
+    /// Penalty table (reputation points deducted):
+    /// | Reason              | Penalty |
+    /// |---------------------|---------|
+    /// | DoubleVote          |  20     |
+    /// | InvalidSignature    |  10     |
+    /// | Inactivity          |   5     |
+    /// | ByzantineBehavior   |  50     |
+    /// | MaliciousProposal   | 100     |
+    ///
+    /// A validator starting at 100 reputation would be fully removed from the
+    /// active set (threshold: `MIN_ACTIVE_REPUTATION = 40`) after two
+    /// ByzantineBehavior slashes.
+    ///
+    /// # TODO
+    /// - Consider a time-based reputation recovery mechanism so validators can
+    ///   rehabilitate after a period of honest behaviour.
     fn calculate_new_reputation(current: u32, reason: &SlashingReason) -> u32 {
         let penalty = match reason {
             SlashingReason::DoubleVote => 20,

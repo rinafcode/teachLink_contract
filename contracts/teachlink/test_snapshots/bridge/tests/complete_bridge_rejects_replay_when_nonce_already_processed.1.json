@@ -64,6 +64,14 @@
                   "storage": [
                     {
                       "key": {
+                        "symbol": "br_guard"
+                      },
+                      "val": {
+                        "bool": false
+                      }
+                    },
+                    {
+                      "key": {
                         "symbol": "min_valid"
                       },
                       "val": {
