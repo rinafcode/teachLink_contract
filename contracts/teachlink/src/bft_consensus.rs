@@ -2,6 +2,49 @@
 //!
 //! This module implements a BFT consensus mechanism for bridge validators,
 //! ensuring that the bridge can tolerate up to f faulty validators out of 3f+1 total validators.
+//!
+//! # BFT Threshold Algorithm
+//!
+//! The Byzantine threshold (minimum votes required to approve a proposal) is
+//! computed as:
+//!
+//! ```text
+//! byzantine_threshold = floor(2 * n / 3) + 1
+//! ```
+//!
+//! where `n` is the number of active validators.  This satisfies the classic
+//! BFT requirement: a quorum of ⌈2n/3⌉ guarantees safety even when up to
+//! ⌊n/3⌋ validators are Byzantine (malicious or offline).
+//!
+//! Example: with 10 validators, threshold = (2*10/3)+1 = 7.  An attacker
+//! controlling 3 validators cannot reach quorum alone.
+//!
+//! # Proposal Lifecycle
+//!
+//! ```text
+//! create_proposal → Pending
+//!     ↓ (votes accumulate)
+//! vote_count >= byzantine_threshold → execute_proposal → Approved
+//!     ↓ (timeout reached)
+//! expires_at exceeded → Expired
+//! ```
+//!
+//! # Expiry Dual-Signal
+//!
+//! Proposals store both a wall-clock `expires_at` timestamp and a
+//! `PROPOSAL_EXPIRES_SEQ` ledger-sequence deadline.  Expiry is triggered if
+//! *either* signal indicates the deadline has passed.  This guards against
+//! networks where `ledger().timestamp()` is frozen or unreliable.
+//!
+//! # Validator Rotation
+//!
+//! Every `ROTATION_EPOCH_ROUNDS` consensus rounds, validators with
+//! `reputation_score < MIN_ACTIVE_REPUTATION` are rotated out of the active
+//! set.  Active voters receive a reputation boost to reward participation.
+//!
+//! # Spec Reference
+//! See `contracts/documentation/COLLABORATION.md` §Consensus for the
+//! governance rationale behind the rotation policy.
 
 use crate::errors::BridgeError;
 use crate::events::{
@@ -9,8 +52,8 @@ use crate::events::{
     ValidatorUnregisteredEvent,
 };
 use crate::storage::{
-    BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ, VALIDATORS,
-    VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
+    StorageKey, BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ,
+    VALIDATORS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
 };
 use crate::types::{
     BridgeProposal, ConsensusState, CrossChainMessage, ProposalStatus, ValidatorInfo,
@@ -22,6 +65,15 @@ pub const MIN_VALIDATOR_STAKE: i128 = 100_000_000; // 100 tokens with 6 decimals
 
 /// Proposal timeout in seconds (24 hours)
 pub const PROPOSAL_TIMEOUT: u64 = 86_400;
+
+/// Number of consensus rounds per rotation epoch.
+/// After this many rounds, the active validator set is re-evaluated and
+/// low-reputation validators may be rotated out.
+pub const ROTATION_EPOCH_ROUNDS: u64 = 100;
+
+/// Minimum reputation score required to remain in the active validator set.
+/// Validators below this threshold are rotated out during epoch transitions.
+pub const MIN_ACTIVE_REPUTATION: u32 = 40;
 
 /// BFT Consensus Manager
 pub struct BFTConsensus;
@@ -169,7 +221,24 @@ impl BFTConsensus {
         Ok(())
     }
 
-    /// Create a new bridge proposal
+    /// Create a new bridge proposal.
+    ///
+    /// Proposals represent a cross-chain message that validators must reach
+    /// consensus on before the bridge releases funds on the destination chain.
+    ///
+    /// # Expiry Dual-Signal
+    ///
+    /// Two independent expiry signals are stored:
+    /// - `expires_at`: wall-clock timestamp (`now + PROPOSAL_TIMEOUT`).
+    /// - `PROPOSAL_EXPIRES_SEQ`: ledger sequence deadline, computed via
+    ///   `ledger_time::seconds_to_ledger_delta` as a fallback for networks
+    ///   where `timestamp()` is unreliable.
+    ///
+    /// A proposal is considered expired if *either* signal is exceeded.
+    ///
+    /// # TODO
+    /// - Add a proposer field so off-chain indexers can attribute proposals
+    ///   to specific relayers for analytics and accountability.
     pub fn create_proposal(env: &Env, message: CrossChainMessage) -> Result<u64, BridgeError> {
         // Get proposal counter
         let mut proposal_counter: u64 = env
@@ -245,7 +314,29 @@ impl BFTConsensus {
         Ok(proposal_counter)
     }
 
-    /// Vote on a bridge proposal
+    /// Vote on a bridge proposal.
+    ///
+    /// # Voting Algorithm
+    ///
+    /// 1. Verify the caller is an active validator (registered and not rotated out).
+    /// 2. Check proposal expiry using the dual-signal approach (timestamp + sequence).
+    /// 3. Reject duplicate votes (one vote per validator per proposal).
+    /// 4. Record the vote; increment `vote_count` only for approvals.
+    /// 5. Update the validator's `last_activity` timestamp and ledger sequence
+    ///    to prevent false inactivity slashing.
+    /// 6. Boost the validator's reputation score for participating.
+    /// 7. If `vote_count >= required_votes`, immediately execute the proposal
+    ///    (mark as Approved and emit `ProposalExecutedEvent`).
+    ///
+    /// # Note on Rejection Votes
+    ///
+    /// Rejection votes are recorded in `proposal.votes` but do not increment
+    /// `vote_count`.  A proposal can only be approved, not explicitly rejected —
+    /// it expires if it fails to accumulate enough approvals within the timeout.
+    ///
+    /// # TODO
+    /// - Implement explicit rejection: if `reject_count > n - byzantine_threshold`,
+    ///   mark the proposal as `Rejected` early to free storage.
     pub fn vote_on_proposal(
         env: &Env,
         validator: Address,
@@ -306,8 +397,9 @@ impl BFTConsensus {
         proposals.set(proposal_id, proposal.clone());
         env.storage().instance().set(&BRIDGE_PROPOSALS, &proposals);
 
-        // Update validator activity
+        // Update validator activity and boost reputation for participation
         Self::update_validator_activity(env, &validator)?;
+        Self::boost_reputation(env, &validator);
 
         // Check if proposal has reached consensus
         if proposal.vote_count >= proposal.required_votes {
@@ -369,7 +461,27 @@ impl BFTConsensus {
         Ok(())
     }
 
-    /// Update the consensus state based on current validators
+    /// Update the consensus state based on current validators.
+    ///
+    /// # Algorithm
+    ///
+    /// Iterates all registered validators, summing stake and counting active
+    /// entries.  Then computes the Byzantine threshold:
+    ///
+    /// ```text
+    /// byzantine_threshold = floor(2 * active_validators / 3) + 1
+    /// ```
+    ///
+    /// This is the minimum number of approving votes required for a proposal
+    /// to reach consensus.  The formula satisfies BFT safety: with `n = 3f+1`
+    /// validators, `2f+1` votes are needed, tolerating `f` Byzantine nodes.
+    ///
+    /// Called after every validator registration or unregistration to keep the
+    /// threshold in sync with the current validator set size.
+    ///
+    /// # TODO
+    /// - Weight the threshold by stake rather than validator count to make
+    ///   Sybil attacks more expensive (stake-weighted BFT).
     fn update_consensus_state(env: &Env) -> Result<(), BridgeError> {
         let validators: Map<Address, bool> = env
             .storage()
@@ -513,6 +625,102 @@ impl BFTConsensus {
             false
         }
     }
+
+    /// Rotate validators: deactivate those below `MIN_ACTIVE_REPUTATION` or with
+    /// insufficient stake, and update the consensus state.
+    ///
+    /// This should be called at epoch boundaries (every `ROTATION_EPOCH_ROUNDS`
+    /// consensus rounds) to prevent long-term validator collusion by ensuring
+    /// only validators with good standing remain active.
+    pub fn rotate_validators(env: &Env) -> Result<u32, BridgeError> {
+        let mut validators: Map<Address, bool> = env
+            .storage()
+            .instance()
+            .get(&VALIDATORS)
+            .unwrap_or_else(|| Map::new(env));
+
+        let validator_infos: Map<Address, ValidatorInfo> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_INFO)
+            .unwrap_or_else(|| Map::new(env));
+
+        let stakes: Map<Address, i128> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_STAKES)
+            .unwrap_or_else(|| Map::new(env));
+
+        let mut rotated_out: u32 = 0;
+
+        // Collect addresses to deactivate (can't mutate map while iterating)
+        let mut to_deactivate: Vec<Address> = Vec::new(env);
+        for (addr, is_active) in validators.iter() {
+            if !is_active {
+                continue;
+            }
+            let should_deactivate = if let Some(info) = validator_infos.get(addr.clone()) {
+                info.reputation_score < MIN_ACTIVE_REPUTATION
+                    || stakes.get(addr.clone()).unwrap_or(0) < MIN_VALIDATOR_STAKE
+            } else {
+                // No info record — deactivate
+                true
+            };
+            if should_deactivate {
+                to_deactivate.push_back(addr);
+            }
+        }
+
+        for addr in to_deactivate.iter() {
+            validators.set(addr.clone(), false);
+            rotated_out += 1;
+        }
+
+        env.storage().instance().set(&VALIDATORS, &validators);
+
+        // Record the rotation epoch in namespaced storage (issue #242)
+        let current_epoch: u64 = env
+            .storage()
+            .instance()
+            .get(&StorageKey::ValidatorRotationEpoch)
+            .unwrap_or(0u64);
+        env.storage()
+            .instance()
+            .set(&StorageKey::ValidatorRotationEpoch, &(current_epoch + 1));
+
+        Self::update_consensus_state(env)?;
+        Ok(rotated_out)
+    }
+
+    /// Check whether the current consensus round has crossed an epoch boundary
+    /// and trigger rotation if so.
+    pub fn maybe_rotate(env: &Env) -> Result<bool, BridgeError> {
+        let state = Self::get_consensus_state(env);
+        if state.last_consensus_round > 0 && state.last_consensus_round % ROTATION_EPOCH_ROUNDS == 0
+        {
+            Self::rotate_validators(env)?;
+            return Ok(true);
+        }
+        Ok(false)
+    }
+
+    /// Boost a validator's reputation score for participating in consensus.
+    /// Called internally after a successful vote.
+    fn boost_reputation(env: &Env, validator: &Address) {
+        let mut validator_infos: Map<Address, ValidatorInfo> = env
+            .storage()
+            .instance()
+            .get(&VALIDATOR_INFO)
+            .unwrap_or_else(|| Map::new(env));
+        if let Some(mut info) = validator_infos.get(validator.clone()) {
+            // Cap at 100
+            info.reputation_score = info.reputation_score.saturating_add(1).min(100);
+            validator_infos.set(validator.clone(), info);
+            env.storage()
+                .instance()
+                .set(&VALIDATOR_INFO, &validator_infos);
+        }
+    }
 }
 
 #[cfg(test)]
@@ -575,5 +783,82 @@ mod tests {
 
         // Sanity check constant is used (guards against accidental removal).
         assert!(PROPOSAL_TIMEOUT > 0);
+    }
+
+    #[test]
+    fn rotate_validators_removes_low_reputation() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_ledger(&env, 1_000, 1);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        // Manually drop reputation below threshold
+        env.as_contract(&contract_id, || {
+            use crate::storage::VALIDATOR_INFO;
+            use crate::types::ValidatorInfo;
+            let mut infos: Map<soroban_sdk::Address, ValidatorInfo> =
+                env.storage().instance().get(&VALIDATOR_INFO).unwrap();
+            let mut info = infos.get(validator.clone()).unwrap();
+            info.reputation_score = 10; // below MIN_ACTIVE_REPUTATION (40)
+            infos.set(validator.clone(), info);
+            env.storage().instance().set(&VALIDATOR_INFO, &infos);
+        });
+
+        env.as_contract(&contract_id, || {
+            use crate::bft_consensus::BFTConsensus;
+            let rotated = BFTConsensus::rotate_validators(&env).unwrap();
+            assert_eq!(rotated, 1);
+            assert!(!BFTConsensus::is_active_validator(&env, &validator));
+        });
+    }
+
+    #[test]
+    fn voting_boosts_reputation() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_ledger(&env, 1_000, 1);
+
+        let validator = soroban_sdk::Address::generate(&env);
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+        client.register_validator(&validator, &MIN_VALIDATOR_STAKE);
+
+        // Lower reputation below max so the boost is observable (validators start at 100)
+        env.as_contract(&contract_id, || {
+            use crate::storage::VALIDATOR_INFO;
+            use crate::types::ValidatorInfo;
+            let mut infos: Map<soroban_sdk::Address, ValidatorInfo> =
+                env.storage().instance().get(&VALIDATOR_INFO).unwrap();
+            let mut info = infos.get(validator.clone()).unwrap();
+            info.reputation_score = 90;
+            infos.set(validator.clone(), info);
+            env.storage().instance().set(&VALIDATOR_INFO, &infos);
+        });
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: soroban_sdk::Bytes::from_slice(&env, &[0xAB; 32]),
+            nonce: 1,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&msg);
+        client.vote_on_proposal(&validator, &proposal_id, &true);
+
+        let after_rep = env.as_contract(&contract_id, || {
+            use crate::storage::VALIDATOR_INFO;
+            use crate::types::ValidatorInfo;
+            let infos: Map<soroban_sdk::Address, ValidatorInfo> =
+                env.storage().instance().get(&VALIDATOR_INFO).unwrap();
+            infos.get(validator.clone()).unwrap().reputation_score
+        });
+
+        assert!(after_rep > 90, "reputation should increase after voting");
     }
 }

@@ -16,6 +16,7 @@ soroban-sdk = "25.3.0"
 # Coverage and testing dependencies
 cargo-llvm-cov = "0.6"
 tarpaulin = "0.27"
+rust-code-analysis = "0.0.24"
 
 [profile.release]
 opt-level = "z"
