@@ -15,8 +15,11 @@ use crate::types::{BridgeTransaction, CrossChainMessage};
 use crate::validation::BridgeValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
+/// Bridge packets are considered stale after seven days and can be cancelled.
 const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
+/// Retries are capped to keep failed transactions from being retried forever.
 const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
+/// Base delay (5 minutes) used by the exponential backoff retry schedule.
 const BRIDGE_RETRY_DELAY_BASE_SECONDS: u64 = 300;
 
 pub struct Bridge;
@@ -60,10 +63,8 @@ impl Bridge {
             .set_fee_recipient(&fee_recipient)
             .map_err(|_| BridgeError::StorageError)?;
 
-        // Initialize nonce to 0
-        repo.transactions
-            .get_current_nonce()
-            .map_err(|_| BridgeError::StorageError)?;
+        // Nonce initializes lazily on first use; ignore if absent
+        let _ = repo.transactions.get_current_nonce();
 
         Ok(())
     }
@@ -109,7 +110,7 @@ impl Bridge {
             let fee_recipient = repo
                 .config
                 .get_fee_recipient()
-                .map_err(|_| BridgeError::StorageError)?;
+                .map_err(|_| BridgeError::NotInitialized)?;
             let amount_after_fee = if fee > 0 && fee < amount {
                 amount - fee
             } else {
@@ -274,6 +275,11 @@ impl Bridge {
         })
     }
 
+    /// Mark an in-flight bridge transaction as failed and persist the failure reason.
+    ///
+    /// Assumptions:
+    /// - The `nonce` belongs to an existing bridge transaction.
+    /// - `reason` is a non-empty byte payload suitable for off-chain debugging.
     pub fn mark_bridge_failed(env: &Env, nonce: u64, reason: Bytes) -> Result<(), BridgeError> {
         if reason.is_empty() {
             return Err(BridgeError::InvalidInput);
@@ -288,6 +294,7 @@ impl Bridge {
         repo.retry
             .set_failure(nonce, &reason)
             .map_err(|_| BridgeError::StorageError)?;
+        // Keep an instance-level index for quick lookups by analytics/reporting components.
         let mut failures: Map<u64, Bytes> = env
             .storage()
             .instance()
@@ -304,9 +311,23 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit log: record validator addition
+        let _ = crate::audit::AuditManager::log_validator_operation(
+            env,
+            true,
+            validator.clone(),
+            admin.clone(),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
+    /// Retry a failed bridge transaction while enforcing timeout and exponential backoff.
+    ///
+    /// Complex logic:
+    /// - Retry windows are computed as `base_delay * 2^retry_count`.
+    /// - A transaction cannot be retried after timeout or once max attempts are reached.
     pub fn retry_bridge(env: &Env, nonce: u64) -> Result<u32, BridgeError> {
         let repo = BridgeRepository::new(env);
 
@@ -326,12 +347,14 @@ impl Bridge {
         }
 
         let last_retry_at = repo.retry.get_last_retry_time(nonce);
+        // For first retry, anchor backoff to original transaction timestamp.
         let last_retry_at = if last_retry_at == 0 {
             bridge_tx.timestamp
         } else {
             last_retry_at
         };
 
+        // Exponential backoff prevents repeated retries from overwhelming relayers.
         let backoff_multiplier = 1u64 << retry_count;
         let retry_delay = BRIDGE_RETRY_DELAY_BASE_SECONDS.saturating_mul(backoff_multiplier);
         let next_allowed_retry = last_retry_at.saturating_add(retry_delay);
@@ -419,6 +442,8 @@ impl Bridge {
         })
     }
 
+    /// Backwards-compatible alias for `cancel_bridge`.
+    /// Assumes existing integrations still call the legacy function name.
     pub fn refund_bridge_transaction(env: &Env, nonce: u64) -> Result<(), BridgeError> {
         Self::cancel_bridge(env, nonce)
     }
@@ -428,37 +453,21 @@ impl Bridge {
     /// Add a validator (admin only)
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_validator(env: &Env, validator: Address) -> Result<(), BridgeError> {
-        // Multi-layered authorization: Identity + Role check
-        // Wait, add_validator usually takes an admin caller.
-        // Let's assume the caller is passed or retrieved via require_auth() on the provided address.
-        // But add_validator signature usually implies adding a *new* validator.
-        // Let's check the caller's auth.
-        // Usually, the contract entry point (in lib.rs) handles the caller.
-        // If this is an internal implementation, it should take the caller.
-        let _caller = validator.clone();
-
-        // Actually, let's look at the original code:
-        // let admin = repo.config.get_admin().map_err(|_| BridgeError::NotInitialized)?;
-        // admin.require_auth();
-
-        // I will assume for now that we want the caller to be an authorized ValidatorManager.
-        // Since the caller isn't passed here, I'll use the one from repo.config or assume it's checked in lib.rs.
-        // Better: let's change the signature to take the admin/caller if possible,
-        // but if I can't change it easily, I'll use the one stored in repo.config as a fallback for the "current admin".
-
         let repo = BridgeRepository::new(env);
         let admin = repo
             .config
             .get_admin()
             .map_err(|_| BridgeError::NotInitialized)?;
+        // Assumption: admin account stored during initialization is the control-plane signer.
         admin.require_auth();
 
+        // Role gate is kept separate from signature auth so governance can revoke privileges
+        // without rotating the underlying admin address.
         crate::access_control::AccessControlManager::check_role(
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        )
-        .map_err(|_| BridgeError::Unauthorized)?;
+        )?;
 
         repo.validators
             .add_validator(&validator)
@@ -479,6 +488,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit log: record validator removal
+        let _ = crate::audit::AuditManager::log_validator_operation(
+            env,
+            false,
+            validator.clone(),
+            admin.clone(),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -496,8 +514,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        )
-        .map_err(|_| BridgeError::Unauthorized)?;
+        )?;
 
         repo.validators
             .remove_validator(&validator)
@@ -518,10 +535,21 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit: configuration change - supported chain added
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &chain_id.to_be_bytes()),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
-    /// Add a supported destination chain (admin only)
+    /// Add a supported destination chain (admin only).
+    ///
+    /// Assumption: `chain_id` uses the same chain registry format as off-chain relayers.
     #[allow(clippy::unnecessary_wraps)]
     pub fn add_supported_chain(env: &Env, chain_id: u32) -> Result<(), BridgeError> {
         let repo = BridgeRepository::new(env);
@@ -535,8 +563,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        )
-        .map_err(|_| BridgeError::Unauthorized)?;
+        )?;
 
         repo.chains
             .add_chain(chain_id)
@@ -549,6 +576,15 @@ impl Bridge {
             added_at: env.ledger().timestamp(),
         }
         .publish(env);
+
+        // Audit: configuration change - supported chain removed
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &chain_id.to_be_bytes()),
+            Bytes::new(env),
+        );
 
         Ok(())
     }
@@ -567,8 +603,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        )
-        .map_err(|_| BridgeError::Unauthorized)?;
+        )?;
 
         repo.chains
             .remove_chain(chain_id)
@@ -581,6 +616,15 @@ impl Bridge {
             removed_at: env.ledger().timestamp(),
         }
         .publish(env);
+
+        // Audit: fee update
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::FeeUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &fee.to_be_bytes()),
+            Bytes::new(env),
+        );
 
         Ok(())
     }
@@ -598,8 +642,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        )
-        .map_err(|_| BridgeError::Unauthorized)?;
+        )?;
 
         if fee < 0 {
             return Err(BridgeError::FeeCannotBeNegative);
@@ -620,6 +663,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit: fee recipient change
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -637,8 +689,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        )
-        .map_err(|_| BridgeError::Unauthorized)?;
+        )?;
 
         repo.config
             .set_fee_recipient(&fee_recipient)
@@ -659,6 +710,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit: min validators updated
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &min_validators.to_be_bytes()),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -675,8 +735,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        )
-        .map_err(|_| BridgeError::Unauthorized)?;
+        )?;
 
         if min_validators == 0 {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);
@@ -739,7 +798,9 @@ impl Bridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: &Env) -> Result<Address, BridgeError> {
+    ///
+    /// Assumption: contract has already been initialized. This call panics otherwise.
+    pub fn get_token(env: &Env) -> Address {
         let repo = BridgeRepository::new(env);
         repo.config
             .get_token()
@@ -747,7 +808,9 @@ impl Bridge {
     }
 
     /// Get the admin address
-    pub fn get_admin(env: &Env) -> Result<Address, BridgeError> {
+    ///
+    /// Assumption: contract has already been initialized. This call panics otherwise.
+    pub fn get_admin(env: &Env) -> Address {
         let repo = BridgeRepository::new(env);
         repo.config
             .get_admin()
@@ -759,7 +822,9 @@ impl Bridge {
 mod tests {
     use super::{Bridge, BRIDGE_RETRY_DELAY_BASE_SECONDS};
     use crate::errors::BridgeError;
-    use crate::storage::{BRIDGE_GUARD, BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS};
+    use crate::storage::{
+        BRIDGE_FAILURES, BRIDGE_GUARD, BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS,
+    };
     use crate::types::{BridgeTransaction, CrossChainMessage};
     use crate::TeachLinkBridge;
     use soroban_sdk::testutils::{Address as _, Ledger};
@@ -871,5 +936,33 @@ mod tests {
             let retry_over_limit = Bridge::retry_bridge(&env, 1);
             assert_eq!(retry_over_limit, Err(BridgeError::RetryLimitExceeded));
         });
+    }
+    #[test]
+    fn mark_bridge_failed_records_failure_and_stores_reason() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let reason = Bytes::from_slice(&env, b"simulated_failure");
+
+        // Seed a bridge tx so the failure can be recorded
+        env.as_contract(&contract_id, || {
+            seed_bridge_tx(&env, 42, 1_000);
+        });
+
+        env.as_contract(&contract_id, || {
+            let r = Bridge::mark_bridge_failed(&env, 42, reason.clone());
+            assert_eq!(r, Ok(()));
+        });
+
+        let stored_opt: Option<Bytes> = env.as_contract(&contract_id, || {
+            let failures: Map<u64, Bytes> = env
+                .storage()
+                .instance()
+                .get(&BRIDGE_FAILURES)
+                .unwrap_or_else(|| Map::new(&env));
+            failures.get(42)
+        });
+        assert!(stored_opt.is_some());
+        let stored = stored_opt.unwrap();
+        assert_eq!(stored, reason);
     }
 }

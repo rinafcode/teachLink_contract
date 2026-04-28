@@ -687,3 +687,54 @@ fn test_config_constants() {
     assert!(config::MIN_TIMEOUT_SECONDS > 0);
     assert!(config::MAX_TIMEOUT_SECONDS > config::MIN_TIMEOUT_SECONDS);
 }
+
+#[test]
+fn test_multisig_threshold_boundaries() {
+    let env = Env::default();
+
+    let make_signer = |w: u32| EscrowSigner {
+        address: Address::generate(&env),
+        role: EscrowRole::Primary,
+        weight: w,
+    };
+
+    // threshold == 1 (minimum) should pass
+    let mut signers = Vec::new(&env);
+    signers.push_back(make_signer(5));
+    assert!(EscrowValidator::validate_multisig(&signers, 1).is_ok());
+
+    // threshold == total_weight (maximum) should pass
+    assert!(EscrowValidator::validate_multisig(&signers, 5).is_ok());
+
+    // threshold == 0 should fail
+    assert!(EscrowValidator::validate_multisig(&signers, 0).is_err());
+
+    // threshold > total_weight should fail
+    assert!(EscrowValidator::validate_multisig(&signers, 6).is_err());
+
+    // zero-weight signer should fail
+    let mut zero_weight = Vec::new(&env);
+    zero_weight.push_back(make_signer(0));
+    assert!(EscrowValidator::validate_multisig(&zero_weight, 1).is_err());
+
+    // weight overflow should fail
+    let mut overflow_signers = Vec::new(&env);
+    overflow_signers.push_back(make_signer(u32::MAX));
+    overflow_signers.push_back(make_signer(1));
+    assert!(EscrowValidator::validate_multisig(&overflow_signers, 1).is_err());
+
+    // duplicate signers should fail
+    let dup = Address::generate(&env);
+    let mut dup_signers = Vec::new(&env);
+    dup_signers.push_back(EscrowSigner { address: dup.clone(), role: EscrowRole::Primary, weight: 1 });
+    dup_signers.push_back(EscrowSigner { address: dup.clone(), role: EscrowRole::Primary, weight: 1 });
+    assert!(EscrowValidator::validate_multisig(&dup_signers, 1).is_err());
+
+    // multi-signer weighted threshold at exact boundary
+    let mut multi = Vec::new(&env);
+    multi.push_back(make_signer(3));
+    multi.push_back(make_signer(2));
+    assert!(EscrowValidator::validate_multisig(&multi, 5).is_ok());  // threshold == total
+    assert!(EscrowValidator::validate_multisig(&multi, 1).is_ok());  // threshold == min
+    assert!(EscrowValidator::validate_multisig(&multi, 6).is_err()); // threshold > total
+}

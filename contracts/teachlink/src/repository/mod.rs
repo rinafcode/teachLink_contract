@@ -8,6 +8,8 @@
 //! - **Flexible**: Easy to swap storage implementations
 
 pub mod bridge_repository;
+#[cfg(test)]
+pub mod concurrency_tests;
 pub mod escrow_repository;
 pub mod generic;
 pub mod traits;
@@ -31,4 +33,3 @@ pub use traits::{
     CounterRepository, InstanceStorage, MapRepository, PersistentStorage, StorageError,
     TemporaryStorage,
 };
-// pub use facade::{StorageFacade, StorageBuilder}; // Removed - broken tests
