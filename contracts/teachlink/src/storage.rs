@@ -49,6 +49,10 @@ pub enum StorageKey {
     ValidatorRotationSet,
     // Rate limiting
     RateLimitState,
+    // Auto-scaling and load management
+    ScalingConfig,
+    LoadMetrics,
+    LoadLevel,
 }
 
 /// Returns true if the given symbol string matches any known legacy key,
@@ -60,7 +64,7 @@ pub fn has_legacy_key_collision(a: &Symbol, b: &Symbol) -> bool {
 
 // Storage keys for the bridge contract
 pub const TOKEN: Symbol = symbol_short!("token");
-pub const VALIDATORS: Symbol = symbol_short!("validtor");
+pub const VALIDATORS: Symbol = symbol_short!("validatr");
 pub const MIN_VALIDATORS: Symbol = symbol_short!("min_valid");
 pub const NONCE: Symbol = symbol_short!("nonce");
 pub const BRIDGE_TXS: Symbol = symbol_short!("bridge_tx");
@@ -83,6 +87,7 @@ pub const BRIDGE_PROPOSALS: Symbol = symbol_short!("proposals");
 pub const PROPOSAL_COUNTER: Symbol = symbol_short!("prop_cnt");
 pub const CONSENSUS_STATE: Symbol = symbol_short!("cons_st");
 pub const VALIDATOR_STAKES: Symbol = symbol_short!("val_stake");
+pub const NETWORK_STATE: Symbol = symbol_short!("net_state");
 
 // Slashing and Rewards Storage
 pub const SLASHING_RECORDS: Symbol = symbol_short!("slash_rec");
@@ -209,14 +214,21 @@ pub const USER_FEEDBACK: Symbol = symbol_short!("feedback");
 pub const UX_EXPERIMENTS: Symbol = symbol_short!("ux_exp");
 pub const COMPONENT_CONFIG: Symbol = symbol_short!("comp_cfg");
 
-// Sustainability Metrics Storage
-pub const SUSTAINABILITY_METRICS: Symbol = symbol_short!("sust_met");
+// Access Logging Storage (symbol_short! max 9 chars)
+pub const LOG_COUNTER: Symbol = symbol_short!("log_cnt");
+pub const ACCESS_LOGS: Symbol = symbol_short!("acc_logs");
+pub const ACCESS_TEMPORAL: Symbol = symbol_short!("acc_tmp");
 
 // Reentrancy guard locks
 pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
 pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+
+// Auto-scaling and load management (symbol_short! max 9 chars)
+pub const SCALING_CONFIG: Symbol = symbol_short!("scale_cfg");
+pub const LOAD_METRICS: Symbol = symbol_short!("load_met");
+pub const LOAD_LEVEL: Symbol = symbol_short!("load_lvl");
 
 #[cfg(test)]
 mod tests {
