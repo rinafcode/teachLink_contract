@@ -18,7 +18,7 @@ soroban-sdk.workspace = true
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 proptest = "1.4"
-proptest-derive = "0.4"
+proptest-derive = "0.8"
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
 
