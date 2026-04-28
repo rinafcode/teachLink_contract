@@ -1674,46 +1674,38 @@ pub struct MobileSocialFeatures {
     pub mentor_quick_connect: bool,
 }
 
-// ========== API Versioning Types ==========
+// ========== Access Logging Types ==========
 
-/// A single deprecated function entry in the deprecation registry.
+/// The outcome of a single access attempt.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DeprecatedFunction {
-    /// The symbol name of the deprecated entry point (≤ 9 chars).
-    pub function_name: Symbol,
-    /// Version in which the deprecation was announced.
-    pub deprecated_in: ContractSemVer,
-    /// Version in which the function will be removed.
-    pub removal_in: ContractSemVer,
-    /// Optional symbol name of the replacement function.
-    pub replacement: Option<Symbol>,
-    /// Human-readable reason for deprecation.
-    pub reason: Bytes,
+pub enum AccessOutcome {
+    Success,
+    Failure { error_code: u32 },
 }
 
-/// The full deprecation policy: current version + all deprecated functions.
+/// A single immutable record of one access attempt.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct DeprecationPolicy {
-    pub current_version: ContractSemVer,
-    pub deprecated_functions: Vec<DeprecatedFunction>,
+pub struct AccessLogEntry {
+    pub entry_id: u64,
+    pub caller: Address,
+    pub operation: Symbol,
+    pub outcome: AccessOutcome,
+    pub ledger_timestamp: u64,
+    pub window_start: u64,
 }
 
-/// A migration path documenting how to upgrade from one version to another.
+/// Filter parameters for audit log queries.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct MigrationPath {
-    /// The version callers are migrating from.
-    pub from_version: ContractSemVer,
-    /// The version callers are migrating to.
-    pub to_version: ContractSemVer,
-    /// Human-readable description of the migration.
-    pub description: Bytes,
-    /// List of breaking changes introduced in `to_version`.
-    pub breaking_changes: Vec<Bytes>,
-    /// Ordered list of steps callers must follow to migrate.
-    pub migration_steps: Vec<Bytes>,
+pub struct AuditQuery {
+    pub caller: Option<Address>,
+    pub operation: Option<Symbol>,
+    pub outcome_filter: Option<AccessOutcome>,
+    pub from_timestamp: Option<u64>,
+    pub to_timestamp: Option<u64>,
+    pub limit: u32,
 }
 
 // ========== Auto-Scaling & Load Management Types ==========
@@ -1722,10 +1714,10 @@ pub struct MigrationPath {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum LoadLevel {
-    Low,      // < 50% capacity
-    Medium,   // 50-75% capacity
-    High,     // 75-90% capacity
-    Critical, // > 90% capacity
+    Low,
+    Medium,
+    High,
+    Critical,
 }
 
 /// Scaling policy configuration for auto-scaling behavior

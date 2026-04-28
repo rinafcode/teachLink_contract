@@ -761,7 +761,9 @@ impl Bridge {
 mod tests {
     use super::{Bridge, BRIDGE_RETRY_DELAY_BASE_SECONDS};
     use crate::errors::BridgeError;
-    use crate::storage::{BRIDGE_GUARD, BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS};
+    use crate::storage::{
+        BRIDGE_FAILURES, BRIDGE_GUARD, BRIDGE_TXS, MIN_VALIDATORS, NONCE, TOKEN, VALIDATORS,
+    };
     use crate::types::{BridgeTransaction, CrossChainMessage};
     use crate::TeachLinkBridge;
     use soroban_sdk::testutils::{Address as _, Ledger};
@@ -873,5 +875,33 @@ mod tests {
             let retry_over_limit = Bridge::retry_bridge(&env, 1);
             assert_eq!(retry_over_limit, Err(BridgeError::RetryLimitExceeded));
         });
+    }
+    #[test]
+    fn mark_bridge_failed_records_failure_and_stores_reason() {
+        let env = Env::default();
+        let contract_id = env.register(TeachLinkBridge, ());
+        let reason = Bytes::from_slice(&env, b"simulated_failure");
+
+        // Seed a bridge tx so the failure can be recorded
+        env.as_contract(&contract_id, || {
+            seed_bridge_tx(&env, 42, 1_000);
+        });
+
+        env.as_contract(&contract_id, || {
+            let r = Bridge::mark_bridge_failed(&env, 42, reason.clone());
+            assert_eq!(r, Ok(()));
+        });
+
+        let stored_opt: Option<Bytes> = env.as_contract(&contract_id, || {
+            let failures: Map<u64, Bytes> = env
+                .storage()
+                .instance()
+                .get(&BRIDGE_FAILURES)
+                .unwrap_or_else(|| Map::new(&env));
+            failures.get(42)
+        });
+        assert!(stored_opt.is_some());
+        let stored = stored_opt.unwrap();
+        assert_eq!(stored, reason);
     }
 }
