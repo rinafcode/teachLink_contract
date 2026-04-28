@@ -109,36 +109,4 @@ impl ProvenanceTracker {
 
         true
     }
-
-    /// Get the original creator of a token
-    #[allow(dead_code)]
-    pub fn get_creator(env: &Env, token_id: u64) -> Option<Address> {
-        let history = Self::get_provenance(env, token_id);
-        if history.is_empty() {
-            return None;
-        }
-
-        let first = history.first().unwrap();
-        if first.transfer_type == TransferType::Mint {
-            Some(first.to)
-        } else {
-            None
-        }
-    }
-
-    /// Get all addresses that have owned this token
-    #[allow(dead_code)]
-    pub fn get_all_owners(env: &Env, token_id: u64) -> Vec<Address> {
-        let history = Self::get_provenance(env, token_id);
-        let mut owners = Vec::new(env);
-
-        for record in history.iter() {
-            // Add the 'to' address (new owner)
-            if !owners.contains(record.to.clone()) {
-                owners.push_back(record.to);
-            }
-        }
-
-        owners
-    }
 }

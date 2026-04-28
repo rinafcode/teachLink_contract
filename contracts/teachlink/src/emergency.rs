@@ -1,4 +1,4 @@
-//! Emergency Pause and Recovery Module
+﻿//! Emergency Pause and Recovery Module
 //!
 //! This module implements circuit breaker functionality and emergency controls
 //! to protect the bridge during critical situations.
@@ -28,7 +28,7 @@ impl EmergencyManager {
             env,
             &pauser,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         // Check if already paused
         let emergency_state: EmergencyState = env
@@ -77,7 +77,7 @@ impl EmergencyManager {
             env,
             &resumer,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         // Check if paused
         let mut emergency_state: EmergencyState = env
@@ -125,7 +125,20 @@ impl EmergencyManager {
             env,
             &pauser,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
+
+        crate::dos_protection::check_admin_rate_limit(env, &pauser)?;
+
+        #[allow(clippy::cast_possible_truncation)]
+        let batch_len = chain_ids.len() as u32;
+        crate::dos_protection::check_batch_size(
+            batch_len,
+            crate::dos_protection::MAX_CHAIN_BATCH_SIZE,
+        )?;
+        crate::dos_protection::check_instruction_budget(
+            batch_len,
+            crate::dos_protection::INSTRUCTIONS_PER_CHAIN_OP,
+        )?;
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()
@@ -162,7 +175,20 @@ impl EmergencyManager {
             env,
             &resumer,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
+
+        crate::dos_protection::check_admin_rate_limit(env, &resumer)?;
+
+        #[allow(clippy::cast_possible_truncation)]
+        let batch_len = chain_ids.len() as u32;
+        crate::dos_protection::check_batch_size(
+            batch_len,
+            crate::dos_protection::MAX_CHAIN_BATCH_SIZE,
+        )?;
+        crate::dos_protection::check_instruction_budget(
+            batch_len,
+            crate::dos_protection::INSTRUCTIONS_PER_CHAIN_OP,
+        )?;
 
         let mut paused_chains: Map<u32, bool> = env
             .storage()
@@ -338,7 +364,7 @@ impl EmergencyManager {
             env,
             &resetter,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         let mut circuit_breakers: Map<u32, CircuitBreaker> = env
             .storage()
@@ -458,7 +484,7 @@ impl EmergencyManager {
             env,
             &updater,
             crate::types::AccessRole::EmergencyManager,
-        );
+        )?;
 
         let mut circuit_breakers: Map<u32, CircuitBreaker> = env
             .storage()
