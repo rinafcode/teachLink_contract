@@ -15,8 +15,23 @@ use crate::types::{BridgeTransaction, CrossChainMessage};
 use crate::validation::BridgeValidator;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
+/// Bridge transaction timeout (7 days).  After this period a pending
+/// transaction can be cancelled and the locked tokens refunded.
 const BRIDGE_TIMEOUT_SECONDS: u64 = 604_800;
+
+/// Maximum number of retry attempts before a bridge transaction is permanently
+/// marked as failed.  Prevents infinite retry loops consuming gas.
 const MAX_BRIDGE_RETRY_ATTEMPTS: u32 = 5;
+
+/// Base delay between retry attempts (5 minutes).  Combined with the attempt
+/// counter this implements an exponential back-off:
+///   delay = BASE * 2^(attempt - 1)
+/// so retries are spaced at 5 min, 10 min, 20 min, 40 min, 80 min.
+///
+/// # TODO
+/// - Expose `MAX_BRIDGE_RETRY_ATTEMPTS` and `BRIDGE_RETRY_DELAY_BASE_SECONDS`
+///   as admin-configurable parameters so they can be tuned without a contract
+///   upgrade.
 const BRIDGE_RETRY_DELAY_BASE_SECONDS: u64 = 300;
 
 pub struct Bridge;
@@ -60,11 +75,8 @@ impl Bridge {
             .set_fee_recipient(&fee_recipient)
             .map_err(|_| BridgeError::StorageError)?;
 
-        // Initialize nonce to 0
-        repo.transactions
-            .get_current_nonce()
-            .map_err(|_| BridgeError::StorageError)
-            .ok();
+        // Nonce initializes lazily on first use; ignore if absent
+        let _ = repo.transactions.get_current_nonce();
 
         Ok(())
     }
@@ -107,7 +119,10 @@ impl Bridge {
 
             // Apply bridge fee if configured
             let fee = repo.config.get_bridge_fee().unwrap_or(0);
-            let fee_recipient = repo.config.get_fee_recipient().unwrap();
+            let fee_recipient = repo
+                .config
+                .get_fee_recipient()
+                .map_err(|_| BridgeError::NotInitialized)?;
             let amount_after_fee = if fee > 0 && fee < amount {
                 amount - fee
             } else {
@@ -455,7 +470,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        );
+        )?;
 
         repo.validators
             .add_validator(&validator)
@@ -493,7 +508,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::ValidatorManager,
-        );
+        )?;
 
         repo.validators
             .remove_validator(&validator)
@@ -531,7 +546,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        );
+        )?;
 
         repo.chains
             .add_chain(chain_id)
@@ -562,7 +577,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::BridgeOperator,
-        );
+        )?;
 
         repo.chains
             .remove_chain(chain_id)
@@ -592,7 +607,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )?;
 
         if fee < 0 {
             return Err(BridgeError::FeeCannotBeNegative);
@@ -630,7 +645,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )?;
 
         repo.config
             .set_fee_recipient(&fee_recipient)
@@ -667,7 +682,7 @@ impl Bridge {
             env,
             &admin,
             crate::types::AccessRole::Admin,
-        );
+        )?;
 
         if min_validators == 0 {
             return Err(BridgeError::MinimumValidatorsMustBeAtLeastOne);

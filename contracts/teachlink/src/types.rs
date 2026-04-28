@@ -1,6 +1,33 @@
 //! TeachLink Contract Types
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
+//!
+//! # Type Categories
+//!
+//! - **Versioning** – `ContractSemVer`, `InterfaceVersionStatus`: semantic
+//!   versioning for contract interface compatibility checks.
+//! - **Chain Configuration** – `ChainConfig`, `MultiChainAsset`, `ChainAssetInfo`:
+//!   multi-chain bridge topology and asset mappings.
+//! - **BFT Consensus** – `ValidatorInfo`, `BridgeProposal`, `ConsensusState`:
+//!   validator registry and proposal voting state.
+//! - **Bridge** – `BridgeTransaction`, `CrossChainMessage`, `CrossChainPacket`:
+//!   cross-chain transfer lifecycle data.
+//! - **Liquidity** – `LiquidityPool`, `LPPosition`, `BridgeFeeStructure`:
+//!   AMM pool state and fee configuration.
+//! - **Escrow** – `Escrow`, `EscrowSigner`, `EscrowParameters`: multi-sig
+//!   escrow with dispute resolution.
+//! - **Tokenization** – `ContentToken`, `ContentMetadata`, `ProvenanceRecord`:
+//!   educational content NFTs and ownership history.
+//! - **Reputation** – `UserReputation`: participation, completion, and
+//!   contribution quality scores.
+//! - **Notifications** – `NotificationTemplate`, `NotificationTracking`,
+//!   `UserNotificationSettings`: multi-channel notification system.
+//!
+//! # Arithmetic Safety
+//!
+//! `ContractSemVer` comparison uses tuple ordering to avoid multi-field
+//! conditional chains.  All monetary fields use `i128` to match Soroban's
+//! native token amount type and avoid implicit truncation.
 
 use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, Symbol, Vec};
 
@@ -27,11 +54,19 @@ impl ContractSemVer {
         }
     }
 
+    /// Returns `true` if this version is strictly lower than `other`.
+    ///
+    /// Uses tuple comparison `(major, minor, patch)` which applies
+    /// lexicographic ordering — the same semantics as SemVer:
+    /// major takes precedence, then minor, then patch.
     #[must_use]
     pub fn is_lower_than(&self, other: &Self) -> bool {
         (self.major, self.minor, self.patch) < (other.major, other.minor, other.patch)
     }
 
+    /// Returns `true` if this version is strictly greater than `other`.
+    ///
+    /// See `is_lower_than` for the comparison semantics.
     #[must_use]
     pub fn is_greater_than(&self, other: &Self) -> bool {
         (self.major, self.minor, self.patch) > (other.major, other.minor, other.patch)
@@ -1637,4 +1672,39 @@ pub struct MobileSocialFeatures {
     pub emergency_contacts: Vec<Address>,
     pub study_buddies: Vec<Address>,
     pub mentor_quick_connect: bool,
+}
+
+// ========== Auto-Scaling & Load Management Types ==========
+
+/// Load level indicating current system capacity utilization
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LoadLevel {
+    Low,      // < 50% capacity
+    Medium,   // 50-75% capacity
+    High,     // 75-90% capacity
+    Critical, // > 90% capacity
+}
+
+/// Scaling policy configuration for auto-scaling behavior
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScalingPolicy {
+    pub max_batch_size: u32,
+    pub min_batch_size: u32,
+    pub gas_budget_per_batch: u64,
+    pub enable_load_shedding: bool,
+    pub load_shedding_threshold: u64,
+    pub priority_queue_enabled: bool,
+}
+
+/// Runtime metrics for scaling decisions
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScalingMetrics {
+    pub current_load: u64,
+    pub processed_operations: u64,
+    pub shed_operations: u64,
+    pub average_batch_size: u32,
+    pub last_scaling_adjustment: u64,
 }

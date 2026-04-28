@@ -184,6 +184,32 @@ install_additional_tools() {
   else
     info "curl is installed: $(curl --version | head -n1)"
   fi
+
+  # Coverage and Metrics Tools
+  section "Coverage and Metrics Tools"
+  if ! command -v cargo-llvm-cov >/dev/null 2>&1; then
+    prompt "cargo-llvm-cov is not installed. Install now? (y/n)"
+    read -r response
+    if [[ "$response" == "y" ]]; then
+      cargo install cargo-llvm-cov
+    fi
+  fi
+
+  if ! command -v cargo-tarpaulin >/dev/null 2>&1; then
+    prompt "cargo-tarpaulin is not installed. Install now? (y/n)"
+    read -r response
+    if [[ "$response" == "y" ]]; then
+      cargo install cargo-tarpaulin
+    fi
+  fi
+
+  if ! command -v jscpd >/dev/null 2>&1; then
+    prompt "jscpd is not installed. Install now via npm? (y/n)"
+    read -r response
+    if [[ "$response" == "y" ]]; then
+      npm install -g jscpd
+    fi
+  fi
 }
 
 # Update Rust toolchain
