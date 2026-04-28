@@ -101,6 +101,7 @@ mod auto_scaling;
 mod backup;
 mod bft_consensus;
 mod bridge;
+mod dos_protection;
 // TODO: Fix collaboration module compilation errors (pre-existing issue)
 // mod collaboration;
 // TODO: Fix content_nft module compilation errors (pre-existing issue)
