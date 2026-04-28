@@ -765,7 +765,42 @@ mod tests {
             Some(200),
             &arbitrator,
         );
-        assert!(result.is_ok());
+    #[test]
+    fn address_rejects_self() {
+        let env = Env::default();
+        let contract_addr = env.current_contract_address();
+        assert_eq!(
+            AddressValidator::validate_not_self(&env, &contract_addr),
+            Err(ValidationError::SelfInteractionNotAllowed)
+        );
+    }
+
+    #[test]
+    fn string_rejects_whitespace_only() {
+        let env = Env::default();
+        let s = String::from_str(&env, "   \n\t  ");
+        assert_eq!(
+            StringValidator::validate_non_whitespace(&s),
+            Err(ValidationError::WhitespaceOnlyString)
+        );
+    }
+
+    #[test]
+    fn escrow_rejects_depositor_as_beneficiary() {
+        use crate::types::{EscrowSigner};
+        let env = Env::default();
+        let party = Address::generate(&env);
+        let token = Address::generate(&env);
+        let arbitrator = Address::generate(&env);
+        let signer = EscrowSigner { address: Address::generate(&env), weight: 1 };
+        let mut signers = soroban_sdk::Vec::new(&env);
+        signers.push_back(signer);
+
+        let result = EscrowValidator::validate_create_escrow(
+            &env, &party, &party, &token, 1_000,
+            &signers, 1, None, None, &arbitrator,
+        );
+        assert_eq!(result, Err(crate::errors::EscrowError::DepositorCannotBeBeneficiary));
     }
 
     #[test]
@@ -791,16 +826,15 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unauthorized: Missing required role")]
     fn test_rbac_unauthorized_fails() {
         use crate::access_control::AccessControlManager;
+        use crate::errors::BridgeError;
         use crate::types::AccessRole;
         let env = Env::default();
         let user = Address::generate(&env);
 
-        // Mock auth for user but they don't have the role
-        user.require_auth();
-        AccessControlManager::check_role(&env, &user, AccessRole::BridgeOperator);
+        let result = AccessControlManager::check_role(&env, &user, AccessRole::BridgeOperator);
+        assert_eq!(result, Err(BridgeError::Unauthorized));
     }
 
     #[test]
