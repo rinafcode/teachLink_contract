@@ -90,6 +90,7 @@
 
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
+mod access_logger;
 mod access_control;
 mod analytics;
 mod arbitration;
@@ -178,7 +179,9 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError};
+pub use errors::{
+    AccessLogError, BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError,
+};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -187,16 +190,29 @@ pub use types::{
     AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
     BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
     ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, ContractSemVer, ContributionType, CrossChainMessage,
-    CrossChainPacket, DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics,
-    EscrowParameters, EscrowRole, EscrowSigner, EscrowStatus, InterfaceVersionStatus,
-    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
-    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
-    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
-    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
-    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
-    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
+    ContentTokenParameters, ContentType, ContractSemVer,
+    ContributionType, CrossChainMessage, CrossChainPacket,
+    DashboardAnalytics, DisputeOutcome, EmergencyState,
+    Escrow, EscrowMetrics, EscrowParameters, EscrowRole,
+    EscrowSigner, EscrowStatus, InterfaceVersionStatus,
+    LiquidityPool, MultiChainAsset,
+    NotificationChannel, NotificationContent,
+    NotificationPreference, NotificationSchedule,
+    NotificationTemplate, NotificationTracking,
+    OperationType, PacketStatus, ProposalStatus,
+    ProvenanceRecord, RecoveryRecord, ReportComment,
+    ReportSchedule, ReportSnapshot, ReportTemplate,
+    ReportType, ReportUsage, RewardRate,
+    RewardType, RtoTier, SlashingReason,
+    SlashingRecord, SwapStatus, TransferType,
+    UserNotificationSettings, UserReputation,
+    UserReward, ValidatorInfo, ValidatorReward,
     ValidatorSignature, VisualizationDataPoint,
+
+    // access logging types
+    AccessLogEntry,
+    AccessOutcome,
+    AuditQuery,
 };
 
 /// TeachLink main contract.
@@ -1756,56 +1772,138 @@ impl TeachLinkBridge {
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
 
+    // ========== Access Logging Functions ==========
+
+    pub fn log_access(
+        env: Env,
+        caller: Address,
+        operation: Symbol,
+        outcome: AccessOutcome,
+    ) {
+        access_logger::AccessLogger::log_access(
+            &env,
+            caller,
+            operation,
+            outcome,
+        );
+    }
+
+    pub fn get_log_entry(
+        env: Env,
+        entry_id: u64,
+    ) -> Option<AccessLogEntry> {
+        access_logger::AccessLogger::get_log_entry(
+            &env,
+            entry_id,
+        )
+    }
+
+    pub fn get_total_log_count(
+        env: Env,
+    ) -> u64 {
+        access_logger::AccessLogger::get_total_log_count(
+            &env,
+        )
+    }
+
+    pub fn query_logs(
+        env: Env,
+        query: AuditQuery,
+    ) -> Vec<AccessLogEntry> {
+        access_logger::AccessLogger::query_logs(
+            &env,
+            query,
+        )
+    }
+
+    pub fn get_temporal_pattern(
+        env: Env,
+        caller: Address,
+        window_start: u64,
+    ) -> u32 {
+        access_logger::AccessLogger::get_temporal_pattern(
+            &env,
+            caller,
+            window_start,
+        )
+    }
+
     // ========== Contract Upgrade Functions ==========
 
-    /// Prepare for contract upgrade by backing up current state
     pub fn prepare_upgrade(
         env: Env,
         admin: Address,
         new_version: u32,
         state_hash: Bytes,
     ) -> Result<(), BridgeError> {
-        upgrade::ContractUpgrader::prepare_upgrade(&env, admin, new_version, state_hash)
+        upgrade::ContractUpgrader::prepare_upgrade(
+            &env,
+            admin,
+            new_version,
+            state_hash,
+        )
     }
 
-    /// Execute the contract upgrade
     pub fn execute_upgrade(
         env: Env,
         admin: Address,
         new_version: u32,
         migration_hash: Bytes,
     ) -> Result<(), BridgeError> {
-        upgrade::ContractUpgrader::execute_upgrade(&env, admin, new_version, migration_hash)
+        upgrade::ContractUpgrader::execute_upgrade(
+            &env,
+            admin,
+            new_version,
+            migration_hash,
+        )
     }
 
-    /// Rollback to previous version if within rollback window
-    pub fn rollback_upgrade(env: Env, admin: Address) -> Result<(), BridgeError> {
-        upgrade::ContractUpgrader::rollback(&env, admin)
+    pub fn rollback_upgrade(
+        env: Env,
+        admin: Address,
+    ) -> Result<(), BridgeError> {
+        upgrade::ContractUpgrader::rollback(
+            &env,
+            admin,
+        )
     }
 
-    /// Get current contract version
-    pub fn get_contract_version(env: Env) -> u32 {
-        upgrade::ContractUpgrader::get_current_version(&env)
+    pub fn get_contract_version(
+        env: Env,
+    ) -> u32 {
+        upgrade::ContractUpgrader::get_current_version(
+            &env,
+        )
     }
 
-    /// Get upgrade history for a specific version
-    pub fn get_upgrade_history(env: Env, version: u32) -> Option<upgrade::UpgradeRecord> {
-        upgrade::ContractUpgrader::get_upgrade_history(&env, version)
+    pub fn get_upgrade_history(
+        env: Env,
+        version: u32,
+    ) -> Option<upgrade::UpgradeRecord> {
+        upgrade::ContractUpgrader::get_upgrade_history(
+            &env,
+            version,
+        )
     }
 
-    /// Check if rollback is available
-    pub fn is_rollback_available(env: Env) -> bool {
-        upgrade::ContractUpgrader::is_rollback_available(&env)
+    pub fn is_rollback_available(
+        env: Env,
+    ) -> bool {
+        upgrade::ContractUpgrader::is_rollback_available(
+            &env,
+        )
     }
 
-    /// Get state backup information
-    pub fn get_state_backup(env: Env) -> Option<upgrade::StateBackup> {
-        upgrade::ContractUpgrader::get_state_backup(&env)
+    pub fn get_state_backup(
+        env: Env,
+    ) -> Option<upgrade::StateBackup> {
+        upgrade::ContractUpgrader::get_state_backup(
+            &env,
+        )
     }
 
     // ========== Network Recovery Functions ==========
 
-    /// Register a failed operation for automatic retry
     pub fn register_failed_operation(
         env: Env,
         operation_id: u64,
@@ -1822,31 +1920,51 @@ impl TeachLinkBridge {
         )
     }
 
-    /// Check if operation can be retried
-    pub fn can_retry_operation(env: Env, operation_id: u64) -> Result<bool, BridgeError> {
-        network_recovery::NetworkRecovery::can_retry(&env, operation_id)
+    pub fn can_retry_operation(
+        env: Env,
+        operation_id: u64,
+    ) -> Result<bool, BridgeError> {
+        network_recovery::NetworkRecovery::can_retry(
+            &env,
+            operation_id,
+        )
     }
 
-    /// Mark operation as completed
-    pub fn mark_operation_completed(env: Env, operation_id: u64) -> Result<(), BridgeError> {
-        network_recovery::NetworkRecovery::mark_completed(&env, operation_id)
+    pub fn mark_operation_completed(
+        env: Env,
+        operation_id: u64,
+    ) -> Result<(), BridgeError> {
+        network_recovery::NetworkRecovery::mark_completed(
+            &env,
+            operation_id,
+        )
     }
 
-    /// Get operation state
     pub fn get_operation_state(
         env: Env,
         operation_id: u64,
     ) -> Option<network_recovery::OperationState> {
-        network_recovery::NetworkRecovery::get_operation_state(&env, operation_id)
+        network_recovery::NetworkRecovery::get_operation_state(
+            &env,
+            operation_id,
+        )
     }
 
-    /// Get user retry notifications
-    pub fn get_user_retry_notifications(env: Env, user: Address) -> Vec<u64> {
-        network_recovery::NetworkRecovery::get_user_notifications(&env, user)
+    pub fn get_user_retry_notifications(
+        env: Env,
+        user: Address,
+    ) -> Vec<u64> {
+        network_recovery::NetworkRecovery::get_user_notifications(
+            &env,
+            user,
+        )
     }
 
-    /// Check if fallback mechanism is active
-    pub fn is_fallback_active(env: Env) -> bool {
-        network_recovery::NetworkRecovery::is_fallback_active(&env)
+    pub fn is_fallback_active(
+        env: Env,
+    ) -> bool {
+        network_recovery::NetworkRecovery::is_fallback_active(
+            &env,
+        )
     }
 }
