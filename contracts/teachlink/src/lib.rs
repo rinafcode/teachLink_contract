@@ -96,6 +96,7 @@ mod arbitration;
 mod assessment;
 mod atomic_swap;
 mod audit;
+mod auto_scaling;
 mod backup;
 mod bft_consensus;
 mod bridge;
@@ -163,6 +164,12 @@ mod validation;
 // TODO: Fix validation_tests compilation errors (pre-existing issue)
 // mod validation_tests;
 
+pub use validation::{
+    config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
+    EscrowValidator, InputSanitizer, NumberValidator, RewardsValidator, StringValidator,
+    ValidationError, ValidationResult,
+};
+
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
     LayoutDensity, MobileAccessibilitySettings, MobilePreferences, MobileProfile, NetworkType,
@@ -171,7 +178,7 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use errors::{BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -210,8 +217,9 @@ impl TeachLinkBridge {
         min_validators: u32,
         fee_recipient: Address,
     ) -> Result<(), BridgeError> {
-        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
+        bridge::Bridge::initialize(&env, token, admin.clone(), min_validators, fee_recipient)?;
         interface_versioning::InterfaceVersioning::initialize(&env);
+        upgrade::ContractUpgrader::initialize(&env, admin.clone())?;
         Ok(())
     }
 
@@ -255,23 +263,23 @@ impl TeachLinkBridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
-    pub fn add_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::add_validator(&env, validator);
+    pub fn add_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::add_validator(&env, validator)
     }
 
     /// Remove a validator (admin only)
-    pub fn remove_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::remove_validator(&env, validator);
+    pub fn remove_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_validator(&env, validator)
     }
 
     /// Add a supported destination chain (admin only)
-    pub fn add_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::add_supported_chain(&env, chain_id);
+    pub fn add_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::add_supported_chain(&env, chain_id)
     }
 
     /// Remove a supported destination chain (admin only)
-    pub fn remove_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::remove_supported_chain(&env, chain_id);
+    pub fn remove_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_supported_chain(&env, chain_id)
     }
 
     /// Set bridge fee (admin only)
@@ -280,8 +288,8 @@ impl TeachLinkBridge {
     }
 
     /// Set fee recipient (admin only)
-    pub fn set_fee_recipient(env: Env, fee_recipient: Address) {
-        let _ = bridge::Bridge::set_fee_recipient(&env, fee_recipient);
+    pub fn set_fee_recipient(env: Env, fee_recipient: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::set_fee_recipient(&env, fee_recipient)
     }
 
     /// Set minimum validators (admin only)
@@ -506,6 +514,64 @@ impl TeachLinkBridge {
     /// Trigger rotation if the current consensus round is at an epoch boundary.
     pub fn maybe_rotate_validators(env: Env) -> Result<bool, BridgeError> {
         bft_consensus::BFTConsensus::maybe_rotate(&env)
+    }
+
+    // ========== Auto-Scaling & Load Management Functions ==========
+
+    /// Initialize auto-scaling configuration (admin only)
+    pub fn initialize_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::initialize(&env, &admin)
+    }
+
+    /// Get current system load level
+    pub fn get_load_level(env: Env) -> crate::types::LoadLevel {
+        auto_scaling::AutoScaler::get_current_load_level(&env)
+    }
+
+    /// Calculate optimal batch size based on current load
+    pub fn get_optimal_batch_size(env: Env) -> u32 {
+        auto_scaling::AutoScaler::calculate_optimal_batch_size(&env)
+    }
+
+    /// Check if an operation should be shed based on priority and load
+    pub fn should_shed_operation(env: Env, priority: u32) -> bool {
+        auto_scaling::AutoScaler::should_shed_operation(&env, priority)
+    }
+
+    /// Update load metrics with recent operation data
+    pub fn update_load_metrics(
+        env: Env,
+        operations_processed: u64,
+        operations_shed: u64,
+        current_gas_usage: u64,
+    ) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::update_load_metrics(
+            &env,
+            operations_processed,
+            operations_shed,
+            current_gas_usage,
+        )
+    }
+
+    /// Determine if an operation should be queued based on priority
+    pub fn should_queue_operation(env: Env, priority: u32) -> bool {
+        auto_scaling::AutoScaler::should_queue_operation(&env, priority)
+    }
+
+    /// Get gas allocation for an operation based on load and priority
+    pub fn allocate_gas_budget(env: Env, priority: u32, base_gas: u64) -> u64 {
+        auto_scaling::AutoScaler::allocate_gas_budget(&env, priority, base_gas)
+    }
+
+    /// Trigger emergency scaling (admin only)
+    pub fn trigger_emergency_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        admin.require_auth();
+        auto_scaling::AutoScaler::emergency_scaling(&env)
+    }
+
+    /// Reset scaling configuration to defaults (admin only)
+    pub fn reset_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::reset_scaling(&env, &admin)
     }
 
     // ========== Slashing and Rewards Functions ==========

@@ -791,16 +791,15 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "Unauthorized: Missing required role")]
     fn test_rbac_unauthorized_fails() {
         use crate::access_control::AccessControlManager;
+        use crate::errors::BridgeError;
         use crate::types::AccessRole;
         let env = Env::default();
         let user = Address::generate(&env);
 
-        // Mock auth for user but they don't have the role
-        user.require_auth();
-        AccessControlManager::check_role(&env, &user, AccessRole::BridgeOperator);
+        let result = AccessControlManager::check_role(&env, &user, AccessRole::BridgeOperator);
+        assert_eq!(result, Err(BridgeError::Unauthorized));
     }
 
     #[test]
