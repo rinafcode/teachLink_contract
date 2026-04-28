@@ -47,14 +47,12 @@ use crate::storage::{ATOMIC_SWAPS, SWAP_COUNTER, SWAP_GUARD, SWAP_TIMELOCK_SEQ};
 use crate::types::{AtomicSwap, SwapStatus};
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
-/// Minimum timelock duration (1 hour)
-pub const MIN_TIMELOCK: u64 = 3_600;
-
-/// Maximum timelock duration (7 days)
-pub const MAX_TIMELOCK: u64 = 604_800;
-
-/// Hash length (32 bytes for SHA256)
-pub const HASH_LENGTH: u32 = 32;
+/// Minimum timelock duration — re-exported from config.
+pub use crate::config::SWAP_MIN_TIMELOCK as MIN_TIMELOCK;
+/// Maximum timelock duration — re-exported from config.
+pub use crate::config::SWAP_MAX_TIMELOCK as MAX_TIMELOCK;
+/// Required hash length — re-exported from config.
+pub use crate::config::SWAP_HASH_LENGTH as HASH_LENGTH;
 
 /// Atomic Swap Manager
 pub struct AtomicSwapManager;
@@ -126,6 +124,14 @@ impl AtomicSwapManager {
             if initiator == counterparty {
                 return Err(BridgeError::InvalidInput);
             }
+
+            // Temporal Validation
+            crate::validation::TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+                .map_err(|_| BridgeError::InvalidTimestamp)?;
+
+            let future_timelock = env.ledger().timestamp().saturating_add(timelock);
+            crate::validation::TimeValidator::validate_operational_bounds(env, future_timelock)
+                .map_err(|_| BridgeError::InvalidTimestamp)?;
 
             let mut swap_counter: u64 = env.storage().instance().get(&SWAP_COUNTER).unwrap_or(0u64);
             swap_counter += 1;

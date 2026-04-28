@@ -56,14 +56,15 @@ use crate::storage::{
     VALIDATORS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
 };
 use crate::types::{
-    BridgeProposal, ConsensusState, CrossChainMessage, ProposalStatus, ValidatorInfo,
+    BridgeProposal, ConsensusState, CrossChainMessage, NetworkCondition, NetworkHealth,
+    ProposalStatus, ValidatorInfo,
 };
 use soroban_sdk::{Address, Env, Map, Vec};
 
 /// Minimum stake required to become a validator
 pub const MIN_VALIDATOR_STAKE: i128 = 100_000_000; // 100 tokens with 6 decimals
 
-/// Proposal timeout in seconds (24 hours)
+/// Proposal timeout in seconds (24 hours) – base value for healthy network.
 pub const PROPOSAL_TIMEOUT: u64 = 86_400;
 
 /// Number of consensus rounds per rotation epoch.
@@ -79,6 +80,69 @@ pub const MIN_ACTIVE_REPUTATION: u32 = 40;
 pub struct BFTConsensus;
 
 impl BFTConsensus {
+    // ── Network condition monitoring ─────────────────────────────────────────
+
+    /// Return the current network condition, defaulting to Healthy if not set.
+    pub fn get_network_condition(env: &Env) -> NetworkCondition {
+        env.storage()
+            .instance()
+            .get(&NETWORK_STATE)
+            .unwrap_or(NetworkCondition {
+                health: NetworkHealth::Healthy,
+                avg_latency_ms: 0,
+                consecutive_misses: 0,
+                last_updated: env.ledger().timestamp(),
+            })
+    }
+
+    /// Update network condition from an external observer (admin / oracle).
+    ///
+    /// Derives `health` automatically from `consecutive_misses`:
+    /// - ≥ `MISS_THRESHOLD_CRITICAL` → Critical
+    /// - ≥ `MISS_THRESHOLD_DEGRADED` → Degraded
+    /// - otherwise → Healthy
+    pub fn update_network_condition(
+        env: &Env,
+        avg_latency_ms: u64,
+        consecutive_misses: u32,
+    ) -> NetworkCondition {
+        let health = if consecutive_misses >= MISS_THRESHOLD_CRITICAL {
+            NetworkHealth::Critical
+        } else if consecutive_misses >= MISS_THRESHOLD_DEGRADED {
+            NetworkHealth::Degraded
+        } else {
+            NetworkHealth::Healthy
+        };
+
+        let condition = NetworkCondition {
+            health,
+            avg_latency_ms,
+            consecutive_misses,
+            last_updated: env.ledger().timestamp(),
+        };
+        env.storage().instance().set(&NETWORK_STATE, &condition);
+        condition
+    }
+
+    /// Compute the adaptive proposal timeout based on current network health.
+    ///
+    /// | Health   | Multiplier | Effective timeout |
+    /// |----------|-----------|-------------------|
+    /// | Healthy  | 1×        | 86 400 s (24 h)   |
+    /// | Degraded | 2×        | 172 800 s (48 h)  |
+    /// | Critical | 3×        | 259 200 s (72 h)  |
+    pub fn adaptive_timeout(env: &Env) -> u64 {
+        let condition = Self::get_network_condition(env);
+        let multiplier = match condition.health {
+            NetworkHealth::Healthy => 1,
+            NetworkHealth::Degraded => TIMEOUT_MULTIPLIER_DEGRADED,
+            NetworkHealth::Critical => TIMEOUT_MULTIPLIER_CRITICAL,
+        };
+        PROPOSAL_TIMEOUT.saturating_mul(multiplier)
+    }
+
+    // ── Validator registration ───────────────────────────────────────────────
+
     /// Register a new validator with stake
     pub fn register_validator(
         env: &Env,
@@ -262,6 +326,9 @@ impl BFTConsensus {
 
         let required_votes = consensus_state.byzantine_threshold;
 
+        // Compute timeout based on current network health (graceful degradation).
+        let timeout = Self::adaptive_timeout(env);
+
         // Create proposal
         let proposal = BridgeProposal {
             proposal_id: proposal_counter,
@@ -271,7 +338,7 @@ impl BFTConsensus {
             required_votes,
             status: ProposalStatus::Pending,
             created_at: env.ledger().timestamp(),
-            expires_at: env.ledger().timestamp() + PROPOSAL_TIMEOUT,
+            expires_at: env.ledger().timestamp() + timeout,
         };
 
         // Store proposal
@@ -290,9 +357,7 @@ impl BFTConsensus {
         let expires_seq =
             env.ledger()
                 .sequence()
-                .saturating_add(crate::ledger_time::seconds_to_ledger_delta(
-                    PROPOSAL_TIMEOUT,
-                ));
+                .saturating_add(crate::ledger_time::seconds_to_ledger_delta(timeout));
         let mut proposal_expires_seq: Map<u64, u32> = env
             .storage()
             .instance()
@@ -381,6 +446,13 @@ impl BFTConsensus {
             proposal.status = ProposalStatus::Expired;
             proposals.set(proposal_id, proposal);
             env.storage().instance().set(&BRIDGE_PROPOSALS, &proposals);
+            // Record the miss so the adaptive monitor can react.
+            let cond = Self::get_network_condition(env);
+            Self::update_network_condition(
+                env,
+                cond.avg_latency_ms,
+                cond.consecutive_misses.saturating_add(1),
+            );
             return Err(BridgeError::ProposalExpired);
         }
 
@@ -449,6 +521,10 @@ impl BFTConsensus {
         env.storage()
             .instance()
             .set(&CONSENSUS_STATE, &consensus_state);
+
+        // Successful consensus – reset consecutive miss counter.
+        let cond = Self::get_network_condition(env);
+        Self::update_network_condition(env, cond.avg_latency_ms, 0);
 
         // Emit event
         ProposalExecutedEvent {
