@@ -1,6 +1,33 @@
 //! TeachLink Contract Types
 //!
 //! This module defines all data structures used throughout the TeachLink smart contract.
+//!
+//! # Type Categories
+//!
+//! - **Versioning** – `ContractSemVer`, `InterfaceVersionStatus`: semantic
+//!   versioning for contract interface compatibility checks.
+//! - **Chain Configuration** – `ChainConfig`, `MultiChainAsset`, `ChainAssetInfo`:
+//!   multi-chain bridge topology and asset mappings.
+//! - **BFT Consensus** – `ValidatorInfo`, `BridgeProposal`, `ConsensusState`:
+//!   validator registry and proposal voting state.
+//! - **Bridge** – `BridgeTransaction`, `CrossChainMessage`, `CrossChainPacket`:
+//!   cross-chain transfer lifecycle data.
+//! - **Liquidity** – `LiquidityPool`, `LPPosition`, `BridgeFeeStructure`:
+//!   AMM pool state and fee configuration.
+//! - **Escrow** – `Escrow`, `EscrowSigner`, `EscrowParameters`: multi-sig
+//!   escrow with dispute resolution.
+//! - **Tokenization** – `ContentToken`, `ContentMetadata`, `ProvenanceRecord`:
+//!   educational content NFTs and ownership history.
+//! - **Reputation** – `UserReputation`: participation, completion, and
+//!   contribution quality scores.
+//! - **Notifications** – `NotificationTemplate`, `NotificationTracking`,
+//!   `UserNotificationSettings`: multi-channel notification system.
+//!
+//! # Arithmetic Safety
+//!
+//! `ContractSemVer` comparison uses tuple ordering to avoid multi-field
+//! conditional chains.  All monetary fields use `i128` to match Soroban's
+//! native token amount type and avoid implicit truncation.
 
 use soroban_sdk::{contracttype, panic_with_error, Address, Bytes, Map, String, Symbol, Vec};
 
@@ -27,11 +54,19 @@ impl ContractSemVer {
         }
     }
 
+    /// Returns `true` if this version is strictly lower than `other`.
+    ///
+    /// Uses tuple comparison `(major, minor, patch)` which applies
+    /// lexicographic ordering — the same semantics as SemVer:
+    /// major takes precedence, then minor, then patch.
     #[must_use]
     pub fn is_lower_than(&self, other: &Self) -> bool {
         (self.major, self.minor, self.patch) < (other.major, other.minor, other.patch)
     }
 
+    /// Returns `true` if this version is strictly greater than `other`.
+    ///
+    /// See `is_lower_than` for the comparison semantics.
     #[must_use]
     pub fn is_greater_than(&self, other: &Self) -> bool {
         (self.major, self.minor, self.patch) > (other.major, other.minor, other.patch)
@@ -79,6 +114,32 @@ pub struct ChainAssetInfo {
 }
 
 // ========== BFT Consensus Types ==========
+
+/// Network health level used to drive adaptive consensus timeouts.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum NetworkHealth {
+    /// Normal operation – use base timeout.
+    Healthy,
+    /// Elevated latency – apply moderate multiplier.
+    Degraded,
+    /// Severe degradation – apply maximum multiplier (graceful degradation mode).
+    Critical,
+}
+
+/// Snapshot of observed network conditions stored on-chain.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct NetworkCondition {
+    /// Current health classification.
+    pub health: NetworkHealth,
+    /// Rolling average round-trip latency in milliseconds (0 if unknown).
+    pub avg_latency_ms: u64,
+    /// Consecutive rounds where quorum was not reached in time (miss counter).
+    pub consecutive_misses: u32,
+    /// Ledger timestamp of the last update.
+    pub last_updated: u64,
+}
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -1637,4 +1698,73 @@ pub struct MobileSocialFeatures {
     pub emergency_contacts: Vec<Address>,
     pub study_buddies: Vec<Address>,
     pub mentor_quick_connect: bool,
+}
+
+// ========== Access Logging Types ==========
+
+/// The outcome of a single access attempt.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum AccessOutcome {
+    Success,
+    Failure { error_code: u32 },
+}
+
+/// A single immutable record of one access attempt.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AccessLogEntry {
+    pub entry_id: u64,
+    pub caller: Address,
+    pub operation: Symbol,
+    pub outcome: AccessOutcome,
+    pub ledger_timestamp: u64,
+    pub window_start: u64,
+}
+
+/// Filter parameters for audit log queries.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuditQuery {
+    pub caller: Option<Address>,
+    pub operation: Option<Symbol>,
+    pub outcome_filter: Option<AccessOutcome>,
+    pub from_timestamp: Option<u64>,
+    pub to_timestamp: Option<u64>,
+    pub limit: u32,
+}
+
+// ========== Auto-Scaling & Load Management Types ==========
+
+/// Load level indicating current system capacity utilization
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum LoadLevel {
+    Low,
+    Medium,
+    High,
+    Critical,
+}
+
+/// Scaling policy configuration for auto-scaling behavior
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScalingPolicy {
+    pub max_batch_size: u32,
+    pub min_batch_size: u32,
+    pub gas_budget_per_batch: u64,
+    pub enable_load_shedding: bool,
+    pub load_shedding_threshold: u64,
+    pub priority_queue_enabled: bool,
+}
+
+/// Runtime metrics for scaling decisions
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ScalingMetrics {
+    pub current_load: u64,
+    pub processed_operations: u64,
+    pub shed_operations: u64,
+    pub average_batch_size: u32,
+    pub last_scaling_adjustment: u64,
 }

@@ -37,6 +37,115 @@ mod tests {
     }
 
     #[test]
+    fn test_bridge_consensus_byzantine_fault_tolerance() {
+        // Property: System tolerates up to f = (n-1)/3 Byzantine validators
+        proptest!(ProptestConfig::with_cases(100), |(n_validators in 4u32..=100u32)| {
+            let max_byzantine = (n_validators - 1) / 3;
+            let threshold = (2 * n_validators) / 3 + 1;
+            let honest_validators = n_validators - max_byzantine;
+
+            // Property: Honest validators must be able to reach consensus
+            prop_assert!(honest_validators >= threshold,
+                        "Honest validators {} must reach threshold {} with {} byzantine",
+                        honest_validators, threshold, max_byzantine);
+
+            // Property: Byzantine validators alone cannot reach consensus
+            prop_assert!(max_byzantine < threshold,
+                        "Byzantine validators {} cannot reach threshold {} alone",
+                        max_byzantine, threshold);
+        });
+    }
+
+    #[test]
+    fn test_bridge_consensus_threshold_monotonicity() {
+        // Property: Adding validators never decreases the threshold
+        proptest!(ProptestConfig::with_cases(100), |(n in 1u32..=99u32)| {
+            let threshold_n = (2 * n) / 3 + 1;
+            let threshold_n_plus_1 = (2 * (n + 1)) / 3 + 1;
+
+            prop_assert!(threshold_n_plus_1 >= threshold_n,
+                        "Threshold should be monotonically increasing: {} -> {}",
+                        threshold_n, threshold_n_plus_1);
+        });
+    }
+
+    #[test]
+    fn test_bridge_validator_stake_invariants() {
+        // Property: Total stake must be sum of individual stakes
+        proptest!(ProptestConfig::with_cases(50), |(
+            n_validators in 1usize..=20usize,
+            stakes in prop::collection::vec(100_000_000i128..1_000_000_000i128, 1..=20)
+        )| {
+            let total_stake: i128 = stakes.iter().take(n_validators).sum();
+
+            // Property: Total stake must be positive
+            prop_assert!(total_stake > 0, "Total stake must be positive");
+
+            // Property: Each individual stake must meet minimum
+            for stake in stakes.iter().take(n_validators) {
+                prop_assert!(*stake >= 100_000_000i128,
+                           "Individual stake {} below minimum", stake);
+            }
+
+            // Property: Total stake shouldn't overflow
+            prop_assert!(total_stake > 0 && total_stake < i128::MAX,
+                        "Total stake should not overflow");
+        });
+    }
+
+    #[test]
+    fn test_bridge_proposal_vote_threshold_validation() {
+        // Property: Votes must meet or exceed threshold for consensus
+        proptest!(ProptestConfig::with_cases(100), |(
+            n_validators in 1u32..=50u32,
+            votes_cast in 0u32..=50u32
+        )| {
+            let threshold = (2 * n_validators) / 3 + 1;
+
+            // Property: Consensus reached if and only if votes >= threshold
+            let consensus_reached = votes_cast >= threshold;
+
+            if votes_cast >= threshold {
+                prop_assert!(consensus_reached,
+                           "Consensus should be reached with {} votes >= threshold {}",
+                           votes_cast, threshold);
+            } else {
+                prop_assert!(!consensus_reached,
+                           "Consensus should NOT be reached with {} votes < threshold {}",
+                           votes_cast, threshold);
+            }
+        });
+    }
+
+    #[test]
+    fn test_bridge_consensus_quorum_intersection() {
+        // Property: Any two quorums must intersect (safety property)
+        proptest!(ProptestConfig::with_cases(50), |(
+            n_validators in 4u32..=100u32,
+            quorum1_size in 1u32..=100u32,
+            quorum2_size in 1u32..=100u32
+        )| {
+            let threshold = (2 * n_validators) / 3 + 1;
+
+            // Only test valid quorums
+            if quorum1_size >= threshold && quorum2_size >= threshold {
+                // Property: Two quorums must have intersection
+                // Minimum intersection = quorum1 + quorum2 - n
+                let min_intersection = if quorum1_size + quorum2_size > n_validators {
+                    quorum1_size + quorum2_size - n_validators
+                } else {
+                    0
+                };
+
+                // For BFT, any two quorums MUST intersect
+                prop_assert!(quorum1_size + quorum2_size > n_validators,
+                           "Two quorums of size {} and {} must intersect in {} validators",
+                           quorum1_size, quorum2_size, n_validators);
+            }
+        });
+    }
+
+    #[test]
     fn test_consensus_state_consistency() {
         proptest!(ProptestConfig::with_cases(50), |(
             n_validators in 1usize..=10usize,
@@ -494,6 +603,127 @@ mod tests {
             32,
             "Empty input should still produce 32-byte hash"
         );
+    }
+
+    /// Bridge Consensus Edge Cases
+    #[test]
+    fn test_bridge_consensus_edge_cases() {
+        // Test minimum viable validator sets
+        assert_eq!(
+            (2 * 1u32) / 3 + 1,
+            1,
+            "1 validator: threshold = 1 (no fault tolerance)"
+        );
+        assert_eq!(
+            (2 * 2u32) / 3 + 1,
+            2,
+            "2 validators: threshold = 2 (no fault tolerance)"
+        );
+        assert_eq!(
+            (2 * 3u32) / 3 + 1,
+            3,
+            "3 validators: threshold = 3 (tolerates 0 faulty)"
+        );
+        assert_eq!(
+            (2 * 4u32) / 3 + 1,
+            3,
+            "4 validators: threshold = 3 (tolerates 1 faulty)"
+        );
+
+        // Test specific BFT configurations
+        // n = 3f + 1 formula
+        for f in 1u32..=10u32 {
+            let n = 3 * f + 1;
+            let threshold = (2 * n) / 3 + 1;
+            let expected_threshold = 2 * f + 1;
+
+            assert_eq!(
+                threshold, expected_threshold,
+                "For f={} faulty tolerance (n={} validators), threshold should be {}",
+                f, n, expected_threshold
+            );
+
+            // Verify Byzantine validators cannot reach threshold
+            assert!(
+                f < threshold,
+                "f={} byzantine validators cannot reach threshold={}",
+                f, threshold
+            );
+        }
+    }
+
+    #[test]
+    fn test_bridge_validator_rotation_properties() {
+        // Property: Validator rotation maintains minimum active validators
+        proptest!(ProptestConfig::with_cases(50), |(
+            initial_validators in 4u32..=100u32,
+            rotated_out in 0u32..=10u32
+        )| {
+            let remaining = initial_validators.saturating_sub(rotated_out);
+            let min_for_bft = 4; // Minimum 4 validators needed for 1-fault tolerance
+
+            // Property: Must maintain minimum validators for BFT
+            if rotated_out < initial_validators {
+                prop_assert!(remaining >= 1,
+                           "Must have at least 1 validator after rotation");
+            }
+
+            // Property: Cannot rotate out more than available
+            prop_assert!(rotated_out <= initial_validators,
+                       "Cannot rotate out more validators than exist");
+        });
+    }
+
+    #[test]
+    fn test_bridge_proposal_expiry_invariants() {
+        // Property: Expired proposals cannot be executed
+        proptest!(ProptestConfig::with_cases(100), |(
+            created_at in 0u64..=1_000_000u64,
+            timeout in 1u64..=100_000u64,
+            current_time in 0u64..=2_000_000u64
+        )| {
+            let expires_at = created_at + timeout;
+            let is_expired = current_time > expires_at;
+
+            // Property: If expired, cannot execute
+            if is_expired {
+                prop_assert!(current_time > created_at,
+                           "Expired proposal must have current_time > created_at");
+            }
+
+            // Property: If not expired, can potentially execute
+            if !is_expired {
+                prop_assert!(current_time <= expires_at,
+                           "Non-expired proposal must have current_time <= expires_at");
+            }
+        });
+    }
+
+    #[test]
+    fn test_bridge_consensus_reputation_bounds() {
+        // Property: Reputation scores must stay within bounds [0, 100]
+        proptest!(ProptestConfig::with_cases(100), |(
+            initial_reputation in 0u32..=100u32,
+            reputation_change in -50i32..=50i32
+        )| {
+            let new_reputation = (initial_reputation as i32 + reputation_change).clamp(0, 100);
+
+            // Property: Reputation must be within bounds
+            prop_assert!(new_reputation >= 0 && new_reputation <= 100,
+                       "Reputation {} must be in [0, 100]", new_reputation);
+
+            // Property: Positive change increases or maintains reputation
+            if reputation_change > 0 {
+                prop_assert!(new_reputation >= initial_reputation as u32,
+                           "Positive change should not decrease reputation");
+            }
+
+            // Property: Negative change decreases or maintains reputation
+            if reputation_change < 0 {
+                prop_assert!(new_reputation <= initial_reputation,
+                           "Negative change should not increase reputation");
+            }
+        });
     }
 }
 

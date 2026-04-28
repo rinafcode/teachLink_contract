@@ -421,6 +421,49 @@ export class DataMinimizer {
 // PRIVACY COMPLIANCE MANAGER
 // ============================================================================
 
+export class PrivacyComplianceManagerBuilder {
+  private anonymizer?: UserAnonymizer;
+  private dpEngine?: DifferentialPrivacyEngine;
+  private optOutManager?: OptOutManager;
+  private piiFilter?: PIIFilter;
+  private dataMinimizer?: DataMinimizer;
+
+  withAnonymizer(anonymizer: UserAnonymizer): this {
+    this.anonymizer = anonymizer;
+    return this;
+  }
+
+  withDifferentialPrivacy(dpEngine: DifferentialPrivacyEngine): this {
+    this.dpEngine = dpEngine;
+    return this;
+  }
+
+  withOptOutManager(optOutManager: OptOutManager): this {
+    this.optOutManager = optOutManager;
+    return this;
+  }
+
+  withPIIFilter(piiFilter: PIIFilter): this {
+    this.piiFilter = piiFilter;
+    return this;
+  }
+
+  withDataMinimizer(dataMinimizer: DataMinimizer): this {
+    this.dataMinimizer = dataMinimizer;
+    return this;
+  }
+
+  build(): PrivacyComplianceManager {
+    return new PrivacyComplianceManager(
+      this.anonymizer,
+      this.dpEngine,
+      this.optOutManager,
+      this.piiFilter,
+      this.dataMinimizer
+    );
+  }
+}
+
 export class PrivacyComplianceManager {
   private anonymizer: UserAnonymizer;
   private dpEngine: DifferentialPrivacyEngine;
