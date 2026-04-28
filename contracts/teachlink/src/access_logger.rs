@@ -30,21 +30,12 @@ impl AccessLogger {
     ///
     /// If the storage write fails the function emits `AccessLogFailedEvent`
     /// instead of panicking, preserving the calling transaction.
-    pub fn log_access(
-        env: &Env,
-        caller: Address,
-        operation: Symbol,
-        outcome: AccessOutcome,
-    ) {
+    pub fn log_access(env: &Env, caller: Address, operation: Symbol, outcome: AccessOutcome) {
         let timestamp = env.ledger().timestamp();
         let window_start = timestamp - (timestamp % WINDOW_SIZE);
 
         // --- Increment counter ---
-        let mut counter: u64 = env
-            .storage()
-            .persistent()
-            .get(&LOG_COUNTER)
-            .unwrap_or(0u64);
+        let mut counter: u64 = env.storage().persistent().get(&LOG_COUNTER).unwrap_or(0u64);
         counter += 1;
 
         // --- Build entry ---
@@ -73,9 +64,7 @@ impl AccessLogger {
             .instance()
             .get(&ACCESS_TEMPORAL)
             .unwrap_or_else(|| Map::new(env));
-        let current_count = temporal
-            .get((caller.clone(), window_start))
-            .unwrap_or(0u32);
+        let current_count = temporal.get((caller.clone(), window_start)).unwrap_or(0u32);
         temporal.set((caller.clone(), window_start), current_count + 1);
         env.storage().instance().set(&ACCESS_TEMPORAL, &temporal);
 
@@ -110,10 +99,7 @@ impl AccessLogger {
     /// Return the current value of `LOG_COUNTER` (total entries ever recorded).
     /// No authorization required.
     pub fn get_total_log_count(env: &Env) -> u64 {
-        env.storage()
-            .persistent()
-            .get(&LOG_COUNTER)
-            .unwrap_or(0u64)
+        env.storage().persistent().get(&LOG_COUNTER).unwrap_or(0u64)
     }
 
     /// Query log entries with optional filters.

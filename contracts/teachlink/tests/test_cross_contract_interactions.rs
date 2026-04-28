@@ -36,7 +36,13 @@ fn setup(env: &Env) -> (TeachLinkBridgeClient<'_>, Address, Address) {
 /// Setup with a real SAC token for reward pool operations that invoke token transfers.
 fn setup_with_sac(
     env: &Env,
-) -> (TeachLinkBridgeClient<'_>, Address, Address, Address, Address) {
+) -> (
+    TeachLinkBridgeClient<'_>,
+    Address,
+    Address,
+    Address,
+    Address,
+) {
     let contract_id = env.register(TeachLinkBridge, ());
     let client = TeachLinkBridgeClient::new(env, &contract_id);
 
@@ -99,13 +105,15 @@ fn test_cross_module_tokenization_then_reputation() {
 
     // Reputation module: record course progress for the same user
     client.update_course_progress(&creator, &false); // started
-    client.update_course_progress(&creator, &true);  // completed
+    client.update_course_progress(&creator, &true); // completed
 
     let rep = client.get_user_reputation(&creator);
     assert_eq!(rep.total_courses_completed, 1);
 
     // Tokenization state must still be intact after reputation calls
-    let token = client.get_content_token(&token_id).expect("token must exist");
+    let token = client
+        .get_content_token(&token_id)
+        .expect("token must exist");
     assert_eq!(token.creator, creator);
 }
 
@@ -117,7 +125,11 @@ fn test_cross_module_rewards_then_credit_score() {
     let user = Address::generate(&env);
 
     // Issue a reward to the user
-    client.issue_reward(&user, &100i128, &String::from_str(&env, "course_completion"));
+    client.issue_reward(
+        &user,
+        &100i128,
+        &String::from_str(&env, "course_completion"),
+    );
 
     let user_reward = client.get_user_rewards(&user).expect("reward must exist");
     assert_eq!(user_reward.pending, 100i128);
@@ -131,7 +143,10 @@ fn test_cross_module_rewards_then_credit_score() {
     );
 
     let score = client.get_credit_score(&user);
-    assert!(score > 0, "credit score should be positive after contribution");
+    assert!(
+        score > 0,
+        "credit score should be positive after contribution"
+    );
 }
 
 #[test]
@@ -153,7 +168,9 @@ fn test_cross_module_bridge_then_audit() {
     );
     assert!(record_id > 0);
 
-    let record = client.get_audit_record(&record_id).expect("audit record must exist");
+    let record = client
+        .get_audit_record(&record_id)
+        .expect("audit record must exist");
     assert_eq!(record.operator, admin);
 }
 
@@ -206,13 +223,11 @@ fn test_error_bridge_not_initialized() {
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
     let from = Address::generate(&env);
-    let result = client.try_bridge_out(
-        &from,
-        &100i128,
-        &1u32,
-        &Bytes::from_slice(&env, b"dest"),
+    let result = client.try_bridge_out(&from, &100i128, &1u32, &Bytes::from_slice(&env, b"dest"));
+    assert!(
+        result.is_err(),
+        "bridge_out should fail when not initialized"
     );
-    assert!(result.is_err(), "bridge_out should fail when not initialized");
 }
 
 #[test]
@@ -235,11 +250,17 @@ fn test_error_bridge_unsupported_chain_does_not_corrupt_reputation() {
         &999u32, // unsupported chain
         &Bytes::from_slice(&env, b"dest"),
     );
-    assert!(result.is_err(), "bridge_out to unsupported chain should fail");
+    assert!(
+        result.is_err(),
+        "bridge_out to unsupported chain should fail"
+    );
 
     // Reputation state must be unchanged after the failed bridge call
     let rep_after = client.get_user_reputation(&user);
-    assert_eq!(rep_after.participation_score, rep_before.participation_score);
+    assert_eq!(
+        rep_after.participation_score,
+        rep_before.participation_score
+    );
 }
 
 #[test]
@@ -294,7 +315,9 @@ fn test_state_token_transfer_updates_ownership() {
     assert!(!client.is_content_token_owner(&token_id, &creator));
     assert!(client.is_content_token_owner(&token_id, &buyer));
 
-    let owner = client.get_content_token_owner(&token_id).expect("owner must exist");
+    let owner = client
+        .get_content_token_owner(&token_id)
+        .expect("owner must exist");
     assert_eq!(owner, buyer);
 }
 
@@ -320,14 +343,21 @@ fn test_state_reward_pool_after_issue_and_claim() {
     assert_eq!(client.get_reward_pool_balance(), pool_before);
     assert_eq!(client.get_total_rewards_issued(), 200i128);
 
-    let user_reward = client.get_user_rewards(&user).expect("reward record must exist");
+    let user_reward = client
+        .get_user_rewards(&user)
+        .expect("reward record must exist");
     assert_eq!(user_reward.pending, 200i128);
 
     // Claim rewards
     client.claim_rewards(&user);
 
-    let user_reward_after = client.get_user_rewards(&user).expect("reward record must exist");
-    assert_eq!(user_reward_after.pending, 0i128, "pending should be zero after claim");
+    let user_reward_after = client
+        .get_user_rewards(&user)
+        .expect("reward record must exist");
+    assert_eq!(
+        user_reward_after.pending, 0i128,
+        "pending should be zero after claim"
+    );
     assert_eq!(user_reward_after.claimed, 200i128);
 
     // Pool balance decreases after claim
@@ -346,11 +376,14 @@ fn test_state_reputation_accumulates_correctly() {
     client.update_participation(&user, &3u32);
 
     let rep = client.get_user_reputation(&user);
-    assert_eq!(rep.participation_score, 8, "participation scores should accumulate");
+    assert_eq!(
+        rep.participation_score, 8,
+        "participation scores should accumulate"
+    );
 
     client.update_course_progress(&user, &false); // start 1
     client.update_course_progress(&user, &false); // start 2
-    client.update_course_progress(&user, &true);  // complete 1
+    client.update_course_progress(&user, &true); // complete 1
 
     let rep2 = client.get_user_reputation(&user);
     assert_eq!(rep2.total_courses_started, 2);
@@ -375,8 +408,14 @@ fn test_state_multiple_tokens_are_independent() {
     let new_owner = Address::generate(&env);
     client.transfer_content_token(&creator_a, &new_owner, &id_a, &None);
 
-    assert!(client.is_content_token_owner(&id_b, &creator_b), "token B ownership unchanged");
-    assert!(client.is_content_token_owner(&id_a, &new_owner), "token A transferred");
+    assert!(
+        client.is_content_token_owner(&id_b, &creator_b),
+        "token B ownership unchanged"
+    );
+    assert!(
+        client.is_content_token_owner(&id_a, &new_owner),
+        "token A transferred"
+    );
 }
 
 // ---------------------------------------------------------------------------
@@ -390,7 +429,10 @@ fn test_event_reward_pool_funded() {
     let (client, _admin, _token, _rewards_admin, _funder) = setup_with_sac(&env);
     // fund_reward_pool was already called in setup_with_sac
     let events = env.events().all();
-    assert!(!events.is_empty(), "at least one event should be emitted after funding");
+    assert!(
+        !events.is_empty(),
+        "at least one event should be emitted after funding"
+    );
 }
 
 #[test]
@@ -399,7 +441,11 @@ fn test_event_reward_issued() {
     let (client, _admin, _token, _rewards_admin, _funder) = setup_with_sac(&env);
 
     let user = Address::generate(&env);
-    client.issue_reward(&user, &100i128, &String::from_str(&env, "course_completion"));
+    client.issue_reward(
+        &user,
+        &100i128,
+        &String::from_str(&env, "course_completion"),
+    );
 
     let events = env.events().all();
     assert!(!events.is_empty(), "reward issued event should be emitted");
@@ -428,7 +474,10 @@ fn test_event_validator_added() {
     client.add_validator(&validator);
 
     let events = env.events().all();
-    assert!(!events.is_empty(), "validator added event should be emitted");
+    assert!(
+        !events.is_empty(),
+        "validator added event should be emitted"
+    );
 }
 
 #[test]
@@ -445,7 +494,10 @@ fn test_event_audit_record_created() {
     );
 
     let events = env.events().all();
-    assert!(!events.is_empty(), "audit record created event should be emitted");
+    assert!(
+        !events.is_empty(),
+        "audit record created event should be emitted"
+    );
 }
 
 #[test]

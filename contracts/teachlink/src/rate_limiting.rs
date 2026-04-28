@@ -10,7 +10,7 @@
 //! - When a limit is exceeded the call returns `BridgeError::RetryLimitExceeded`
 //!   so callers can implement graceful degradation.
 
-use crate::errors::BridgeError;
+use crate::errors::{BridgeError, RateLimitingError, RateLimitingResult};
 use crate::storage::StorageKey;
 use soroban_sdk::{contracttype, Address, Env, Map, Symbol};
 
@@ -81,7 +81,11 @@ impl RateLimiter {
     }
 
     /// Set a custom rate-limit config for a specific endpoint (admin action).
-    pub fn set_endpoint_config(env: &Env, endpoint: &Symbol, config: EndpointConfig) {
+    pub fn set_endpoint_config(
+        env: &Env,
+        endpoint: &Symbol,
+        config: EndpointConfig,
+    ) -> RateLimitingResult<()> {
         let configs_key = StorageKey::RateLimitState;
         let mut configs: Map<Symbol, EndpointConfig> = env
             .storage()
@@ -90,6 +94,7 @@ impl RateLimiter {
             .unwrap_or_else(|| Map::new(env));
         configs.set(endpoint.clone(), config);
         env.storage().instance().set(&configs_key, &configs);
+        Ok(())
     }
 
     /// Get the config for an endpoint, falling back to defaults.

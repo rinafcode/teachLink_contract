@@ -47,12 +47,12 @@ use crate::storage::{ATOMIC_SWAPS, SWAP_COUNTER, SWAP_GUARD, SWAP_TIMELOCK_SEQ};
 use crate::types::{AtomicSwap, SwapStatus};
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, Vec};
 
-/// Minimum timelock duration — re-exported from config.
-pub use crate::config::SWAP_MIN_TIMELOCK as MIN_TIMELOCK;
-/// Maximum timelock duration — re-exported from config.
-pub use crate::config::SWAP_MAX_TIMELOCK as MAX_TIMELOCK;
 /// Required hash length — re-exported from config.
 pub use crate::config::SWAP_HASH_LENGTH as HASH_LENGTH;
+/// Maximum timelock duration — re-exported from config.
+pub use crate::config::SWAP_MAX_TIMELOCK as MAX_TIMELOCK;
+/// Minimum timelock duration — re-exported from config.
+pub use crate::config::SWAP_MIN_TIMELOCK as MIN_TIMELOCK;
 
 /// Atomic Swap Manager
 pub struct AtomicSwapManager;

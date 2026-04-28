@@ -354,10 +354,10 @@ impl BFTConsensus {
             .set(&PROPOSAL_COUNTER, &proposal_counter);
 
         // Store sequence-based expiry fallback.
-        let expires_seq =
-            env.ledger()
-                .sequence()
-                .saturating_add(crate::ledger_time::seconds_to_ledger_delta(timeout));
+        let expires_seq = env
+            .ledger()
+            .sequence()
+            .saturating_add(crate::ledger_time::seconds_to_ledger_delta(timeout));
         let mut proposal_expires_seq: Map<u64, u32> = env
             .storage()
             .instance()

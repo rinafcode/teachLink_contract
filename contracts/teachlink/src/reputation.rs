@@ -83,6 +83,8 @@ pub fn update_participation(env: &Env, user: Address, points: u32) {
         new_participation_score: reputation.participation_score,
         updated_at: env.ledger().timestamp(),
     }
+    .publish(env);
+}
 
 /// Updates a user's course progress and recalculates their completion rate.
 ///
@@ -115,6 +117,9 @@ pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
         if reputation.total_courses_started < reputation.total_courses_completed {
             reputation.total_courses_started = reputation.total_courses_completed;
         }
+    } else {
+        reputation.total_courses_started += 1;
+    }
 
     // Recalculate completion rate in basis points.
     if reputation.total_courses_started > 0 {
@@ -122,18 +127,18 @@ pub fn update_course_progress(env: &Env, user: Address, is_completion: bool) {
             (reputation.total_courses_completed * BASIS_POINTS) / reputation.total_courses_started;
     }
 
-        reputation.last_update = env.ledger().timestamp();
-        Self::set_reputation(env, &user, &reputation);
+    reputation.last_update = env.ledger().timestamp();
+    set_reputation(env, &user, &reputation);
 
-        CourseProgressUpdatedEvent {
-            user: user.clone(),
-            total_courses_started: reputation.total_courses_started,
-            total_courses_completed: reputation.total_courses_completed,
-            completion_rate: reputation.completion_rate,
-            updated_at: reputation.last_update,
-        }
-        .publish(env);
+    CourseProgressUpdatedEvent {
+        user: user.clone(),
+        total_courses_started: reputation.total_courses_started,
+        total_courses_completed: reputation.total_courses_completed,
+        completion_rate: reputation.completion_rate,
+        updated_at: reputation.last_update,
     }
+    .publish(env);
+}
 
 /// Records a quality rating for a user's contribution and updates their
 /// running average contribution quality score.
@@ -177,29 +182,22 @@ pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
 
     set_reputation(env, &user, &reputation);
 
-    // ===== Queries =====
-
-    /// Return the reputation record for a user, defaulting to zeroes.
-    #[must_use]
-    pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
-        env.storage()
-            .persistent()
-            .get(&(REPUTATION, user.clone()))
-            .unwrap_or(UserReputation {
-                participation_score: 0,
-                completion_rate: 0,
-                contribution_quality: 0,
-                total_courses_started: 0,
-                total_courses_completed: 0,
-                total_contributions: 0,
-                last_update: 0,
-            })
+    ContributionRatedEvent {
+        user: user.clone(),
+        rating,
+        new_quality_score: reputation.contribution_quality,
+        updated_at: reputation.last_update,
     }
+    .publish(env);
+}
+
+// ===== Queries =====
 
 /// Retrieves a user's reputation record from persistent storage.
 ///
 /// Returns a zeroed `UserReputation` for users who have no record yet,
 /// so callers can safely read-modify-write without an existence check.
+#[must_use]
 pub fn get_reputation(env: &Env, user: &Address) -> UserReputation {
     env.storage()
         .persistent()

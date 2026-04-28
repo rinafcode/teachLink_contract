@@ -30,13 +30,13 @@
 //! let new_count = repo.approve_escrow(escrow_id, &signer_address)?;
 //! ```
 
+use crate::errors::EscrowError;
+use crate::reentrancy;
 use crate::repository::generic::{GenericCounterRepository, GenericMapRepository};
 use crate::repository::traits::InstanceStorage;
 use crate::repository::StorageError;
-use crate::reentrancy;
 use crate::storage::{ESCROWS, ESCROW_COUNT, ESCROW_GUARD};
 use crate::types::{Escrow, EscrowApprovalKey};
-use crate::errors::EscrowError;
 use soroban_sdk::{Address, Env, Map};
 
 /// Repository for escrow management

@@ -4,7 +4,7 @@
 //! multi-layered authorization checks and comprehensive audit trails.
 
 use crate::audit::AuditManager;
-use crate::errors::BridgeError;
+use crate::errors::{AccessControlError, AccessControlResult, BridgeError};
 use crate::storage::{ACCESS_CONTROL, ADMIN};
 use crate::types::{AccessRole, OperationType};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
@@ -38,6 +38,19 @@ impl AccessControlManager {
     pub fn check_role(env: &Env, address: &Address, role: AccessRole) -> Result<(), BridgeError> {
         if !Self::has_role(env, address, role) {
             return Err(BridgeError::Unauthorized);
+        }
+        Ok(())
+    }
+
+    /// Check if an address has a specific role WITHOUT calling require_auth()
+    /// Use this when require_auth() has already been called on the address
+    pub fn assert_has_role(
+        env: &Env,
+        address: &Address,
+        role: AccessRole,
+    ) -> AccessControlResult<()> {
+        if !Self::has_role(env, address, role) {
+            return Err(AccessControlError::MissingRole);
         }
         Ok(())
     }

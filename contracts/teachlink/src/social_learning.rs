@@ -15,6 +15,7 @@ use soroban_sdk::{
     String, Symbol, TryFromVal, Val, Vec,
 };
 
+use crate::errors::{SocialLearningError, SocialLearningResult};
 use crate::storage::*;
 use crate::types::*;
 
@@ -1134,7 +1135,8 @@ impl SocialLearningManager {
             })
     }
 
-    pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) {
+    pub fn update_user_analytics(env: &Env, user: Address, analytics: SocialAnalytics) -> SocialLearningResult<()> {
         env.storage().instance().set(&SOCIAL_ANALYTICS, &analytics);
+        Ok(())
     }
 }
