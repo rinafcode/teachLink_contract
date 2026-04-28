@@ -16,7 +16,7 @@ use crate::storage::{
 use crate::types::{RewardRate, UserReward};
 use crate::validation::RewardsValidator;
 
-use soroban_sdk::{symbol_short, vec, Address, Env, IntoVal, Map, String};
+use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, Map, String};
 
 // Maximum reward amount to prevent overflow (i128::MAX / 2)
 const MAX_REWARD_AMOUNT: i128 = 170141183460469231731687303715884105727;
@@ -314,6 +314,15 @@ impl Rewards {
         rewards_admin.require_auth();
 
         env.storage().instance().set(&REWARDS_ADMIN, &new_admin);
+
+        // Audit: rewards admin updated
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            rewards_admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
     }
 
     // ===== Queries =====

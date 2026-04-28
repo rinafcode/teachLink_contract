@@ -311,6 +311,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit log: record validator addition
+        let _ = crate::audit::AuditManager::log_validator_operation(
+            env,
+            true,
+            validator.clone(),
+            admin.clone(),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -479,6 +488,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit log: record validator removal
+        let _ = crate::audit::AuditManager::log_validator_operation(
+            env,
+            false,
+            validator.clone(),
+            admin.clone(),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -517,6 +535,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit: configuration change - supported chain added
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &chain_id.to_be_bytes()),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -550,6 +577,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit: configuration change - supported chain removed
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &chain_id.to_be_bytes()),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -580,6 +616,15 @@ impl Bridge {
             removed_at: env.ledger().timestamp(),
         }
         .publish(env);
+
+        // Audit: fee update
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::FeeUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &fee.to_be_bytes()),
+            Bytes::new(env),
+        );
 
         Ok(())
     }
@@ -618,6 +663,15 @@ impl Bridge {
         }
         .publish(env);
 
+        // Audit: fee recipient change
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
+
         Ok(())
     }
 
@@ -655,6 +709,15 @@ impl Bridge {
             updated_at: env.ledger().timestamp(),
         }
         .publish(env);
+
+        // Audit: min validators updated
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::from_slice(env, &min_validators.to_be_bytes()),
+            Bytes::new(env),
+        );
 
         Ok(())
     }
