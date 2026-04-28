@@ -2047,3 +2047,6 @@ impl TeachLinkBridge {
         )
     }
 }
+
+#[cfg(test)]
+mod cross_chain_tests;
