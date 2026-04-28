@@ -8,8 +8,8 @@ use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};
 use crate::types::{BridgeMetrics, ChainMetrics};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
-/// Metrics update interval (1 hour)
-pub const METRICS_UPDATE_INTERVAL: u64 = 3_600;
+/// Metrics update interval — re-exported from config for backward compatibility.
+pub use crate::config::METRICS_UPDATE_INTERVAL;
 
 /// Analytics Manager
 pub struct AnalyticsManager;
@@ -472,6 +472,15 @@ impl AnalyticsManager {
         };
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
+
+        // Audit: admin reset of metrics
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
 
         Ok(())
     }

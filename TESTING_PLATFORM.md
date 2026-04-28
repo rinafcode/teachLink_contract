@@ -173,9 +173,10 @@ Run: `cargo audit` for dependency vulnerabilities
 ### Current Status
 
 - Total tests: 32 passing
-- Code coverage: TBD
-- Security score: TBD
-- Performance: TBD
+- Code coverage: >80% (target)
+- Security score: >90% (target)
+- Duplication threshold: <5%
+- Cognitive complexity: <15 (per function)
 
 ### Targets
 
@@ -183,6 +184,14 @@ Run: `cargo audit` for dependency vulnerabilities
 - Security score: >90%
 - Bridge latency: <100ms
 - Escrow latency: <50ms
+- Code duplication: <5%
+
+### Tracking
+Run the comprehensive metrics tracking script:
+```bash
+./scripts/generate_metrics_report.sh
+```
+Reports are generated in `reports/metrics_summary.md`.
 
 ## Usage Examples
 

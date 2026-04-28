@@ -12,11 +12,11 @@ pub const RECOVERY_STATE: Symbol = soroban_sdk::symbol_short!("rec_state");
 pub const RECOVERY_NOTIFICATIONS: Symbol = soroban_sdk::symbol_short!("rec_notif");
 pub const FALLBACK_ACTIVE: Symbol = soroban_sdk::symbol_short!("fb_active");
 
-/// Retry configuration constants
-pub const MAX_RETRY_ATTEMPTS: u32 = 5;
-pub const INITIAL_BACKOFF_SECONDS: u64 = 60; // 1 minute
-pub const MAX_BACKOFF_SECONDS: u64 = 3600; // 1 hour
-pub const BACKOFF_MULTIPLIER: u64 = 2;
+/// Retry configuration constants — re-exported from config.
+pub use crate::config::RECOVERY_MAX_RETRY_ATTEMPTS as MAX_RETRY_ATTEMPTS;
+pub use crate::config::RECOVERY_INITIAL_BACKOFF_SECS as INITIAL_BACKOFF_SECONDS;
+pub use crate::config::RECOVERY_MAX_BACKOFF_SECS as MAX_BACKOFF_SECONDS;
+pub use crate::config::RECOVERY_BACKOFF_MULTIPLIER as BACKOFF_MULTIPLIER;
 
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]

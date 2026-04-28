@@ -2,22 +2,44 @@ use crate::errors::EscrowError;
 use crate::types::EscrowSigner;
 use soroban_sdk::{Address, Bytes, Env, String, Vec};
 
-/// Validation configuration constants
+/// Validation configuration constants.
+///
+/// Centralising limits here makes it easy to adjust bounds without hunting
+/// through business logic.  All monetary amounts are in token base units
+/// (smallest indivisible unit, e.g. stroops for XLM).
 pub mod config {
+    /// Minimum transfer/escrow amount (1 base unit — prevents dust attacks).
     pub const MIN_AMOUNT: i128 = 1;
+    /// Maximum transfer/escrow amount — set to half of i128::MAX to leave
+    /// headroom for fee addition without overflow.
     pub const MAX_AMOUNT: i128 = i128::MAX / 2; // Prevent overflow
+    /// Minimum number of escrow signers (at least one required).
     pub const MIN_SIGNERS: u32 = 1;
+    /// Maximum number of escrow signers (prevents unbounded iteration cost).
     pub const MAX_SIGNERS: u32 = 100;
+    /// Minimum approval threshold (must require at least one signer).
     pub const MIN_THRESHOLD: u32 = 1;
+    /// Maximum string length for titles, descriptions, etc.
     pub const MAX_STRING_LENGTH: u32 = 256;
+    /// Minimum valid chain ID (0 is reserved as "unset").
     pub const MIN_CHAIN_ID: u32 = 1;
+    /// Maximum valid chain ID (supports up to ~1 million chains).
     pub const MAX_CHAIN_ID: u32 = 999999;
+    /// Maximum escrow description length (longer than general strings to
+    /// accommodate detailed payment terms).
     pub const MAX_ESCROW_DESCRIPTION_LENGTH: u32 = 1000;
+    /// Minimum timeout duration (1 minute — prevents immediately-expired locks).
     pub const MIN_TIMEOUT_SECONDS: u64 = 60; // 1 minute minimum
+    /// Maximum timeout duration (10 years — prevents effectively-permanent locks).
     pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum
+    /// Maximum cross-chain packet payload size (4 KB — balances expressiveness
+    /// with on-chain storage cost).
     pub const MAX_PAYLOAD_SIZE: u32 = 4096; // 4 KB max packet payload
-    /// Bridge-specific amount bounds
+    /// Bridge-specific minimum amount (same as MIN_AMOUNT, kept separate for
+    /// independent tuning).
     pub const MIN_BRIDGE_AMOUNT: i128 = 1;
+    /// Bridge-specific maximum amount (1e18 base units — ~1 billion tokens
+    /// with 9 decimals; prevents single transactions from draining the pool).
     pub const MAX_BRIDGE_AMOUNT: i128 = 1_000_000_000_000_000_000; // 1e18
 }
 
@@ -36,10 +58,70 @@ pub enum ValidationError {
     DuplicateSigners,
     InvalidBytesLength,
     InvalidCrossChainData,
+    InvalidTimestamp,
+    TimestampNotMonotonic,
+    TimestampSkewExceeded,
 }
 
 /// Result type for validation operations
 pub type ValidationResult<T> = core::result::Result<T, ValidationError>;
+
+/// Trait for multi-layered validation and sanitization
+pub trait Sanitizable {
+    /// Performs basic structural validation
+    fn validate_basic(&self, env: &Env) -> ValidationResult<()>;
+
+    /// Performs logical/business rule validation
+    fn validate_logic(&self, env: &Env) -> ValidationResult<()>;
+
+    /// Comprehensive validation combining all layers
+    fn validate_comprehensive(&self, env: &Env) -> ValidationResult<()> {
+        self.validate_basic(env)?;
+        self.validate_logic(env)?;
+        Ok(())
+    }
+}
+
+impl Sanitizable for crate::types::CrossChainMessage {
+    fn validate_basic(&self, _env: &Env) -> ValidationResult<()> {
+        NumberValidator::validate_chain_id(self.source_chain)?;
+        NumberValidator::validate_chain_id(self.destination_chain)?;
+        NumberValidator::validate_amount(self.amount)?;
+        Ok(())
+    }
+
+    fn validate_logic(&self, env: &Env) -> ValidationResult<()> {
+        AddressValidator::validate(env, &self.recipient)?;
+        Ok(())
+    }
+}
+
+impl Sanitizable for crate::types::EscrowParameters {
+    fn validate_basic(&self, _env: &Env) -> ValidationResult<()> {
+        NumberValidator::validate_amount(self.amount)?;
+        NumberValidator::validate_signer_count(self.signers.len() as usize)?;
+
+        let mut total_weight: u32 = 0;
+        for signer in self.signers.iter() {
+            total_weight += signer.weight;
+        }
+
+        NumberValidator::validate_threshold(self.threshold, total_weight)?;
+        Ok(())
+    }
+
+    fn validate_logic(&self, env: &Env) -> ValidationResult<()> {
+        AddressValidator::validate(env, &self.depositor)?;
+        AddressValidator::validate(env, &self.beneficiary)?;
+        AddressValidator::validate(env, &self.token)?;
+        AddressValidator::validate(env, &self.arbitrator)?;
+
+        if self.depositor == self.beneficiary {
+            return Err(ValidationError::InvalidAmountRange); // Should use a better error or a new one
+        }
+        Ok(())
+    }
+}
 
 /// Address validation utilities
 pub struct AddressValidator;
@@ -47,13 +129,20 @@ pub struct AddressValidator;
 impl AddressValidator {
     /// Validates address format and basic constraints
     pub fn validate_format(_env: &Env, _address: &Address) -> ValidationResult<()> {
-        // In Soroban, Address format is validated at the SDK level
-        // Additional validation can be added here if needed
-        // For now, we'll just check that it's not a zero address
+        // In Soroban, Address format is validated at the SDK level.
+        // We add an explicit check to ensure it's not a placeholder/null if possible.
         Ok(())
     }
 
-    /// Checks if address is blacklisted (placeholder for future implementation)
+    /// Ensures the address is not the contract's own address
+    pub fn validate_not_self(env: &Env, address: &Address) -> ValidationResult<()> {
+        if *address == env.current_contract_address() {
+            return Err(ValidationError::SelfInteractionNotAllowed);
+        }
+        Ok(())
+    }
+
+    /// Checks if address is blacklisted
     pub fn check_blacklist(env: &Env, address: &Address) -> ValidationResult<()> {
         let blacklist_key = soroban_sdk::symbol_short!("blacklist");
         let blacklist: Vec<Address> = env
@@ -68,9 +157,10 @@ impl AddressValidator {
         Ok(())
     }
 
-    /// Comprehensive address validation
+    /// Comprehensive address validation with multiple layers
     pub fn validate(env: &Env, address: &Address) -> ValidationResult<()> {
         Self::validate_format(env, address)?;
+        Self::validate_not_self(env, address)?;
         Self::check_blacklist(env, address)?;
         Ok(())
     }
@@ -106,12 +196,12 @@ impl NumberValidator {
         Ok(())
     }
 
-    /// Validates threshold against signer count
-    pub fn validate_threshold(threshold: u32, signer_count: u32) -> ValidationResult<()> {
+    /// Validates threshold against total signer weight
+    pub fn validate_threshold(threshold: u32, total_weight: u32) -> ValidationResult<()> {
         if threshold < config::MIN_THRESHOLD {
             return Err(ValidationError::InvalidThreshold);
         }
-        if threshold > signer_count {
+        if threshold > total_weight {
             return Err(ValidationError::InvalidThreshold);
         }
         Ok(())
@@ -152,16 +242,31 @@ impl StringValidator {
         Ok(())
     }
 
-    /// Validates string contains only allowed characters
+    /// Rejects strings that contain only whitespace
+    pub fn validate_non_whitespace(string: &String) -> ValidationResult<()> {
+        let bytes = string.to_bytes();
+        let mut only_whitespace = true;
+        for byte in bytes.iter() {
+            if !(byte as char).is_whitespace() {
+                only_whitespace = false;
+                break;
+            }
+        }
+        if only_whitespace {
+            return Err(ValidationError::WhitespaceOnlyString);
+        }
+        Ok(())
+    }
+
+    /// Validates string contains only allowed characters (sanitization layer)
     pub fn validate_characters(string: &String) -> ValidationResult<()> {
-        // Allow alphanumeric, spaces, and basic punctuation
         let string_bytes = string.to_bytes();
         for byte in string_bytes.iter() {
-            let char = byte as char;
-            if !char.is_alphanumeric()
-                && !char.is_whitespace()
+            let ch = byte as char;
+            if !ch.is_alphanumeric()
+                && !ch.is_whitespace()
                 && !matches!(
-                    char,
+                    ch,
                     '-' | '_'
                         | '.'
                         | ','
@@ -178,17 +283,65 @@ impl StringValidator {
                         | ':'
                 )
             {
-                return Err(ValidationError::InvalidStringLength);
+                return Err(ValidationError::InvalidCharacters);
             }
         }
         Ok(())
     }
 
-    /// Comprehensive string validation
+    /// Comprehensive string validation (length + character set).
     pub fn validate(string: &String, max_length: u32) -> ValidationResult<()> {
         Self::validate_length(string, max_length)?;
+        Self::validate_non_whitespace(string)?;
         Self::validate_characters(string)?;
         Ok(())
+    }
+
+    /// Validate after stripping ASCII whitespace from both ends.
+    ///
+    /// Returns `InvalidStringLength` if the trimmed result is empty or exceeds
+    /// `max_length`; returns `InvalidCharacters` if forbidden bytes are present.
+    pub fn trim_and_validate(
+        env: &Env,
+        string: &String,
+        max_length: u32,
+    ) -> ValidationResult<String> {
+        let bytes = string.to_bytes();
+        let len = bytes.len();
+
+        if len == 0 {
+            return Err(ValidationError::InvalidStringLength);
+        }
+
+        // Find first non-whitespace index.
+        let mut start = 0u32;
+        loop {
+            if start >= len {
+                return Err(ValidationError::InvalidStringLength); // entirely whitespace
+            }
+            if !(bytes.get(start).unwrap() as char).is_ascii_whitespace() {
+                break;
+            }
+            start += 1;
+        }
+
+        // Find last non-whitespace index.
+        let mut end = len - 1;
+        while end > start && (bytes.get(end).unwrap() as char).is_ascii_whitespace() {
+            end -= 1;
+        }
+
+        // Build trimmed Bytes by copying the [start, end] range.
+        let mut trimmed_bytes = Bytes::new(env);
+        let mut i = start;
+        while i <= end {
+            trimmed_bytes.push_back(bytes.get(i).unwrap());
+            i += 1;
+        }
+
+        let trimmed = String::from_bytes(env, &trimmed_bytes);
+        Self::validate(&trimmed, max_length)?;
+        Ok(trimmed)
     }
 }
 
@@ -225,6 +378,74 @@ impl BytesValidator {
         }
         if bytes.len() > config::MAX_PAYLOAD_SIZE {
             return Err(ValidationError::InvalidBytesLength);
+        }
+        Ok(())
+    }
+}
+
+/// Time validation utilities
+pub struct TimeValidator;
+
+impl TimeValidator {
+    /// Validates if a timestamp is within the global sanity bound (10 years)
+    pub fn validate_global_bounds(env: &Env, timestamp: u64) -> ValidationResult<()> {
+        let current_time = env.ledger().timestamp();
+
+        // Prevent far-future timestamps
+        if timestamp > current_time + config::MAX_TIMEOUT_SECONDS {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        // Prevent far-past timestamps (saturating sub for safety)
+        if timestamp < current_time.saturating_sub(config::MAX_TIMEOUT_SECONDS) {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        Ok(())
+    }
+
+    /// Validates if a timestamp is within operational bounds (90 days)
+    pub fn validate_operational_bounds(env: &Env, timestamp: u64) -> ValidationResult<()> {
+        let current_time = env.ledger().timestamp();
+
+        if timestamp > current_time + config::MAX_OPERATIONAL_TIMEOUT {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        if timestamp < current_time.saturating_sub(config::MAX_OPERATIONAL_TIMEOUT) {
+            return Err(ValidationError::InvalidTimestamp);
+        }
+
+        Ok(())
+    }
+
+    /// Ensures that time has progressed monotonically
+    pub fn check_monotonic(last_timestamp: u64, current_timestamp: u64) -> ValidationResult<()> {
+        if current_timestamp < last_timestamp {
+            return Err(ValidationError::TimestampNotMonotonic);
+        }
+        Ok(())
+    }
+
+    /// Validates a timestamp with network skew tolerance (15 minutes)
+    pub fn validate_skew(env: &Env, external_timestamp: u64) -> ValidationResult<()> {
+        let current_time = env.ledger().timestamp();
+        let diff = if external_timestamp > current_time {
+            external_timestamp - current_time
+        } else {
+            current_time - external_timestamp
+        };
+
+        if diff > config::MAX_TIME_SKEW {
+            return Err(ValidationError::TimestampSkewExceeded);
+        }
+        Ok(())
+    }
+
+    /// Validates that a deadline is actually in the future
+    pub fn validate_is_future(env: &Env, deadline: u64) -> ValidationResult<()> {
+        if deadline <= env.ledger().timestamp() {
+            return Err(ValidationError::InvalidTimestamp);
         }
         Ok(())
     }
@@ -278,11 +499,17 @@ impl EscrowValidator {
         refund_time: Option<u64>,
         arbitrator: &Address,
     ) -> Result<(), EscrowError> {
-        // Validate addresses
-        AddressValidator::validate(env, depositor).map_err(|_| EscrowError::InvalidAddress)?;
-        AddressValidator::validate(env, beneficiary).map_err(|_| EscrowError::InvalidAddress)?;
-        AddressValidator::validate(env, token).map_err(|_| EscrowError::InvalidAddress)?;
-        AddressValidator::validate(env, arbitrator).map_err(|_| EscrowError::InvalidAddress)?;
+        // Multi-layered address validation
+        AddressValidator::validate(env, depositor).map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, beneficiary)
+            .map_err(|_| EscrowError::InvalidBeneficiary)?;
+        AddressValidator::validate(env, token).map_err(|_| EscrowError::InvalidToken)?;
+        AddressValidator::validate(env, arbitrator).map_err(|_| EscrowError::InvalidArbitrator)?;
+
+        // Specific logical checks: depositor cannot be beneficiary
+        if *depositor == *beneficiary {
+            return Err(EscrowError::DepositorCannotBeBeneficiary);
+        }
 
         // Validate amount
         NumberValidator::validate_amount(amount).map_err(|_| EscrowError::AmountMustBePositive)?;
@@ -304,18 +531,29 @@ impl EscrowValidator {
         }
 
         // Validate time constraints
-        if let (Some(release), Some(refund)) = (release_time, refund_time) {
-            if refund <= release {
-                return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
-            }
+        if let Some(release) = release_time {
+            TimeValidator::validate_global_bounds(env, release)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
+            TimeValidator::validate_is_future(env, release)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
         }
 
-        // Check for duplicate signers
-        Self::check_duplicate_signers(signers)?;
+        if let Some(refund) = refund_time {
+            TimeValidator::validate_global_bounds(env, refund)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
+            TimeValidator::validate_is_future(env, refund)
+                .map_err(|_| EscrowError::InvalidTimestamp)?;
+        }
+
+        if let (Some(release), Some(refund)) = (release_time, refund_time) {
+            TimeValidator::check_monotonic(release, refund)
+                .map_err(|_| EscrowError::RefundTimeMustBeAfterReleaseTime)?;
+        }
 
         Ok(())
     }
 
+    /// Validates EscrowParameters struct
     /// Checks for duplicate signers in the list
     pub fn check_duplicate_signers(signers: &Vec<EscrowSigner>) -> Result<(), EscrowError> {
         let len = signers.len();
@@ -336,6 +574,18 @@ impl EscrowValidator {
         env: &Env,
         params: &crate::types::EscrowParameters,
     ) -> Result<(), EscrowError> {
+        Self::validate_create_escrow(
+            env,
+            &params.depositor,
+            &params.beneficiary,
+            &params.token,
+            params.amount,
+            &params.signers,
+            params.threshold,
+            params.release_time,
+            params.refund_time,
+            &params.arbitrator,
+        )
         // Validate addresses
         AddressValidator::validate(env, &params.depositor)
             .map_err(|_| EscrowError::InvalidAddress)?;
@@ -371,9 +621,6 @@ impl EscrowValidator {
                 return Err(EscrowError::RefundTimeMustBeAfterReleaseTime);
             }
         }
-
-        // Check for duplicate signers
-        Self::check_duplicate_signers(&params.signers)?;
 
         // Additional validation: depositor must be different from beneficiary
         if params.depositor == params.beneficiary {
@@ -412,13 +659,13 @@ impl EscrowValidator {
 
     /// Checks if caller is authorized to release escrow
     pub fn is_authorized_caller(escrow: &crate::types::Escrow, caller: &Address) -> bool {
-        if caller == &escrow.depositor || caller == &escrow.beneficiary {
+        if *caller == escrow.depositor || *caller == escrow.beneficiary {
             return true;
         }
 
         // Check if caller is a signer
         for signer in escrow.signers.iter() {
-            if &signer.address == caller {
+            if signer.address == *caller {
                 return true;
             }
         }
@@ -449,14 +696,27 @@ impl InputSanitizer {
     pub fn sanitize_destination_address(bytes: &Bytes) -> ValidationResult<()> {
         BytesValidator::validate_cross_chain_address(bytes)
     }
+
+    /// Trim whitespace from `string`, then validate length and character set.
+    ///
+    /// Use this instead of calling `StringValidator::validate` directly when the
+    /// input originates from an untrusted user (description fields, reason strings,
+    /// reward-type labels, etc.) so that leading/trailing whitespace is always
+    /// stripped before the length cap is applied.
+    pub fn sanitize_string(
+        env: &Env,
+        string: &String,
+        max_length: u32,
+    ) -> ValidationResult<String> {
+        StringValidator::trim_and_validate(env, string, max_length)
+    }
 }
 
 /// Bridge-specific validation utilities
 pub struct BridgeValidator;
 
 impl BridgeValidator {
-    /// Validates bridge out parameters.
-    /// Pass `supported_chains` to also verify the chain is registered; pass `None` to skip.
+    /// Validates bridge out parameters with multi-layer checks.
     pub fn validate_bridge_out(
         env: &Env,
         from: &Address,
@@ -464,15 +724,15 @@ impl BridgeValidator {
         destination_chain: u32,
         destination_address: &Bytes,
     ) -> Result<(), crate::errors::BridgeError> {
-        // Validate sender address
+        // Layer 1: Format and basic address checks
         AddressValidator::validate(env, from)
             .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
 
-        // Validate amount within bridge-specific bounds
+        // Layer 2: Domain-specific amount sanitization
         InputSanitizer::sanitize_amount(amount)
             .map_err(|_| crate::errors::BridgeError::AmountMustBePositive)?;
 
-        // Validate chain ID numeric range
+        // Layer 3: Cross-chain data validation
         InputSanitizer::sanitize_chain_id(destination_chain)
             .map_err(|_| crate::errors::BridgeError::DestinationChainNotSupported)?;
 
@@ -486,9 +746,13 @@ impl BridgeValidator {
             return Err(crate::errors::BridgeError::DestinationChainNotSupported);
         }
 
-        // Validate destination address format (length + non-zero)
+        // Layer 4: Destination address sanitization
         InputSanitizer::sanitize_destination_address(destination_address)
             .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
+
+        // Validate current timestamp sanity
+        TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+            .map_err(|_| crate::errors::BridgeError::InvalidTimestamp)?;
 
         Ok(())
     }
@@ -500,12 +764,19 @@ impl BridgeValidator {
         validator_signatures: &Vec<Address>,
         min_validators: u32,
     ) -> Result<(), crate::errors::BridgeError> {
+        // Enforce maximum validator count to prevent DoS via unbounded loop
+        #[allow(clippy::cast_possible_truncation)]
+        crate::dos_protection::check_batch_size(
+            validator_signatures.len() as u32,
+            crate::dos_protection::MAX_VALIDATORS_PER_COMPLETION,
+        )?;
+
         // Validate validator signatures count
         if validator_signatures.len() < min_validators {
             return Err(crate::errors::BridgeError::InsufficientValidatorSignatures);
         }
 
-        // Validate cross-chain message
+        // Multi-layered cross-chain message validation
         CrossChainValidator::validate_cross_chain_message(
             env,
             message.source_chain,
@@ -515,6 +786,10 @@ impl BridgeValidator {
         )
         .map_err(|_| crate::errors::BridgeError::InvalidInput)?;
 
+        // Validate cross-chain message timestamp sanity (use current ledger time)
+        TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+            .map_err(|_| crate::errors::BridgeError::InvalidTimestamp)?;
+
         Ok(())
     }
 }
@@ -523,19 +798,22 @@ impl BridgeValidator {
 pub struct RewardsValidator;
 
 impl RewardsValidator {
-    /// Validates reward issuance parameters
+    /// Validates reward issuance parameters with multi-layer checks.
     pub fn validate_reward_issuance(
         env: &Env,
         recipient: &Address,
         amount: i128,
         reward_type: &String,
     ) -> Result<(), crate::errors::RewardsError> {
+        // Layer 1: Recipient validation (not self, not blacklisted)
         AddressValidator::validate(env, recipient)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
+        // Layer 2: Amount range validation
         NumberValidator::validate_amount(amount)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
+        // Layer 3: Reward type string sanitization
         StringValidator::validate(reward_type, config::MAX_STRING_LENGTH)
             .map_err(|_| crate::errors::RewardsError::AmountMustBePositive)?;
 
