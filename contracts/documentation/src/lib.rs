@@ -2,12 +2,48 @@
 //!
 //! A smart contract for managing documentation, knowledge base articles,
 //! FAQs, tutorials, and community-contributed content.
+//!
+//! # Storage Model
+//!
+//! Articles and FAQs are stored in **instance storage** keyed directly by
+//! their string `id`.  This means:
+//! - IDs must be unique across both articles and FAQs (they share the same
+//!   storage namespace).
+//! - Calling `create_article` with an existing ID overwrites the record but
+//!   does **not** increment the article count (idempotent upsert).
+//!
+//! Counters (`ArticleCount`, `FaqCount`) are stored under `DocKey` enum
+//! variants to avoid collisions with content IDs.
+//!
+//! # Overflow Protection
+//!
+//! All counter increments and version bumps use `checked_add` with an
+//! explicit `expect` message.  On Soroban, a panic aborts the transaction
+//! and rolls back all state changes, so overflow is safe to panic on.
+//!
+//! # Versioning
+//!
+//! Each `update_article` call increments `article.version` starting from 1.
+//! The `created_at` timestamp is preserved across updates; only `updated_at`
+//! changes.  This allows clients to detect staleness without comparing content.
+//!
+//! # TODO
+//! - Implement `search_articles` with an on-chain inverted index or off-chain
+//!   indexer integration (current implementation returns an empty vector).
+//! - Add author authorization check to `update_article` so only the original
+//!   author or an admin can modify content.
+//! - Separate article and FAQ storage namespaces to prevent ID collisions.
 
 #![no_std]
 
 use soroban_sdk::{contract, contractimpl, contracttype, Address, Env, String, Vec};
 
-/// Documentation category types
+/// Documentation category types.
+///
+/// Used to classify articles for filtering and navigation.
+/// `Faq` overlaps with the dedicated `FaqEntry` type — prefer `FaqEntry`
+/// for structured Q&A content and `DocCategory::Faq` only for article-style
+/// FAQ pages.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum DocCategory {
@@ -19,7 +55,16 @@ pub enum DocCategory {
     Troubleshooting,
 }
 
-/// Content visibility levels
+/// Content visibility levels.
+///
+/// Controls who can read an article:
+/// - `Public`    – visible to all users, including unauthenticated.
+/// - `Community` – visible to registered TeachLink users only.
+/// - `Private`   – visible to the author and admins only.
+///
+/// # TODO
+/// - Enforce visibility at the read path (`get_article`) once an
+///   authentication context is available in the contract.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Visibility {
@@ -28,7 +73,15 @@ pub enum Visibility {
     Private,
 }
 
-/// A documentation article
+/// A documentation article.
+///
+/// Articles are the primary content unit.  The `version` field starts at 1
+/// and is incremented on every `update_article` call.  `created_at` is
+/// immutable after creation; `updated_at` reflects the last modification.
+///
+/// `view_count` and `helpful_count` are analytics counters incremented by
+/// `record_view` and `mark_helpful` respectively.  Both use `checked_add`
+/// to panic on overflow rather than silently wrapping.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Article {
@@ -36,25 +89,41 @@ pub struct Article {
     pub title: String,
     pub content: String,
     pub category: DocCategory,
+    /// BCP-47 language tag (e.g. "en", "es", "zh-CN").
     pub language: String,
+    /// Monotonically increasing version counter, starting at 1.
     pub version: u32,
     pub author: Address,
     pub visibility: Visibility,
     pub tags: Vec<String>,
+    /// Unix timestamp (seconds) when the article was first created.
     pub created_at: u64,
+    /// Unix timestamp (seconds) of the most recent update.
     pub updated_at: u64,
+    /// Total number of times this article has been viewed.
     pub view_count: u64,
+    /// Total number of users who marked this article as helpful.
     pub helpful_count: u64,
 }
 
-/// A FAQ entry
+/// A FAQ entry.
+///
+/// Structured Q&A content distinct from general articles.  FAQs share the
+/// same instance storage namespace as articles, so their IDs must not
+/// collide with article IDs.
+///
+/// # TODO
+/// - Add a `related_article_ids: Vec<String>` field to link FAQs to
+///   relevant documentation articles.
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct FaqEntry {
     pub id: String,
     pub question: String,
     pub answer: String,
+    /// Free-form category string (e.g. "billing", "technical").
     pub category: String,
+    /// BCP-47 language tag.
     pub language: String,
     pub author: Address,
     pub created_at: u64,
@@ -62,11 +131,17 @@ pub struct FaqEntry {
     pub helpful_count: u64,
 }
 
-/// Documentation contract storage keys
+/// Documentation contract storage keys.
+///
+/// Enum variants are used as storage keys to avoid string-based key
+/// collisions with content IDs stored directly by their string value.
 #[contracttype]
 enum DocKey {
+    /// Total number of unique article IDs ever created.
     ArticleCount,
+    /// Total number of unique FAQ IDs ever created.
     FaqCount,
+    /// Global documentation schema version.
     Version,
 }
 
@@ -76,7 +151,21 @@ pub struct DocumentationContract;
 
 #[contractimpl]
 impl DocumentationContract {
-    /// Create a new documentation article
+    /// Create a new documentation article (upsert by ID).
+    ///
+    /// If an article with the same `id` already exists, it is overwritten
+    /// but the `ArticleCount` is **not** incremented (idempotent upsert).
+    /// The `created_at` timestamp reflects the time of this call, not the
+    /// original creation time — callers should use `update_article` for
+    /// in-place edits to preserve `created_at`.
+    ///
+    /// # Overflow Protection
+    /// `ArticleCount` uses `checked_add` and panics on overflow, aborting
+    /// the transaction before any state is committed.
+    ///
+    /// # TODO
+    /// - Require `author.require_auth()` to prevent anyone from creating
+    ///   articles on behalf of another address.
     pub fn create_article(
         env: Env,
         id: String,
@@ -127,7 +216,20 @@ impl DocumentationContract {
         env.storage().instance().get(&id).unwrap()
     }
 
-    /// Update an existing article
+    /// Update an existing article's content, title, and tags.
+    ///
+    /// Increments `version` and updates `updated_at`.  `created_at` and
+    /// `author` are preserved.  Panics if the article does not exist
+    /// (unwrap on missing storage entry).
+    ///
+    /// # Version Overflow
+    /// `version` uses `checked_add` and panics at `u32::MAX`.  In practice
+    /// this requires ~4 billion updates to a single article, which is
+    /// unreachable in normal operation.
+    ///
+    /// # TODO
+    /// - Add `caller: Address` parameter and verify `caller == article.author`
+    ///   or caller has admin role before allowing the update.
     pub fn update_article(
         env: Env,
         id: String,
@@ -151,7 +253,11 @@ impl DocumentationContract {
         article
     }
 
-    /// Record a view for analytics
+    /// Record a view for analytics.
+    ///
+    /// Increments `view_count` using `checked_add` to panic on overflow
+    /// rather than silently wrapping.  No authentication required — views
+    /// are public read events.
     pub fn record_view(env: Env, article_id: String) {
         let mut article: Article = env.storage().instance().get(&article_id).unwrap();
         article.view_count = article
@@ -162,7 +268,14 @@ impl DocumentationContract {
         env.storage().instance().set(&article_id, &article);
     }
 
-    /// Record that a user found an article helpful
+    /// Record that a user found an article helpful.
+    ///
+    /// Increments `helpful_count` using `checked_add`.  No deduplication —
+    /// the same user can mark an article helpful multiple times.
+    ///
+    /// # TODO
+    /// - Track which addresses have already voted to prevent duplicate
+    ///   helpful counts from inflating article quality signals.
     pub fn mark_helpful(env: Env, article_id: String) {
         let mut article: Article = env.storage().instance().get(&article_id).unwrap();
         article.helpful_count = article
@@ -173,7 +286,13 @@ impl DocumentationContract {
         env.storage().instance().set(&article_id, &article);
     }
 
-    /// Create a new FAQ entry
+    /// Create a new FAQ entry (upsert by ID).
+    ///
+    /// Same upsert semantics as `create_article`: existing entries are
+    /// overwritten without incrementing `FaqCount`.
+    ///
+    /// # TODO
+    /// - Require `author.require_auth()` to prevent impersonation.
     pub fn create_faq(
         env: Env,
         id: String,
@@ -218,7 +337,17 @@ impl DocumentationContract {
         env.storage().instance().get(&id).unwrap()
     }
 
-    /// Search articles by keyword (simplified implementation)
+    /// Search articles by keyword (stub implementation).
+    ///
+    /// # Current Behaviour
+    /// Always returns an empty vector.  Full-text search requires either:
+    /// 1. An off-chain indexer that listens to article creation events and
+    ///    exposes a query API.
+    /// 2. An on-chain inverted index (expensive in terms of storage and gas).
+    ///
+    /// # TODO
+    /// - Integrate with an off-chain indexer via oracle or implement a
+    ///   tag-based search using a `Map<String, Vec<String>>` tag index.
     pub fn search_articles(env: Env, _query: String) -> Vec<Article> {
         // In a full implementation, this would search through articles
         // For now, return empty vector as placeholder
