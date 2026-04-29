@@ -49,6 +49,8 @@ pub enum StorageKey {
     ValidatorRotationSet,
     // Rate limiting
     RateLimitState,
+    // Feature Flags
+    FeatureFlags,
 }
 
 /// Returns true if the given symbol string matches any known legacy key,
@@ -214,6 +216,9 @@ pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
 pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+
+// Feature Flags (symbol_short! max 9 chars)
+pub const FEATURE_FLAGS: Symbol = symbol_short!("feat_flg");
 
 #[cfg(test)]
 mod tests {

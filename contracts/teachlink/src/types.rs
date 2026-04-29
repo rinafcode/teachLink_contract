@@ -405,6 +405,7 @@ pub enum AccessRole {
     ValidatorManager, // Can add/remove validators
     EmergencyManager, // Can pause/resume the bridge
     AuditManager,     // Can manage compliance and audit trails
+    FeatureManager,   // Can manage feature flags and rollouts
 }
 
 #[contracttype]
@@ -1637,4 +1638,34 @@ pub struct MobileSocialFeatures {
     pub emergency_contacts: Vec<Address>,
     pub study_buddies: Vec<Address>,
     pub mentor_quick_connect: bool,
+}
+
+// ========== Feature Flag Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FeatureStatus {
+    Enabled,
+    Disabled,
+    Rollout,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RolloutStrategy {
+    Global,
+    PercentageBased,
+    ABTest,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeatureFlag {
+    pub name: Symbol,
+    pub status: FeatureStatus,
+    pub strategy: RolloutStrategy,
+    pub rollout_percentage: u32,
+    pub kill_switch_enabled: bool,
+    pub created_at: u64,
+    pub updated_at: u64,
 }

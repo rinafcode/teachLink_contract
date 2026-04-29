@@ -106,6 +106,7 @@ mod bridge;
 // TODO: Fix content_quality module compilation errors (pre-existing issue - symbol too long)
 // mod content_quality;
 mod emergency;
+mod feature_flags;
 mod errors;
 mod escrow_analytics;
 mod event_query;
@@ -189,7 +190,7 @@ pub use types::{
     ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
     RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
     UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature, VisualizationDataPoint,
+    ValidatorSignature, VisualizationDataPoint, FeatureFlag, FeatureStatus, RolloutStrategy,
 };
 
 /// TeachLink main contract.
@@ -1782,5 +1783,46 @@ impl TeachLinkBridge {
     /// Check if fallback mechanism is active
     pub fn is_fallback_active(env: Env) -> bool {
         network_recovery::NetworkRecovery::is_fallback_active(&env)
+    }
+
+    // ========== Feature Flag Functions ==========
+
+    /// Create or update a feature flag (FeatureManager or Admin)
+    pub fn set_feature_flag(
+        env: Env,
+        operator: Address,
+        name: Symbol,
+        status: types::FeatureStatus,
+        strategy: types::RolloutStrategy,
+        rollout_percentage: u32,
+    ) -> Result<(), BridgeError> {
+        feature_flags::FeatureFlagManager::set_feature_flag(
+            &env,
+            &operator,
+            name,
+            status,
+            strategy,
+            rollout_percentage,
+        )
+    }
+
+    /// Trigger kill switch for a feature flag (EmergencyManager, FeatureManager, or Admin)
+    pub fn trigger_kill_switch(
+        env: Env,
+        operator: Address,
+        name: Symbol,
+        enabled: bool,
+    ) -> Result<(), BridgeError> {
+        feature_flags::FeatureFlagManager::trigger_kill_switch(&env, &operator, name, enabled)
+    }
+
+    /// Get a feature flag's details
+    pub fn get_feature_flag(env: Env, name: Symbol) -> Option<types::FeatureFlag> {
+        feature_flags::FeatureFlagManager::get_feature_flag(&env, name)
+    }
+
+    /// Check if a feature is enabled for a specific user
+    pub fn is_feature_enabled(env: Env, name: Symbol, user: Address) -> bool {
+        feature_flags::FeatureFlagManager::is_feature_enabled(&env, name, &user)
     }
 }
