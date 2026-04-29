@@ -140,41 +140,54 @@ mod tests {
     use super::*;
     use soroban_sdk::Env;
 
+    fn with_contract<T>(env: &Env, f: impl FnOnce() -> T) -> T {
+        let contract_id = env.register(crate::TeachLinkBridge, ());
+        env.as_contract(&contract_id, f)
+    }
+
     #[test]
     fn test_record_invocation() {
         let env = Env::default();
-        SustainabilityManager::record_invocation(&env, true);
-        let m = SustainabilityManager::get_metrics(&env);
-        assert_eq!(m.total_invocations, 1);
-        assert_eq!(m.total_storage_writes, 1);
+        with_contract(&env, || {
+            SustainabilityManager::record_invocation(&env, true);
+            let m = SustainabilityManager::get_metrics(&env);
+            assert_eq!(m.total_invocations, 1);
+            assert_eq!(m.total_storage_writes, 1);
+        });
     }
 
     #[test]
     fn test_update_efficiency() {
         let env = Env::default();
-        SustainabilityManager::update_efficiency(&env, 90, 100);
-        let m = SustainabilityManager::get_metrics(&env);
-        assert_eq!(m.efficiency_score, 9000);
+        with_contract(&env, || {
+            SustainabilityManager::update_efficiency(&env, 90, 100);
+            let m = SustainabilityManager::get_metrics(&env);
+            assert_eq!(m.efficiency_score, 9000);
+        });
     }
 
     #[test]
     fn test_health_score_full() {
         let env = Env::default();
-        // Set efficiency to 100%, content and users to max
-        SustainabilityManager::update_efficiency(&env, 1, 1);
-        let mut m = SustainabilityManager::get_metrics(&env);
-        m.total_content_minted = 1000;
-        m.total_active_users = 1000;
-        env.storage().instance().set(&SUSTAINABILITY_METRICS, &m);
-        assert_eq!(SustainabilityManager::health_score(&env), 100);
+        with_contract(&env, || {
+            // Set efficiency to 100%, content and users to max
+            SustainabilityManager::update_efficiency(&env, 1, 1);
+            let mut m = SustainabilityManager::get_metrics(&env);
+            m.total_content_minted = 1000;
+            m.total_active_users = 1000;
+            env.storage().instance().set(&SUSTAINABILITY_METRICS, &m);
+            assert_eq!(SustainabilityManager::health_score(&env), 100);
+        });
     }
 
     #[test]
     fn test_health_score_zero_ops() {
         let env = Env::default();
-        // No ops yet — efficiency defaults to 10000 (100%)
-        let score = SustainabilityManager::health_score(&env);
-        // efficiency=100, content=0, users=0 → (100*50 + 0 + 0)/100 = 50
-        assert_eq!(score, 50);
+        with_contract(&env, || {
+            // No ops yet — efficiency defaults to 10000 (100%)
+            let score = SustainabilityManager::health_score(&env);
+            // efficiency=100, content=0, users=0 → (100*50 + 0 + 0)/100 = 50
+            assert_eq!(score, 50);
+        });
     }
 }
