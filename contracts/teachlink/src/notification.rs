@@ -19,6 +19,8 @@ use crate::types::{
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
     UserNotificationSettings,
 };
+use crate::rate_limiting::RateLimiter;
+use soroban_sdk::Symbol;
 use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
 
 pub use crate::config::NOTIF_BATCH_SIZE as BATCH_SIZE;
@@ -35,6 +37,21 @@ pub const CLEANUP_INTERVAL_SECONDS: u64 = 3600; // 1 hour
 pub struct NotificationManager;
 
 impl NotificationManager {
+    /// Set rate limit config for notification creation (admin only)
+    pub fn set_notification_rate_limit(
+        env: &Env,
+        admin: Address,
+        max_calls: u32,
+        window_ledgers: u32,
+        endpoint: Symbol,
+    ) -> Result<(), BridgeError> {
+        admin.require_auth();
+        RateLimiter::set_endpoint_config(
+            env,
+            &endpoint,
+            crate::rate_limiting::EndpointConfig { max_calls, window_ledgers },
+        ).map_err(|_| BridgeError::StorageError)
+    }
     /// Initialize notification system
     pub fn initialize(env: &Env) -> Result<(), BridgeError> {
         if env.storage().instance().has(&NOTIFICATION_COUNTER) {
@@ -107,6 +124,10 @@ impl NotificationManager {
         channel: NotificationChannel,
         content: NotificationContent,
     ) -> Result<u64, BridgeError> {
+        // Rate limit: per-user for send_notification
+        let endpoint = Symbol::short("notif_send");
+        RateLimiter::check_rate_limit(env, &recipient, &endpoint)?;
+
         let notification_id = Self::get_next_notification_id(env);
 
         // Check user preferences
@@ -184,6 +205,10 @@ impl NotificationManager {
         content: NotificationContent,
         schedule: NotificationSchedule,
     ) -> Result<u64, BridgeError> {
+        // Rate limit: per-user for schedule_notification
+        let endpoint = Symbol::short("notif_schedule");
+        RateLimiter::check_rate_limit(env, &recipient, &endpoint)?;
+
         let notification_id = Self::get_next_notification_id(env);
 
         // Validate schedule
