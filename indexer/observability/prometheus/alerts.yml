@@ -1,0 +1,161 @@
+groups:
+  - name: teachlink-indexer-critical
+    rules:
+      - alert: TeachLinkIndexerDown
+        expr: up{job="teachlink-indexer"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer metrics endpoint is down
+          description: Prometheus has been unable to scrape the indexer for at least 2 minutes.
+
+      - alert: TeachLinkIndexerHealthcheckFailed
+        expr: probe_success{job="teachlink-indexer-health"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer health probe is failing
+          description: The load-balancer style health endpoint has failed for at least 2 minutes.
+
+      - alert: TeachLinkIndexerDatabaseUnavailable
+        expr: teachlink_indexer_dependency_up{dependency="database"} == 0 or pg_up == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: postgres
+        annotations:
+          summary: Indexer database connectivity is failing
+          description: The indexer or exporter cannot reach PostgreSQL.
+
+      - alert: TeachLinkIndexerHorizonUnavailable
+        expr: teachlink_indexer_dependency_up{dependency="horizon"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          service: horizon
+        annotations:
+          summary: Stellar Horizon dependency is unavailable
+          description: The indexer health check cannot reach Horizon for at least 5 minutes.
+
+      - alert: TeachLinkIndexerStaleProcessing
+        expr: teachlink_indexer_ledger_lag_seconds > 900
+        for: 10m
+        labels:
+          severity: critical
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer is stale
+          description: No event has been processed within the last 15 minutes.
+
+  - name: teachlink-indexer-warning
+    rules:
+      - alert: TeachLinkIndexerHighHttpErrorRate
+        expr: |
+          sum(rate(teachlink_indexer_http_requests_total{status_code=~"5.."}[5m]))
+          /
+          clamp_min(sum(rate(teachlink_indexer_http_requests_total[5m])), 1)
+          > 0.05
+        for: 10m
+        labels:
+          severity: warning
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer is returning elevated 5xx responses
+          description: More than 5% of HTTP requests have been failing for 10 minutes.
+
+      - alert: TeachLinkIndexerHighLatency
+        expr: |
+          rate(teachlink_indexer_http_request_duration_seconds_sum[5m])
+          /
+          clamp_min(rate(teachlink_indexer_http_request_duration_seconds_count[5m]), 1)
+          > 1
+        for: 10m
+        labels:
+          severity: warning
+          service: teachlink-indexer
+        annotations:
+          summary: TeachLink indexer API latency is elevated
+          description: Average HTTP latency has stayed above 1 second for 10 minutes.
+
+      - alert: TeachLinkGrafanaDown
+        expr: up{job="grafana"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: grafana
+        annotations:
+          summary: Grafana is unavailable
+          description: Grafana has not been scrapeable for at least 5 minutes.
+
+      - alert: TeachLinkAlertmanagerDown
+        expr: up{job="alertmanager"} == 0
+        for: 5m
+        labels:
+          severity: warning
+          service: alertmanager
+        annotations:
+          summary: Alertmanager is unavailable
+          description: Alertmanager has not been scrapeable for at least 5 minutes.
+
+  - name: teachlink-sustainability
+    rules:
+      - alert: TeachLinkLowEfficiencyScore
+        expr: teachlink_contract_sustainability_efficiency_score < 7000
+        for: 15m
+        labels:
+          severity: warning
+          service: teachlink-contract
+        annotations:
+          summary: Contract efficiency score is below 70%
+          description: The sustainability efficiency score has been below 7000 bps (70%) for 15 minutes.
+
+      - alert: TeachLinkCriticalEfficiencyScore
+        expr: teachlink_contract_sustainability_efficiency_score < 5000
+        for: 5m
+        labels:
+          severity: critical
+          service: teachlink-contract
+        annotations:
+          summary: Contract efficiency score is critically low (below 50%)
+          description: The sustainability efficiency score has dropped below 5000 bps (50%) for 5 minutes.
+
+      - alert: TeachLinkLowHealthScore
+        expr: teachlink_contract_sustainability_health_score < 60
+        for: 15m
+        labels:
+          severity: warning
+          service: teachlink-contract
+        annotations:
+          summary: Contract sustainability health score is below 60
+          description: The composite sustainability health score has been below 60/100 for 15 minutes.
+
+      - alert: TeachLinkHighEscrowDisputeRate
+        expr: |
+          teachlink_indexer_http_requests_total > 0
+          and
+          (
+            sum(rate(teachlink_indexer_http_requests_total{status_code=~"5.."}[5m]))
+            /
+            clamp_min(sum(rate(teachlink_indexer_http_requests_total[5m])), 1)
+          ) > 0.10
+        for: 10m
+        labels:
+          severity: warning
+          service: teachlink-indexer
+        annotations:
+          summary: Elevated error rate may indicate escrow or bridge disputes
+          description: More than 10% of API requests are failing, which may correlate with on-chain dispute activity.
+
+      - alert: TeachLinkNoNewTransactions
+        expr: increase(teachlink_contract_sustainability_invocations_total[30m]) == 0
+        for: 30m
+        labels:
+          severity: warning
+          service: teachlink-contract
+        annotations:
+          summary: No new contract invocations in 30 minutes
+          description: The sustainability invocation counter has not increased in 30 minutes, suggesting the contract may be idle or unreachable.

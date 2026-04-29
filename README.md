@@ -1,72 +1,457 @@
-TeachLink Cairo Smart Contracts TeachLink is a decentralized knowledge-sharing
-platform. This repository contains Cairo 1.0 smart contracts to support core
-on-chain features such as tokenized learning rewards, proof-of-participation,
-and educator incentives—all deployed on StarkNet.
+<div align="center">
 
-🚀 Project Goals Enable on-chain user rewards and proof of skill acquisition.
+```
+                TTTTT eeeee aaaaa ccccc h   h L     i     n   n k   k
+                  T   e     a   a c     h   h L           nn  n k  k
+                  T   eeee  aaaaa c     hhhhh L     i     n n n kkk
+                  T   e     a   a c     h   h L     i     n  nn k  k
+                  T   eeeee a   a ccccc h   h LLLLL i     n   n k   k
+```
 
-Implement token logic for incentivizing creators and learners.
+</div>
 
-Build a modular, testable Cairo-based infrastructure compatible with StarkNet.
+# TeachLink: Decentralized Knowledge-Sharing on Stellar
 
-🛠️ Getting Started
+TeachLink is a Soroban smart contract that powers tokenized learning rewards on the Stellar network. This repository contains the Rust smart contract and developer tooling for building, testing, and deploying the contract to Stellar testnet or mainnet.
 
-1. Prerequisites Ensure the following are installed:
+## Table of Contents
 
-Scarb
+- Overview
+- Interactive Documentation
+- Onboarding
+- Developer Experience Toolkit
+- Architecture
+- Development Workflow
+- Contribution Guidelines
+- Glossary
+- Changelog
+- Troubleshooting
+- License
 
-Cairo 1.0 compiler (cairo-test, cairo-run, etc.)
+## Overview
 
-StarkNet CLI
+TeachLink enables tokenized learning rewards, proof-of-participation, and educator incentives. The contract is written in Rust for Soroban, Stellar's smart contract platform.
 
-Git
+## Interactive Documentation
 
-✅ You can install Scarb via:
+Explore the TeachLink contract interactively with live code execution, API exploration, and guided tutorials. The interactive documentation provides an engaging way to understand the contract's architecture and implementation.
 
-bash curl --proto '=https' --tlsv1.2 -sSf https://install.scarb.sh | sh 2.
-Initialize the Project bash
+To run the interactive docs:
 
-scarb new teachlink-cairo cd teachlink-cairo 📁 Project Structure bash
+```bash
+cd docs/interactive
+cargo run
+```
 
-teachlink-cairo/ ├── src/ │ └── lib.cairo # Main contract entry point ├── tests/
-│ └── test_basic.cairo # Unit tests ├── Scarb.toml # Scarb project config ├──
-.gitignore # Ignore build outputs and secrets └── README.md # Project docs ✨
-Features 🎓 Course Reward Logic (WIP): Track and distribute token rewards per
-lesson/module.
+Then open http://localhost:3000 in your browser.
 
-🪙 Custom Token Standard: Optional ERC20-like logic adapted to TeachLink’s
-needs.
+## Onboarding
 
-🔐 Secure & Modular: Follow StarkNet security practices and modular development.
+The onboarding flow is designed to take you from clone to first deployment with minimal guesswork.
 
-🧪 Test Driven: Cairo test framework support for validating logic.
+### 1) Clone the repository
 
-🧪 How to Build & Test Build the Project bash
+```bash
+git clone https://github.com/rinafcode/teachLink_contract.git
+cd teachLink_contract
+```
 
-scarb build Run Unit Tests bash
+### 2) Automated environment setup (dependency validation)
 
-scarb test 🧩 Example: Minimal Token Logic (Placeholder) rust Copy Edit
-#[contract] mod teachlink_token { #[storage] struct Storage { balances:
-LegacyMap::<ContractAddress, u256>, }
+Run the setup script to validate required dependencies and create a local `.env` file if needed:
 
-    #[external]
-    fn mint(recipient: ContractAddress, amount: u256) {
-        balances::write(recipient, amount);
+```bash
+./scripts/setup-env.sh
+```
+
+What it checks:
+
+- `rustc`, `cargo`, and `rustup`
+- `wasm32-unknown-unknown` target
+- `stellar` or `soroban` CLI
+- local `.env` bootstrap from `.env.example`
+
+### 3) Configure environment variables
+
+Update `.env` with your deployment settings:
+
+```bash
+STELLAR_NETWORK=testnet
+STELLAR_HORIZON_URL=https://horizon-testnet.stellar.org
+STELLAR_SOROBAN_RPC_URL=https://soroban-testnet.stellar.org
+DEPLOYER_SECRET_KEY=SXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+```
+
+If you do not have a key, generate one with the Stellar CLI:
+
+```bash
+stellar keys generate --global teachlink-deployer
+```
+
+### 4) Build and test the contract
+
+```bash
+cargo build --release --target wasm32-unknown-unknown -p teachlink-contract
+cargo test
+```
+
+### 5) Interactive first deployment tutorial
+
+The tutorial script walks you through building, funding, and deploying to testnet:
+
+```bash
+./scripts/first-deploy.sh
+```
+
+Common options:
+
+```bash
+./scripts/first-deploy.sh --network testnet --identity teachlink-deployer
+./scripts/first-deploy.sh --skip-build
+./scripts/first-deploy.sh --dry-run
+```
+
+### 6) Network-specific deployment scripts
+
+Use the network-aware deployment script with managed config files:
+
+```bash
+./scripts/deploy.sh --network testnet
+./scripts/deploy.sh --network mainnet
+./scripts/deploy.sh --network local
+```
+
+Convenience wrappers:
+
+```bash
+./scripts/deploy-testnet.sh
+./scripts/deploy-mainnet.sh
+./scripts/deploy-local.sh
+```
+
+Configuration files live under `config/networks/` and can be customized per environment:
+
+```bash
+config/networks/testnet.env
+config/networks/mainnet.env
+config/networks/local.env
+```
+
+## Developer Experience Toolkit
+
+TeachLink provides a comprehensive set of tools to streamline your development workflow, from environment setup to deployment.
+
+### Environment Validation
+
+Validate your development environment with version checks and system requirements:
+
+```bash
+./scripts/validate-env.sh
+```
+
+This enhanced validation script checks:
+- Core dependencies (Rust, Cargo, Rustup) with minimum version requirements
+- WASM target installation
+- Stellar/Soroban CLI availability
+- System resources (disk space)
+- Optional tools (Docker, Git)
+- Environment configuration (.env file)
+
+### Automated Dependency Installation
+
+Install all required dependencies automatically:
+
+```bash
+./scripts/install-deps.sh
+```
+
+This interactive script will:
+- Install Rust toolchain via rustup (if missing)
+- Add wasm32-unknown-unknown target
+- Install Stellar CLI
+- Update Rust components (rustfmt, clippy)
+- Provide Docker installation instructions
+- Check for additional development tools
+
+### Quick-Start Development Scripts
+
+#### Build Contracts
+
+Build all contracts or a specific contract:
+
+```bash
+./scripts/build.sh                    # Build all contracts (debug mode)
+./scripts/build.sh --release          # Build with optimizations
+./scripts/build.sh --contract teachlink  # Build specific contract
+./scripts/build.sh --verbose          # Verbose output
+```
+
+#### Run Tests
+
+Execute unit tests with various options:
+
+```bash
+./scripts/test.sh                     # Run all tests
+./scripts/test.sh --contract teachlink   # Test specific contract
+./scripts/test.sh --verbose           # Verbose test output
+./scripts/test.sh --nocapture         # Show println! output
+```
+
+#### Lint and Format
+
+Check and fix code style issues:
+
+```bash
+./scripts/lint.sh                     # Format code and run clippy
+./scripts/lint.sh --check             # Check formatting only
+./scripts/lint.sh --fix               # Auto-fix clippy suggestions
+```
+
+#### Clean Build Artifacts
+
+Remove build artifacts to free disk space:
+
+```bash
+./scripts/clean.sh                    # Standard clean (target dir)
+./scripts/clean.sh --deep             # Deep clean (includes cargo cache)
+```
+
+#### Complete Development Cycle
+
+Run a full development workflow (validate, build, test, lint):
+
+```bash
+./scripts/dev.sh                      # Full development cycle
+./scripts/dev.sh --release            # Full cycle with release build
+./scripts/dev.sh --skip-test          # Skip tests
+./scripts/dev.sh --watch              # Watch mode (requires cargo-watch)
+```
+
+### Docker Development Environment
+
+Work in a fully containerized environment with all dependencies pre-installed:
+
+#### Using Docker Compose (Recommended)
+
+```bash
+# Start development environment
+docker-compose up dev
+docker-compose exec dev bash
+
+# Build WASM in container
+docker-compose run --rm builder
+
+# Run tests in container
+docker-compose run --rm test
+
+# Run linter in container
+docker-compose run --rm lint
+
+# Clean up
+docker-compose down -v
+```
+
+#### Using Docker Directly
+
+```bash
+# Build development image
+docker build --target development -t teachlink-dev .
+
+# Run interactive container
+docker run -it --rm -v $(pwd):/workspace teachlink-dev
+
+# Build contracts in container
+docker run --rm -v $(pwd):/workspace teachlink-dev cargo build --release --target wasm32-unknown-unknown
+```
+
+### Developer Workflow Best Practices
+
+1. **Initial Setup**: Run `./scripts/install-deps.sh` and `./scripts/validate-env.sh`
+2. **Before Coding**: Pull latest changes and run `./scripts/dev.sh` to ensure environment works
+3. **During Development**: Use `./scripts/dev.sh --watch` for continuous feedback
+4. **Before Committing**: Run `./scripts/dev.sh --release` to catch all issues
+5. **CI/CD Integration**: Use Docker containers for consistent builds across environments
+
+## Observability
+
+Production monitoring and alerting is built around the long-running **indexer runtime** (Prometheus + Alertmanager + Grafana), plus contract-level telemetry via Soroban events.
+
+See:
+
+- [OBSERVABILITY.md](OBSERVABILITY.md)
+- [indexer/MONITORING.md](indexer/MONITORING.md)
+
+## Architecture
+
+For full architecture documentation including system diagrams, data flow diagrams, and component interaction maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For a high-level overview of the entire ecosystem, see [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md).
+
+**High-level overview:**
+
+```
+Client Apps  (Web / Mobile / External dApps)
+    |
+    v
+Indexer / API Layer  (TypeScript / NestJS — optional)
+    |
+    v
+TeachLink Smart Contract  (Rust / Soroban)
+    ├── Bridge & Consensus  (bridge, bft_consensus, slashing, multichain, liquidity)
+    ├── Platform Features   (rewards, escrow, tokenization, reputation, assessment)
+    └── Operations          (emergency, audit, analytics, reporting, backup)
+    |
+    v
+Stellar Network
+    |
+    v
+External Blockchains  (via cross-chain bridge)
+```
+
+Key project paths:
+
+- `contracts/teachlink`: Soroban smart contract source
+- `docs/ARCHITECTURE.md`: Full architecture diagrams and data flows
+- `docs/NAMING_CONVENTIONS.md`: Cross-module naming standards and enforcement
+- `scripts/`: onboarding and deployment scripts
+
+## Development Workflow
+
+### Using Quick-Start Scripts (Recommended)
+
+```bash
+# Complete development cycle
+./scripts/dev.sh
+
+# Individual steps
+./scripts/build.sh --release    # Build WASM
+./scripts/test.sh               # Run tests
+./scripts/lint.sh               # Format and lint
+```
+
+### Using Cargo Directly
+
+Build the WASM:
+
+```bash
+cargo build --release --target wasm32-unknown-unknown -p teachlink-contract
+```
+
+Run unit tests:
+
+```bash
+cargo test
+```
+
+Lint and format:
+
+```bash
+cargo fmt
+cargo clippy --all-targets --all-features
+```
+
+### Using Docker
+
+```bash
+docker-compose run --rm builder  # Build WASM
+docker-compose run --rm test     # Run tests
+docker-compose run --rm lint     # Lint code
+```
+
+## Contribution Guidelines
+
+We welcome contributions that improve contract quality, developer experience, and documentation.
+
+### How to contribute
+
+1. Fork the repo and create a feature branch.
+2. Make focused changes with tests.
+3. Run the full test and lint suite.
+4. Open a PR with a clear summary and testing notes.
+
+## Glossary
+
+For definitions of key terms and concepts used across the TeachLink ecosystem, see [GLOSSARY.md](GLOSSARY.md).
+
+### Code example (contract + test)
+
+When adding contract entrypoints, include unit tests in the same module or under `#[cfg(test)]`:
+
+```rust
+#[contractimpl]
+impl TeachLinkContract {
+    #[must_use]
+    pub fn hello(_env: Env, to: Symbol) -> Symbol {
+        to
     }
+}
 
-} 🔧 Deployment Guide Full deployment instructions are in DEPLOYMENT.md
+#[test]
+fn hello_returns_input() {
+    let env = Env::default();
+    let input = Symbol::new(&env, "teachlink");
+    let out = TeachLinkContract::hello(env.clone(), input);
+    assert_eq!(out, Symbol::new(&env, "teachlink"));
+}
+```
 
-See [`DEPLOYMENT.md`](../DEPLOYMENT.md) 🤝 Contributing Please read our
-CONTRIBUTING.md for guidelines.
+### Testing requirements
 
-To get started:
+- All new contract logic must include unit tests.
+- `cargo test` must pass.
+- `cargo fmt` and `cargo clippy --all-targets --all-features` must pass with no new warnings.
 
-bash Copy Edit git clone https://github.com/yourorg/teachlink-cairo.git cd
-teachlink-cairo scarb build 📜 License This project is licensed under the MIT
-License.
+## Troubleshooting
 
-📬 Contact
+### First Steps
 
-## 📬 Join the Community
+1. Run enhanced environment validation:
+   ```bash
+   ./scripts/validate-env.sh
+   ```
 
-- [Telegram](t.me/teachlinkOD)
+2. If validation fails, try automated installation:
+   ```bash
+   ./scripts/install-deps.sh
+   ```
+
+3. For legacy validation (minimal checks):
+   ```bash
+   ./scripts/setup-env.sh
+   ```
+
+### Common Issues
+
+- `Missing command: stellar or soroban`
+  - Install the CLI: `cargo install --locked stellar-cli --features opt`
+- `Rust target not installed: wasm32-unknown-unknown`
+  - Run: `rustup target add wasm32-unknown-unknown`
+- `WASM not found` during deployment
+  - Rebuild: `cargo build --release --target wasm32-unknown-unknown -p teachlink-contract`
+  - Verify the path: `target/wasm32-unknown-unknown/release/teachlink_contract.wasm`
+- `DEPLOYER_SECRET_KEY` is empty
+  - Generate a key: `stellar keys generate --global teachlink-deployer`
+  - Update `.env` with the secret key
+- `Account not funded` or `transaction failed` on testnet
+  - Re-run the tutorial without `--skip-fund`
+  - Or fund manually: `https://friendbot.stellar.org?addr=<PUBLIC_KEY>`
+- `curl not found` while funding
+  - Install curl or fund the account manually using the friendbot URL
+
+### Windows: linker or "export ordinal too large"
+
+On Windows, `cargo test` may fail with **`link.exe` not found** (MSVC) or **`export ordinal too large: 79994`** (MinGW). The contract has many exports, which can exceed MinGW’s DLL limit.
+
+- **Verify the contract (WASM only, no tests):**
+  ```powershell
+  .\scripts\check-wasm.ps1
+  ```
+  Or: `cargo build -p teachlink-contract --target wasm32-unknown-unknown`
+- **Run full tests:** Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) with "Desktop development with C++", then use the default (MSVC) toolchain and run `cargo test -p teachlink-contract`.
+- **Otherwise:** Rely on CI (GitHub Actions) for `cargo test`; the WASM build is what gets deployed.
+
+## Changelog
+
+For a detailed history of changes to this project, see [CHANGELOG.md](CHANGELOG.md).
+
+## License
+
+This project is licensed under the MIT License. See `LICENSE` for details.

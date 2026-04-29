@@ -1,0 +1,276 @@
+use soroban_sdk::contracttype;
+use soroban_sdk::symbol_short;
+use soroban_sdk::Symbol;
+
+/// Namespaced storage key enum for TeachLink contract.
+///
+/// Using a `#[contracttype]` enum as a storage key ensures each variant is
+/// serialized with a unique discriminant, preventing key collisions in
+/// multi-contract scenarios where plain `Symbol` strings could overlap.
+///
+/// # Collision Detection
+/// All new storage access should use `StorageKey` variants. The legacy
+/// `Symbol` constants below are kept for backward compatibility but should
+/// not be used for new keys.
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum StorageKey {
+    // Bridge
+    Token,
+    Validators,
+    MinValidators,
+    Nonce,
+    BridgeTxs,
+    SupportedChains,
+    Admin,
+    FeeRecipient,
+    BridgeFee,
+    AccessControl,
+    BridgeRetryCounts,
+    BridgeLastRetry,
+    BridgeFailures,
+    InterfaceVersion,
+    MinCompatInterfaceVersion,
+    // BFT Consensus
+    ValidatorInfo,
+    BridgeProposals,
+    ProposalCounter,
+    ConsensusState,
+    ValidatorStakes,
+    ProposalExpiresSeq,
+    ValidatorActivitySeq,
+    // Slashing
+    SlashingRecords,
+    ValidatorRewards,
+    SlashingCounter,
+    RewardPool,
+    // Validator rotation tracking
+    ValidatorRotationEpoch,
+    ValidatorRotationSet,
+    // Rate limiting
+    RateLimitState,
+    // Auto-scaling and load management
+    ScalingConfig,
+    LoadMetrics,
+    LoadLevel,
+}
+
+/// Returns true if the given symbol string matches any known legacy key,
+/// providing a compile-time collision detection reference.
+/// Call this in tests to assert no two legacy keys share the same string.
+pub fn has_legacy_key_collision(a: &Symbol, b: &Symbol) -> bool {
+    a == b
+}
+
+// Storage keys for the bridge contract
+pub const TOKEN: Symbol = symbol_short!("token");
+pub const VALIDATORS: Symbol = symbol_short!("validatr");
+pub const MIN_VALIDATORS: Symbol = symbol_short!("min_valid");
+pub const NONCE: Symbol = symbol_short!("nonce");
+pub const BRIDGE_TXS: Symbol = symbol_short!("bridge_tx");
+pub const SUPPORTED_CHAINS: Symbol = symbol_short!("chains");
+pub const ADMIN: Symbol = symbol_short!("admin");
+pub const FEE_RECIPIENT: Symbol = symbol_short!("fee_rcpt");
+pub const BRIDGE_FEE: Symbol = symbol_short!("bridgefee");
+pub const ACCESS_CONTROL: Symbol = symbol_short!("access");
+pub const BRIDGE_RETRY_COUNTS: Symbol = symbol_short!("br_rtryc");
+pub const BRIDGE_LAST_RETRY: Symbol = symbol_short!("br_lstry");
+pub const BRIDGE_FAILURES: Symbol = symbol_short!("br_fails");
+pub const INTERFACE_VERSION: Symbol = symbol_short!("if_ver");
+pub const MIN_COMPAT_INTERFACE_VERSION: Symbol = symbol_short!("if_minv");
+
+// ========== Advanced Bridge Storage Keys ==========
+
+// BFT Consensus Storage
+pub const VALIDATOR_INFO: Symbol = symbol_short!("val_info");
+pub const BRIDGE_PROPOSALS: Symbol = symbol_short!("proposals");
+pub const PROPOSAL_COUNTER: Symbol = symbol_short!("prop_cnt");
+pub const CONSENSUS_STATE: Symbol = symbol_short!("cons_st");
+pub const VALIDATOR_STAKES: Symbol = symbol_short!("val_stake");
+pub const NETWORK_STATE: Symbol = symbol_short!("net_state");
+
+// Slashing and Rewards Storage
+pub const SLASHING_RECORDS: Symbol = symbol_short!("slash_rec");
+pub const VALIDATOR_REWARDS: Symbol = symbol_short!("val_rwds");
+pub const SLASHING_COUNTER: Symbol = symbol_short!("slash_cnt");
+
+// Multi-Chain Support Storage
+pub const CHAIN_CONFIGS: Symbol = symbol_short!("chain_cfg");
+pub const MULTI_CHAIN_ASSETS: Symbol = symbol_short!("mc_assets");
+pub const ASSET_COUNTER: Symbol = symbol_short!("asset_cnt");
+
+// Liquidity and AMM Storage
+pub const LIQUIDITY_POOLS: Symbol = symbol_short!("liq_pools");
+pub const LP_POSITIONS: Symbol = symbol_short!("lp_pos");
+pub const FEE_STRUCTURE: Symbol = symbol_short!("fee_struc");
+
+// Message Passing Storage
+pub const CROSS_CHAIN_PACKETS: Symbol = symbol_short!("packets");
+pub const PACKET_COUNTER: Symbol = symbol_short!("pkt_cnt");
+pub const MESSAGE_RECEIPTS: Symbol = symbol_short!("receipts");
+pub const PACKET_RETRY_COUNTS: Symbol = symbol_short!("pkt_rtrc");
+pub const PACKET_LAST_RETRY: Symbol = symbol_short!("pkt_lstry");
+
+// Emergency and Security Storage
+pub const EMERGENCY_STATE: Symbol = symbol_short!("emergency");
+pub const CIRCUIT_BREAKERS: Symbol = symbol_short!("circ_brk");
+pub const PAUSED_CHAINS: Symbol = symbol_short!("paused_ch");
+
+// Ledger-sequence based fallbacks for timestamp-gated critical paths
+pub const PROPOSAL_EXPIRES_SEQ: Symbol = symbol_short!("prp_exps");
+pub const VALIDATOR_ACTIVITY_SEQ: Symbol = symbol_short!("val_act");
+pub const SWAP_TIMELOCK_SEQ: Symbol = symbol_short!("sw_tmlk");
+pub const CIRCUIT_RESET_SEQ: Symbol = symbol_short!("cb_lrst");
+
+// Audit and Compliance Storage
+pub const AUDIT_RECORDS: Symbol = symbol_short!("audit_rec");
+pub const AUDIT_COUNTER: Symbol = symbol_short!("audit_cnt");
+pub const COMPLIANCE_REPORTS: Symbol = symbol_short!("compl_rep");
+
+// Atomic Swap Storage
+pub const ATOMIC_SWAPS: Symbol = symbol_short!("swaps");
+pub const SWAP_COUNTER: Symbol = symbol_short!("swap_cnt");
+
+// Analytics Storage
+pub const BRIDGE_METRICS: Symbol = symbol_short!("metrics");
+pub const CHAIN_METRICS: Symbol = symbol_short!("ch_mets");
+pub const DAILY_VOLUMES: Symbol = symbol_short!("daily_vol");
+
+// Storage keys for the rewards system
+pub const REWARDS_ADMIN: Symbol = symbol_short!("rwd_admin");
+pub const REWARD_POOL: Symbol = symbol_short!("rwd_pool");
+pub const USER_REWARDS: Symbol = symbol_short!("usr_rwds");
+pub const REWARD_RATES: Symbol = symbol_short!("rwd_rates");
+pub const TOTAL_REWARDS_ISSUED: Symbol = symbol_short!("tot_rwds");
+pub const ESCROW_COUNT: Symbol = symbol_short!("esc_ct");
+pub const ESCROWS: Symbol = symbol_short!("escrows");
+
+// Storage keys for credit scoring
+pub const CREDIT_SCORE: Symbol = symbol_short!("score");
+pub const COURSE_COMPLETIONS: Symbol = symbol_short!("courses");
+pub const CONTRIBUTIONS: Symbol = symbol_short!("contribs");
+
+// Storage keys for content tokenization
+pub const TOKEN_COUNTER: Symbol = symbol_short!("tok_cnt");
+pub const CONTENT_TOKENS: Symbol = symbol_short!("cnt_tok");
+pub const OWNERSHIP: Symbol = symbol_short!("owner");
+pub const PROVENANCE: Symbol = symbol_short!("prov");
+pub const OWNER_TOKENS: Symbol = symbol_short!("own_tok");
+
+// Arbitration and insurance Storage
+pub const ARBITRATORS: Symbol = symbol_short!("arbs");
+pub const INSURANCE_POOL: Symbol = symbol_short!("ins_pool");
+pub const ESCROW_ANALYTICS: Symbol = symbol_short!("esc_an");
+
+// Notification System Storage
+pub const NOTIFICATION_COUNTER: Symbol = symbol_short!("notif_cnt");
+pub const NOTIFICATION_LOGS: Symbol = symbol_short!("notif_log");
+pub const NOTIFICATION_TRACKING: Symbol = symbol_short!("notif_trk");
+pub const NOTIFICATION_PREFERENCES: Symbol = symbol_short!("notif_prf");
+pub const NOTIFICATION_TEMPLATES: Symbol = symbol_short!("notif_tmp");
+pub const SCHEDULED_NOTIFICATIONS: Symbol = symbol_short!("notif_sch");
+pub const USER_NOTIFICATION_SETTINGS: Symbol = symbol_short!("notif_set");
+pub const NOTIFICATION_BATCHES: Symbol = symbol_short!("notif_bch");
+pub const NOTIFICATION_AB_TESTS: Symbol = symbol_short!("notif_ab");
+pub const NOTIFICATION_COMPLIANCE: Symbol = symbol_short!("notif_cmp");
+pub const NOTIFICATION_RATE_LIMITS: Symbol = symbol_short!("notif_rt");
+pub const NOTIFICATION_WEBHOOKS: Symbol = symbol_short!("notif_web");
+pub const NOTIFICATION_FILTERS: Symbol = symbol_short!("notif_flt");
+pub const NOTIFICATION_SEGMENTS: Symbol = symbol_short!("notif_seg");
+pub const NOTIFICATION_CAMPAIGNS: Symbol = symbol_short!("notif_cpg");
+pub const NOTIFICATION_ANALYTICS: Symbol = symbol_short!("notif_anl");
+pub const NOTIFICATION_TTL: Symbol = symbol_short!("notif_ttl");
+pub const NOTIFICATION_MAX_SIZE: Symbol = symbol_short!("notif_max");
+pub const NOTIFICATION_LAST_CLEANUP: Symbol = symbol_short!("notif_cln");
+
+// Advanced Analytics & Reporting Storage (symbol_short! max 9 chars)
+pub const REPORT_TEMPLATE_COUNTER: Symbol = symbol_short!("rpt_tplcn");
+pub const REPORT_TEMPLATES: Symbol = symbol_short!("rpt_tpl");
+pub const REPORT_SCHEDULE_COUNTER: Symbol = symbol_short!("rpt_schcn");
+pub const REPORT_SCHEDULES: Symbol = symbol_short!("rpt_sch");
+pub const REPORT_SNAPSHOT_COUNTER: Symbol = symbol_short!("rpt_snpcn");
+pub const REPORT_SNAPSHOTS: Symbol = symbol_short!("rpt_snp");
+pub const REPORT_USAGE: Symbol = symbol_short!("rpt_use");
+pub const REPORT_COMMENT_COUNTER: Symbol = symbol_short!("rpt_cmtcn");
+pub const REPORT_COMMENTS: Symbol = symbol_short!("rpt_cmt");
+pub const ALERT_RULE_COUNTER: Symbol = symbol_short!("alrt_cnt");
+pub const ALERT_RULES: Symbol = symbol_short!("alrt_ruls");
+
+// Backup and Disaster Recovery Storage (symbol_short! max 9 chars)
+pub const BACKUP_COUNTER: Symbol = symbol_short!("bak_cnt");
+pub const BACKUP_MANIFESTS: Symbol = symbol_short!("bak_mnf");
+pub const BACKUP_SCHED_CNT: Symbol = symbol_short!("bak_scc");
+pub const BACKUP_SCHEDULES: Symbol = symbol_short!("bak_sch");
+pub const RECOVERY_CNT: Symbol = symbol_short!("rec_cnt");
+pub const RECOVERY_RECORDS: Symbol = symbol_short!("rec_rec");
+
+// Performance optimization and caching (symbol_short! max 9 chars)
+pub const PERF_CACHE: Symbol = symbol_short!("perf_cach");
+pub const PERF_TS: Symbol = symbol_short!("perf_ts");
+
+// Advanced UI/UX Storage (symbol_short! max 9 chars)
+pub const ONBOARDING_STATUS: Symbol = symbol_short!("onboard");
+pub const USER_FEEDBACK: Symbol = symbol_short!("feedback");
+pub const UX_EXPERIMENTS: Symbol = symbol_short!("ux_exp");
+pub const COMPONENT_CONFIG: Symbol = symbol_short!("comp_cfg");
+
+// Access Logging Storage (symbol_short! max 9 chars)
+pub const LOG_COUNTER: Symbol = symbol_short!("log_cnt");
+pub const ACCESS_LOGS: Symbol = symbol_short!("acc_logs");
+pub const ACCESS_TEMPORAL: Symbol = symbol_short!("acc_tmp");
+
+// Reentrancy guard locks
+pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
+pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
+pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
+pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+
+// Auto-scaling and load management (symbol_short! max 9 chars)
+pub const SCALING_CONFIG: Symbol = symbol_short!("scale_cfg");
+pub const LOAD_METRICS: Symbol = symbol_short!("load_met");
+pub const LOAD_LEVEL: Symbol = symbol_short!("load_lvl");
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Verify that no two legacy Symbol constants share the same string value.
+    /// This is the collision detection required by issue #242.
+    #[test]
+    fn no_legacy_key_collisions() {
+        let keys: &[(&str, Symbol)] = &[
+            ("TOKEN", TOKEN),
+            ("VALIDATORS", VALIDATORS),
+            ("MIN_VALIDATORS", MIN_VALIDATORS),
+            ("NONCE", NONCE),
+            ("BRIDGE_TXS", BRIDGE_TXS),
+            ("SUPPORTED_CHAINS", SUPPORTED_CHAINS),
+            ("ADMIN", ADMIN),
+            ("FEE_RECIPIENT", FEE_RECIPIENT),
+            ("BRIDGE_FEE", BRIDGE_FEE),
+            ("ACCESS_CONTROL", ACCESS_CONTROL),
+            ("VALIDATOR_INFO", VALIDATOR_INFO),
+            ("BRIDGE_PROPOSALS", BRIDGE_PROPOSALS),
+            ("PROPOSAL_COUNTER", PROPOSAL_COUNTER),
+            ("CONSENSUS_STATE", CONSENSUS_STATE),
+            ("VALIDATOR_STAKES", VALIDATOR_STAKES),
+            ("SLASHING_RECORDS", SLASHING_RECORDS),
+            ("VALIDATOR_REWARDS", VALIDATOR_REWARDS),
+            ("SLASHING_COUNTER", SLASHING_COUNTER),
+            ("PROPOSAL_EXPIRES_SEQ", PROPOSAL_EXPIRES_SEQ),
+            ("VALIDATOR_ACTIVITY_SEQ", VALIDATOR_ACTIVITY_SEQ),
+            ("REWARD_POOL", REWARD_POOL),
+        ];
+
+        for i in 0..keys.len() {
+            for j in (i + 1)..keys.len() {
+                assert!(
+                    !has_legacy_key_collision(&keys[i].1, &keys[j].1),
+                    "Storage key collision detected: '{}' == '{}'",
+                    keys[i].0,
+                    keys[j].0
+                );
+            }
+        }
+    }
+}
