@@ -93,7 +93,7 @@ pub struct DeprecatedFunction {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DeprecationPolicy {
-    pub current_version: InterfaceVersionStatus,
+    pub current_version: ContractSemVer,
     pub deprecated_functions: Vec<DeprecatedFunction>,
 }
 
@@ -1756,10 +1756,24 @@ pub struct AccessLogEntry {
 pub struct AuditQuery {
     pub caller: Option<Address>,
     pub operation: Option<Symbol>,
-    pub outcome_filter: Option<AccessOutcome>,
+    /// 0 = success, any non-zero value = failure.
+    pub outcome_filter: Option<u32>,
     pub from_timestamp: Option<u64>,
     pub to_timestamp: Option<u64>,
     pub limit: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SustainabilityMetrics {
+    pub total_invocations: u64,
+    pub total_storage_writes: u64,
+    pub total_events_emitted: u64,
+    pub total_rewards_distributed: i128,
+    pub total_content_minted: u64,
+    pub total_active_users: u64,
+    pub efficiency_score: u32,
+    pub last_updated: u64,
 }
 
 // ========== Auto-Scaling & Load Management Types ==========

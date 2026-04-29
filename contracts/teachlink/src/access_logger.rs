@@ -180,12 +180,12 @@ impl AccessLogger {
         }
 
         // Outcome filter
-        if let Some(ref outcome_filter) = query.outcome_filter {
-            let matches = match (outcome_filter, &entry.outcome) {
-                (AccessOutcome::Success, AccessOutcome::Success) => true,
-                (AccessOutcome::Failure, AccessOutcome::Failure) => true,
-                _ => false,
-            };
+        if let Some(outcome_filter) = query.outcome_filter {
+            let want_success = outcome_filter == 0;
+            let matches = matches!(
+                (want_success, &entry.outcome),
+                (true, AccessOutcome::Success) | (false, AccessOutcome::Failure)
+            );
             if !matches {
                 return false;
             }

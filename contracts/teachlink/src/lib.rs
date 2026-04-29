@@ -1363,7 +1363,7 @@ impl TeachLinkBridge {
 
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Result<Address, RewardsError> {
-        rewards::Rewards::get_rewards_admin(&env)
+        Ok(rewards::Rewards::get_rewards_admin(&env))
     }
 
     // ========== Assessment and Testing Platform Functions ==========

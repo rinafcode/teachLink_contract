@@ -92,9 +92,16 @@ pub enum AccessControlError {
     Unauthorized = 200,
     RoleNotFound = 201,
     StorageError = 202,
+    MissingRole = 203,
 }
 
 pub type AccessControlResult<T> = core::result::Result<T, AccessControlError>;
+
+impl From<AccessControlError> for BridgeError {
+    fn from(_: AccessControlError) -> Self {
+        BridgeError::Unauthorized
+    }
+}
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -108,6 +115,7 @@ pub enum AccessLogError {
 pub enum AnalyticsError {
     StorageError = 220,
     InvalidInput = 221,
+    InvalidIndex = 222,
 }
 
 pub type AnalyticsResult<T> = core::result::Result<T, AnalyticsError>;
@@ -127,6 +135,16 @@ pub enum EscrowError {
     SignerNotAuthorized = 239,
     ArbitratorNotAuthorized = 240,
     StorageError = 241,
+    ReentrancyDetected = 242,
+    SignerAlreadyApproved = 243,
+    InvalidBeneficiary = 244,
+    InvalidToken = 245,
+    InvalidArbitrator = 246,
+    DepositorCannotBeBeneficiary = 247,
+    InvalidSignerCount = 248,
+    InvalidTimestamp = 249,
+    InvalidAddress = 250,
+    InvalidAmount = 251,
 }
 
 #[contracterror]
@@ -184,6 +202,9 @@ pub enum RewardsError {
     NoPendingRewards = 304,
     RateCannotBeNegative = 305,
     StorageError = 306,
+    ReentrancyDetected = 307,
+    AmountExceedsMaxLimit = 308,
+    ArithmeticOverflow = 309,
 }
 
 #[contracterror]
