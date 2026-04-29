@@ -6,6 +6,7 @@
 //! - Emit events on every state change
 //! - Expose read-only views for scores and history
 
+use crate::errors::{ScoreError, ScoreResult};
 use crate::events::{ContributionRecordedEvent, CourseCompletedEvent, CreditScoreUpdatedEvent};
 use crate::storage::{CONTRIBUTIONS, COURSE_COMPLETIONS, CREDIT_SCORE};
 use crate::types::{Contribution, ContributionType};

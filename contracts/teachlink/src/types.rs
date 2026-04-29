@@ -80,6 +80,33 @@ pub struct InterfaceVersionStatus {
     pub minimum_compatible: ContractSemVer,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeprecatedFunction {
+    pub function_name: Symbol,
+    pub deprecated_in: ContractSemVer,
+    pub removal_in: ContractSemVer,
+    pub replacement: Option<Symbol>,
+    pub reason: Bytes,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeprecationPolicy {
+    pub current_version: InterfaceVersionStatus,
+    pub deprecated_functions: Vec<DeprecatedFunction>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MigrationPath {
+    pub from_version: ContractSemVer,
+    pub to_version: ContractSemVer,
+    pub description: Bytes,
+    pub breaking_changes: Vec<Bytes>,
+    pub migration_steps: Vec<Bytes>,
+}
+
 // ========== Chain Configuration Types ==========
 
 #[contracttype]
@@ -1708,7 +1735,7 @@ pub struct MobileSocialFeatures {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AccessOutcome {
     Success,
-    Failure { error_code: u32 },
+    Failure,
 }
 
 /// A single immutable record of one access attempt.

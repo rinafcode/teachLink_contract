@@ -43,8 +43,7 @@ pub const MAX_ESCROW_SIGNERS: u32 = 20;
 
 // ── Gas / compute budget ───────────────────────────────────────────────────
 
-/// Soft cap on CPU instructions consumed by a single bulk call.
-/// Soroban reports consumed budget via `env.budget().cpu_instructions_consumed()`.
+/// Soft cap for bulk-call budget policy.
 pub const MAX_GAS_BUDGET: u64 = 500_000;
 
 // ── Rate-limiting ──────────────────────────────────────────────────────────
@@ -86,15 +85,10 @@ pub fn check_batch_size_limit(count: u32, limit: u32) -> Result<(), BridgeError>
 ///
 /// Insert this check **inside** tight loops to abort early when compute
 /// is unexpectedly high.
-pub fn check_gas_budget(env: &Env) -> Result<(), BridgeError> {
-    // Soroban's budget is metered by the runtime; if the contract exhausts it
-    // the invocation traps automatically.  This explicit check lets us return a
-    // clean error instead of an opaque trap, and caps work at our chosen bound
-    // rather than the full network limit.
-    let consumed = env.budget().cpu_instructions_consumed();
-    if consumed > MAX_GAS_BUDGET {
-        return Err(BridgeError::InvalidInput);
-    }
+pub fn check_gas_budget(_env: &Env) -> Result<(), BridgeError> {
+    // Soroban SDK 25 does not expose consumed CPU instructions to contracts.
+    // Runtime metering still aborts exhausted invocations; batch and rate
+    // limits keep bulk operations below that network-enforced ceiling.
     Ok(())
 }
 

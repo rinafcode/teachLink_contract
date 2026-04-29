@@ -36,7 +36,7 @@ impl ContentTokenization {
         tags: Vec<Bytes>,
         is_transferable: bool,
         royalty_percentage: u32,
-    ) -> u64 {
+    ) -> TokenizationResult<u64> {
         // Validation Layer
         crate::validation::AddressValidator::validate(env, &creator).unwrap();
 

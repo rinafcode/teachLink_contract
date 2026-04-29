@@ -340,15 +340,6 @@ impl Bridge {
         }
         .publish(env);
 
-        // Audit log: record validator addition
-        let _ = crate::audit::AuditManager::log_validator_operation(
-            env,
-            true,
-            validator.clone(),
-            admin.clone(),
-            Bytes::new(env),
-        );
-
         Ok(())
     }
 
@@ -517,10 +508,10 @@ impl Bridge {
         }
         .publish(env);
 
-        // Audit log: record validator removal
+        // Audit log: record validator addition
         let _ = crate::audit::AuditManager::log_validator_operation(
             env,
-            false,
+            true,
             validator.clone(),
             admin.clone(),
             Bytes::new(env),
@@ -563,15 +554,6 @@ impl Bridge {
             removed_at: env.ledger().timestamp(),
         }
         .publish(env);
-
-        // Audit: configuration change - supported chain added
-        let _ = crate::audit::AuditManager::create_audit_record(
-            env,
-            crate::types::OperationType::ConfigUpdate,
-            admin.clone(),
-            Bytes::from_slice(env, &chain_id.to_be_bytes()),
-            Bytes::new(env),
-        );
 
         Ok(())
     }
@@ -646,12 +628,12 @@ impl Bridge {
         }
         .publish(env);
 
-        // Audit: fee update
+        // Audit: configuration change - supported chain removed
         let _ = crate::audit::AuditManager::create_audit_record(
             env,
-            crate::types::OperationType::FeeUpdate,
+            crate::types::OperationType::ConfigUpdate,
             admin.clone(),
-            Bytes::from_slice(env, &fee.to_be_bytes()),
+            Bytes::from_slice(env, &chain_id.to_be_bytes()),
             Bytes::new(env),
         );
 
@@ -739,12 +721,12 @@ impl Bridge {
         }
         .publish(env);
 
-        // Audit: min validators updated
+        // Audit: fee recipient change
         let _ = crate::audit::AuditManager::create_audit_record(
             env,
             crate::types::OperationType::ConfigUpdate,
             admin.clone(),
-            Bytes::from_slice(env, &min_validators.to_be_bytes()),
+            Bytes::new(env),
             Bytes::new(env),
         );
 
@@ -831,9 +813,7 @@ impl Bridge {
     /// Assumption: contract has already been initialized. This call panics otherwise.
     pub fn get_token(env: &Env) -> Address {
         let repo = BridgeRepository::new(env);
-        repo.config
-            .get_token()
-            .map_err(|_| BridgeError::StorageError)
+        repo.config.get_token().unwrap()
     }
 
     /// Get the admin address
@@ -841,9 +821,7 @@ impl Bridge {
     /// Assumption: contract has already been initialized. This call panics otherwise.
     pub fn get_admin(env: &Env) -> Address {
         let repo = BridgeRepository::new(env);
-        repo.config
-            .get_admin()
-            .map_err(|_| BridgeError::StorageError)
+        repo.config.get_admin().unwrap()
     }
 }
 

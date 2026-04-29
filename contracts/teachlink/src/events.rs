@@ -518,6 +518,16 @@ pub struct ContributionRecordedEvent {
     pub points: u64,
 }
 
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct SustainabilityMetricsUpdatedEvent {
+    pub total_invocations: u64,
+    pub total_storage_writes: u64,
+    pub total_events_emitted: u64,
+    pub efficiency_score: u32,
+    pub updated_at: u64,
+}
+
 // ================= Reputation Events =================
 
 #[contractevent]

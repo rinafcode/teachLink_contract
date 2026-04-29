@@ -81,4 +81,128 @@ pub enum BridgeError {
     NotInitialized = 144,
     IncompatibleInterfaceVersion = 145,
     InvalidInterfaceVersionRange = 146,
+    ReentrancyDetected = 147,
+    InvalidTimestamp = 148,
+    BatchSizeLimitExceeded = 149,
 }
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AccessControlError {
+    Unauthorized = 200,
+    RoleNotFound = 201,
+    StorageError = 202,
+}
+
+pub type AccessControlResult<T> = core::result::Result<T, AccessControlError>;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AccessLogError {
+    StorageError = 210,
+    InvalidInput = 211,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum AnalyticsError {
+    StorageError = 220,
+    InvalidInput = 221,
+}
+
+pub type AnalyticsResult<T> = core::result::Result<T, AnalyticsError>;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum EscrowError {
+    AmountMustBePositive = 230,
+    AtLeastOneSignerRequired = 231,
+    InvalidSignerThreshold = 232,
+    RefundTimeMustBeAfterReleaseTime = 233,
+    DuplicateSigner = 234,
+    EscrowNotPending = 235,
+    CallerNotAuthorized = 236,
+    InsufficientApprovals = 237,
+    ReleaseTimeNotReached = 238,
+    SignerNotAuthorized = 239,
+    ArbitratorNotAuthorized = 240,
+    StorageError = 241,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum EscrowAnalyticsError {
+    StorageError = 250,
+    InvalidInput = 251,
+}
+
+pub type EscrowAnalyticsResult<T> = core::result::Result<T, EscrowAnalyticsError>;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum GovernanceError {
+    Unauthorized = 260,
+    InvalidInput = 261,
+    StorageError = 262,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum MobilePlatformError {
+    DeviceNotSupported = 270,
+    InsufficientStorage = 271,
+    PaymentFailed = 272,
+    StorageError = 273,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ProvenanceError {
+    StorageError = 280,
+    InvalidInput = 281,
+}
+
+pub type ProvenanceResult<T> = core::result::Result<T, ProvenanceError>;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RateLimitingError {
+    RateLimitExceeded = 290,
+    StorageError = 291,
+    InvalidInput = 292,
+}
+
+pub type RateLimitingResult<T> = core::result::Result<T, RateLimitingError>;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum RewardsError {
+    AlreadyInitialized = 300,
+    AmountMustBePositive = 301,
+    InsufficientRewardPoolBalance = 302,
+    NoRewardsAvailable = 303,
+    NoPendingRewards = 304,
+    RateCannotBeNegative = 305,
+    StorageError = 306,
+}
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum ScoreError {
+    StorageError = 310,
+    ArithmeticOverflow = 311,
+    CourseAlreadyCompleted = 312,
+}
+
+pub type ScoreResult<T> = core::result::Result<T, ScoreError>;
+
+#[contracterror]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+pub enum TokenizationError {
+    StorageError = 320,
+    TokenNotFound = 321,
+    UnauthorizedMint = 322,
+    InvalidMetadata = 323,
+}
+
+pub type TokenizationResult<T> = core::result::Result<T, TokenizationError>;

@@ -32,6 +32,10 @@ pub mod config {
     pub const MIN_TIMEOUT_SECONDS: u64 = 60; // 1 minute minimum
     /// Maximum timeout duration (10 years — prevents effectively-permanent locks).
     pub const MAX_TIMEOUT_SECONDS: u64 = 31536000 * 10; // 10 years maximum
+    /// Maximum operational timestamp offset (90 days).
+    pub const MAX_OPERATIONAL_TIMEOUT: u64 = 7_776_000;
+    /// Maximum tolerated timestamp skew (15 minutes).
+    pub const MAX_TIME_SKEW: u64 = 900;
     /// Maximum cross-chain packet payload size (4 KB — balances expressiveness
     /// with on-chain storage cost).
     pub const MAX_PAYLOAD_SIZE: u32 = 4096; // 4 KB max packet payload
@@ -61,6 +65,9 @@ pub enum ValidationError {
     InvalidTimestamp,
     TimestampNotMonotonic,
     TimestampSkewExceeded,
+    SelfInteractionNotAllowed,
+    WhitespaceOnlyString,
+    InvalidCharacters,
 }
 
 /// Result type for validation operations
