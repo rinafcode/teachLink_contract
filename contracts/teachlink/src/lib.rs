@@ -91,14 +91,17 @@
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod access_control;
+mod access_logger;
 mod analytics;
 mod arbitration;
 mod assessment;
 mod atomic_swap;
 mod audit;
+mod auto_scaling;
 mod backup;
 mod bft_consensus;
 mod bridge;
+mod dos_protection;
 // TODO: Fix collaboration module compilation errors (pre-existing issue)
 // mod collaboration;
 // TODO: Fix content_nft module compilation errors (pre-existing issue)
@@ -110,6 +113,7 @@ mod feature_flags;
 mod errors;
 mod escrow_analytics;
 mod event_query;
+mod safe_stats;
 // TODO: Fix event_tests module compilation errors (pre-existing issue)
 // mod event_tests;
 mod events;
@@ -157,12 +161,19 @@ mod slashing;
 // TODO: Fix social_learning module compilation errors (pre-existing issue)
 // mod social_learning;
 mod storage;
+mod sustainability;
 mod tokenization;
 mod types;
 mod upgrade;
 mod validation;
 // TODO: Fix validation_tests compilation errors (pre-existing issue)
 // mod validation_tests;
+
+pub use validation::{
+    config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
+    EscrowValidator, InputSanitizer, NumberValidator, RewardsValidator, StringValidator,
+    ValidationError, ValidationResult,
+};
 
 pub use crate::types::{
     ColorBlindMode, ComponentConfig, DeviceInfo, FeedbackCategory, FocusStyle, FontSize,
@@ -172,7 +183,9 @@ pub use crate::types::{
 pub use assessment::{
     Assessment, AssessmentSettings, AssessmentSubmission, Question, QuestionType,
 };
-pub use errors::{BridgeError, EscrowError, MobilePlatformError, RewardsError};
+pub use errors::{
+    AccessLogError, BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError,
+};
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
@@ -191,6 +204,76 @@ pub use types::{
     RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
     UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
     ValidatorSignature, VisualizationDataPoint, FeatureFlag, FeatureStatus, RolloutStrategy,
+    // access logging types
+    AccessLogEntry,
+    AccessOutcome,
+    AlertConditionType,
+    AlertRule,
+    ArbitratorProfile,
+    AtomicSwap,
+    AuditQuery,
+    AuditRecord,
+    BackupManifest,
+    BackupSchedule,
+    BridgeMetrics,
+    BridgeProposal,
+    BridgeTransaction,
+    CachedBridgeSummary,
+    ChainConfig,
+    ChainMetrics,
+    ComplianceReport,
+    ConsensusState,
+    ContentMetadata,
+    ContentToken,
+    ContentTokenParameters,
+    ContentType,
+    ContractSemVer,
+    ContributionType,
+    CrossChainMessage,
+    CrossChainPacket,
+    DashboardAnalytics,
+    DisputeOutcome,
+    EmergencyState,
+    Escrow,
+    EscrowMetrics,
+    EscrowParameters,
+    EscrowRole,
+    EscrowSigner,
+    EscrowStatus,
+    InterfaceVersionStatus,
+    LiquidityPool,
+    MultiChainAsset,
+    NotificationChannel,
+    NotificationContent,
+    NotificationPreference,
+    NotificationSchedule,
+    NotificationTemplate,
+    NotificationTracking,
+    OperationType,
+    PacketStatus,
+    ProposalStatus,
+    ProvenanceRecord,
+    RecoveryRecord,
+    ReportComment,
+    ReportSchedule,
+    ReportSnapshot,
+    ReportTemplate,
+    ReportType,
+    ReportUsage,
+    RewardRate,
+    RewardType,
+    RtoTier,
+    SlashingReason,
+    SlashingRecord,
+    SwapStatus,
+    TransferType,
+    UserNotificationSettings,
+    UserReputation,
+    UserReward,
+    ValidatorInfo,
+    ValidatorReward,
+    ValidatorSignature,
+    VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
@@ -210,8 +293,9 @@ impl TeachLinkBridge {
         min_validators: u32,
         fee_recipient: Address,
     ) -> Result<(), BridgeError> {
-        bridge::Bridge::initialize(&env, token, admin, min_validators, fee_recipient)?;
+        bridge::Bridge::initialize(&env, token, admin.clone(), min_validators, fee_recipient)?;
         interface_versioning::InterfaceVersioning::initialize(&env);
+        upgrade::ContractUpgrader::initialize(&env, admin.clone())?;
         Ok(())
     }
 
@@ -255,23 +339,23 @@ impl TeachLinkBridge {
     // ========== Admin Functions ==========
 
     /// Add a validator (admin only)
-    pub fn add_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::add_validator(&env, validator);
+    pub fn add_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::add_validator(&env, validator)
     }
 
     /// Remove a validator (admin only)
-    pub fn remove_validator(env: Env, validator: Address) {
-        let _ = bridge::Bridge::remove_validator(&env, validator);
+    pub fn remove_validator(env: Env, validator: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_validator(&env, validator)
     }
 
     /// Add a supported destination chain (admin only)
-    pub fn add_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::add_supported_chain(&env, chain_id);
+    pub fn add_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::add_supported_chain(&env, chain_id)
     }
 
     /// Remove a supported destination chain (admin only)
-    pub fn remove_supported_chain(env: Env, chain_id: u32) {
-        let _ = bridge::Bridge::remove_supported_chain(&env, chain_id);
+    pub fn remove_supported_chain(env: Env, chain_id: u32) -> Result<(), BridgeError> {
+        bridge::Bridge::remove_supported_chain(&env, chain_id)
     }
 
     /// Set bridge fee (admin only)
@@ -280,8 +364,8 @@ impl TeachLinkBridge {
     }
 
     /// Set fee recipient (admin only)
-    pub fn set_fee_recipient(env: Env, fee_recipient: Address) {
-        let _ = bridge::Bridge::set_fee_recipient(&env, fee_recipient);
+    pub fn set_fee_recipient(env: Env, fee_recipient: Address) -> Result<(), BridgeError> {
+        bridge::Bridge::set_fee_recipient(&env, fee_recipient)
     }
 
     /// Set minimum validators (admin only)
@@ -332,6 +416,86 @@ impl TeachLinkBridge {
         interface_versioning::InterfaceVersioning::assert_interface_compatible(&env, client_version)
     }
 
+    /// Check if upgrading from one version to another is backward compatible
+    pub fn is_backward_compatible(from: ContractSemVer, to: ContractSemVer) -> bool {
+        interface_versioning::InterfaceVersioning::is_backward_compatible(&from, &to)
+    }
+
+    /// Register a function as deprecated (admin only)
+    pub fn deprecate_function(
+        env: Env,
+        caller: Address,
+        function_name: Symbol,
+        deprecated_in: ContractSemVer,
+        removal_in: ContractSemVer,
+        replacement: Option<Symbol>,
+        reason: Bytes,
+    ) -> Result<(), BridgeError> {
+        interface_versioning::InterfaceVersioning::deprecate_function(
+            &env,
+            caller,
+            function_name,
+            deprecated_in,
+            removal_in,
+            replacement,
+            reason,
+        )
+    }
+
+    /// Get deprecation info for a specific function
+    pub fn get_deprecation(env: Env, function_name: Symbol) -> Option<DeprecatedFunction> {
+        interface_versioning::InterfaceVersioning::get_deprecation(&env, function_name)
+    }
+
+    /// Get the full deprecation policy (current version + all deprecated functions)
+    pub fn get_deprecation_policy(env: Env) -> DeprecationPolicy {
+        interface_versioning::InterfaceVersioning::get_deprecation_policy(&env)
+    }
+
+    /// Register a migration path between two versions (admin only)
+    pub fn register_migration_path(
+        env: Env,
+        caller: Address,
+        from_version: ContractSemVer,
+        to_version: ContractSemVer,
+        description: Bytes,
+        breaking_changes: Vec<Bytes>,
+        migration_steps: Vec<Bytes>,
+    ) -> Result<(), BridgeError> {
+        interface_versioning::InterfaceVersioning::register_migration_path(
+            &env,
+            caller,
+            from_version,
+            to_version,
+            description,
+            breaking_changes,
+            migration_steps,
+        )
+    }
+
+    /// Get the migration path between two specific versions
+    pub fn get_migration_path(
+        env: Env,
+        from_version: ContractSemVer,
+        to_version: ContractSemVer,
+    ) -> Option<MigrationPath> {
+        interface_versioning::InterfaceVersioning::get_migration_path(
+            &env,
+            from_version,
+            to_version,
+        )
+    }
+
+    /// Get all registered migration paths
+    pub fn get_all_migration_paths(env: Env) -> Vec<MigrationPath> {
+        interface_versioning::InterfaceVersioning::get_all_migration_paths(&env)
+    }
+
+    /// Get the full version upgrade history
+    pub fn get_version_history(env: Env) -> Vec<ContractSemVer> {
+        interface_versioning::InterfaceVersioning::get_version_history(&env)
+    }
+
     /// Get the bridge transaction by nonce
     pub fn get_bridge_transaction(env: Env, nonce: u64) -> Option<BridgeTransaction> {
         bridge::Bridge::get_bridge_transaction(&env, nonce)
@@ -358,12 +522,12 @@ impl TeachLinkBridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: Env) -> Address {
+    pub fn get_token(env: Env) -> Result<Address, BridgeError> {
         bridge::Bridge::get_token(&env)
     }
 
     /// Get the admin address
-    pub fn get_admin(env: Env) -> Address {
+    pub fn get_admin(env: Env) -> Result<Address, BridgeError> {
         bridge::Bridge::get_admin(&env)
     }
 
@@ -430,6 +594,64 @@ impl TeachLinkBridge {
     /// Trigger rotation if the current consensus round is at an epoch boundary.
     pub fn maybe_rotate_validators(env: Env) -> Result<bool, BridgeError> {
         bft_consensus::BFTConsensus::maybe_rotate(&env)
+    }
+
+    // ========== Auto-Scaling & Load Management Functions ==========
+
+    /// Initialize auto-scaling configuration (admin only)
+    pub fn initialize_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::initialize(&env, &admin)
+    }
+
+    /// Get current system load level
+    pub fn get_load_level(env: Env) -> crate::types::LoadLevel {
+        auto_scaling::AutoScaler::get_current_load_level(&env)
+    }
+
+    /// Calculate optimal batch size based on current load
+    pub fn get_optimal_batch_size(env: Env) -> u32 {
+        auto_scaling::AutoScaler::calculate_optimal_batch_size(&env)
+    }
+
+    /// Check if an operation should be shed based on priority and load
+    pub fn should_shed_operation(env: Env, priority: u32) -> bool {
+        auto_scaling::AutoScaler::should_shed_operation(&env, priority)
+    }
+
+    /// Update load metrics with recent operation data
+    pub fn update_load_metrics(
+        env: Env,
+        operations_processed: u64,
+        operations_shed: u64,
+        current_gas_usage: u64,
+    ) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::update_load_metrics(
+            &env,
+            operations_processed,
+            operations_shed,
+            current_gas_usage,
+        )
+    }
+
+    /// Determine if an operation should be queued based on priority
+    pub fn should_queue_operation(env: Env, priority: u32) -> bool {
+        auto_scaling::AutoScaler::should_queue_operation(&env, priority)
+    }
+
+    /// Get gas allocation for an operation based on load and priority
+    pub fn allocate_gas_budget(env: Env, priority: u32, base_gas: u64) -> u64 {
+        auto_scaling::AutoScaler::allocate_gas_budget(&env, priority, base_gas)
+    }
+
+    /// Trigger emergency scaling (admin only)
+    pub fn trigger_emergency_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        admin.require_auth();
+        auto_scaling::AutoScaler::emergency_scaling(&env)
+    }
+
+    /// Reset scaling configuration to defaults (admin only)
+    pub fn reset_auto_scaling(env: Env, admin: Address) -> Result<(), BridgeError> {
+        auto_scaling::AutoScaler::reset_scaling(&env, &admin)
     }
 
     // ========== Slashing and Rewards Functions ==========
@@ -1123,8 +1345,8 @@ impl TeachLinkBridge {
     }
 
     /// Update rewards admin (admin only)
-    pub fn update_rewards_admin(env: Env, new_admin: Address) {
-        rewards::Rewards::update_rewards_admin(&env, new_admin);
+    pub fn update_rewards_admin(env: Env, new_admin: Address) -> Result<(), RewardsError> {
+        rewards::Rewards::update_rewards_admin(&env, new_admin)
     }
 
     /// Get user reward information
@@ -1148,7 +1370,7 @@ impl TeachLinkBridge {
     }
 
     /// Get rewards admin address
-    pub fn get_rewards_admin(env: Env) -> Address {
+    pub fn get_rewards_admin(env: Env) -> Result<Address, RewardsError> {
         rewards::Rewards::get_rewards_admin(&env)
     }
 
@@ -1298,10 +1520,17 @@ impl TeachLinkBridge {
     // ========== Credit Scoring Functions (feat/credit_score) ==========
 
     /// Record course completion
-    pub fn record_course_completion(env: Env, user: Address, course_id: u64, points: u64) {
-        let admin = bridge::Bridge::get_admin(&env);
+    pub fn record_course_completion(
+        env: Env,
+        user: Address,
+        course_id: u64,
+        points: u64,
+    ) -> Result<(), ScoreError> {
+        // Check admin authorization
+        let admin_result = bridge::Bridge::get_admin(&env);
+        let admin = admin_result.map_err(|_| ScoreError::StorageError)?; // Convert BridgeError to ScoreError
         admin.require_auth();
-        score::ScoreManager::record_course_completion(&env, user, course_id, points);
+        score::ScoreManager::record_course_completion(&env, user, course_id, points)
     }
 
     /// Record contribution
@@ -1311,8 +1540,8 @@ impl TeachLinkBridge {
         c_type: types::ContributionType,
         description: Bytes,
         points: u64,
-    ) {
-        score::ScoreManager::record_contribution(&env, user, c_type, description, points);
+    ) -> Result<(), ScoreError> {
+        score::ScoreManager::record_contribution(&env, user, c_type, description, points)
     }
 
     /// Get user's credit score
@@ -1333,25 +1562,28 @@ impl TeachLinkBridge {
     // ========== Reputation Functions (main) ==========
 
     pub fn update_participation(env: Env, user: Address, points: u32) {
-        reputation::update_participation(&env, user, points);
+        reputation::ReputationManager::update_participation(&env, user, points);
     }
 
     pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
-        reputation::update_course_progress(&env, user, is_completion);
+        reputation::ReputationManager::update_course_progress(&env, user, is_completion);
     }
 
     pub fn rate_contribution(env: Env, user: Address, rating: u32) {
-        reputation::rate_contribution(&env, user, rating);
+        reputation::ReputationManager::rate_contribution(&env, user, rating);
     }
 
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
-        reputation::get_reputation(&env, &user)
+        reputation::ReputationManager::get_reputation(&env, &user)
     }
 
     // ========== Content Tokenization Functions ==========
 
     /// Mint a new educational content token
-    pub fn mint_content_token(env: Env, params: ContentTokenParameters) -> u64 {
+    pub fn mint_content_token(
+        env: Env,
+        params: ContentTokenParameters,
+    ) -> Result<u64, TokenizationError> {
         let token_id = tokenization::ContentTokenization::mint(
             &env,
             params.creator.clone(),
@@ -1363,9 +1595,10 @@ impl TeachLinkBridge {
             params.tags,
             params.is_transferable,
             params.royalty_percentage,
-        );
-        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None);
-        token_id
+        )?;
+        provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None)
+            .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
+        Ok(token_id)
     }
 
     /// Transfer ownership of a content token
@@ -1375,8 +1608,8 @@ impl TeachLinkBridge {
         to: Address,
         token_id: u64,
         notes: Option<Bytes>,
-    ) {
-        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes);
+    ) -> Result<(), TokenizationError> {
+        tokenization::ContentTokenization::transfer(&env, from, to, token_id, notes)
     }
 
     /// Get a content token by ID
@@ -1561,7 +1794,10 @@ impl TeachLinkBridge {
     }
 
     /// Set design system configuration (admin only)
-    pub fn set_design_system_config(env: Env, config: ComponentConfig) {
+    pub fn set_design_system_config(
+        env: Env,
+        config: ComponentConfig,
+    ) -> Result<(), MobilePlatformError> {
         // In a real implementation, we would check for admin authorization here
         mobile_platform::MobilePlatformManager::set_design_system_config(&env, config)
     }
@@ -1691,9 +1927,30 @@ impl TeachLinkBridge {
     // Analytics function removed due to contracttype limitations
     // Use internal notification manager for analytics
 
+    // ========== Access Logging Functions ==========
+
+    pub fn log_access(env: Env, caller: Address, operation: Symbol, outcome: AccessOutcome) {
+        access_logger::AccessLogger::log_access(&env, caller, operation, outcome);
+    }
+
+    pub fn get_log_entry(env: Env, entry_id: u64) -> Option<AccessLogEntry> {
+        access_logger::AccessLogger::get_log_entry(&env, entry_id)
+    }
+
+    pub fn get_total_log_count(env: Env) -> u64 {
+        access_logger::AccessLogger::get_total_log_count(&env)
+    }
+
+    pub fn query_logs(env: Env, query: AuditQuery) -> Vec<AccessLogEntry> {
+        access_logger::AccessLogger::query_logs(&env, query)
+    }
+
+    pub fn get_temporal_pattern(env: Env, caller: Address, window_start: u64) -> u32 {
+        access_logger::AccessLogger::get_temporal_pattern(&env, caller, window_start)
+    }
+
     // ========== Contract Upgrade Functions ==========
 
-    /// Prepare for contract upgrade by backing up current state
     pub fn prepare_upgrade(
         env: Env,
         admin: Address,
@@ -1703,7 +1960,6 @@ impl TeachLinkBridge {
         upgrade::ContractUpgrader::prepare_upgrade(&env, admin, new_version, state_hash)
     }
 
-    /// Execute the contract upgrade
     pub fn execute_upgrade(
         env: Env,
         admin: Address,
@@ -1713,34 +1969,28 @@ impl TeachLinkBridge {
         upgrade::ContractUpgrader::execute_upgrade(&env, admin, new_version, migration_hash)
     }
 
-    /// Rollback to previous version if within rollback window
     pub fn rollback_upgrade(env: Env, admin: Address) -> Result<(), BridgeError> {
         upgrade::ContractUpgrader::rollback(&env, admin)
     }
 
-    /// Get current contract version
     pub fn get_contract_version(env: Env) -> u32 {
         upgrade::ContractUpgrader::get_current_version(&env)
     }
 
-    /// Get upgrade history for a specific version
     pub fn get_upgrade_history(env: Env, version: u32) -> Option<upgrade::UpgradeRecord> {
         upgrade::ContractUpgrader::get_upgrade_history(&env, version)
     }
 
-    /// Check if rollback is available
     pub fn is_rollback_available(env: Env) -> bool {
         upgrade::ContractUpgrader::is_rollback_available(&env)
     }
 
-    /// Get state backup information
     pub fn get_state_backup(env: Env) -> Option<upgrade::StateBackup> {
         upgrade::ContractUpgrader::get_state_backup(&env)
     }
 
     // ========== Network Recovery Functions ==========
 
-    /// Register a failed operation for automatic retry
     pub fn register_failed_operation(
         env: Env,
         operation_id: u64,
@@ -1757,17 +2007,14 @@ impl TeachLinkBridge {
         )
     }
 
-    /// Check if operation can be retried
     pub fn can_retry_operation(env: Env, operation_id: u64) -> Result<bool, BridgeError> {
         network_recovery::NetworkRecovery::can_retry(&env, operation_id)
     }
 
-    /// Mark operation as completed
     pub fn mark_operation_completed(env: Env, operation_id: u64) -> Result<(), BridgeError> {
         network_recovery::NetworkRecovery::mark_completed(&env, operation_id)
     }
 
-    /// Get operation state
     pub fn get_operation_state(
         env: Env,
         operation_id: u64,
@@ -1775,12 +2022,10 @@ impl TeachLinkBridge {
         network_recovery::NetworkRecovery::get_operation_state(&env, operation_id)
     }
 
-    /// Get user retry notifications
     pub fn get_user_retry_notifications(env: Env, user: Address) -> Vec<u64> {
         network_recovery::NetworkRecovery::get_user_notifications(&env, user)
     }
 
-    /// Check if fallback mechanism is active
     pub fn is_fallback_active(env: Env) -> bool {
         network_recovery::NetworkRecovery::is_fallback_active(&env)
     }
@@ -1826,3 +2071,6 @@ impl TeachLinkBridge {
         feature_flags::FeatureFlagManager::is_feature_enabled(&env, name, &user)
     }
 }
+
+#[cfg(test)]
+mod cross_chain_tests;

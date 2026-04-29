@@ -10,13 +10,12 @@ use crate::events::PerfCacheInvalidatedEvent;
 use crate::events::PerfMetricsComputedEvent;
 use crate::storage::{PERF_CACHE, PERF_TS};
 use crate::types::CachedBridgeSummary;
-use soroban_sdk::{Address, Env};
+use soroban_sdk::{Address, Bytes, Env};
 
-/// Cache TTL in ledger seconds (1 hour).
-pub const CACHE_TTL_SECS: u64 = 3_600;
-
-/// Max chains to include in cached top-by-volume (bounds gas).
-pub const MAX_TOP_CHAINS: u32 = 20;
+/// Cache TTL in ledger seconds — re-exported from config.
+pub use crate::config::PERF_CACHE_TTL_SECS as CACHE_TTL_SECS;
+/// Max chains to include in cached top-by-volume — re-exported from config.
+pub use crate::config::PERF_MAX_TOP_CHAINS as MAX_TOP_CHAINS;
 
 /// Performance cache manager.
 pub struct PerformanceManager;
@@ -36,7 +35,8 @@ impl PerformanceManager {
     pub fn compute_and_cache_summary(env: &Env) -> Result<CachedBridgeSummary, BridgeError> {
         let health_score = analytics::AnalyticsManager::calculate_health_score(env);
         let top_chains =
-            analytics::AnalyticsManager::get_top_chains_by_volume_bounded(env, MAX_TOP_CHAINS);
+            analytics::AnalyticsManager::get_top_chains_by_volume_bounded(env, MAX_TOP_CHAINS)
+                .map_err(|_| BridgeError::StorageError)?;
         let computed_at = env.ledger().timestamp();
         let summary = CachedBridgeSummary {
             health_score,
@@ -70,6 +70,14 @@ impl PerformanceManager {
             invalidated_at: env.ledger().timestamp(),
         }
         .publish(env);
+        // Audit: performance cache invalidation
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
         Ok(())
     }
 }

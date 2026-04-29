@@ -1,3 +1,11 @@
+//! Credit score calculation from on-chain activities.
+//!
+//! Responsibilities:
+//! - Award points for course completions and contributions
+//! - Maintain per-user score, course list, and contribution history
+//! - Emit events on every state change
+//! - Expose read-only views for scores and history
+
 use crate::events::{ContributionRecordedEvent, CourseCompletedEvent, CreditScoreUpdatedEvent};
 use crate::storage::{CONTRIBUTIONS, COURSE_COMPLETIONS, CREDIT_SCORE};
 use crate::types::{Contribution, ContributionType};
@@ -6,19 +14,30 @@ use soroban_sdk::{Address, Bytes, Env, Vec};
 pub struct ScoreManager;
 
 impl ScoreManager {
+    // ===== Mutations =====
+
     /// Update the user's score by adding points
-    pub fn update_score(env: &Env, user: Address, points: u64) {
+    pub fn update_score(env: &Env, user: Address, points: u64) -> ScoreResult<()> {
         // Use a tuple key (CREDIT_SCORE, user) for mapping user to score
         let key = (CREDIT_SCORE, user.clone());
         let current_score: u64 = env.storage().persistent().get(&key).unwrap_or(0);
-        let new_score = current_score + points;
+        let new_score = current_score
+            .checked_add(points)
+            .ok_or(ScoreError::ArithmeticOverflow)?;
         env.storage().persistent().set(&key, &new_score);
 
         CreditScoreUpdatedEvent { user, new_score }.publish(env);
+
+        Ok(())
     }
 
     /// Record a course completion and award points
-    pub fn record_course_completion(env: &Env, user: Address, course_id: u64, points: u64) {
+    pub fn record_course_completion(
+        env: &Env,
+        user: Address,
+        course_id: u64,
+        points: u64,
+    ) -> ScoreResult<()> {
         let key = (COURSE_COMPLETIONS, user.clone());
         let mut completed_courses: Vec<u64> = env
             .storage()
@@ -28,14 +47,14 @@ impl ScoreManager {
 
         // Avoid duplicate points for the same course
         if completed_courses.contains(course_id) {
-            return; // Already completed
+            return Err(ScoreError::CourseAlreadyCompleted);
         }
 
         completed_courses.push_back(course_id);
         env.storage().persistent().set(&key, &completed_courses);
 
         // Update score internally
-        Self::update_score(env, user.clone(), points);
+        Self::update_score(env, user.clone(), points)?;
 
         CourseCompletedEvent {
             user,
@@ -43,6 +62,8 @@ impl ScoreManager {
             points,
         }
         .publish(env);
+
+        Ok(())
     }
 
     /// Record a contribution and award points
@@ -52,7 +73,7 @@ impl ScoreManager {
         c_type: ContributionType,
         description: Bytes,
         points: u64,
-    ) {
+    ) -> ScoreResult<()> {
         let key = (CONTRIBUTIONS, user.clone());
         let mut contributions: Vec<Contribution> = env
             .storage()
@@ -72,7 +93,7 @@ impl ScoreManager {
         env.storage().persistent().set(&key, &contributions);
 
         // Update score internally
-        Self::update_score(env, user.clone(), points);
+        Self::update_score(env, user.clone(), points)?;
 
         ContributionRecordedEvent {
             user,
@@ -80,9 +101,14 @@ impl ScoreManager {
             points,
         }
         .publish(env);
+
+        Ok(())
     }
 
+    // ===== Queries =====
+
     /// Get the user's current credit score
+    #[must_use]
     pub fn get_score(env: &Env, user: Address) -> u64 {
         env.storage()
             .persistent()
@@ -91,6 +117,7 @@ impl ScoreManager {
     }
 
     /// Get valid course completions
+    #[must_use]
     pub fn get_courses(env: &Env, user: Address) -> Vec<u64> {
         env.storage()
             .persistent()
@@ -99,6 +126,7 @@ impl ScoreManager {
     }
 
     /// Get user contributions
+    #[must_use]
     pub fn get_contributions(env: &Env, user: Address) -> Vec<Contribution> {
         env.storage()
             .persistent()

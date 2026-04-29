@@ -9,13 +9,13 @@ jobs:
     name: Tests & Regression Detection
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
-          targets: wasm32v1-none
+          targets: wasm32-unknown-unknown
 
       - name: Cache cargo
         uses: Swatinem/rust-cache@v2
@@ -34,13 +34,17 @@ jobs:
       - name: Check performance regressions
         run: bash scripts/check_performance.sh
 
+      - name: Enforce performance budgets
+        if: always()
+        run: bash scripts/enforce_budgets.sh --verbose
+
       - name: Generate test report
         if: always()
         run: bash scripts/generate_test_report.sh
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-report-${{ github.sha }}
           path: reports/

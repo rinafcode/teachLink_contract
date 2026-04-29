@@ -6,10 +6,13 @@
 
 #![allow(clippy::needless_pass_by_value)]
 
+mod common;
+
 use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{symbol_short, vec, Address, Bytes, Env, IntoVal, String};
 use teachlink_contract::validation::{config, NumberValidator, ValidationError};
 use teachlink_contract::{TeachLinkBridge, TeachLinkBridgeClient};
+use common::{random_address, register_bridge_client, register_sac_token, test_env};
 
 fn mint_sac_token(env: &Env, token: &Address, to: &Address, amount: i128) {
     env.invoke_contract::<()>(
@@ -20,20 +23,15 @@ fn mint_sac_token(env: &Env, token: &Address, to: &Address, amount: i128) {
 }
 
 fn setup_rewards_with_sac(env: &Env) -> (TeachLinkBridgeClient<'_>, Address, Address, Address) {
-    let contract_id = env.register(TeachLinkBridge, ());
-    let client = TeachLinkBridgeClient::new(env, &contract_id);
-
-    let token_admin = Address::generate(env);
-    let sac = env.register_stellar_asset_contract_v2(token_admin.clone());
-    let token = sac.address();
-
-    let admin = Address::generate(env);
-    let fee_recipient = Address::generate(env);
-    let rewards_admin = Address::generate(env);
-    let funder = Address::generate(env);
-    let recipient = Address::generate(env);
-
     env.mock_all_auths();
+    let client = register_bridge_client(env);
+    let token = register_sac_token(env);
+
+    let admin = random_address(env);
+    let fee_recipient = random_address(env);
+    let rewards_admin = random_address(env);
+    let funder = random_address(env);
+    let recipient = random_address(env);
 
     client.initialize(&token, &admin, &1, &fee_recipient);
     client.initialize_rewards(&token, &rewards_admin);
@@ -74,15 +72,13 @@ fn security_integer_underflow_saturating_math_avoids_wrap() {
 
 #[test]
 fn security_access_control_admin_bridge_fee_requires_auth() {
-    let env = Env::default();
-    let contract_id = env.register(TeachLinkBridge, ());
-    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+    let env = test_env();
+    let client = register_bridge_client(&env);
 
-    let token = Address::generate(&env);
-    let admin = Address::generate(&env);
-    let fee_recipient = Address::generate(&env);
+    let token = register_sac_token(&env);
+    let admin = random_address(&env);
+    let fee_recipient = random_address(&env);
 
-    env.mock_all_auths();
     client.initialize(&token, &admin, &1, &fee_recipient);
 
     env.mock_auths(&[]);
@@ -92,7 +88,7 @@ fn security_access_control_admin_bridge_fee_requires_auth() {
 
 #[test]
 fn security_access_control_issue_reward_requires_rewards_admin_auth() {
-    let env = Env::default();
+    let env = test_env();
     let (client, _rewards_admin, _funder, recipient) = setup_rewards_with_sac(&env);
 
     let reward_type = String::from_str(&env, "learning");
@@ -103,20 +99,15 @@ fn security_access_control_issue_reward_requires_rewards_admin_auth() {
 
 #[test]
 fn security_front_running_ordering_bridge_nonce_increments_monotonically() {
-    let env = Env::default();
-    let contract_id = env.register(TeachLinkBridge, ());
-    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+    let env = test_env();
+    let client = register_bridge_client(&env);
+    let token = register_sac_token(&env);
 
-    let token_admin = Address::generate(&env);
-    let sac = env.register_stellar_asset_contract_v2(token_admin.clone());
-    let token = sac.address();
-
-    let admin = Address::generate(&env);
-    let fee_recipient = Address::generate(&env);
-    let user = Address::generate(&env);
+    let admin = random_address(&env);
+    let fee_recipient = random_address(&env);
+    let user = random_address(&env);
     let dest = Bytes::from_slice(&env, &[0xcd; 20]);
 
-    env.mock_all_auths();
     client.initialize(&token, &admin, &1, &fee_recipient);
     client.add_supported_chain(&1);
 
