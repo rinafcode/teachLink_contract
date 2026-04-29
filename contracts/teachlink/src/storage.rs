@@ -224,6 +224,8 @@ pub const BRIDGE_GUARD: Symbol = symbol_short!("br_guard");
 pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
+// Tokenization reentrancy guard
+pub const TOKENIZATION_GUARD: Symbol = symbol_short!("tok_guard");
 
 // Auto-scaling and load management (symbol_short! max 9 chars)
 pub const SCALING_CONFIG: Symbol = symbol_short!("scale_cfg");

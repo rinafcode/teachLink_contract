@@ -1,3 +1,10 @@
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScoreError {
+    ArithmeticOverflow,
+    CourseAlreadyCompleted,
+}
+
+pub type ScoreResult<T> = Result<T, ScoreError>;
 //! Credit score calculation from on-chain activities.
 //!
 //! Responsibilities:
