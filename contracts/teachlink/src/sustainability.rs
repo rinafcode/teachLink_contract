@@ -4,7 +4,7 @@
 //!
 //! Tracks resource usage, efficiency, and platform health KPIs.
 
-use crate::events::SustainabilityMetricsUpdatedEvent;
+use crate::events::SustainabilityMetricsEvent;
 use crate::storage::SUSTAINABILITY_METRICS;
 use crate::types::SustainabilityMetrics;
 use soroban_sdk::Env;
@@ -35,7 +35,7 @@ impl SustainabilityManager {
     }
 
     fn publish(env: &Env, metrics: &SustainabilityMetrics) {
-        SustainabilityMetricsUpdatedEvent {
+        SustainabilityMetricsEvent {
             total_invocations: metrics.total_invocations,
             total_storage_writes: metrics.total_storage_writes,
             total_events_emitted: metrics.total_events_emitted,

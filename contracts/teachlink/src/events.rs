@@ -520,7 +520,7 @@ pub struct ContributionRecordedEvent {
 
 #[contractevent]
 #[derive(Clone, Debug)]
-pub struct SustainabilityMetricsUpdatedEvent {
+pub struct SustainabilityMetricsEvent {
     pub total_invocations: u64,
     pub total_storage_writes: u64,
     pub total_events_emitted: u64,
