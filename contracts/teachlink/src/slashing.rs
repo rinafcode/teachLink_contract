@@ -54,11 +54,11 @@ use crate::types::{RewardType, SlashingReason, SlashingRecord, ValidatorInfo, Va
 use crate::validation::{NumberValidator, ValidationError};
 use soroban_sdk::{Address, Env, Map, Vec};
 
+pub use crate::config::SLASH_BYZANTINE_BPS as SLASHING_PERCENTAGE_BYZANTINE;
 /// Slashing percentages (basis points) — re-exported from config.
 pub use crate::config::SLASH_DOUBLE_VOTE_BPS as SLASHING_PERCENTAGE_DOUBLE_VOTE;
-pub use crate::config::SLASH_INVALID_SIGNATURE_BPS as SLASHING_PERCENTAGE_INVALID_SIGNATURE;
 pub use crate::config::SLASH_INACTIVITY_BPS as SLASHING_PERCENTAGE_INACTIVITY;
-pub use crate::config::SLASH_BYZANTINE_BPS as SLASHING_PERCENTAGE_BYZANTINE;
+pub use crate::config::SLASH_INVALID_SIGNATURE_BPS as SLASHING_PERCENTAGE_INVALID_SIGNATURE;
 pub use crate::config::SLASH_MALICIOUS_BPS as SLASHING_PERCENTAGE_MALICIOUS;
 
 /// Inactivity threshold (in seconds, 7 days)

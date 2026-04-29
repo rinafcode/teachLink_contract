@@ -1,4 +1,4 @@
-﻿use crate::bridge::Bridge;
+use crate::bridge::Bridge;
 use crate::errors::BridgeError;
 use soroban_sdk::{testutils::Address as _, Address, Env};
 
@@ -13,7 +13,13 @@ fn test_bridge_initialization_and_access_control() {
     let min_validators = 2;
 
     // Test Initialization
-    let result = Bridge::initialize(&env, token.clone(), admin.clone(), min_validators, fee_recipient.clone());
+    let result = Bridge::initialize(
+        &env,
+        token.clone(),
+        admin.clone(),
+        min_validators,
+        fee_recipient.clone(),
+    );
     assert!(result.is_ok());
 
     // Test Double Initialization (Should Fail)

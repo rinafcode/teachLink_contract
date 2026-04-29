@@ -364,8 +364,12 @@ impl MobilePlatformManager {
     }
 
     /// Set design system configuration (admin only)
-    pub fn set_design_system_config(env: &Env, config: ComponentConfig) {
+    pub fn set_design_system_config(
+        env: &Env,
+        config: ComponentConfig,
+    ) -> Result<(), MobilePlatformError> {
         env.storage().persistent().set(&COMPONENT_CONFIG, &config);
+        Ok(())
     }
 
     // ========== Helper Functions ==========

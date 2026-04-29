@@ -8,12 +8,12 @@ use crate::notification_events_basic::{
     NotificationDeliveredEvent, NotificationFailedEvent, NotificationPrefUpdatedEvent,
     NotificationScheduledEvent,
 };
+use crate::safe_stats::safe_inc_u64;
 use crate::storage::{
     NOTIFICATION_COUNTER, NOTIFICATION_LAST_CLEANUP, NOTIFICATION_LOGS, NOTIFICATION_MAX_SIZE,
     NOTIFICATION_PREFERENCES, NOTIFICATION_TEMPLATES, NOTIFICATION_TRACKING, NOTIFICATION_TTL,
     SCHEDULED_NOTIFICATIONS, USER_NOTIFICATION_SETTINGS,
 };
-use crate::safe_stats::safe_inc_u64;
 use crate::types::{
     ChannelStats, NotificationChannel, NotificationContent, NotificationDeliveryStatus,
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
@@ -21,13 +21,13 @@ use crate::types::{
 };
 use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
 
-/// Notification delivery intervals — re-exported from config.
-pub use crate::config::NOTIF_IMMEDIATE_DELIVERY as IMMEDIATE_DELIVERY;
-pub use crate::config::NOTIF_MIN_DELAY_SECS as MIN_DELAY_SECONDS;
-pub use crate::config::NOTIF_MAX_DELAY_SECS as MAX_DELAY_SECONDS;
 pub use crate::config::NOTIF_BATCH_SIZE as BATCH_SIZE;
 /// Event queue cleanup configuration — re-exported from config.
 pub use crate::config::NOTIF_DEFAULT_EVENT_TTL_SECS as DEFAULT_EVENT_TTL_SECONDS;
+/// Notification delivery intervals — re-exported from config.
+pub use crate::config::NOTIF_IMMEDIATE_DELIVERY as IMMEDIATE_DELIVERY;
+pub use crate::config::NOTIF_MAX_DELAY_SECS as MAX_DELAY_SECONDS;
+pub use crate::config::NOTIF_MIN_DELAY_SECS as MIN_DELAY_SECONDS;
 pub const DEFAULT_MAX_QUEUE_SIZE: u32 = 10000;
 pub const CLEANUP_INTERVAL_SECONDS: u64 = 3600; // 1 hour
 
@@ -715,17 +715,23 @@ impl NotificationManager {
                         });
                 let (csent, of) = safe_inc_u64(channel_stat.sent);
                 channel_stat.sent = csent;
-                if of { channel_stat.sent = 0; }
+                if of {
+                    channel_stat.sent = 0;
+                }
                 match tracking.status {
                     NotificationDeliveryStatus::Delivered => {
                         let (cdel, of2) = safe_inc_u64(channel_stat.delivered);
                         channel_stat.delivered = cdel;
-                        if of2 { channel_stat.delivered = 0; }
+                        if of2 {
+                            channel_stat.delivered = 0;
+                        }
                     }
                     NotificationDeliveryStatus::Failed => {
                         let (cfail, of3) = safe_inc_u64(channel_stat.failed);
                         channel_stat.failed = cfail;
-                        if of3 { channel_stat.failed = 0; }
+                        if of3 {
+                            channel_stat.failed = 0;
+                        }
                     }
                     _ => {}
                 }
@@ -769,7 +775,9 @@ impl NotificationManager {
         env.storage().instance().set(&NOTIFICATION_COUNTER, &0u64);
         // Clear logs and tracking maps
         let empty_logs: Map<u64, NotificationContent> = Map::new(env);
-        env.storage().instance().set(&NOTIFICATION_LOGS, &empty_logs);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_LOGS, &empty_logs);
         let empty_tracking: Map<u64, NotificationTracking> = Map::new(env);
         env.storage()
             .instance()

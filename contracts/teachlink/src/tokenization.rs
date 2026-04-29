@@ -1,5 +1,6 @@
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
+use crate::errors::{TokenizationError, TokenizationResult};
 use crate::events::{
     ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent,
     TransferabilityUpdatedEvent,
@@ -101,23 +102,33 @@ impl ContentTokenization {
         }
         .publish(env);
 
-        token_id
+        Ok(token_id)
     }
 
     /// Transfer ownership of a content token
-    pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, notes: Option<Bytes>) {
+    pub fn transfer(
+        env: &Env,
+        from: Address,
+        to: Address,
+        token_id: u64,
+        notes: Option<Bytes>,
+    ) -> TokenizationResult<()> {
         // Get the token
         let token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
         // Verify ownership
-        assert!(token.owner == from, "Caller is not the owner");
+        if token.owner != from {
+            return Err(TokenizationError::UnauthorizedMint); // Using UnauthorizedMint as closest match
+        }
 
         // Check if transferable
-        assert!(token.is_transferable, "Token is not transferable");
+        if !token.is_transferable {
+            return Err(TokenizationError::InvalidMetadata); // Using InvalidMetadata as closest match
+        }
 
         // Update ownership
         env.storage().persistent().set(&(OWNERSHIP, token_id), &to);
@@ -174,7 +185,10 @@ impl ContentTokenization {
             to.clone(),
             crate::types::TransferType::Transfer,
             notes,
-        );
+        )
+        .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
+
+        Ok(())
     }
 
     /// Get a content token by ID
@@ -238,14 +252,16 @@ impl ContentTokenization {
         title: Option<Bytes>,
         description: Option<Bytes>,
         tags: Option<Vec<Bytes>>,
-    ) {
+    ) -> TokenizationResult<()> {
         let mut token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
-        assert!(token.owner == owner, "Only owner can update metadata");
+        if token.owner != owner {
+            return Err(TokenizationError::UnauthorizedMint); // Using as closest match
+        }
 
         if let Some(new_title) = title {
             token.metadata.title = new_title;
@@ -272,17 +288,26 @@ impl ContentTokenization {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
+
+        Ok(())
     }
 
     /// Set transferability of a token (only by owner)
-    pub fn set_transferable(env: &Env, owner: Address, token_id: u64, transferable: bool) {
+    pub fn set_transferable(
+        env: &Env,
+        owner: Address,
+        token_id: u64,
+        transferable: bool,
+    ) -> TokenizationResult<()> {
         let mut token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
-        assert!(token.owner == owner, "Only owner can set transferability");
+        if token.owner != owner {
+            return Err(TokenizationError::UnauthorizedMint); // Using as closest match
+        }
 
         token.is_transferable = transferable;
         token.metadata.updated_at = env.ledger().timestamp();
@@ -299,5 +324,7 @@ impl ContentTokenization {
             updated_at: env.ledger().timestamp(),
         }
         .publish(env);
+
+        Ok(())
     }
 }
