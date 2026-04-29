@@ -2,6 +2,32 @@
 //!
 //! This module implements comprehensive audit logging and compliance reporting
 //! for regulatory requirements and operational transparency.
+//!
+//! # Circular Buffer Design
+//!
+//! Audit records are stored in a fixed-size circular buffer capped at
+//! `MAX_AUDIT_RECORDS` (100 000 entries).  When the counter reaches the cap,
+//! it resets to 0 and new records overwrite the oldest ones.  This bounds
+//! on-chain storage growth while preserving recent history.
+//!
+//! ```text
+//! record_id = (counter % MAX_AUDIT_RECORDS) + 1
+//! ```
+//!
+//! Off-chain indexers should consume events in real time to avoid missing
+//! records that have been overwritten.
+//!
+//! # Compliance Reports
+//!
+//! Reports aggregate audit records over a configurable time window
+//! (`COMPLIANCE_PERIOD` = 7 days by default).  They are generated on-demand
+//! and stored by period start timestamp.
+//!
+//! # TODO
+//! - Emit a warning event when the circular buffer wraps around so off-chain
+//!   monitors can detect potential data loss.
+//! - Add a Merkle root over the audit records in each compliance report so
+//!   the integrity of the audit trail can be verified without reading all records.
 
 use crate::errors::BridgeError;
 use crate::events::AuditRecordCreatedEvent;
@@ -9,17 +35,34 @@ use crate::storage::{AUDIT_COUNTER, AUDIT_RECORDS, COMPLIANCE_REPORTS};
 use crate::types::{AuditRecord, ComplianceReport, OperationType};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
-/// Maximum audit records to store
-pub const MAX_AUDIT_RECORDS: u64 = 100_000;
-
-/// Compliance report period (7 days)
-pub const COMPLIANCE_PERIOD: u64 = 604_800;
+/// Compliance report period — re-exported from config.
+pub use crate::config::AUDIT_COMPLIANCE_PERIOD as COMPLIANCE_PERIOD;
+/// Maximum audit records to store — re-exported from config.
+pub use crate::config::AUDIT_MAX_RECORDS as MAX_AUDIT_RECORDS;
 
 /// Audit Manager
 pub struct AuditManager;
 
 impl AuditManager {
-    /// Create an audit record
+    /// Create an audit record.
+    ///
+    /// # Circular Buffer Algorithm
+    ///
+    /// The audit counter is incremented on each call.  When it reaches
+    /// `MAX_AUDIT_RECORDS`, it resets to 0 before incrementing, causing the
+    /// new record to overwrite the oldest entry in the map.  This keeps
+    /// storage bounded at `MAX_AUDIT_RECORDS` entries.
+    ///
+    /// ```text
+    /// if counter >= MAX_AUDIT_RECORDS { counter = 0 }
+    /// counter += 1
+    /// records[counter] = new_record
+    /// ```
+    ///
+    /// # Note
+    /// Record IDs are not globally unique after a wrap-around.  Off-chain
+    /// consumers should use the emitted `AuditRecordCreatedEvent` timestamp
+    /// as the primary ordering key.
     pub fn create_audit_record(
         env: &Env,
         operation_type: OperationType,
@@ -37,6 +80,10 @@ impl AuditManager {
         }
 
         audit_counter += 1;
+
+        // Validate timestamp sanity
+        crate::validation::TimeValidator::validate_global_bounds(env, env.ledger().timestamp())
+            .map_err(|_| BridgeError::InvalidTimestamp)?;
 
         // Create audit record
         let record = AuditRecord {
@@ -293,6 +340,11 @@ impl AuditManager {
         admin: Address,
     ) -> Result<u32, BridgeError> {
         admin.require_auth();
+        crate::access_control::AccessControlManager::check_role(
+            env,
+            &admin,
+            crate::types::AccessRole::AuditManager,
+        )?;
 
         let audit_records: Map<u64, AuditRecord> = env
             .storage()

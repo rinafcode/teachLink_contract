@@ -1,7 +1,11 @@
 use crate::bulk_limits;
 use soroban_sdk::{Address, Bytes, Env, Vec};
 
-use crate::events::{ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent};
+use crate::errors::{TokenizationError, TokenizationResult};
+use crate::events::{
+    ContentMintedEvent, MetadataUpdatedEvent, OwnershipTransferredEvent,
+    TransferabilityUpdatedEvent,
+};
 use crate::storage::{CONTENT_TOKENS, OWNERSHIP, OWNER_TOKENS, TOKEN_COUNTER};
 use crate::types::{ContentMetadata, ContentToken, ContentType, TransferType};
 
@@ -33,8 +37,22 @@ impl ContentTokenization {
         is_transferable: bool,
         royalty_percentage: u32,
     ) -> u64 {
+        // Validation Layer
+        crate::validation::AddressValidator::validate(env, &creator).unwrap();
+
+        // Metadata validation (if title/description were String, we'd use StringValidator)
+        // Since they are Bytes, we check length
+        crate::validation::BytesValidator::validate_length(&title, 1, 100).unwrap();
+        crate::validation::BytesValidator::validate_length(&description, 1, 1000).unwrap();
+        crate::validation::BytesValidator::validate_length(&content_hash, 32, 32).unwrap();
+
+        if royalty_percentage > 100 {
+            panic!("Royalty percentage cannot exceed 100");
+        }
+
         // Batch size check for tags to prevent DoS
-        bulk_limits::check_batch_size_limit(tags.len(), bulk_limits::MAX_CONTENT_TAGS).expect("Too many tags");
+        bulk_limits::check_batch_size_limit(tags.len(), bulk_limits::MAX_CONTENT_TAGS)
+            .expect("Too many tags");
 
         let timestamp = env.ledger().timestamp();
         let token_id = Self::get_next_token_id(env);
@@ -89,23 +107,33 @@ impl ContentTokenization {
         }
         .publish(env);
 
-        token_id
+        Ok(token_id)
     }
 
     /// Transfer ownership of a content token
-    pub fn transfer(env: &Env, from: Address, to: Address, token_id: u64, notes: Option<Bytes>) {
+    pub fn transfer(
+        env: &Env,
+        from: Address,
+        to: Address,
+        token_id: u64,
+        notes: Option<Bytes>,
+    ) -> TokenizationResult<()> {
         // Get the token
         let token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
         // Verify ownership
-        assert!(token.owner == from, "Caller is not the owner");
+        if token.owner != from {
+            return Err(TokenizationError::UnauthorizedMint); // Using UnauthorizedMint as closest match
+        }
 
         // Check if transferable
-        assert!(token.is_transferable, "Token is not transferable");
+        if !token.is_transferable {
+            return Err(TokenizationError::InvalidMetadata); // Using InvalidMetadata as closest match
+        }
 
         // Update ownership
         env.storage().persistent().set(&(OWNERSHIP, token_id), &to);
@@ -125,8 +153,7 @@ impl ContentTokenization {
             .get(&(OWNER_TOKENS, from.clone()))
             .unwrap_or(Vec::new(env));
         let mut new_from_tokens = Vec::new(env);
-        for i in 0..from_tokens.len() {
-            let id = from_tokens.get(i).unwrap();
+        for id in from_tokens.iter() {
             if id != token_id {
                 new_from_tokens.push_back(id);
             }
@@ -163,7 +190,10 @@ impl ContentTokenization {
             to.clone(),
             crate::types::TransferType::Transfer,
             notes,
-        );
+        )
+        .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
+
+        Ok(())
     }
 
     /// Get a content token by ID
@@ -227,14 +257,16 @@ impl ContentTokenization {
         title: Option<Bytes>,
         description: Option<Bytes>,
         tags: Option<Vec<Bytes>>,
-    ) {
+    ) -> TokenizationResult<()> {
         let mut token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
-        assert!(token.owner == owner, "Only owner can update metadata");
+        if token.owner != owner {
+            return Err(TokenizationError::UnauthorizedMint); // Using as closest match
+        }
 
         if let Some(new_title) = title {
             token.metadata.title = new_title;
@@ -246,7 +278,8 @@ impl ContentTokenization {
 
         if let Some(new_tags) = tags {
             // Batch size check for tags to prevent DoS
-            bulk_limits::check_batch_size_limit(new_tags.len(), bulk_limits::MAX_CONTENT_TAGS).expect("Too many tags");
+            bulk_limits::check_batch_size_limit(new_tags.len(), bulk_limits::MAX_CONTENT_TAGS)
+                .expect("Too many tags");
             token.metadata.tags = new_tags;
         }
 
@@ -263,17 +296,26 @@ impl ContentTokenization {
             timestamp: env.ledger().timestamp(),
         }
         .publish(env);
+
+        Ok(())
     }
 
     /// Set transferability of a token (only by owner)
-    pub fn set_transferable(env: &Env, owner: Address, token_id: u64, transferable: bool) {
+    pub fn set_transferable(
+        env: &Env,
+        owner: Address,
+        token_id: u64,
+        transferable: bool,
+    ) -> TokenizationResult<()> {
         let mut token: ContentToken = env
             .storage()
             .persistent()
             .get(&(CONTENT_TOKENS, token_id))
-            .expect("Token does not exist");
+            .ok_or(TokenizationError::TokenNotFound)?;
 
-        assert!(token.owner == owner, "Only owner can set transferability");
+        if token.owner != owner {
+            return Err(TokenizationError::UnauthorizedMint); // Using as closest match
+        }
 
         token.is_transferable = transferable;
         token.metadata.updated_at = env.ledger().timestamp();
@@ -281,5 +323,16 @@ impl ContentTokenization {
         env.storage()
             .persistent()
             .set(&(CONTENT_TOKENS, token_id), &token);
+
+        // Emit event
+        TransferabilityUpdatedEvent {
+            token_id,
+            owner: owner.clone(),
+            transferable,
+            updated_at: env.ledger().timestamp(),
+        }
+        .publish(env);
+
+        Ok(())
     }
 }

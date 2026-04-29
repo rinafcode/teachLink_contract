@@ -3,6 +3,7 @@ import { CacheModule } from '@nestjs/cache-manager';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import configuration from './config/configuration';
+import { AppConfigModule } from './config/config.module';
 import { DatabaseModule } from '@database/database.module';
 import { HorizonModule } from '@horizon/horizon.module';
 import { EventsModule } from '@events/events.module';
@@ -17,8 +18,9 @@ import { PerformanceModule } from './performance/performance.module';
       isGlobal: true,
       load: [configuration],
     }),
+    AppConfigModule,
     CacheModule.register({
-      ttl: 60 * 1000, // 60s for dashboard/analytics cache
+      ttl: 60 * 1000,
       max: 500,
       isGlobal: true,
     }),

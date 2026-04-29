@@ -86,3 +86,4 @@ See [CHANGELOG.md](./CHANGELOG.md) for detailed version history.
 ---
 
 *For API versioning, see [API_REFERENCE.md](../API_REFERENCE.md)*
+*For on-chain interface compatibility policy, see [CONTRACT_INTERFACE_VERSIONING.md](./CONTRACT_INTERFACE_VERSIONING.md)*

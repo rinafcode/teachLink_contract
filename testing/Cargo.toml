@@ -3,6 +3,12 @@ name = "teachlink-testing"
 version = "0.1.0"
 edition = "2021"
 
+[workspace]
+
+[lib]
+name = "teachlink_testing"
+path = "src/lib.rs"
+
 [dependencies]
 soroban-sdk = "25.0.0-rc.2"
 tokio = { version = "1.0", features = ["full"] }
@@ -12,8 +18,10 @@ hex = "0.4"
 sha2 = "0.10"
 hmac = "0.12"
 rand = "0.8"
+chrono = "0.4"
 mockall = "0.11"
 async-trait = "0.1"
+rust-code-analysis = { workspace = true }
 
 [dev-dependencies]
 proptest = "1.4"
@@ -24,7 +32,9 @@ tokio-test = "0.4"
 [[bench]]
 name = "bridge_operations"
 harness = false
+path = "../benches/bridge_operations.rs"
 
 [[bench]]
 name = "escrow_operations"
 harness = false
+path = "../benches/escrow_operations.rs"

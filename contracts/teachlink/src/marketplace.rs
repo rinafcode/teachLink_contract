@@ -23,4 +23,3 @@ pub fn buy(listing_id: u64, buyer: Address) -> Result<()> {
 
     Ok(())
 }
-

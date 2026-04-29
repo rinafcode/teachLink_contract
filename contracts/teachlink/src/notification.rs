@@ -8,9 +8,11 @@ use crate::notification_events_basic::{
     NotificationDeliveredEvent, NotificationFailedEvent, NotificationPrefUpdatedEvent,
     NotificationScheduledEvent,
 };
+use crate::safe_stats::safe_inc_u64;
 use crate::storage::{
-    NOTIFICATION_COUNTER, NOTIFICATION_LOGS, NOTIFICATION_PREFERENCES, NOTIFICATION_TEMPLATES,
-    NOTIFICATION_TRACKING, SCHEDULED_NOTIFICATIONS, USER_NOTIFICATION_SETTINGS,
+    NOTIFICATION_COUNTER, NOTIFICATION_LAST_CLEANUP, NOTIFICATION_LOGS, NOTIFICATION_MAX_SIZE,
+    NOTIFICATION_PREFERENCES, NOTIFICATION_TEMPLATES, NOTIFICATION_TRACKING, NOTIFICATION_TTL,
+    SCHEDULED_NOTIFICATIONS, USER_NOTIFICATION_SETTINGS,
 };
 use crate::types::{
     ChannelStats, NotificationChannel, NotificationContent, NotificationDeliveryStatus,
@@ -19,11 +21,15 @@ use crate::types::{
 };
 use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
 
-/// Notification delivery intervals (in seconds)
-pub const IMMEDIATE_DELIVERY: u64 = 0;
-pub const MIN_DELAY_SECONDS: u64 = 60; // 1 minute
-pub const MAX_DELAY_SECONDS: u64 = 86400 * 30; // 30 days
-pub const BATCH_SIZE: u32 = 100;
+pub use crate::config::NOTIF_BATCH_SIZE as BATCH_SIZE;
+/// Event queue cleanup configuration — re-exported from config.
+pub use crate::config::NOTIF_DEFAULT_EVENT_TTL_SECS as DEFAULT_EVENT_TTL_SECONDS;
+/// Notification delivery intervals — re-exported from config.
+pub use crate::config::NOTIF_IMMEDIATE_DELIVERY as IMMEDIATE_DELIVERY;
+pub use crate::config::NOTIF_MAX_DELAY_SECS as MAX_DELAY_SECONDS;
+pub use crate::config::NOTIF_MIN_DELAY_SECS as MIN_DELAY_SECONDS;
+pub const DEFAULT_MAX_QUEUE_SIZE: u32 = 10000;
+pub const CLEANUP_INTERVAL_SECONDS: u64 = 3600; // 1 hour
 
 /// Notification Manager
 pub struct NotificationManager;
@@ -37,6 +43,17 @@ impl NotificationManager {
 
         // Initialize counters
         env.storage().instance().set(&NOTIFICATION_COUNTER, &0u64);
+
+        // Initialize event queue management
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_TTL, &DEFAULT_EVENT_TTL_SECONDS);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_MAX_SIZE, &DEFAULT_MAX_QUEUE_SIZE);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_LAST_CLEANUP, &env.ledger().timestamp());
 
         // Set default templates
         let mut templates = Map::new(env);
@@ -121,13 +138,36 @@ impl NotificationManager {
             .instance()
             .set(&NOTIFICATION_TRACKING, &tracking_map);
 
-        // Store notification log
-        let mut logs: Map<u64, NotificationContent> = env
+        // Store notification log with timestamp for TTL tracking
+        let mut logs: Map<u64, (NotificationContent, u64)> = env
             .storage()
             .instance()
             .get(&NOTIFICATION_LOGS)
             .unwrap_or_else(|| Map::new(env));
-        logs.set(notification_id, content.clone());
+
+        // Check queue size limit
+        let max_size: u32 = env
+            .storage()
+            .instance()
+            .get(&NOTIFICATION_MAX_SIZE)
+            .unwrap();
+        if logs.len() >= max_size {
+            // Trigger cleanup before adding new event
+            Self::cleanup_expired_events(env)?;
+
+            // Re-check after cleanup
+            let logs: Map<u64, (NotificationContent, u64)> = env
+                .storage()
+                .instance()
+                .get(&NOTIFICATION_LOGS)
+                .unwrap_or_else(|| Map::new(env));
+
+            if logs.len() >= max_size {
+                return Err(BridgeError::StorageError);
+            }
+        }
+
+        logs.set(notification_id, (content.clone(), env.ledger().timestamp()));
         env.storage().instance().set(&NOTIFICATION_LOGS, &logs);
 
         // Process delivery (in real implementation, this would trigger external service)
@@ -184,13 +224,34 @@ impl NotificationManager {
             .instance()
             .set(&SCHEDULED_NOTIFICATIONS, &scheduled_map);
 
-        // Store notification content
-        let mut logs: Map<u64, NotificationContent> = env
+        // Store notification content with timestamp
+        let mut logs: Map<u64, (NotificationContent, u64)> = env
             .storage()
             .instance()
             .get(&NOTIFICATION_LOGS)
             .unwrap_or_else(|| Map::new(env));
-        logs.set(notification_id, content.clone());
+
+        // Check queue size limit
+        let max_size: u32 = env
+            .storage()
+            .instance()
+            .get(&NOTIFICATION_MAX_SIZE)
+            .unwrap();
+        if logs.len() >= max_size {
+            Self::cleanup_expired_events(env)?;
+
+            let logs: Map<u64, (NotificationContent, u64)> = env
+                .storage()
+                .instance()
+                .get(&NOTIFICATION_LOGS)
+                .unwrap_or_else(|| Map::new(env));
+
+            if logs.len() >= max_size {
+                return Err(BridgeError::StorageError);
+            }
+        }
+
+        logs.set(notification_id, (content.clone(), env.ledger().timestamp()));
         env.storage().instance().set(&NOTIFICATION_LOGS, &logs);
 
         // Create tracking record
@@ -241,13 +302,13 @@ impl NotificationManager {
         for (notification_id, schedule) in scheduled_map.iter() {
             if schedule.scheduled_time <= current_time {
                 // Get notification content
-                let logs: Map<u64, NotificationContent> = env
+                let logs: Map<u64, (NotificationContent, u64)> = env
                     .storage()
                     .instance()
                     .get(&NOTIFICATION_LOGS)
                     .unwrap_or_else(|| Map::new(env));
 
-                if let Some(content) = logs.get(notification_id) {
+                if let Some((content, _timestamp)) = logs.get(notification_id) {
                     // Process delivery
                     match Self::process_delivery(
                         env,
@@ -318,6 +379,89 @@ impl NotificationManager {
             .set(&SCHEDULED_NOTIFICATIONS, &scheduled_map_mut);
 
         Ok(processed_count)
+    }
+
+    /// Clean up expired events from the notification log
+    pub fn cleanup_expired_events(env: &Env) -> Result<u32, BridgeError> {
+        let current_time = env.ledger().timestamp();
+        let ttl: u64 = env.storage().instance().get(&NOTIFICATION_TTL).unwrap();
+        let last_cleanup: u64 = env
+            .storage()
+            .instance()
+            .get(&NOTIFICATION_LAST_CLEANUP)
+            .unwrap();
+
+        // Only cleanup if interval has passed
+        if current_time < last_cleanup + CLEANUP_INTERVAL_SECONDS {
+            return Ok(0);
+        }
+
+        let mut logs: Map<u64, (NotificationContent, u64)> = env
+            .storage()
+            .instance()
+            .get(&NOTIFICATION_LOGS)
+            .unwrap_or_else(|| Map::new(env));
+
+        let mut expired_ids = Vec::new(env);
+        let mut cleaned_count = 0u32;
+
+        for (id, (_content, timestamp)) in logs.iter() {
+            if current_time > timestamp + ttl {
+                expired_ids.push_back(id);
+            }
+        }
+
+        // Remove expired events
+        for id in expired_ids.iter() {
+            logs.remove(id);
+            cleaned_count += 1;
+        }
+
+        env.storage().instance().set(&NOTIFICATION_LOGS, &logs);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_LAST_CLEANUP, &current_time);
+
+        Ok(cleaned_count)
+    }
+
+    /// Get event queue statistics
+    pub fn get_queue_stats(env: &Env) -> (u32, u32, u64) {
+        let logs: Map<u64, (NotificationContent, u64)> = env
+            .storage()
+            .instance()
+            .get(&NOTIFICATION_LOGS)
+            .unwrap_or_else(|| Map::new(env));
+
+        let max_size: u32 = env
+            .storage()
+            .instance()
+            .get(&NOTIFICATION_MAX_SIZE)
+            .unwrap();
+        let ttl: u64 = env.storage().instance().get(&NOTIFICATION_TTL).unwrap();
+
+        (logs.len(), max_size, ttl)
+    }
+
+    /// Update TTL configuration (admin only)
+    pub fn update_ttl_config(
+        env: &Env,
+        admin: Address,
+        new_ttl: u64,
+        new_max_size: u32,
+    ) -> Result<(), BridgeError> {
+        admin.require_auth();
+
+        if new_ttl == 0 || new_max_size == 0 {
+            return Err(BridgeError::InvalidInput);
+        }
+
+        env.storage().instance().set(&NOTIFICATION_TTL, &new_ttl);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_MAX_SIZE, &new_max_size);
+
+        Ok(())
     }
 
     /// Update user notification preferences
@@ -526,18 +670,34 @@ impl NotificationManager {
 
         for tracking in tracking_map.values() {
             if tracking.sent_at >= start_time && tracking.sent_at <= end_time {
-                analytics.total_sent += 1;
+                let (tsent, overflowed) = safe_inc_u64(analytics.total_sent);
+                analytics.total_sent = tsent;
+                if overflowed {
+                    // on overflow we reset totals to zero (resilient fallback)
+                    analytics.total_sent = 0;
+                    analytics.total_delivered = 0;
+                    analytics.total_failed = 0;
+                    analytics.channel_stats = Map::new(env);
+                }
 
                 match tracking.status {
                     NotificationDeliveryStatus::Delivered => {
-                        analytics.total_delivered += 1;
+                        let (tdel, of) = safe_inc_u64(analytics.total_delivered);
+                        analytics.total_delivered = tdel;
+                        if of {
+                            analytics.total_delivered = 0;
+                        }
                         if tracking.delivered_at > 0 {
                             total_delivery_time += tracking.delivered_at - tracking.sent_at;
                             delivered_count += 1;
                         }
                     }
                     NotificationDeliveryStatus::Failed => {
-                        analytics.total_failed += 1;
+                        let (tfail, of) = safe_inc_u64(analytics.total_failed);
+                        analytics.total_failed = tfail;
+                        if of {
+                            analytics.total_failed = 0;
+                        }
                     }
                     _ => {}
                 }
@@ -553,10 +713,26 @@ impl NotificationManager {
                             delivered: 0,
                             failed: 0,
                         });
-                channel_stat.sent += 1;
+                let (csent, of) = safe_inc_u64(channel_stat.sent);
+                channel_stat.sent = csent;
+                if of {
+                    channel_stat.sent = 0;
+                }
                 match tracking.status {
-                    NotificationDeliveryStatus::Delivered => channel_stat.delivered += 1,
-                    NotificationDeliveryStatus::Failed => channel_stat.failed += 1,
+                    NotificationDeliveryStatus::Delivered => {
+                        let (cdel, of2) = safe_inc_u64(channel_stat.delivered);
+                        channel_stat.delivered = cdel;
+                        if of2 {
+                            channel_stat.delivered = 0;
+                        }
+                    }
+                    NotificationDeliveryStatus::Failed => {
+                        let (cfail, of3) = safe_inc_u64(channel_stat.failed);
+                        channel_stat.failed = cfail;
+                        if of3 {
+                            channel_stat.failed = 0;
+                        }
+                    }
                     _ => {}
                 }
                 analytics.channel_stats.set(channel_key, channel_stat);
@@ -583,11 +759,34 @@ impl NotificationManager {
             .instance()
             .get(&NOTIFICATION_COUNTER)
             .unwrap_or(0u64);
-        let next_id = counter + 1;
+        let (next_id, overflowed) = safe_inc_u64(counter);
+        // if overflow, reset counter to zero and return 1 as next id
+        let final_id = if overflowed { 1u64 } else { next_id };
         env.storage()
             .instance()
-            .set(&NOTIFICATION_COUNTER, &next_id);
-        next_id
+            .set(&NOTIFICATION_COUNTER, &final_id);
+        final_id
+    }
+
+    /// Reset notification counters and tracking (admin only)
+    pub fn reset_counters(env: &Env, admin: Address) -> Result<(), BridgeError> {
+        admin.require_auth();
+        // Reset ID counter
+        env.storage().instance().set(&NOTIFICATION_COUNTER, &0u64);
+        // Clear logs and tracking maps
+        let empty_logs: Map<u64, NotificationContent> = Map::new(env);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_LOGS, &empty_logs);
+        let empty_tracking: Map<u64, NotificationTracking> = Map::new(env);
+        env.storage()
+            .instance()
+            .set(&NOTIFICATION_TRACKING, &empty_tracking);
+        let empty_scheduled: Map<u64, NotificationSchedule> = Map::new(env);
+        env.storage()
+            .instance()
+            .set(&SCHEDULED_NOTIFICATIONS, &empty_scheduled);
+        Ok(())
     }
 
     fn get_user_settings(env: &Env, user: Address) -> UserNotificationSettings {

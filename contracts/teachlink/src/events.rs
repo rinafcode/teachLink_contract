@@ -2,14 +2,14 @@ use soroban_sdk::contractevent;
 
 use crate::types::{
     BridgeTransaction, ContentMetadata, ContributionType, CrossChainMessage, DisputeOutcome,
-    Escrow, EscrowStatus, OperationType, PacketStatus, ProposalStatus, ProvenanceRecord,
-    RewardType, SlashingReason, SwapStatus,
+    Escrow, EscrowStatus, OperationType, ProposalStatus, ProvenanceRecord, RewardType,
+    SlashingReason,
 };
 
 // Include notification events
 // pub use crate::notification_events::*;
 
-use soroban_sdk::{Address, Bytes, String};
+use soroban_sdk::{Address, Bytes, String, Symbol};
 
 // ================= Bridge Events =================
 
@@ -44,6 +44,90 @@ pub struct BridgeInitiatedEvent {
 pub struct BridgeCompletedEvent {
     pub nonce: u64,
     pub message: CrossChainMessage,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BridgeCancelledEvent {
+    pub nonce: u64,
+    pub refunded_to: Address,
+    pub amount: i128,
+    pub cancelled_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BridgeFailedEvent {
+    pub nonce: u64,
+    pub reason: Bytes,
+    pub failed_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BridgeRetryEvent {
+    pub nonce: u64,
+    pub retry_count: u32,
+    pub retried_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ValidatorAddedEvent {
+    pub validator: Address,
+    pub added_by: Address,
+    pub added_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ValidatorRemovedEvent {
+    pub validator: Address,
+    pub removed_by: Address,
+    pub removed_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ChainSupportedEvent {
+    pub chain_id: u32,
+    pub added_by: Address,
+    pub added_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ChainUnsupportedEvent {
+    pub chain_id: u32,
+    pub removed_by: Address,
+    pub removed_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BridgeFeeUpdatedEvent {
+    pub old_fee: i128,
+    pub new_fee: i128,
+    pub updated_by: Address,
+    pub updated_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct FeeRecipientUpdatedEvent {
+    pub old_recipient: Address,
+    pub new_recipient: Address,
+    pub updated_by: Address,
+    pub updated_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct MinValidatorsUpdatedEvent {
+    pub old_min: u32,
+    pub new_min: u32,
+    pub updated_by: Address,
+    pub updated_at: u64,
 }
 
 // ================= BFT Consensus Events =================
@@ -124,6 +208,8 @@ pub struct StakeWithdrawnEvent {
     pub amount: i128,
     pub remaining_stake: i128,
 }
+
+// Note: RewardPoolFundedExternalEvent removed - use RewardPoolFundedEvent instead
 
 // ================= Multi-Chain Events =================
 
@@ -234,6 +320,20 @@ pub struct CircuitBreakerTriggeredEvent {
     pub triggered_at: u64,
 }
 
+// Note: CircuitBreakerInitializedEvent removed due to Soroban event field limitations
+// Circuit breaker initialization is tracked through regular storage updates
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct CircuitBreakerResetEvent {
+    pub chain_id: u32,
+    pub reset_by: Address,
+    pub reset_at: u64,
+}
+
+// Note: CircuitBreakerLimitsUpdatedEvent removed due to Soroban event field limitations
+// Use CircuitBreakerTriggeredEvent for circuit breaker state changes
+
 // ================= Audit and Compliance Events =================
 
 #[contractevent]
@@ -244,15 +344,6 @@ pub struct AuditRecordCreatedEvent {
     pub operator: Address,
     pub timestamp: u64,
 }
-
-// #[contractevent]
-// #[derive(Clone, Debug)]
-// pub struct ComplianceReportGeneratedEvent {
-//     pub report_id: u64,
-//     pub period_start: u64,
-//     pub period_end: u64,
-//     pub total_volume: i128,
-// }
 
 // ================= Atomic Swap Events =================
 
@@ -343,6 +434,15 @@ pub struct EscrowRefundedEvent {
 
 #[contractevent]
 #[derive(Clone, Debug)]
+pub struct EscrowCancelledEvent {
+    pub escrow_id: u64,
+    pub depositor: Address,
+    pub amount: i128,
+    pub cancelled_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
 pub struct EscrowDisputedEvent {
     pub escrow_id: u64,
     pub disputer: Address,
@@ -355,6 +455,42 @@ pub struct EscrowResolvedEvent {
     pub escrow_id: u64,
     pub outcome: DisputeOutcome,
     pub status: EscrowStatus,
+}
+
+// ================= Insurance Events =================
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct InsurancePoolInitializedEvent {
+    pub token: Address,
+    pub premium_rate: u32,
+    pub initialized_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct InsurancePoolFundedEvent {
+    pub funder: Address,
+    pub amount: i128,
+    pub new_balance: i128,
+    pub funded_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct InsurancePremiumPaidEvent {
+    pub user: Address,
+    pub amount: i128,
+    pub paid_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct InsuranceClaimProcessedEvent {
+    pub recipient: Address,
+    pub payout_amount: i128,
+    pub new_balance: i128,
+    pub processed_at: u64,
 }
 
 // ================= Credit Score Events =================
@@ -380,6 +516,37 @@ pub struct ContributionRecordedEvent {
     pub user: Address,
     pub c_type: ContributionType,
     pub points: u64,
+}
+
+// ================= Reputation Events =================
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ParticipationUpdatedEvent {
+    pub user: Address,
+    pub points_added: u32,
+    pub new_participation_score: u32,
+    pub updated_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct CourseProgressUpdatedEvent {
+    pub user: Address,
+    pub total_courses_started: u32,
+    pub total_courses_completed: u32,
+    pub completion_rate: u32,
+    pub updated_at: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ContributionRatedEvent {
+    pub user: Address,
+    pub rating: u32,
+    pub new_contribution_quality: u32,
+    pub total_contributions: u32,
+    pub rated_at: u64,
 }
 
 // ================= Content Tokenization Events =================
@@ -414,6 +581,15 @@ pub struct MetadataUpdatedEvent {
     pub token_id: u64,
     pub owner: Address,
     pub timestamp: u64,
+}
+
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct TransferabilityUpdatedEvent {
+    pub token_id: u64,
+    pub owner: Address,
+    pub transferable: bool,
+    pub updated_at: u64,
 }
 
 // ================= Advanced Analytics & Reporting Events =================
@@ -499,4 +675,54 @@ pub struct PerfMetricsComputedEvent {
 #[derive(Clone, Debug)]
 pub struct PerfCacheInvalidatedEvent {
     pub invalidated_at: u64,
+}
+
+// ================= Access Logging Events =================
+
+/// Emitted for every successfully recorded access log entry.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AccessAttemptEvent {
+    pub entry_id: u64,
+    pub caller: Address,
+    pub operation: Symbol,
+    pub success: bool,
+    pub error_code: u32,
+    pub timestamp: u64,
+}
+
+/// Emitted when the log write itself fails (fallback observability).
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct AccessLogFailedEvent {
+    pub caller: Address,
+    pub operation: Symbol,
+    pub timestamp: u64,
+}
+
+// ================= Observability Events =================
+
+/// Emitted when bridge-level metrics are updated.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct BridgeMetricsUpdatedEvent {
+    pub total_volume: i128,
+    pub total_transactions: u64,
+    pub active_validators: u32,
+    pub average_confirmation_time: u64,
+    /// Basis points (10000 = 100%).
+    pub success_rate: u32,
+    pub updated_at: u64,
+}
+
+/// Emitted when per-chain metrics are updated.
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct ChainMetricsUpdatedEvent {
+    pub chain_id: u32,
+    pub volume_in: i128,
+    pub volume_out: i128,
+    pub transaction_count: u64,
+    pub average_fee: i128,
+    pub updated_at: u64,
 }

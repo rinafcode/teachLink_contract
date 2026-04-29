@@ -12,6 +12,7 @@ import { DashboardService } from './dashboard.service';
 import { ReportExportService, ExportFormat } from './report-export.service';
 import { AlertService } from './alert.service';
 import { ReportType } from '@database/entities/dashboard-snapshot.entity';
+import { ConfigManager } from '../config/config.manager';
 
 /**
  * API for advanced analytics and reporting dashboard:
@@ -27,12 +28,38 @@ export class ReportingController {
     private dashboardService: DashboardService,
     private reportExportService: ReportExportService,
     private alertService: AlertService,
+    private configManager: ConfigManager,
   ) {}
 
   /** Current aggregate metrics for dashboard visualization */
   @Get('dashboard')
   async getDashboard() {
     return this.dashboardService.getCurrentAnalytics();
+  }
+
+  /** Real-time sustainability KPIs and health score */
+  @Get('sustainability')
+  async getSustainability() {
+    return this.dashboardService.getSustainabilitySnapshot();
+  }
+
+  /** Return the current validated configuration snapshot */
+  @Get('config')
+  getConfig() {
+    const c = this.configManager.get();
+    // Omit sensitive fields before returning
+    const { dbPassword, ...safe } = c;
+    return safe;
+  }
+
+  /** Hot-reload configuration from environment without restarting */
+  @Post('config/reload')
+  reloadConfig() {
+    const errors = this.configManager.reload();
+    if (errors.length > 0) {
+      return { success: false, errors };
+    }
+    return { success: true };
   }
 
   /** Generate and persist a report snapshot (manual trigger) */

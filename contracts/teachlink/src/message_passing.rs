@@ -10,16 +10,15 @@ use crate::storage::{
     CROSS_CHAIN_PACKETS, MESSAGE_RECEIPTS, PACKET_COUNTER, PACKET_LAST_RETRY, PACKET_RETRY_COUNTS,
 };
 use crate::types::{CrossChainPacket, MessageReceipt, PacketStatus};
+use crate::validation::NumberValidator;
 use soroban_sdk::{Bytes, Env, Map, Vec};
 
-/// Default packet timeout (24 hours)
-pub const DEFAULT_PACKET_TIMEOUT: u64 = 86_400;
-
-/// Maximum retry attempts
-pub const MAX_RETRY_ATTEMPTS: u32 = 5;
-
-/// Retry delay in seconds (exponential backoff)
-pub const RETRY_DELAY_BASE: u64 = 300; // 5 minutes
+/// Default packet timeout — re-exported from config.
+pub use crate::config::MSG_DEFAULT_PACKET_TIMEOUT as DEFAULT_PACKET_TIMEOUT;
+/// Maximum retry attempts — re-exported from config.
+pub use crate::config::MSG_MAX_RETRY_ATTEMPTS as MAX_RETRY_ATTEMPTS;
+/// Retry delay base — re-exported from config.
+pub use crate::config::MSG_RETRY_DELAY_BASE as RETRY_DELAY_BASE;
 
 /// Message Passing Manager
 pub struct MessagePassing;
@@ -35,16 +34,20 @@ impl MessagePassing {
         payload: Bytes,
         timeout: Option<u64>,
     ) -> Result<u64, BridgeError> {
-        // Validate addresses
-        if sender.is_empty() || sender.len() > 64 {
-            return Err(BridgeError::InvalidPayload);
-        }
-        if recipient.is_empty() || recipient.len() > 64 {
-            return Err(BridgeError::InvalidPayload);
-        }
-        if payload.is_empty() {
-            return Err(BridgeError::InvalidPayload);
-        }
+        // Validate chain IDs
+        NumberValidator::validate_chain_id(source_chain).map_err(|_| BridgeError::InvalidInput)?;
+        NumberValidator::validate_chain_id(destination_chain)
+            .map_err(|_| BridgeError::InvalidInput)?;
+
+        // Validate addresses (1–64 bytes)
+        crate::validation::BytesValidator::validate_length(&sender, 1, 64)
+            .map_err(|_| BridgeError::InvalidPayload)?;
+        crate::validation::BytesValidator::validate_length(&recipient, 1, 64)
+            .map_err(|_| BridgeError::InvalidPayload)?;
+
+        // Validate payload (non-empty, within size limit)
+        crate::validation::BytesValidator::validate_payload(&payload)
+            .map_err(|_| BridgeError::InvalidPayload)?;
 
         // Get packet counter
         let mut packet_counter: u64 = env

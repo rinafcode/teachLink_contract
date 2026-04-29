@@ -13,7 +13,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(IndexerService.name);
   private closeStreamHandler: (() => void) | null = null;
   private isRunning = false;
-  private readonly STATE_KEY = 'main_indexer';
+  private readonly stateKey = 'main_indexer';
 
   constructor(
     private horizonService: HorizonService,
@@ -45,7 +45,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
 
       // Get or create indexer state
       let state = await this.indexerStateRepo.findOne({
-        where: { key: this.STATE_KEY },
+        where: { key: this.stateKey },
       });
 
       let startLedger: string;
@@ -62,7 +62,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
         }
 
         state = this.indexerStateRepo.create({
-          key: this.STATE_KEY,
+          key: this.stateKey,
           lastProcessedLedger: startLedger,
           totalEventsProcessed: 0,
           totalErrors: 0,
@@ -138,7 +138,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
 
       // Update indexer state
       const state = await this.indexerStateRepo.findOne({
-        where: { key: this.STATE_KEY },
+        where: { key: this.stateKey },
       });
 
       if (state) {
@@ -163,7 +163,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
   private async incrementErrorCount(): Promise<void> {
     try {
       const state = await this.indexerStateRepo.findOne({
-        where: { key: this.STATE_KEY },
+        where: { key: this.stateKey },
       });
 
       if (state) {
@@ -177,21 +177,63 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Backfill historical data
+   * Backfill historical data with parallel event processing.
+   *
+   * Events are fetched in parallel (handled by HorizonService), then
+   * processed in parallel batches (concurrency=20) for throughput.
+   * State is updated after each batch to provide progress tracking.
    */
   async backfillHistoricalData(startLedger: number, endLedger: number): Promise<void> {
-    this.logger.log(`Starting backfill from ledger ${startLedger} to ${endLedger}`);
+    this.logger.log(`Starting parallel backfill from ledger ${startLedger} to ${endLedger}`);
+    const backfillStart = Date.now();
 
     try {
+      // Parallel ledger fetching (handled inside HorizonService)
       const events = await this.horizonService.fetchOperationsInRange(startLedger, endLedger);
 
-      this.logger.log(`Found ${events.length} events to process`);
+      this.logger.log(`Found ${events.length} events to process in parallel`);
 
-      for (const event of events) {
-        await this.handleEvent(event);
+      const BATCH_SIZE = 20;
+      let processedCount = 0;
+      let errorCount = 0;
+
+      for (let i = 0; i < events.length; i += BATCH_SIZE) {
+        const batch = events.slice(i, i + BATCH_SIZE);
+
+        const results = await Promise.allSettled(
+          batch.map((event) => this.eventProcessor.processEvent(event)),
+        );
+
+        for (const result of results) {
+          if (result.status === 'fulfilled') {
+            processedCount++;
+          } else {
+            errorCount++;
+            this.logger.warn(`Backfill event error: ${result.reason?.message}`);
+          }
+        }
+
+        // Periodic state update after each batch
+        const lastEvent = batch[batch.length - 1];
+        const state = await this.indexerStateRepo.findOne({
+          where: { key: this.stateKey },
+        });
+
+        if (state && lastEvent) {
+          state.lastProcessedLedger = lastEvent.ledger;
+          state.totalEventsProcessed += batch.length;
+          state.totalErrors += results.filter((r) => r.status === 'rejected').length;
+          await this.indexerStateRepo.save(state);
+        }
       }
 
-      this.logger.log('Backfill completed successfully');
+      const durationMs = Date.now() - backfillStart;
+      const eventsPerSec = processedCount > 0 ? Math.round((processedCount / durationMs) * 1000) : 0;
+
+      this.logger.log(
+        `Backfill completed: ${processedCount} events processed, ${errorCount} errors, ` +
+        `${durationMs}ms elapsed (${eventsPerSec} events/sec)`,
+      );
     } catch (error) {
       this.logger.error(`Backfill failed: ${error.message}`, error.stack);
       throw error;
@@ -209,7 +251,7 @@ export class IndexerService implements OnModuleInit, OnModuleDestroy {
     lastProcessedTimestamp: string;
   }> {
     const state = await this.indexerStateRepo.findOne({
-      where: { key: this.STATE_KEY },
+      where: { key: this.stateKey },
     });
 
     if (!state) {

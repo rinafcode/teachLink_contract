@@ -136,11 +136,7 @@ pub fn check_rate_limit(env: &Env, caller: &Address) -> Result<(), BridgeError> 
 /// batch-size cap, gas budget, and rate limiting.
 ///
 /// Use this for the highest-risk bulk entry points.
-pub fn enforce_all(
-    env: &Env,
-    caller: &Address,
-    batch_count: u32,
-) -> Result<(), BridgeError> {
+pub fn enforce_all(env: &Env, caller: &Address, batch_count: u32) -> Result<(), BridgeError> {
     check_batch_size(batch_count)?;
     check_gas_budget(env)?;
     check_rate_limit(env, caller)?;

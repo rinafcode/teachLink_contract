@@ -5,12 +5,12 @@
 
 use soroban_sdk::{
     testutils::{Address as _, Ledger, LedgerInfo},
-    vec, Address, Bytes, Env, Vec, Symbol, Map,
+    vec, Address, Bytes, Env, Map, Symbol, Vec,
 };
 
 use teachlink_contract::{
-    SlashingError, SlashingEvidence, SlashingCondition, TeachLinkBridge, TeachLinkBridgeClient,
-    ValidatorSlashRecord, SlashParameters,
+    SlashParameters, SlashingCondition, SlashingError, SlashingEvidence, TeachLinkBridge,
+    TeachLinkBridgeClient, ValidatorSlashRecord,
 };
 
 fn create_slash_params(
@@ -70,13 +70,18 @@ fn test_valid_slashing_conditions() {
     let validator = Address::generate(&env);
     let reporter = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Test double signing evidence
     let double_sign_data = Bytes::from_slice(&env, b"double_sign_evidence");
-    let evidence = create_slashing_evidence(&env, validator.clone(), SlashingCondition::DoubleSigning, double_sign_data);
-    
+    let evidence = create_slashing_evidence(
+        &env,
+        validator.clone(),
+        SlashingCondition::DoubleSigning,
+        double_sign_data,
+    );
+
     // Submit evidence
     client.submit_slashing_evidence(&evidence);
 
@@ -95,15 +100,23 @@ fn test_invalid_slashing_evidence() {
     let admin = Address::generate(&env);
     let validator = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Test empty evidence
     let empty_evidence = Bytes::from_slice(&env, b"");
-    let evidence = create_slashing_evidence(&env, validator, SlashingCondition::DoubleSigning, empty_evidence);
-    
+    let evidence = create_slashing_evidence(
+        &env,
+        validator,
+        SlashingCondition::DoubleSigning,
+        empty_evidence,
+    );
+
     let result = client.try_submit_slashing_evidence(&evidence);
-    assert_eq!(result.error(), Some(Ok(SlashingError::InvalidSlashingEvidence)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(SlashingError::InvalidSlashingEvidence))
+    );
 }
 
 #[test]
@@ -115,14 +128,19 @@ fn test_self_slashing_prevention() {
     let admin = Address::generate(&env);
     let validator = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Test self-slashing
     let evidence_data = Bytes::from_slice(&env, b"self_slash_attempt");
-    let mut evidence = create_slashing_evidence(&env, validator.clone(), SlashingCondition::DoubleSigning, evidence_data);
+    let mut evidence = create_slashing_evidence(
+        &env,
+        validator.clone(),
+        SlashingCondition::DoubleSigning,
+        evidence_data,
+    );
     evidence.reporter = validator.clone(); // Reporter is the same as validator
-    
+
     let result = client.try_submit_slashing_evidence(&evidence);
     assert_eq!(result.error(), Some(Ok(SlashingError::CannotSlashSelf)));
 }
@@ -137,20 +155,33 @@ fn test_duplicate_slashing_prevention() {
     let validator = Address::generate(&env);
     let reporter = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Submit first evidence
     let evidence_data = Bytes::from_slice(&env, b"first_evidence");
-    let evidence1 = create_slashing_evidence(&env, validator.clone(), SlashingCondition::DoubleSigning, evidence_data);
+    let evidence1 = create_slashing_evidence(
+        &env,
+        validator.clone(),
+        SlashingCondition::DoubleSigning,
+        evidence_data,
+    );
     client.submit_slashing_evidence(&evidence1);
 
     // Try to submit duplicate evidence
     let duplicate_data = Bytes::from_slice(&env, b"first_evidence");
-    let evidence2 = create_slashing_evidence(&env, validator, SlashingCondition::DoubleSigning, duplicate_data);
-    
+    let evidence2 = create_slashing_evidence(
+        &env,
+        validator,
+        SlashingCondition::DoubleSigning,
+        duplicate_data,
+    );
+
     let result = client.try_submit_slashing_evidence(&evidence2);
-    assert_eq!(result.error(), Some(Ok(SlashingError::ValidatorAlreadySlashed)));
+    assert_eq!(
+        result.error(),
+        Some(Ok(SlashingError::ValidatorAlreadySlashed))
+    );
 }
 
 #[test]
@@ -163,7 +194,7 @@ fn test_slashing_amount_calculation() {
     let validator = Address::generate(&env);
     let reporter = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100); // 50% slash, 10% bounty
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Set up validator with stake
@@ -172,7 +203,12 @@ fn test_slashing_amount_calculation() {
 
     // Submit evidence
     let evidence_data = Bytes::from_slice(&env, b"slash_evidence");
-    let evidence = create_slashing_evidence(&env, validator.clone(), SlashingCondition::DoubleSigning, evidence_data);
+    let evidence = create_slashing_evidence(
+        &env,
+        validator.clone(),
+        SlashingCondition::DoubleSigning,
+        evidence_data,
+    );
     client.submit_slashing_evidence(&evidence);
 
     // Check slash amounts
@@ -192,22 +228,37 @@ fn test_slashing_conditions_variations() {
     let validator2 = Address::generate(&env);
     let validator3 = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Test double signing
     let double_sign_data = Bytes::from_slice(&env, b"double_sign_evidence");
-    let evidence1 = create_slashing_evidence(&env, validator1, SlashingCondition::DoubleSigning, double_sign_data);
+    let evidence1 = create_slashing_evidence(
+        &env,
+        validator1,
+        SlashingCondition::DoubleSigning,
+        double_sign_data,
+    );
     client.submit_slashing_evidence(&evidence1);
 
     // Test unavailable validator
     let unavailable_data = Bytes::from_slice(&env, b"unavailable_evidence");
-    let evidence2 = create_slashing_evidence(&env, validator2, SlashingCondition::UnavailableValidator, unavailable_data);
+    let evidence2 = create_slashing_evidence(
+        &env,
+        validator2,
+        SlashingCondition::UnavailableValidator,
+        unavailable_data,
+    );
     client.submit_slashing_evidence(&evidence2);
 
     // Test malicious behavior
     let malicious_data = Bytes::from_slice(&env, b"malicious_evidence");
-    let evidence3 = create_slashing_evidence(&env, validator3, SlashingCondition::MaliciousBehavior, malicious_data);
+    let evidence3 = create_slashing_evidence(
+        &env,
+        validator3,
+        SlashingCondition::MaliciousBehavior,
+        malicious_data,
+    );
     client.submit_slashing_evidence(&evidence3);
 
     // Verify all records
@@ -229,22 +280,27 @@ fn test_evidence_age_validation() {
     let admin = Address::generate(&env);
     let validator = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Create old evidence (before min_evidence_age)
     let old_timestamp = env.ledger().timestamp() - 50; // Too recent
     let evidence_data = Bytes::from_slice(&env, b"old_evidence");
-    let mut evidence = create_slashing_evidence(&env, validator, SlashingCondition::DoubleSigning, evidence_data);
+    let mut evidence = create_slashing_evidence(
+        &env,
+        validator,
+        SlashingCondition::DoubleSigning,
+        evidence_data,
+    );
     evidence.timestamp = old_timestamp;
-    
+
     let result = client.try_submit_slashing_evidence(&evidence);
     assert_eq!(result.error(), Some(Ok(SlashingError::EvidenceTooRecent)));
 
     // Create valid old evidence
     let valid_timestamp = env.ledger().timestamp() - 150; // Old enough
     evidence.timestamp = valid_timestamp;
-    
+
     client.submit_slashing_evidence(&evidence); // Should succeed
 }
 
@@ -258,7 +314,7 @@ fn test_slashing_bounty_distribution() {
     let validator = Address::generate(&env);
     let reporter = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Set up validator with stake
@@ -267,9 +323,14 @@ fn test_slashing_bounty_distribution() {
 
     // Submit evidence with specific reporter
     let evidence_data = Bytes::from_slice(&env, b"bounty_evidence");
-    let mut evidence = create_slashing_evidence(&env, validator, SlashingCondition::DoubleSigning, evidence_data);
+    let mut evidence = create_slashing_evidence(
+        &env,
+        validator,
+        SlashingCondition::DoubleSigning,
+        evidence_data,
+    );
     evidence.reporter = reporter.clone();
-    
+
     client.submit_slashing_evidence(&evidence);
 
     // Check bounty distribution
@@ -288,7 +349,7 @@ fn test_slashing_limits() {
     let validator2 = Address::generate(&env);
     let params = create_slash_params(&env, 50, 10, 100);
     params.max_slash_per_period = 5000; // Limit per period
-    
+
     client.initialize_slashing(&admin, &params);
 
     // Set up validators with stake
@@ -297,13 +358,23 @@ fn test_slashing_limits() {
 
     // Slash first validator (should succeed)
     let evidence_data1 = Bytes::from_slice(&env, b"evidence1");
-    let evidence1 = create_slashing_evidence(&env, validator1, SlashingCondition::DoubleSigning, evidence_data1);
+    let evidence1 = create_slashing_evidence(
+        &env,
+        validator1,
+        SlashingCondition::DoubleSigning,
+        evidence_data1,
+    );
     client.submit_slashing_evidence(&evidence1);
 
     // Try to slash second validator (might hit limit)
     let evidence_data2 = Bytes::from_slice(&env, b"evidence2");
-    let evidence2 = create_slashing_evidence(&env, validator2, SlashingCondition::DoubleSigning, evidence_data2);
-    
+    let evidence2 = create_slashing_evidence(
+        &env,
+        validator2,
+        SlashingCondition::DoubleSigning,
+        evidence_data2,
+    );
+
     let result = client.try_submit_slashing_evidence(&evidence2);
     // This might fail due to period limit, depending on implementation
     if result.error().is_some() {

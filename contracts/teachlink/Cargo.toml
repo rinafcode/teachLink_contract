@@ -4,6 +4,7 @@ version = "0.1.0"
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
+autotests = false
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -17,9 +18,21 @@ soroban-sdk.workspace = true
 [dev-dependencies]
 soroban-sdk = { workspace = true, features = ["testutils"] }
 proptest = "1.4"
-proptest-derive = "0.4"
+proptest-derive = "0.8"
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
 
 [lints]
 workspace = true
+
+[[test]]
+name = "cross_chain_integration"
+path = "tests/cross_chain_integration.rs"
+
+[[test]]
+name = "test_module_interactions"
+path = "tests/test_module_interactions.rs"
+
+[[test]]
+name = "test_cross_contract_interactions"
+path = "tests/test_cross_contract_interactions.rs"

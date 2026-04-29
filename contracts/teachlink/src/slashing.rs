@@ -2,24 +2,64 @@
 //!
 //! This module implements slashing mechanisms for malicious or negligent validators
 //! and reward distribution for honest validators.
+//!
+//! # Slashing Algorithm
+//!
+//! When a validator is slashed, the penalty is computed as a percentage of their
+//! current stake using basis-point arithmetic (10 000 bp = 100 %):
+//!
+//! ```text
+//! slash_amount = (stake * slash_percentage_bp) / 10_000
+//! ```
+//!
+//! Slashing percentages by offence type:
+//! | Reason              | Basis Points | Effective % |
+//! |---------------------|-------------|-------------|
+//! | DoubleVote          | 5 000       | 50 %        |
+//! | InvalidSignature    | 1 000       | 10 %        |
+//! | Inactivity          |   500       |  5 %        |
+//! | ByzantineBehavior   | 10 000      | 100 %       |
+//! | MaliciousProposal   | 10 000      | 100 %       |
+//!
+//! The slashed tokens are redirected into the shared reward pool so that honest
+//! validators benefit from penalising bad actors.
+//!
+//! # Reputation Decay
+//!
+//! Each slashing event also reduces the validator's `reputation_score`.  The
+//! decay amount mirrors the severity of the offence.  Reputation is clamped at
+//! zero to prevent underflow.
+//!
+//! # Inactivity Detection
+//!
+//! `check_inactivity` uses a dual-signal approach:
+//! 1. **Timestamp** – primary signal; inactive if `now - last_activity > 7 days`.
+//! 2. **Ledger sequence** – fallback for environments where `timestamp()` is
+//!    unreliable; converts the 7-day threshold to an approximate ledger delta
+//!    via `ledger_time::seconds_to_ledger_delta`.
+//!
+//! # Spec Reference
+//! See `contracts/documentation/TOKENIZATION.md` §Validator Economics for the
+//! economic rationale behind these percentages.
 
 use crate::errors::BridgeError;
 use crate::events::{
     StakeDepositedEvent, StakeWithdrawnEvent, ValidatorRewardedEvent, ValidatorSlashedEvent,
 };
 use crate::storage::{
-    REWARD_POOL, SLASHING_COUNTER, SLASHING_RECORDS, VALIDATOR_INFO, VALIDATOR_REWARDS,
-    VALIDATOR_STAKES,
+    REWARD_POOL, SLASHING_COUNTER, SLASHING_RECORDS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO,
+    VALIDATOR_REWARDS, VALIDATOR_STAKES,
 };
 use crate::types::{RewardType, SlashingReason, SlashingRecord, ValidatorInfo, ValidatorReward};
+use crate::validation::{NumberValidator, ValidationError};
 use soroban_sdk::{Address, Env, Map, Vec};
 
-/// Slashing percentages (in basis points, 10000 = 100%)
-pub const SLASHING_PERCENTAGE_DOUBLE_VOTE: u32 = 5000; // 50%
-pub const SLASHING_PERCENTAGE_INVALID_SIGNATURE: u32 = 1000; // 10%
-pub const SLASHING_PERCENTAGE_INACTIVITY: u32 = 500; // 5%
-pub const SLASHING_PERCENTAGE_BYZANTINE: u32 = 10000; // 100%
-pub const SLASHING_PERCENTAGE_MALICIOUS: u32 = 10000; // 100%
+pub use crate::config::SLASH_BYZANTINE_BPS as SLASHING_PERCENTAGE_BYZANTINE;
+/// Slashing percentages (basis points) — re-exported from config.
+pub use crate::config::SLASH_DOUBLE_VOTE_BPS as SLASHING_PERCENTAGE_DOUBLE_VOTE;
+pub use crate::config::SLASH_INACTIVITY_BPS as SLASHING_PERCENTAGE_INACTIVITY;
+pub use crate::config::SLASH_INVALID_SIGNATURE_BPS as SLASHING_PERCENTAGE_INVALID_SIGNATURE;
+pub use crate::config::SLASH_MALICIOUS_BPS as SLASHING_PERCENTAGE_MALICIOUS;
 
 /// Inactivity threshold (in seconds, 7 days)
 pub const INACTIVITY_THRESHOLD: u64 = 604_800;
@@ -35,9 +75,7 @@ impl SlashingManager {
     pub fn deposit_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get current stake
         let mut stakes: Map<Address, i128> = env
@@ -81,9 +119,7 @@ impl SlashingManager {
     pub fn withdraw_stake(env: &Env, validator: Address, amount: i128) -> Result<(), BridgeError> {
         validator.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Get current stake
         let mut stakes: Map<Address, i128> = env
@@ -240,9 +276,7 @@ impl SlashingManager {
         amount: i128,
         reward_type: RewardType,
     ) -> Result<(), BridgeError> {
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         // Check reward pool
         let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
@@ -301,7 +335,30 @@ impl SlashingManager {
         Ok(())
     }
 
-    /// Check and slash inactive validators
+    /// Check and slash inactive validators.
+    ///
+    /// # Inactivity Detection Algorithm
+    ///
+    /// Uses a dual-signal approach to handle environments where `ledger().timestamp()`
+    /// may be unreliable (e.g., local test networks with frozen clocks):
+    ///
+    /// 1. **Primary – wall-clock timestamp**: inactive if
+    ///    `now - last_activity > INACTIVITY_THRESHOLD` (7 days).
+    /// 2. **Fallback – ledger sequence**: if the timestamp check passes, also
+    ///    verify using ledger sequence numbers converted to an approximate delta
+    ///    via `ledger_time::seconds_to_ledger_delta`.  This prevents false
+    ///    negatives on networks where time is not advancing.
+    ///
+    /// If inactivity is confirmed, `slash_validator` is called with
+    /// `SlashingReason::Inactivity` and the contract itself as the slasher
+    /// (self-enforcing rule, no external reporter needed).
+    ///
+    /// # Returns
+    /// `Ok(true)` if the validator was slashed, `Ok(false)` if still active.
+    ///
+    /// # TODO
+    /// - Add a grace period counter so a validator gets one warning before
+    ///   being slashed (reduces false positives from transient network issues).
     pub fn check_inactivity(env: &Env, validator: Address) -> Result<bool, BridgeError> {
         let validator_infos: Map<Address, ValidatorInfo> = env
             .storage()
@@ -310,8 +367,24 @@ impl SlashingManager {
             .unwrap_or_else(|| Map::new(env));
 
         if let Some(info) = validator_infos.get(validator.clone()) {
-            let inactive_duration = env.ledger().timestamp() - info.last_activity;
-            if inactive_duration > INACTIVITY_THRESHOLD {
+            let mut inactive =
+                (env.ledger().timestamp() - info.last_activity) > INACTIVITY_THRESHOLD;
+
+            // Sequence-based fallback for environments where timestamps are unreliable.
+            if !inactive {
+                let activity_seq: Map<Address, u32> = env
+                    .storage()
+                    .instance()
+                    .get(&VALIDATOR_ACTIVITY_SEQ)
+                    .unwrap_or_else(|| Map::new(env));
+                if let Some(last_seq) = activity_seq.get(validator.clone()) {
+                    let threshold_ledgers =
+                        crate::ledger_time::seconds_to_ledger_delta(INACTIVITY_THRESHOLD);
+                    inactive = env.ledger().sequence().saturating_sub(last_seq) > threshold_ledgers;
+                }
+            }
+
+            if inactive {
                 // Slash for inactivity
                 Self::slash_validator(
                     env,
@@ -331,19 +404,39 @@ impl SlashingManager {
     pub fn fund_reward_pool(env: &Env, funder: Address, amount: i128) -> Result<(), BridgeError> {
         funder.require_auth();
 
-        if amount <= 0 {
-            return Err(BridgeError::AmountMustBePositive);
-        }
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
 
         let reward_pool: i128 = env.storage().instance().get(&REWARD_POOL).unwrap_or(0i128);
-        env.storage()
-            .instance()
-            .set(&REWARD_POOL, &(reward_pool + amount));
+        let new_balance = reward_pool + amount;
+        env.storage().instance().set(&REWARD_POOL, &new_balance);
 
         Ok(())
     }
 
-    /// Calculate new reputation score after slashing
+    /// Calculate new reputation score after slashing.
+    ///
+    /// # Algorithm
+    ///
+    /// Applies a fixed reputation penalty that scales with offence severity.
+    /// `saturating_sub` is used to clamp the result at zero, preventing
+    /// underflow on validators that have already been penalised heavily.
+    ///
+    /// Penalty table (reputation points deducted):
+    /// | Reason              | Penalty |
+    /// |---------------------|---------|
+    /// | DoubleVote          |  20     |
+    /// | InvalidSignature    |  10     |
+    /// | Inactivity          |   5     |
+    /// | ByzantineBehavior   |  50     |
+    /// | MaliciousProposal   | 100     |
+    ///
+    /// A validator starting at 100 reputation would be fully removed from the
+    /// active set (threshold: `MIN_ACTIVE_REPUTATION = 40`) after two
+    /// ByzantineBehavior slashes.
+    ///
+    /// # TODO
+    /// - Consider a time-based reputation recovery mechanism so validators can
+    ///   rehabilitate after a period of honest behaviour.
     fn calculate_new_reputation(current: u32, reason: &SlashingReason) -> u32 {
         let penalty = match reason {
             SlashingReason::DoubleVote => 20,
@@ -389,5 +482,62 @@ impl SlashingManager {
             .get(&VALIDATOR_REWARDS)
             .unwrap_or_else(|| Map::new(env));
         rewards.get(validator).unwrap_or_else(|| Vec::new(env))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::SlashingManager;
+    use crate::errors::BridgeError;
+    use crate::storage::{VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO};
+    use crate::types::ValidatorInfo;
+    use crate::TeachLinkBridge;
+    use soroban_sdk::testutils::{Address as _, Ledger};
+    use soroban_sdk::{Address, Env, Map};
+
+    fn set_ledger(env: &Env, timestamp: u64, sequence: u32) {
+        env.ledger().with_mut(|li| {
+            li.timestamp = timestamp;
+            li.sequence_number = sequence;
+        });
+    }
+
+    #[test]
+    fn inactivity_check_uses_sequence_fallback() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+
+        env.as_contract(&contract_id, || {
+            let validator = Address::generate(&env);
+
+            // Timestamp indicates activity is fresh.
+            set_ledger(&env, 1_000, 1);
+            let info = ValidatorInfo {
+                address: validator.clone(),
+                stake: 100,
+                reputation_score: 100,
+                is_active: true,
+                joined_at: 1_000,
+                last_activity: 1_000,
+                total_validations: 0,
+                missed_validations: 0,
+                slashed_amount: 0,
+            };
+            let mut infos: Map<Address, ValidatorInfo> = Map::new(&env);
+            infos.set(validator.clone(), info);
+            env.storage().instance().set(&VALIDATOR_INFO, &infos);
+
+            // Sequence says it's been a long time since last activity.
+            let mut seqs: Map<Address, u32> = Map::new(&env);
+            seqs.set(validator.clone(), 1u32);
+            env.storage().instance().set(&VALIDATOR_ACTIVITY_SEQ, &seqs);
+
+            // Advance sequence far beyond the fallback threshold.
+            set_ledger(&env, 1_000, 1_000_000);
+            let r = SlashingManager::check_inactivity(&env, validator);
+
+            assert_eq!(r, Ok(true));
+        });
     }
 }

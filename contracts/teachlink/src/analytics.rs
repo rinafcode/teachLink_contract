@@ -2,13 +2,14 @@
 
 //! Bridge monitoring and analytics for bridge operations, validator performance, and chain metrics.
 
-use crate::errors::BridgeError;
+use crate::errors::{AnalyticsError, AnalyticsResult, BridgeError};
+use crate::events::{BridgeMetricsUpdatedEvent, ChainMetricsUpdatedEvent};
 use crate::storage::{BRIDGE_METRICS, CHAIN_METRICS, DAILY_VOLUMES};
 use crate::types::{BridgeMetrics, ChainMetrics};
 use soroban_sdk::{Address, Bytes, Env, Map, Vec};
 
-/// Metrics update interval (1 hour)
-pub const METRICS_UPDATE_INTERVAL: u64 = 3_600;
+/// Metrics update interval — re-exported from config for backward compatibility.
+pub use crate::config::METRICS_UPDATE_INTERVAL;
 
 /// Analytics Manager
 pub struct AnalyticsManager;
@@ -26,6 +27,16 @@ impl AnalyticsManager {
         };
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
+
+        BridgeMetricsUpdatedEvent {
+            total_volume: metrics.total_volume,
+            total_transactions: metrics.total_transactions,
+            active_validators: metrics.active_validators,
+            average_confirmation_time: metrics.average_confirmation_time,
+            success_rate: metrics.success_rate,
+            updated_at: metrics.last_updated,
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -77,6 +88,16 @@ impl AnalyticsManager {
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
 
+        BridgeMetricsUpdatedEvent {
+            total_volume: metrics.total_volume,
+            total_transactions: metrics.total_transactions,
+            active_validators: metrics.active_validators,
+            average_confirmation_time: metrics.average_confirmation_time,
+            success_rate: metrics.success_rate,
+            updated_at: metrics.last_updated,
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -100,6 +121,16 @@ impl AnalyticsManager {
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
 
+        BridgeMetricsUpdatedEvent {
+            total_volume: metrics.total_volume,
+            total_transactions: metrics.total_transactions,
+            active_validators: metrics.active_validators,
+            average_confirmation_time: metrics.average_confirmation_time,
+            success_rate: metrics.success_rate,
+            updated_at: metrics.last_updated,
+        }
+        .publish(env);
+
         Ok(())
     }
 
@@ -113,6 +144,11 @@ impl AnalyticsManager {
             average_fee: 0,
             last_updated: env.ledger().timestamp(),
         };
+        let volume_in = metrics.volume_in;
+        let volume_out = metrics.volume_out;
+        let transaction_count = metrics.transaction_count;
+        let average_fee = metrics.average_fee;
+        let updated_at = metrics.last_updated;
 
         let mut chain_metrics: Map<u32, ChainMetrics> = env
             .storage()
@@ -121,6 +157,16 @@ impl AnalyticsManager {
             .unwrap_or_else(|| Map::new(env));
         chain_metrics.set(chain_id, metrics);
         env.storage().instance().set(&CHAIN_METRICS, &chain_metrics);
+
+        ChainMetricsUpdatedEvent {
+            chain_id,
+            volume_in,
+            volume_out,
+            transaction_count,
+            average_fee,
+            updated_at,
+        }
+        .publish(env);
 
         Ok(())
     }
@@ -171,6 +217,18 @@ impl AnalyticsManager {
 
         chain_metrics.set(chain_id, metrics);
         env.storage().instance().set(&CHAIN_METRICS, &chain_metrics);
+
+        if let Some(metrics) = chain_metrics.get(chain_id) {
+            ChainMetricsUpdatedEvent {
+                chain_id,
+                volume_in: metrics.volume_in,
+                volume_out: metrics.volume_out,
+                transaction_count: metrics.transaction_count,
+                average_fee: metrics.average_fee,
+                updated_at: metrics.last_updated,
+            }
+            .publish(env);
+        }
 
         Ok(())
     }
@@ -282,7 +340,10 @@ impl AnalyticsManager {
     const MAX_CHAINS_ITER: u32 = 50;
 
     /// Get top chains by volume with bounded iteration (for performance cache).
-    pub fn get_top_chains_by_volume_bounded(env: &Env, limit: u32) -> Vec<(u32, i128)> {
+    pub fn get_top_chains_by_volume_bounded(
+        env: &Env,
+        limit: u32,
+    ) -> AnalyticsResult<Vec<(u32, i128)>> {
         let chain_metrics: Map<u32, ChainMetrics> = env
             .storage()
             .instance()
@@ -301,14 +362,16 @@ impl AnalyticsManager {
         }
 
         let len = chains.len();
-        for i in 0..len {
-            for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
-                if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
+        if len > 1 {
+            for i in 0..len {
+                for j in 0..len.saturating_sub(i + 1) {
+                    let (_, vol_a) = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                    let (_, vol_b) = chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?;
+                    if vol_a < vol_b {
+                        let temp = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                        chains.set(j, chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?);
+                        chains.set(j + 1, temp);
+                    }
                 }
             }
         }
@@ -319,11 +382,11 @@ impl AnalyticsManager {
                 result.push_back(chain);
             }
         }
-        result
+        Ok(result)
     }
 
     /// Get top chains by volume (unbounded; use get_top_chains_by_volume_bounded for caching).
-    pub fn get_top_chains_by_volume(env: &Env, limit: u32) -> Vec<(u32, i128)> {
+    pub fn get_top_chains_by_volume(env: &Env, limit: u32) -> AnalyticsResult<Vec<(u32, i128)>> {
         let chain_metrics: Map<u32, ChainMetrics> = env
             .storage()
             .instance()
@@ -338,14 +401,16 @@ impl AnalyticsManager {
 
         // Simple bubble sort (for small datasets)
         let len = chains.len();
-        for i in 0..len {
-            for j in 0..(len - i - 1) {
-                let (_, vol_a) = chains.get(j).unwrap();
-                let (_, vol_b) = chains.get(j + 1).unwrap();
-                if vol_a < vol_b {
-                    let temp = chains.get(j).unwrap();
-                    chains.set(j, chains.get(j + 1).unwrap());
-                    chains.set(j + 1, temp);
+        if len > 1 {
+            for i in 0..len {
+                for j in 0..len.saturating_sub(i + 1) {
+                    let (_, vol_a) = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                    let (_, vol_b) = chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?;
+                    if vol_a < vol_b {
+                        let temp = chains.get(j).ok_or(AnalyticsError::InvalidIndex)?;
+                        chains.set(j, chains.get(j + 1).ok_or(AnalyticsError::InvalidIndex)?);
+                        chains.set(j + 1, temp);
+                    }
                 }
             }
         }
@@ -357,7 +422,7 @@ impl AnalyticsManager {
                 result.push_back(chain);
             }
         }
-        result
+        Ok(result)
     }
 
     /// Get bridge statistics
@@ -407,6 +472,15 @@ impl AnalyticsManager {
         };
 
         env.storage().instance().set(&BRIDGE_METRICS, &metrics);
+
+        // Audit: admin reset of metrics
+        let _ = crate::audit::AuditManager::create_audit_record(
+            env,
+            crate::types::OperationType::ConfigUpdate,
+            admin.clone(),
+            Bytes::new(env),
+            Bytes::new(env),
+        );
 
         Ok(())
     }
