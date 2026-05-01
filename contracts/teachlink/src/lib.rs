@@ -88,6 +88,7 @@
 #![allow(clippy::trivially_copy_pass_by_ref)]
 #![allow(clippy::needless_borrow)]
 
+use crate::score::ScoreError;
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod access_control;
@@ -108,6 +109,7 @@ mod dos_protection;
 // mod content_nft;
 // TODO: Fix content_quality module compilation errors (pre-existing issue - symbol too long)
 // mod content_quality;
+mod config;
 mod emergency;
 mod errors;
 mod escrow_analytics;
@@ -169,9 +171,9 @@ mod validation;
 // mod validation_tests;
 
 pub use validation::{
-    config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
-    EscrowValidator, InputSanitizer, NumberValidator, RewardsValidator, StringValidator,
-    ValidationError, ValidationResult,
+    AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator, EscrowValidator,
+    InputSanitizer, NumberValidator, RewardsValidator, StringValidator, ValidationError,
+    ValidationResult,
 };
 
 pub use crate::types::{
@@ -184,6 +186,7 @@ pub use assessment::{
 };
 pub use errors::{
     AccessLogError, BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError,
+    TokenizationError,
 };
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
@@ -508,12 +511,12 @@ impl TeachLinkBridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: Env) -> Result<Address, BridgeError> {
+    pub fn get_token(env: Env) -> Address {
         bridge::Bridge::get_token(&env)
     }
 
     /// Get the admin address
-    pub fn get_admin(env: Env) -> Result<Address, BridgeError> {
+    pub fn get_admin(env: Env) -> Address {
         bridge::Bridge::get_admin(&env)
     }
 
@@ -1513,8 +1516,7 @@ impl TeachLinkBridge {
         points: u64,
     ) -> Result<(), ScoreError> {
         // Check admin authorization
-        let admin_result = bridge::Bridge::get_admin(&env);
-        let admin = admin_result.map_err(|_| ScoreError::StorageError)?; // Convert BridgeError to ScoreError
+        let admin = bridge::Bridge::get_admin(&env);
         admin.require_auth();
         score::ScoreManager::record_course_completion(&env, user, course_id, points)
     }
@@ -1581,7 +1583,7 @@ impl TeachLinkBridge {
             params.tags,
             params.is_transferable,
             params.royalty_percentage,
-        )?;
+        );
         provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None)
             .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
         Ok(token_id)

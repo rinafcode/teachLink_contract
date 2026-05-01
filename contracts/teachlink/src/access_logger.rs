@@ -71,7 +71,7 @@ impl AccessLogger {
         // --- Emit event ---
         let (success, error_code) = match &outcome {
             AccessOutcome::Success => (true, 0u32),
-            AccessOutcome::Failure { error_code } => (false, *error_code),
+            AccessOutcome::Failure => (false, 1u32),
         };
 
         AccessAttemptEvent {
@@ -181,14 +181,7 @@ impl AccessLogger {
 
         // Outcome filter
         if let Some(ref outcome_filter) = query.outcome_filter {
-            let matches = match (outcome_filter, &entry.outcome) {
-                (AccessOutcome::Success, AccessOutcome::Success) => true,
-                (
-                    AccessOutcome::Failure { error_code: a },
-                    AccessOutcome::Failure { error_code: b },
-                ) => a == b,
-                _ => false,
-            };
+            let matches = outcome_filter == &entry.outcome;
             if !matches {
                 return false;
             }

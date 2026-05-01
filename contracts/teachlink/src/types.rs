@@ -1708,7 +1708,7 @@ pub struct MobileSocialFeatures {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum AccessOutcome {
     Success,
-    Failure(u32),
+    Failure,
 }
 
 /// A single immutable record of one access attempt.
