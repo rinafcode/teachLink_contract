@@ -8,6 +8,7 @@ use crate::notification_events_basic::{
     NotificationDeliveredEvent, NotificationFailedEvent, NotificationPrefUpdatedEvent,
     NotificationScheduledEvent,
 };
+use crate::rate_limiting::RateLimiter;
 use crate::safe_stats::safe_inc_u64;
 use crate::storage::{
     NOTIFICATION_COUNTER, NOTIFICATION_LAST_CLEANUP, NOTIFICATION_LOGS, NOTIFICATION_MAX_SIZE,
@@ -19,7 +20,7 @@ use crate::types::{
     NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
     UserNotificationSettings,
 };
-use crate::rate_limiting::RateLimiter;
+use soroban_sdk::symbol_short;
 use soroban_sdk::Symbol;
 use soroban_sdk::{contracttype, vec, Address, Bytes, Env, IntoVal, Map, String, Vec};
 
@@ -49,8 +50,12 @@ impl NotificationManager {
         RateLimiter::set_endpoint_config(
             env,
             &endpoint,
-            crate::rate_limiting::EndpointConfig { max_calls, window_ledgers },
-        ).map_err(|_| BridgeError::StorageError)
+            crate::rate_limiting::EndpointConfig {
+                max_calls,
+                window_ledgers,
+            },
+        )
+        .map_err(|_| BridgeError::StorageError)
     }
     /// Initialize notification system
     pub fn initialize(env: &Env) -> Result<(), BridgeError> {
@@ -125,7 +130,7 @@ impl NotificationManager {
         content: NotificationContent,
     ) -> Result<u64, BridgeError> {
         // Rate limit: per-user for send_notification
-        let endpoint = Symbol::short("notif_send");
+        let endpoint = symbol_short!("NOTISEND");
         RateLimiter::check_rate_limit(env, &recipient, &endpoint)?;
 
         let notification_id = Self::get_next_notification_id(env);
@@ -206,7 +211,7 @@ impl NotificationManager {
         schedule: NotificationSchedule,
     ) -> Result<u64, BridgeError> {
         // Rate limit: per-user for schedule_notification
-        let endpoint = Symbol::short("notif_schedule");
+        let endpoint = symbol_short!("NOTISCHD");
         RateLimiter::check_rate_limit(env, &recipient, &endpoint)?;
 
         let notification_id = Self::get_next_notification_id(env);

@@ -6,6 +6,7 @@
 use crate::repository::escrow_repository::EscrowAggregateRepository;
 use crate::repository::StorageError;
 use crate::types::{Escrow, EscrowRole, EscrowSigner, EscrowStatus};
+use soroban_sdk::testutils::Address as _;
 use soroban_sdk::{Address, Env, Vec};
 
 #[test]
@@ -13,11 +14,11 @@ fn test_atomic_escrow_approval_prevents_race_conditions() {
     let env = Env::default();
     let repo = EscrowAggregateRepository::new(&env);
 
-    let depositor = Address::from_array(&env, &[6u8; 32]);
-    let beneficiary = Address::from_array(&env, &[7u8; 32]);
-    let signer1 = Address::from_array(&env, &[8u8; 32]);
-    let signer2 = Address::from_array(&env, &[9u8; 32]);
-    let token = Address::from_array(&env, &[10u8; 32]);
+    let depositor = Address::generate(&env);
+    let beneficiary = Address::generate(&env);
+    let signer1 = Address::generate(&env);
+    let signer2 = Address::generate(&env);
+    let token = Address::generate(&env);
 
     // Create escrow with multiple signers
     let mut signers = Vec::new(&env);

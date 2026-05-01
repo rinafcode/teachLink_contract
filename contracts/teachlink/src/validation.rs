@@ -41,6 +41,10 @@ pub mod config {
     /// Bridge-specific maximum amount (1e18 base units — ~1 billion tokens
     /// with 9 decimals; prevents single transactions from draining the pool).
     pub const MAX_BRIDGE_AMOUNT: i128 = 1_000_000_000_000_000_000; // 1e18
+    /// Operational timestamp bound for day-to-day checks (90 days).
+    pub const MAX_OPERATIONAL_TIMEOUT: u64 = 90 * 24 * 60 * 60;
+    /// Maximum tolerated clock skew between external and ledger time (15 minutes).
+    pub const MAX_TIME_SKEW: u64 = 15 * 60;
 }
 
 /// Validation errors
@@ -61,6 +65,9 @@ pub enum ValidationError {
     InvalidTimestamp,
     TimestampNotMonotonic,
     TimestampSkewExceeded,
+    SelfInteractionNotAllowed,
+    WhitespaceOnlyString,
+    InvalidCharacters,
 }
 
 /// Result type for validation operations
@@ -302,7 +309,7 @@ impl StringValidator {
     /// Returns `InvalidStringLength` if the trimmed result is empty or exceeds
     /// `max_length`; returns `InvalidCharacters` if forbidden bytes are present.
     pub fn trim_and_validate(
-        env: &Env,
+        _env: &Env,
         string: &String,
         max_length: u32,
     ) -> ValidationResult<String> {
@@ -331,17 +338,40 @@ impl StringValidator {
             end -= 1;
         }
 
-        // Build trimmed Bytes by copying the [start, end] range.
-        let mut trimmed_bytes = Bytes::new(env);
         let mut i = start;
         while i <= end {
-            trimmed_bytes.push_back(bytes.get(i).unwrap());
+            let ch = bytes.get(i).unwrap() as char;
+            if !ch.is_alphanumeric()
+                && !ch.is_whitespace()
+                && !matches!(
+                    ch,
+                    '-' | '_'
+                        | '.'
+                        | ','
+                        | '!'
+                        | '?'
+                        | '@'
+                        | '#'
+                        | '$'
+                        | '%'
+                        | '&'
+                        | '*'
+                        | '+'
+                        | '='
+                        | ':'
+                )
+            {
+                return Err(ValidationError::InvalidCharacters);
+            }
             i += 1;
         }
 
-        let trimmed = String::from_bytes(env, &trimmed_bytes);
-        Self::validate(&trimmed, max_length)?;
-        Ok(trimmed)
+        let trimmed_len = end - start + 1;
+        if trimmed_len == 0 || trimmed_len > max_length {
+            return Err(ValidationError::InvalidStringLength);
+        }
+
+        Ok(string.clone())
     }
 }
 

@@ -5,13 +5,13 @@ pub enum ScoreError {
 }
 
 pub type ScoreResult<T> = Result<T, ScoreError>;
-//! Credit score calculation from on-chain activities.
-//!
-//! Responsibilities:
-//! - Award points for course completions and contributions
-//! - Maintain per-user score, course list, and contribution history
-//! - Emit events on every state change
-//! - Expose read-only views for scores and history
+// Credit score calculation from on-chain activities.
+//
+// Responsibilities:
+// - Award points for course completions and contributions
+// - Maintain per-user score, course list, and contribution history
+// - Emit events on every state change
+// - Expose read-only views for scores and history
 
 use crate::events::{ContributionRecordedEvent, CourseCompletedEvent, CreditScoreUpdatedEvent};
 use crate::storage::{CONTRIBUTIONS, COURSE_COMPLETIONS, CREDIT_SCORE};

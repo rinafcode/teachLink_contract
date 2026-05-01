@@ -39,75 +39,81 @@ impl ContentTokenization {
         is_transferable: bool,
         royalty_percentage: u32,
     ) -> u64 {
-        reentrancy::with_guard(env, &TOKENIZATION_GUARD, TokenizationError::StorageError, || {
-            // Validation Layer
-            crate::validation::AddressValidator::validate(env, &creator).unwrap();
+        reentrancy::with_guard(
+            env,
+            &TOKENIZATION_GUARD,
+            TokenizationError::StorageError,
+            || {
+                // Validation Layer
+                crate::validation::AddressValidator::validate(env, &creator).unwrap();
 
-            // Metadata validation (if title/description were String, we'd use StringValidator)
-            // Since they are Bytes, we check length
-            crate::validation::BytesValidator::validate_length(&title, 1, 100).unwrap();
-            crate::validation::BytesValidator::validate_length(&description, 1, 1000).unwrap();
-            crate::validation::BytesValidator::validate_length(&content_hash, 32, 32).unwrap();
+                // Metadata validation (if title/description were String, we'd use StringValidator)
+                // Since they are Bytes, we check length
+                crate::validation::BytesValidator::validate_length(&title, 1, 100).unwrap();
+                crate::validation::BytesValidator::validate_length(&description, 1, 1000).unwrap();
+                crate::validation::BytesValidator::validate_length(&content_hash, 32, 32).unwrap();
 
-            if royalty_percentage > 100 {
-                panic!("Royalty percentage cannot exceed 100");
-            }
+                if royalty_percentage > 100 {
+                    panic!("Royalty percentage cannot exceed 100");
+                }
 
-            let timestamp = env.ledger().timestamp();
-            let token_id = Self::get_next_token_id(env);
+                let timestamp = env.ledger().timestamp();
+                let token_id = Self::get_next_token_id(env);
 
-            let metadata = ContentMetadata {
-                title: title.clone(),
-                description: description.clone(),
-                content_type: content_type.clone(),
-                creator: creator.clone(),
-                content_hash: content_hash.clone(),
-                license_type: license_type.clone(),
-                tags: tags.clone(),
-                created_at: timestamp,
-                updated_at: timestamp,
-            };
+                let metadata = ContentMetadata {
+                    title: title.clone(),
+                    description: description.clone(),
+                    content_type: content_type.clone(),
+                    creator: creator.clone(),
+                    content_hash: content_hash.clone(),
+                    license_type: license_type.clone(),
+                    tags: tags.clone(),
+                    created_at: timestamp,
+                    updated_at: timestamp,
+                };
 
-            let token = ContentToken {
-                token_id,
-                metadata: metadata.clone(),
-                owner: creator.clone(),
-                minted_at: timestamp,
-                is_transferable,
-                royalty_percentage,
-            };
+                let token = ContentToken {
+                    token_id,
+                    metadata: metadata.clone(),
+                    owner: creator.clone(),
+                    minted_at: timestamp,
+                    is_transferable,
+                    royalty_percentage,
+                };
 
-            // Store the token
-            env.storage()
-                .persistent()
-                .set(&(CONTENT_TOKENS, token_id), &token);
+                // Store the token
+                env.storage()
+                    .persistent()
+                    .set(&(CONTENT_TOKENS, token_id), &token);
 
-            // Store ownership mapping
-            env.storage()
-                .persistent()
-                .set(&(OWNERSHIP, token_id), &creator);
+                // Store ownership mapping
+                env.storage()
+                    .persistent()
+                    .set(&(OWNERSHIP, token_id), &creator);
 
-            // Add token to owner's token list
-            let mut owner_tokens: Vec<u64> = env
-                .storage()
-                .persistent()
-                .get(&(OWNER_TOKENS, creator.clone()))
-                .unwrap_or(Vec::new(&env));
-            owner_tokens.push_back(token_id);
-            env.storage()
-                .persistent()
-                .set(&(OWNER_TOKENS, creator.clone()), &owner_tokens);
+                // Add token to owner's token list
+                let mut owner_tokens: Vec<u64> = env
+                    .storage()
+                    .persistent()
+                    .get(&(OWNER_TOKENS, creator.clone()))
+                    .unwrap_or(Vec::new(&env));
+                owner_tokens.push_back(token_id);
+                env.storage()
+                    .persistent()
+                    .set(&(OWNER_TOKENS, creator.clone()), &owner_tokens);
 
-            // Emit event
-            ContentMintedEvent {
-                token_id,
-                creator: creator.clone(),
-                metadata,
-            }
-            .publish(env);
+                // Emit event
+                ContentMintedEvent {
+                    token_id,
+                    creator: creator.clone(),
+                    metadata,
+                }
+                .publish(env);
 
-            Ok(token_id)
-        }).unwrap()
+                Ok(token_id)
+            },
+        )
+        .unwrap()
     }
 
     /// Transfer ownership of a content token
@@ -118,84 +124,89 @@ impl ContentTokenization {
         token_id: u64,
         notes: Option<Bytes>,
     ) -> TokenizationResult<()> {
-        reentrancy::with_guard(env, &TOKENIZATION_GUARD, TokenizationError::StorageError, || {
-            // Get the token
-            let token: ContentToken = env
-                .storage()
-                .persistent()
-                .get(&(CONTENT_TOKENS, token_id))
-                .ok_or(TokenizationError::TokenNotFound)?;
+        reentrancy::with_guard(
+            env,
+            &TOKENIZATION_GUARD,
+            TokenizationError::StorageError,
+            || {
+                // Get the token
+                let token: ContentToken = env
+                    .storage()
+                    .persistent()
+                    .get(&(CONTENT_TOKENS, token_id))
+                    .ok_or(TokenizationError::TokenNotFound)?;
 
-            // Verify ownership
-            if token.owner != from {
-                return Err(TokenizationError::UnauthorizedMint); // Using UnauthorizedMint as closest match
-            }
-
-            // Check if transferable
-            if !token.is_transferable {
-                return Err(TokenizationError::InvalidMetadata); // Using InvalidMetadata as closest match
-            }
-
-            // Update ownership
-            env.storage().persistent().set(&(OWNERSHIP, token_id), &to);
-
-            // Update token owner
-            let mut updated_token = token.clone();
-            updated_token.owner = to.clone();
-            updated_token.metadata.updated_at = env.ledger().timestamp();
-            env.storage()
-                .persistent()
-                .set(&(CONTENT_TOKENS, token_id), &updated_token);
-
-            // Remove from old owner's list
-            let from_tokens: Vec<u64> = env
-                .storage()
-                .persistent()
-                .get(&(OWNER_TOKENS, from.clone()))
-                .unwrap_or(Vec::new(env));
-            let mut new_from_tokens = Vec::new(env);
-            for id in from_tokens.iter() {
-                if id != token_id {
-                    new_from_tokens.push_back(id);
+                // Verify ownership
+                if token.owner != from {
+                    return Err(TokenizationError::UnauthorizedMint); // Using UnauthorizedMint as closest match
                 }
-            }
-            env.storage()
-                .persistent()
-                .set(&(OWNER_TOKENS, from.clone()), &new_from_tokens);
 
-            // Add to new owner's list
-            let mut to_tokens: Vec<u64> = env
-                .storage()
-                .persistent()
-                .get(&(OWNER_TOKENS, to.clone()))
-                .unwrap_or(Vec::new(env));
-            to_tokens.push_back(token_id);
-            env.storage()
-                .persistent()
-                .set(&(OWNER_TOKENS, to.clone()), &to_tokens);
+                // Check if transferable
+                if !token.is_transferable {
+                    return Err(TokenizationError::InvalidMetadata); // Using InvalidMetadata as closest match
+                }
 
-            // Emit event
-            OwnershipTransferredEvent {
-                token_id,
-                from: from.clone(),
-                to: to.clone(),
-                timestamp: env.ledger().timestamp(),
-            }
-            .publish(env);
+                // Update ownership
+                env.storage().persistent().set(&(OWNERSHIP, token_id), &to);
 
-            // Record provenance (handled by provenance module)
-            crate::provenance::ProvenanceTracker::record_transfer(
-                env,
-                token_id,
-                Some(from.clone()),
-                to.clone(),
-                crate::types::TransferType::Transfer,
-                notes,
-            )
-            .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
+                // Update token owner
+                let mut updated_token = token.clone();
+                updated_token.owner = to.clone();
+                updated_token.metadata.updated_at = env.ledger().timestamp();
+                env.storage()
+                    .persistent()
+                    .set(&(CONTENT_TOKENS, token_id), &updated_token);
 
-            Ok(())
-        })
+                // Remove from old owner's list
+                let from_tokens: Vec<u64> = env
+                    .storage()
+                    .persistent()
+                    .get(&(OWNER_TOKENS, from.clone()))
+                    .unwrap_or(Vec::new(env));
+                let mut new_from_tokens = Vec::new(env);
+                for id in from_tokens.iter() {
+                    if id != token_id {
+                        new_from_tokens.push_back(id);
+                    }
+                }
+                env.storage()
+                    .persistent()
+                    .set(&(OWNER_TOKENS, from.clone()), &new_from_tokens);
+
+                // Add to new owner's list
+                let mut to_tokens: Vec<u64> = env
+                    .storage()
+                    .persistent()
+                    .get(&(OWNER_TOKENS, to.clone()))
+                    .unwrap_or(Vec::new(env));
+                to_tokens.push_back(token_id);
+                env.storage()
+                    .persistent()
+                    .set(&(OWNER_TOKENS, to.clone()), &to_tokens);
+
+                // Emit event
+                OwnershipTransferredEvent {
+                    token_id,
+                    from: from.clone(),
+                    to: to.clone(),
+                    timestamp: env.ledger().timestamp(),
+                }
+                .publish(env);
+
+                // Record provenance (handled by provenance module)
+                crate::provenance::ProvenanceTracker::record_transfer(
+                    env,
+                    token_id,
+                    Some(from.clone()),
+                    to.clone(),
+                    crate::types::TransferType::Transfer,
+                    notes,
+                )
+                .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
+
+                Ok(())
+            },
+        )
     }
 
     /// Get a content token by ID
@@ -260,45 +271,50 @@ impl ContentTokenization {
         description: Option<Bytes>,
         tags: Option<Vec<Bytes>>,
     ) -> TokenizationResult<()> {
-        reentrancy::with_guard(env, &TOKENIZATION_GUARD, TokenizationError::StorageError, || {
-            let mut token: ContentToken = env
-                .storage()
-                .persistent()
-                .get(&(CONTENT_TOKENS, token_id))
-                .ok_or(TokenizationError::TokenNotFound)?;
+        reentrancy::with_guard(
+            env,
+            &TOKENIZATION_GUARD,
+            TokenizationError::StorageError,
+            || {
+                let mut token: ContentToken = env
+                    .storage()
+                    .persistent()
+                    .get(&(CONTENT_TOKENS, token_id))
+                    .ok_or(TokenizationError::TokenNotFound)?;
 
-            if token.owner != owner {
-                return Err(TokenizationError::UnauthorizedMint); // Using as closest match
-            }
+                if token.owner != owner {
+                    return Err(TokenizationError::UnauthorizedMint); // Using as closest match
+                }
 
-            if let Some(new_title) = title {
-                token.metadata.title = new_title;
-            }
+                if let Some(new_title) = title {
+                    token.metadata.title = new_title;
+                }
 
-            if let Some(new_description) = description {
-                token.metadata.description = new_description;
-            }
+                if let Some(new_description) = description {
+                    token.metadata.description = new_description;
+                }
 
-            if let Some(new_tags) = tags {
-                token.metadata.tags = new_tags;
-            }
+                if let Some(new_tags) = tags {
+                    token.metadata.tags = new_tags;
+                }
 
-            token.metadata.updated_at = env.ledger().timestamp();
+                token.metadata.updated_at = env.ledger().timestamp();
 
-            env.storage()
-                .persistent()
-                .set(&(CONTENT_TOKENS, token_id), &token);
+                env.storage()
+                    .persistent()
+                    .set(&(CONTENT_TOKENS, token_id), &token);
 
-            // Emit event
-            MetadataUpdatedEvent {
-                token_id,
-                owner: owner.clone(),
-                timestamp: env.ledger().timestamp(),
-            }
-            .publish(env);
+                // Emit event
+                MetadataUpdatedEvent {
+                    token_id,
+                    owner: owner.clone(),
+                    timestamp: env.ledger().timestamp(),
+                }
+                .publish(env);
 
-            Ok(())
-        })
+                Ok(())
+            },
+        )
     }
 
     /// Set transferability of a token (only by owner)
@@ -308,34 +324,39 @@ impl ContentTokenization {
         token_id: u64,
         transferable: bool,
     ) -> TokenizationResult<()> {
-        reentrancy::with_guard(env, &TOKENIZATION_GUARD, TokenizationError::StorageError, || {
-            let mut token: ContentToken = env
-                .storage()
-                .persistent()
-                .get(&(CONTENT_TOKENS, token_id))
-                .ok_or(TokenizationError::TokenNotFound)?;
+        reentrancy::with_guard(
+            env,
+            &TOKENIZATION_GUARD,
+            TokenizationError::StorageError,
+            || {
+                let mut token: ContentToken = env
+                    .storage()
+                    .persistent()
+                    .get(&(CONTENT_TOKENS, token_id))
+                    .ok_or(TokenizationError::TokenNotFound)?;
 
-            if token.owner != owner {
-                return Err(TokenizationError::UnauthorizedMint); // Using as closest match
-            }
+                if token.owner != owner {
+                    return Err(TokenizationError::UnauthorizedMint); // Using as closest match
+                }
 
-            token.is_transferable = transferable;
-            token.metadata.updated_at = env.ledger().timestamp();
+                token.is_transferable = transferable;
+                token.metadata.updated_at = env.ledger().timestamp();
 
-            env.storage()
-                .persistent()
-                .set(&(CONTENT_TOKENS, token_id), &token);
+                env.storage()
+                    .persistent()
+                    .set(&(CONTENT_TOKENS, token_id), &token);
 
-            // Emit event
-            TransferabilityUpdatedEvent {
-                token_id,
-                owner: owner.clone(),
-                transferable,
-                updated_at: env.ledger().timestamp(),
-            }
-            .publish(env);
+                // Emit event
+                TransferabilityUpdatedEvent {
+                    token_id,
+                    owner: owner.clone(),
+                    transferable,
+                    updated_at: env.ledger().timestamp(),
+                }
+                .publish(env);
 
-            Ok(())
-        })
+                Ok(())
+            },
+        )
     }
 }
