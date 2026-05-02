@@ -102,6 +102,7 @@ mod auto_scaling;
 mod backup;
 mod bft_consensus;
 mod bridge;
+mod bulk_limits;
 mod dos_protection;
 // TODO: Fix collaboration module compilation errors (pre-existing issue)
 // mod collaboration;
@@ -111,6 +112,7 @@ mod dos_protection;
 // mod content_quality;
 mod config;
 mod emergency;
+mod feature_flags;
 mod errors;
 mod escrow_analytics;
 mod event_query;
@@ -186,13 +188,26 @@ pub use assessment::{
 };
 pub use errors::{
     AccessLogError, BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError,
-    TokenizationError,
+    ScoreError, TokenizationError,
 };
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
     SingleValueRepository, StorageError,
 };
 pub use types::{
+    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
+    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
+    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
+    ContentTokenParameters, ContentType, ContractSemVer, ContributionType, CrossChainMessage,
+    CrossChainPacket, DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics,
+    EscrowParameters, EscrowRole, EscrowSigner, EscrowStatus, InterfaceVersionStatus,
+    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
+    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
+    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
+    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
+    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
+    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
+    ValidatorSignature, VisualizationDataPoint, FeatureFlag, FeatureStatus, RolloutStrategy,
     // access logging types
     AccessLogEntry,
     AccessOutcome,
@@ -221,6 +236,8 @@ pub use types::{
     CrossChainMessage,
     CrossChainPacket,
     DashboardAnalytics,
+    DeprecatedFunction,
+    DeprecationPolicy,
     DisputeOutcome,
     EmergencyState,
     Escrow,
@@ -231,6 +248,7 @@ pub use types::{
     EscrowStatus,
     InterfaceVersionStatus,
     LiquidityPool,
+    MigrationPath,
     MultiChainAsset,
     NotificationChannel,
     NotificationContent,
@@ -511,13 +529,13 @@ impl TeachLinkBridge {
     }
 
     /// Get the token address
-    pub fn get_token(env: Env) -> Address {
-        bridge::Bridge::get_token(&env)
+    pub fn get_token(env: Env) -> Result<Address, BridgeError> {
+        Ok(bridge::Bridge::get_token(&env))
     }
 
     /// Get the admin address
-    pub fn get_admin(env: Env) -> Address {
-        bridge::Bridge::get_admin(&env)
+    pub fn get_admin(env: Env) -> Result<Address, BridgeError> {
+        Ok(bridge::Bridge::get_admin(&env))
     }
 
     // ========== BFT Consensus Functions ==========
@@ -1360,7 +1378,7 @@ impl TeachLinkBridge {
 
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Result<Address, RewardsError> {
-        rewards::Rewards::get_rewards_admin(&env)
+        Ok(rewards::Rewards::get_rewards_admin(&env))
     }
 
     // ========== Assessment and Testing Platform Functions ==========
@@ -1550,19 +1568,19 @@ impl TeachLinkBridge {
     // ========== Reputation Functions (main) ==========
 
     pub fn update_participation(env: Env, user: Address, points: u32) {
-        reputation::ReputationManager::update_participation(&env, user, points);
+        reputation::update_participation(&env, user, points);
     }
 
     pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
-        reputation::ReputationManager::update_course_progress(&env, user, is_completion);
+        reputation::update_course_progress(&env, user, is_completion);
     }
 
     pub fn rate_contribution(env: Env, user: Address, rating: u32) {
-        reputation::ReputationManager::rate_contribution(&env, user, rating);
+        reputation::rate_contribution(&env, user, rating);
     }
 
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
-        reputation::ReputationManager::get_reputation(&env, &user)
+        reputation::get_reputation(&env, &user)
     }
 
     // ========== Content Tokenization Functions ==========
@@ -1583,7 +1601,7 @@ impl TeachLinkBridge {
             params.tags,
             params.is_transferable,
             params.royalty_percentage,
-        );
+        )?;
         provenance::ProvenanceTracker::record_mint(&env, token_id, params.creator, None)
             .map_err(|_| TokenizationError::StorageError)?; // Assuming provenance returns Result
         Ok(token_id)
@@ -2016,6 +2034,47 @@ impl TeachLinkBridge {
 
     pub fn is_fallback_active(env: Env) -> bool {
         network_recovery::NetworkRecovery::is_fallback_active(&env)
+    }
+
+    // ========== Feature Flag Functions ==========
+
+    /// Create or update a feature flag (FeatureManager or Admin)
+    pub fn set_feature_flag(
+        env: Env,
+        operator: Address,
+        name: Symbol,
+        status: types::FeatureStatus,
+        strategy: types::RolloutStrategy,
+        rollout_percentage: u32,
+    ) -> Result<(), BridgeError> {
+        feature_flags::FeatureFlagManager::set_feature_flag(
+            &env,
+            &operator,
+            name,
+            status,
+            strategy,
+            rollout_percentage,
+        )
+    }
+
+    /// Trigger kill switch for a feature flag (EmergencyManager, FeatureManager, or Admin)
+    pub fn trigger_kill_switch(
+        env: Env,
+        operator: Address,
+        name: Symbol,
+        enabled: bool,
+    ) -> Result<(), BridgeError> {
+        feature_flags::FeatureFlagManager::trigger_kill_switch(&env, &operator, name, enabled)
+    }
+
+    /// Get a feature flag's details
+    pub fn get_feature_flag(env: Env, name: Symbol) -> Option<types::FeatureFlag> {
+        feature_flags::FeatureFlagManager::get_feature_flag(&env, name)
+    }
+
+    /// Check if a feature is enabled for a specific user
+    pub fn is_feature_enabled(env: Env, name: Symbol, user: Address) -> bool {
+        feature_flags::FeatureFlagManager::is_feature_enabled(&env, name, &user)
     }
 }
 

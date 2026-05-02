@@ -343,6 +343,7 @@ impl Rewards {
             Bytes::new(env),
             Bytes::new(env),
         );
+        Ok(())
     }
 
     // ===== Queries =====
