@@ -161,6 +161,8 @@ pub const OWNER_TOKENS: Symbol = symbol_short!("own_tok");
 pub const ARBITRATORS: Symbol = symbol_short!("arbs");
 pub const INSURANCE_POOL: Symbol = symbol_short!("ins_pool");
 pub const ESCROW_ANALYTICS: Symbol = symbol_short!("esc_an");
+pub const ESCROW_GUARD: Symbol = symbol_short!("esc_guard");
+pub const SUSTAINABILITY_METRICS: Symbol = symbol_short!("sust_met");
 
 // Notification System Storage
 pub const NOTIFICATION_COUNTER: Symbol = symbol_short!("notif_cnt");
