@@ -49,6 +49,8 @@ pub enum StorageKey {
     ValidatorRotationSet,
     // Rate limiting
     RateLimitState,
+    // Feature Flags
+    FeatureFlags,
     // Auto-scaling and load management
     ScalingConfig,
     LoadMetrics,
@@ -227,6 +229,8 @@ pub const REWARDS_GUARD: Symbol = symbol_short!("rw_guard");
 pub const SWAP_GUARD: Symbol = symbol_short!("sw_guard");
 pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
 
+// Feature Flags (symbol_short! max 9 chars)
+pub const FEATURE_FLAGS: Symbol = symbol_short!("feat_flg");
 // Auto-scaling and load management (symbol_short! max 9 chars)
 pub const SCALING_CONFIG: Symbol = symbol_short!("scale_cfg");
 pub const LOAD_METRICS: Symbol = symbol_short!("load_met");
