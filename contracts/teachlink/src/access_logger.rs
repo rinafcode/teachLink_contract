@@ -2,7 +2,7 @@
 //!
 //! Provides comprehensive, tamper-evident access logging for security auditing.
 //! Every significant contract invocation is recorded with caller identity,
-//! operation tag, outcome (success or failure with error code), and ledger
+//! operation tag, outcome (success or failure), and ledger
 //! timestamp. Log entries are stored in persistent storage and per-address
 //! hourly call counts are maintained for temporal pattern analysis.
 
@@ -180,8 +180,12 @@ impl AccessLogger {
         }
 
         // Outcome filter
-        if let Some(ref outcome_filter) = query.outcome_filter {
-            let matches = outcome_filter == &entry.outcome;
+        if let Some(outcome_filter) = query.outcome_filter {
+            let want_success = outcome_filter == 0;
+            let matches = matches!(
+                (want_success, &entry.outcome),
+                (true, AccessOutcome::Success) | (false, AccessOutcome::Failure)
+            );
             if !matches {
                 return false;
             }

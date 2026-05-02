@@ -49,6 +49,8 @@ pub enum StorageKey {
     ValidatorRotationSet,
     // Rate limiting
     RateLimitState,
+    // Feature Flags
+    FeatureFlags,
     // Auto-scaling and load management
     ScalingConfig,
     LoadMetrics,
@@ -161,6 +163,8 @@ pub const OWNER_TOKENS: Symbol = symbol_short!("own_tok");
 pub const ARBITRATORS: Symbol = symbol_short!("arbs");
 pub const INSURANCE_POOL: Symbol = symbol_short!("ins_pool");
 pub const ESCROW_ANALYTICS: Symbol = symbol_short!("esc_an");
+pub const ESCROW_GUARD: Symbol = symbol_short!("esc_guard");
+pub const SUSTAINABILITY_METRICS: Symbol = symbol_short!("sust_met");
 
 // Notification System Storage
 pub const NOTIFICATION_COUNTER: Symbol = symbol_short!("notif_cnt");
@@ -227,6 +231,8 @@ pub const INSURANCE_GUARD: Symbol = symbol_short!("ins_guard");
 // Tokenization reentrancy guard
 pub const TOKENIZATION_GUARD: Symbol = symbol_short!("tok_guard");
 
+// Feature Flags (symbol_short! max 9 chars)
+pub const FEATURE_FLAGS: Symbol = symbol_short!("feat_flg");
 // Auto-scaling and load management (symbol_short! max 9 chars)
 pub const SCALING_CONFIG: Symbol = symbol_short!("scale_cfg");
 pub const LOAD_METRICS: Symbol = symbol_short!("load_met");

@@ -46,14 +46,15 @@
 //! See `contracts/documentation/COLLABORATION.md` §Consensus for the
 //! governance rationale behind the rotation policy.
 
+use crate::bulk_limits;
 use crate::errors::BridgeError;
 use crate::events::{
     ProposalCreatedEvent, ProposalExecutedEvent, ProposalVotedEvent, ValidatorRegisteredEvent,
     ValidatorUnregisteredEvent,
 };
 use crate::storage::{
-    StorageKey, BRIDGE_PROPOSALS, CONSENSUS_STATE, PROPOSAL_COUNTER, PROPOSAL_EXPIRES_SEQ,
-    VALIDATORS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
+    StorageKey, BRIDGE_PROPOSALS, CONSENSUS_STATE, NETWORK_STATE, PROPOSAL_COUNTER,
+    PROPOSAL_EXPIRES_SEQ, VALIDATORS, VALIDATOR_ACTIVITY_SEQ, VALIDATOR_INFO, VALIDATOR_STAKES,
 };
 use crate::types::{
     BridgeProposal, ConsensusState, CrossChainMessage, NetworkCondition, NetworkHealth,
@@ -75,6 +76,11 @@ pub const ROTATION_EPOCH_ROUNDS: u64 = 100;
 /// Minimum reputation score required to remain in the active validator set.
 /// Validators below this threshold are rotated out during epoch transitions.
 pub const MIN_ACTIVE_REPUTATION: u32 = 40;
+
+const MISS_THRESHOLD_DEGRADED: u32 = 3;
+const MISS_THRESHOLD_CRITICAL: u32 = 5;
+const TIMEOUT_MULTIPLIER_DEGRADED: u64 = 2;
+const TIMEOUT_MULTIPLIER_CRITICAL: u64 = 3;
 
 /// BFT Consensus Manager
 pub struct BFTConsensus;
@@ -574,6 +580,8 @@ impl BFTConsensus {
         let mut active_validators: u32 = 0;
 
         for (validator, is_active) in validators.iter() {
+            // Gas budget check to prevent DoS from large validator sets
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if is_active {
                 active_validators += 1;
                 if let Some(stake) = stakes.get(validator.clone()) {
@@ -686,6 +694,8 @@ impl BFTConsensus {
             .unwrap_or_else(|| Map::new(env));
         let mut active = Vec::new(env);
         for (validator, is_active) in validators.iter() {
+            // Gas budget check to prevent DoS from large validator sets
+            bulk_limits::check_gas_budget(env).expect("Budget exceeded");
             if is_active {
                 active.push_back(validator.clone());
             }

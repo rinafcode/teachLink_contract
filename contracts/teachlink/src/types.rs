@@ -80,6 +80,33 @@ pub struct InterfaceVersionStatus {
     pub minimum_compatible: ContractSemVer,
 }
 
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeprecatedFunction {
+    pub function_name: Symbol,
+    pub deprecated_in: ContractSemVer,
+    pub removal_in: ContractSemVer,
+    pub replacement: Option<Symbol>,
+    pub reason: Bytes,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct DeprecationPolicy {
+    pub current_version: ContractSemVer,
+    pub deprecated_functions: Vec<DeprecatedFunction>,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct MigrationPath {
+    pub from_version: ContractSemVer,
+    pub to_version: ContractSemVer,
+    pub description: Bytes,
+    pub breaking_changes: Vec<Bytes>,
+    pub migration_steps: Vec<Bytes>,
+}
+
 // ========== Chain Configuration Types ==========
 
 #[contracttype]
@@ -466,6 +493,7 @@ pub enum AccessRole {
     ValidatorManager, // Can add/remove validators
     EmergencyManager, // Can pause/resume the bridge
     AuditManager,     // Can manage compliance and audit trails
+    FeatureManager,   // Can manage feature flags and rollouts
 }
 
 #[contracttype]
@@ -1701,6 +1729,36 @@ pub struct MobileSocialFeatures {
     pub mentor_quick_connect: bool,
 }
 
+// ========== Feature Flag Types ==========
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum FeatureStatus {
+    Enabled,
+    Disabled,
+    Rollout,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum RolloutStrategy {
+    Global,
+    PercentageBased,
+    ABTest,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct FeatureFlag {
+    pub name: Symbol,
+    pub status: FeatureStatus,
+    pub strategy: RolloutStrategy,
+    pub rollout_percentage: u32,
+    pub kill_switch_enabled: bool,
+    pub created_at: u64,
+    pub updated_at: u64,
+}
+
 // ========== Access Logging Types ==========
 
 /// The outcome of a single access attempt.
@@ -1729,10 +1787,24 @@ pub struct AccessLogEntry {
 pub struct AuditQuery {
     pub caller: Option<Address>,
     pub operation: Option<Symbol>,
-    pub outcome_filter: Option<AccessOutcome>,
+    /// 0 = success, any non-zero value = failure.
+    pub outcome_filter: Option<u32>,
     pub from_timestamp: Option<u64>,
     pub to_timestamp: Option<u64>,
     pub limit: u32,
+}
+
+#[contracttype]
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct SustainabilityMetrics {
+    pub total_invocations: u64,
+    pub total_storage_writes: u64,
+    pub total_events_emitted: u64,
+    pub total_rewards_distributed: i128,
+    pub total_content_minted: u64,
+    pub total_active_users: u64,
+    pub efficiency_score: u32,
+    pub last_updated: u64,
 }
 
 // ========== Auto-Scaling & Load Management Types ==========
