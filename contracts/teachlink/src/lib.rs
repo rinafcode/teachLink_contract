@@ -101,6 +101,8 @@ mod auto_scaling;
 mod backup;
 mod bft_consensus;
 mod bridge;
+mod bulk_limits;
+mod config;
 mod dos_protection;
 // TODO: Fix collaboration module compilation errors (pre-existing issue)
 // mod collaboration;
@@ -169,9 +171,9 @@ mod validation;
 // mod validation_tests;
 
 pub use validation::{
-    config, AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator,
-    EscrowValidator, InputSanitizer, NumberValidator, RewardsValidator, StringValidator,
-    ValidationError, ValidationResult,
+    AddressValidator, BridgeValidator, BytesValidator, CrossChainValidator, EscrowValidator,
+    InputSanitizer, NumberValidator, RewardsValidator, StringValidator, ValidationError,
+    ValidationResult,
 };
 
 pub use crate::types::{
@@ -184,6 +186,7 @@ pub use assessment::{
 };
 pub use errors::{
     AccessLogError, BridgeError, EscrowError, GovernanceError, MobilePlatformError, RewardsError,
+    ScoreError, TokenizationError,
 };
 pub use repository::{
     BridgeRepository, EscrowAggregateRepository, GenericCounterRepository, GenericMapRepository,
@@ -218,6 +221,8 @@ pub use types::{
     CrossChainMessage,
     CrossChainPacket,
     DashboardAnalytics,
+    DeprecatedFunction,
+    DeprecationPolicy,
     DisputeOutcome,
     EmergencyState,
     Escrow,
@@ -228,6 +233,7 @@ pub use types::{
     EscrowStatus,
     InterfaceVersionStatus,
     LiquidityPool,
+    MigrationPath,
     MultiChainAsset,
     NotificationChannel,
     NotificationContent,
@@ -509,12 +515,12 @@ impl TeachLinkBridge {
 
     /// Get the token address
     pub fn get_token(env: Env) -> Result<Address, BridgeError> {
-        bridge::Bridge::get_token(&env)
+        Ok(bridge::Bridge::get_token(&env))
     }
 
     /// Get the admin address
     pub fn get_admin(env: Env) -> Result<Address, BridgeError> {
-        bridge::Bridge::get_admin(&env)
+        Ok(bridge::Bridge::get_admin(&env))
     }
 
     // ========== BFT Consensus Functions ==========
@@ -1357,7 +1363,7 @@ impl TeachLinkBridge {
 
     /// Get rewards admin address
     pub fn get_rewards_admin(env: Env) -> Result<Address, RewardsError> {
-        rewards::Rewards::get_rewards_admin(&env)
+        Ok(rewards::Rewards::get_rewards_admin(&env))
     }
 
     // ========== Assessment and Testing Platform Functions ==========
@@ -1513,8 +1519,7 @@ impl TeachLinkBridge {
         points: u64,
     ) -> Result<(), ScoreError> {
         // Check admin authorization
-        let admin_result = bridge::Bridge::get_admin(&env);
-        let admin = admin_result.map_err(|_| ScoreError::StorageError)?; // Convert BridgeError to ScoreError
+        let admin = bridge::Bridge::get_admin(&env);
         admin.require_auth();
         score::ScoreManager::record_course_completion(&env, user, course_id, points)
     }
@@ -1548,19 +1553,19 @@ impl TeachLinkBridge {
     // ========== Reputation Functions (main) ==========
 
     pub fn update_participation(env: Env, user: Address, points: u32) {
-        reputation::ReputationManager::update_participation(&env, user, points);
+        reputation::update_participation(&env, user, points);
     }
 
     pub fn update_course_progress(env: Env, user: Address, is_completion: bool) {
-        reputation::ReputationManager::update_course_progress(&env, user, is_completion);
+        reputation::update_course_progress(&env, user, is_completion);
     }
 
     pub fn rate_contribution(env: Env, user: Address, rating: u32) {
-        reputation::ReputationManager::rate_contribution(&env, user, rating);
+        reputation::rate_contribution(&env, user, rating);
     }
 
     pub fn get_user_reputation(env: Env, user: Address) -> types::UserReputation {
-        reputation::ReputationManager::get_reputation(&env, &user)
+        reputation::get_reputation(&env, &user)
     }
 
     // ========== Content Tokenization Functions ==========

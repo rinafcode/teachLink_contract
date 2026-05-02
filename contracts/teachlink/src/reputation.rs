@@ -185,8 +185,9 @@ pub fn rate_contribution(env: &Env, user: Address, rating: u32) {
     ContributionRatedEvent {
         user: user.clone(),
         rating,
-        new_quality_score: reputation.contribution_quality,
-        updated_at: reputation.last_update,
+        new_contribution_quality: reputation.contribution_quality,
+        total_contributions: reputation.total_contributions,
+        rated_at: reputation.last_update,
     }
     .publish(env);
 }
