@@ -1757,6 +1757,8 @@ pub struct FeatureFlag {
     pub kill_switch_enabled: bool,
     pub created_at: u64,
     pub updated_at: u64,
+}
+
 // ========== Access Logging Types ==========
 
 /// The outcome of a single access attempt.

@@ -88,6 +88,7 @@
 #![allow(clippy::trivially_copy_pass_by_ref)]
 #![allow(clippy::needless_borrow)]
 
+use crate::score::ScoreError;
 use soroban_sdk::{contract, contractimpl, Address, Bytes, Env, Map, String, Symbol, Vec};
 
 mod access_control;
@@ -102,7 +103,6 @@ mod backup;
 mod bft_consensus;
 mod bridge;
 mod bulk_limits;
-mod config;
 mod dos_protection;
 // TODO: Fix collaboration module compilation errors (pre-existing issue)
 // mod collaboration;
@@ -110,6 +110,7 @@ mod dos_protection;
 // mod content_nft;
 // TODO: Fix content_quality module compilation errors (pre-existing issue - symbol too long)
 // mod content_quality;
+mod config;
 mod emergency;
 mod feature_flags;
 mod errors;
