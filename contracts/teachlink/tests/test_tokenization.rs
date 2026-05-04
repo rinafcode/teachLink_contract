@@ -1,3 +1,39 @@
+#[test]
+fn test_tokenization_reentrancy_guard_blocks() {
+    use teachlink_contract::storage::TOKENIZATION_GUARD;
+    use teachlink_contract::TokenizationError;
+
+    let env = Env::default();
+    env.mock_all_auths();
+    let contract_id = env.register(TeachLinkBridge, ());
+    let creator = Address::from_array(&env, &[1u8; 32]);
+    let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+    // Mint a token normally
+    let params = create_params(
+        &env,
+        creator.clone(),
+        Bytes::from_slice(&env, b"Title"),
+        Bytes::from_slice(&env, b"Desc"),
+        ContentType::Course,
+        Bytes::from_slice(&env, b"QmHash"),
+        Bytes::from_slice(&env, b"MIT"),
+        vec![&env],
+        true,
+        0u32,
+    );
+    let token_id = client.mint_content_token(&params);
+
+    // Manually activate the reentrancy guard
+    env.storage().instance().set(&TOKENIZATION_GUARD, &true);
+
+    // Attempt to transfer should fail with StorageError (guard active)
+    let new_owner = Address::from_array(&env, &[2u8; 32]);
+    let result = std::panic::catch_unwind(|| {
+        client.transfer_content_token(&creator, &new_owner, &token_id, &None);
+    });
+    assert!(result.is_err(), "Expected panic due to reentrancy guard");
+}
 #![cfg(test)]
 #![allow(clippy::needless_pass_by_value)]
 #![allow(clippy::unreadable_literal)]
@@ -45,7 +81,7 @@ fn test_mint_content_token() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
+    let creator = Address::random(&env);
 
     // Set ledger timestamp
     env.ledger().set(LedgerInfo {
@@ -119,8 +155,8 @@ fn test_transfer_content_token() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
-    let new_owner = Address::generate(&env);
+    let creator = Address::random(&env);
+    let new_owner = Address::random(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
     env.ledger().set(LedgerInfo {
@@ -197,9 +233,9 @@ fn test_transfer_not_owner() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
-    let attacker = Address::generate(&env);
-    let new_owner = Address::generate(&env);
+    let creator = Address::random(&env);
+    let attacker = Address::from_array(&env, &[3u8; 32]);
+    let new_owner = Address::random(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
     env.ledger().set(LedgerInfo {
@@ -245,8 +281,8 @@ fn test_transfer_non_transferable() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
-    let new_owner = Address::generate(&env);
+    let creator = Address::random(&env);
+    let new_owner = Address::random(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
     env.ledger().set(LedgerInfo {
@@ -291,7 +327,7 @@ fn test_get_owner_tokens() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
+    let creator = Address::random(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
     env.ledger().set(LedgerInfo {
@@ -353,7 +389,7 @@ fn test_update_metadata() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
+    let creator = Address::random(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
     env.ledger().set(LedgerInfo {
@@ -429,10 +465,10 @@ fn test_verify_provenance_chain() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
+    let creator = Address::random(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
-    let owner1 = Address::generate(&env);
-    let owner2 = Address::generate(&env);
+    let owner1 = Address::from_array(&env, &[4u8; 32]);
+    let owner2 = Address::from_array(&env, &[5u8; 32]);
 
     env.ledger().set(LedgerInfo {
         timestamp: 1000,
@@ -508,7 +544,7 @@ fn test_get_token_count() {
     env.mock_all_auths();
 
     let contract_id = env.register(TeachLinkBridge, ());
-    let creator = Address::generate(&env);
+    let creator = Address::random(&env);
     let client = TeachLinkBridgeClient::new(&env, &contract_id);
 
     env.ledger().set(LedgerInfo {
