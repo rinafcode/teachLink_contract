@@ -103,13 +103,13 @@ mod backup;
 mod bft_consensus;
 mod bridge;
 mod bulk_limits;
-mod dos_protection;
 mod config;
+mod dos_protection;
 mod emergency;
-mod feature_flags;
 mod errors;
 mod escrow_analytics;
 mod event_query;
+mod feature_flags;
 mod safe_stats;
 // TODO: Fix event_tests module compilation errors (pre-existing issue)
 // mod event_tests;
@@ -171,22 +171,82 @@ pub use repository::{
     SingleValueRepository, StorageError,
 };
 pub use types::{
-    AlertConditionType, AlertRule, ArbitratorProfile, AtomicSwap, AuditRecord, BackupManifest,
-    BackupSchedule, BridgeMetrics, BridgeProposal, BridgeTransaction, CachedBridgeSummary,
-    ChainConfig, ChainMetrics, ComplianceReport, ConsensusState, ContentMetadata, ContentToken,
-    ContentTokenParameters, ContentType, ContractSemVer, ContributionType, CrossChainMessage,
-    CrossChainPacket, DashboardAnalytics, DisputeOutcome, EmergencyState, Escrow, EscrowMetrics,
-    EscrowParameters, EscrowRole, EscrowSigner, EscrowStatus, InterfaceVersionStatus,
-    LiquidityPool, MultiChainAsset, NotificationChannel, NotificationContent,
-    NotificationPreference, NotificationSchedule, NotificationTemplate, NotificationTracking,
-    OperationType, PacketStatus, ProposalStatus, ProvenanceRecord, RecoveryRecord, ReportComment,
-    ReportSchedule, ReportSnapshot, ReportTemplate, ReportType, ReportUsage, RewardRate,
-    RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
-    UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
-    ValidatorSignature, VisualizationDataPoint, FeatureFlag, FeatureStatus, RolloutStrategy,
     // access logging / audit types
-    AccessLogEntry, AccessOutcome, AuditQuery, DeprecatedFunction, DeprecationPolicy,
+    AccessLogEntry,
+    AccessOutcome,
+    AlertConditionType,
+    AlertRule,
+    ArbitratorProfile,
+    AtomicSwap,
+    AuditQuery,
+    AuditRecord,
+    BackupManifest,
+    BackupSchedule,
+    BridgeMetrics,
+    BridgeProposal,
+    BridgeTransaction,
+    CachedBridgeSummary,
+    ChainConfig,
+    ChainMetrics,
+    ComplianceReport,
+    ConsensusState,
+    ContentMetadata,
+    ContentToken,
+    ContentTokenParameters,
+    ContentType,
+    ContractSemVer,
+    ContributionType,
+    CrossChainMessage,
+    CrossChainPacket,
+    DashboardAnalytics,
+    DeprecatedFunction,
+    DeprecationPolicy,
+    DisputeOutcome,
+    EmergencyState,
+    Escrow,
+    EscrowMetrics,
+    EscrowParameters,
+    EscrowRole,
+    EscrowSigner,
+    EscrowStatus,
+    FeatureFlag,
+    FeatureStatus,
+    InterfaceVersionStatus,
+    LiquidityPool,
     MigrationPath,
+    MultiChainAsset,
+    NotificationChannel,
+    NotificationContent,
+    NotificationPreference,
+    NotificationSchedule,
+    NotificationTemplate,
+    NotificationTracking,
+    OperationType,
+    PacketStatus,
+    ProposalStatus,
+    ProvenanceRecord,
+    RecoveryRecord,
+    ReportComment,
+    ReportSchedule,
+    ReportSnapshot,
+    ReportTemplate,
+    ReportType,
+    ReportUsage,
+    RewardRate,
+    RewardType,
+    RolloutStrategy,
+    RtoTier,
+    SlashingReason,
+    SlashingRecord,
+    SwapStatus,
+    TransferType,
+    UserNotificationSettings,
+    UserReputation,
+    UserReward,
+    ValidatorInfo,
+    ValidatorReward,
+    ValidatorSignature,
+    VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
