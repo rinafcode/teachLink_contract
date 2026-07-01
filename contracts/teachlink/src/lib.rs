@@ -104,12 +104,6 @@ mod bft_consensus;
 mod bridge;
 mod bulk_limits;
 mod dos_protection;
-// TODO: Fix collaboration module compilation errors (pre-existing issue)
-// mod collaboration;
-// TODO: Fix content_nft module compilation errors (pre-existing issue)
-// mod content_nft;
-// TODO: Fix content_quality module compilation errors (pre-existing issue - symbol too long)
-// mod content_quality;
 mod config;
 mod emergency;
 mod feature_flags;
@@ -120,28 +114,16 @@ mod safe_stats;
 // TODO: Fix event_tests module compilation errors (pre-existing issue)
 // mod event_tests;
 mod events;
-// TODO: Fix fractional module compilation errors (pre-existing issue)
-// mod fractional;
 mod insurance;
 mod interface_versioning;
-// TODO: Fix learning_paths module compilation errors (pre-existing issue - symbol too long)
-// mod learning_paths;
 mod ledger_time;
-// TODO: Fix licensing module compilation errors (pre-existing issue)
-// mod licensing;
 mod liquidity;
-// TODO: Fix marketplace module compilation errors (pre-existing issue)
-// mod marketplace;
 mod message_passing;
 mod mobile_platform;
 mod multichain;
 mod network_recovery;
 mod notification;
-// TODO: Fix notification_events module compilation errors (pre-existing issue - event name too long)
-// mod notification_events;
 mod notification_events_basic;
-// TODO: Fix notification_events_simple module compilation errors (pre-existing issue)
-// mod notification_events_simple;
 // TODO: Fix notification_tests module (pre-existing issue - tests fail with AlreadyInitialized)
 // mod notification_tests;
 mod notification_types;
@@ -155,14 +137,8 @@ mod reporting;
 mod repository;
 mod reputation;
 mod rewards;
-// TODO: Fix royalty module compilation errors (pre-existing issue - incomplete implementation)
-// mod royalty;
 mod score;
 mod slashing;
-// TODO: Fix social_events module compilation errors (pre-existing issue)
-// mod social_events;
-// TODO: Fix social_learning module compilation errors (pre-existing issue)
-// mod social_learning;
 mod storage;
 mod sustainability;
 mod tokenization;
@@ -208,79 +184,9 @@ pub use types::{
     RewardType, RtoTier, SlashingReason, SlashingRecord, SwapStatus, TransferType,
     UserNotificationSettings, UserReputation, UserReward, ValidatorInfo, ValidatorReward,
     ValidatorSignature, VisualizationDataPoint, FeatureFlag, FeatureStatus, RolloutStrategy,
-    // access logging types
-    AccessLogEntry,
-    AccessOutcome,
-    AlertConditionType,
-    AlertRule,
-    ArbitratorProfile,
-    AtomicSwap,
-    AuditQuery,
-    AuditRecord,
-    BackupManifest,
-    BackupSchedule,
-    BridgeMetrics,
-    BridgeProposal,
-    BridgeTransaction,
-    CachedBridgeSummary,
-    ChainConfig,
-    ChainMetrics,
-    ComplianceReport,
-    ConsensusState,
-    ContentMetadata,
-    ContentToken,
-    ContentTokenParameters,
-    ContentType,
-    ContractSemVer,
-    ContributionType,
-    CrossChainMessage,
-    CrossChainPacket,
-    DashboardAnalytics,
-    DeprecatedFunction,
-    DeprecationPolicy,
-    DisputeOutcome,
-    EmergencyState,
-    Escrow,
-    EscrowMetrics,
-    EscrowParameters,
-    EscrowRole,
-    EscrowSigner,
-    EscrowStatus,
-    InterfaceVersionStatus,
-    LiquidityPool,
+    // access logging / audit types
+    AccessLogEntry, AccessOutcome, AuditQuery, DeprecatedFunction, DeprecationPolicy,
     MigrationPath,
-    MultiChainAsset,
-    NotificationChannel,
-    NotificationContent,
-    NotificationPreference,
-    NotificationSchedule,
-    NotificationTemplate,
-    NotificationTracking,
-    OperationType,
-    PacketStatus,
-    ProposalStatus,
-    ProvenanceRecord,
-    RecoveryRecord,
-    ReportComment,
-    ReportSchedule,
-    ReportSnapshot,
-    ReportTemplate,
-    ReportType,
-    ReportUsage,
-    RewardRate,
-    RewardType,
-    RtoTier,
-    SlashingReason,
-    SlashingRecord,
-    SwapStatus,
-    TransferType,
-    UserNotificationSettings,
-    UserReputation,
-    UserReward,
-    ValidatorInfo,
-    ValidatorReward,
-    ValidatorSignature,
-    VisualizationDataPoint,
 };
 
 /// TeachLink main contract.
