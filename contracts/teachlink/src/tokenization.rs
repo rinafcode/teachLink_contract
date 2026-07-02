@@ -300,8 +300,11 @@ impl ContentTokenization {
 
                 if let Some(new_tags) = tags {
                     // Batch size check for tags to prevent DoS
-                    bulk_limits::check_batch_size_limit(new_tags.len(), bulk_limits::MAX_CONTENT_TAGS)
-                        .expect("Too many tags");
+                    bulk_limits::check_batch_size_limit(
+                        new_tags.len(),
+                        bulk_limits::MAX_CONTENT_TAGS,
+                    )
+                    .expect("Too many tags");
                     token.metadata.tags = new_tags;
                 }
 

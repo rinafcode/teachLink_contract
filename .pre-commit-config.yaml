@@ -46,6 +46,11 @@ repos:
         args: [--fix=lf]
         stages: [commit]
 
+      - id: check-added-large-files
+        name: Block large file commits
+        args: [--maxkb=1024]
+        stages: [commit]
+
   # Rust formatting with rustfmt
   - repo: https://github.com/doublify/pre-commit-rust
     rev: v1.0
