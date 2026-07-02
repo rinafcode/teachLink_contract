@@ -21,13 +21,18 @@ jobs:
         uses: Swatinem/rust-cache@v2
 
       - name: Run unit tests
-        run: cargo test --workspace --lib 2>&1 | tee test_output.txt
+        run: |
+          set -o pipefail
+          cargo test --workspace --lib 2>&1 | tee test_output.txt
 
       - name: Run integration tests
-        run: cargo test --workspace --tests 2>&1 | tee -a test_output.txt
+        run: |
+          set -o pipefail
+          cargo test --workspace --tests 2>&1 | tee -a test_output.txt
 
       - name: Run gas benchmarks
         run: |
+          set -o pipefail
           cargo test --release -p teachlink-contract --test test_gas_benchmarks -- --nocapture \
             2>&1 | tee gas_output.txt
 

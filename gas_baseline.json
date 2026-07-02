@@ -1,27 +1,27 @@
 {
-  "updated_at": "2026-03-28T00:00:00.000000Z",
+  "updated_at": "2026-07-02T09:32:57.000000Z",
   "initialize": {
-    "gas_used": 0,
+    "gas_used": 41836,
     "threshold": 500000
   },
   "add_validator": {
-    "gas_used": 0,
+    "gas_used": 99548,
     "threshold": 200000
   },
   "add_supported_chain": {
-    "gas_used": 0,
+    "gas_used": 97811,
     "threshold": 200000
   },
   "set_bridge_fee": {
-    "gas_used": 0,
+    "gas_used": 95414,
     "threshold": 150000
   },
   "read_queries_bundle": {
-    "gas_used": 0,
+    "gas_used": 5598,
     "threshold": 100000
   },
   "compute_and_cache_bridge_summary": {
-    "gas_used": 0,
+    "gas_used": 63836,
     "threshold": 1500000
   },
   "get_cached_bridge_summary": {
@@ -29,27 +29,27 @@
     "threshold": 200000
   },
   "register_validator": {
-    "gas_used": 0,
+    "gas_used": 123294,
     "threshold": 500000
   },
   "mint_content_token": {
-    "gas_used": 0,
+    "gas_used": 228355,
     "threshold": 600000
   },
   "transfer_content_token": {
-    "gas_used": 0,
+    "gas_used": 85291,
     "threshold": 500000
   },
   "send_notification": {
-    "gas_used": 0,
+    "gas_used": 37920,
     "threshold": 350000
   },
   "create_audit_record": {
-    "gas_used": 0,
+    "gas_used": 66107,
     "threshold": 400000
   },
   "initialize_mobile_profile": {
-    "gas_used": 0,
+    "gas_used": 303458,
     "threshold": 400000
   }
 }

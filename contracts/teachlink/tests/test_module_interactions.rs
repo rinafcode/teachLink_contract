@@ -60,11 +60,13 @@ fn make_content_params(env: &Env, creator: Address) -> ContentTokenParameters {
         title: Bytes::from_slice(env, b"Rust Fundamentals"),
         description: Bytes::from_slice(env, b"A comprehensive Rust course"),
         content_type: ContentType::Course,
-        content_hash: Bytes::from_slice(env, b"QmHash123"),
+        // content_hash must be exactly 32 bytes (BytesValidator::validate_length in
+        // mint_content_token); royalty_percentage is a direct 0-100 percentage.
+        content_hash: Bytes::from_slice(env, b"QmHashModuleInteractions12345678"),
         license_type: Bytes::from_slice(env, b"MIT"),
         tags: vec![env, Bytes::from_slice(env, b"rust")],
         is_transferable: true,
-        royalty_percentage: 500,
+        royalty_percentage: 5,
     }
 }
 
@@ -268,6 +270,12 @@ fn test_chain_specific_pause_isolation() {
 
     // Global bridge is NOT paused
     assert!(!client.is_bridge_paused());
+
+    // Advance past the admin op rate limit (dos_protection::ADMIN_OP_RATE_LIMIT_SECONDS)
+    // so resume_chains isn't rejected as a too-soon repeat admin action by the same caller.
+    env.ledger().with_mut(|li| {
+        li.timestamp += 11;
+    });
 
     // Resume chain 1
     client.resume_chains(&admin, &vec![&env, 1]);

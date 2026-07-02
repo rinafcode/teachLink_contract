@@ -207,7 +207,9 @@ fn e2e_content_tokenization_and_provenance() {
         title: bytes(&env, b"Intro to Soroban"),
         description: bytes(&env, b"Learn Soroban smart contracts"),
         content_type: ContentType::Course,
-        content_hash: bytes(&env, b"QmHash_soroban_101"),
+        // content_hash must be exactly 32 bytes (BytesValidator::validate_length
+        // in mint_content_token).
+        content_hash: bytes(&env, b"QmHash_soroban_101_pad_to_32byte"),
         license_type: bytes(&env, b"MIT"),
         tags: vec![&env, bytes(&env, b"soroban"), bytes(&env, b"stellar")],
         is_transferable: true,
@@ -598,7 +600,8 @@ fn e2e_multi_content_token_output_validation() {
             title: bytes(&env, format!("Content {i}").as_bytes()),
             description: bytes(&env, b"desc"),
             content_type: ct.clone(),
-            content_hash: bytes(&env, format!("hash_{i}").as_bytes()),
+            // content_hash must be exactly 32 bytes.
+            content_hash: bytes(&env, format!("hash_{i:0>27}").as_bytes()),
             license_type: bytes(&env, b"MIT"),
             tags: Vec::new(&env),
             is_transferable: true,
