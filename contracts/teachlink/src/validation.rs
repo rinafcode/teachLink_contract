@@ -45,10 +45,6 @@ pub mod config {
     /// Bridge-specific maximum amount (1e18 base units — ~1 billion tokens
     /// with 9 decimals; prevents single transactions from draining the pool).
     pub const MAX_BRIDGE_AMOUNT: i128 = 1_000_000_000_000_000_000; // 1e18
-    /// Operational timestamp bound for day-to-day checks (90 days).
-    pub const MAX_OPERATIONAL_TIMEOUT: u64 = 90 * 24 * 60 * 60;
-    /// Maximum tolerated clock skew between external and ledger time (15 minutes).
-    pub const MAX_TIME_SKEW: u64 = 15 * 60;
 }
 
 /// Validation errors
