@@ -90,7 +90,9 @@ impl FeatureFlagManager {
         }
 
         let mut flags = Self::get_all_flags(env);
-        let mut flag = flags.get(name.clone()).ok_or(BridgeError::NotFound)?;
+        let mut flag = flags
+            .get(name.clone())
+            .ok_or(BridgeError::FeatureFlagNotFound)?;
 
         flag.kill_switch_enabled = enabled;
         flag.updated_at = env.ledger().timestamp();
@@ -133,24 +135,19 @@ impl FeatureFlagManager {
                 flag.rollout_percentage == 100
             }
             RolloutStrategy::PercentageBased | RolloutStrategy::ABTest => {
-                // Determine user's bucket (0-99) deterministically
-                let mut data = Bytes::new(env);
-
-                // Note: user.to_xdr(env) would be ideal but Bytes::from_slice with string is easier
-                // For simplicity, we just use the name and user string representation
-                // In a real implementation we'd use XDR or bytes from the Address type directly.
-                // Address string representation can be used as unique material.
+                // Determine user's bucket (0-99) deterministically from the
+                // user's address string and the flag name's raw Val payload.
                 let user_str = user.to_string();
+                let mut data: Bytes = user_str.into();
 
-                data.append(&user_str.into());
-                let name_bytes: Bytes = name.to_string().into();
-                data.append(&name_bytes);
+                let name_payload = name.to_val().get_payload();
+                data.extend_from_array(&name_payload.to_be_bytes());
 
                 let hash = env.crypto().sha256(&data);
+                let hash_bytes: Bytes = hash.into();
 
-                // Get the first byte as the hash bucket (0-255)
-                // Map to 0-99
-                let first_byte = hash.get(0).unwrap_or(0) as u32;
+                // Get the first byte as the hash bucket (0-255), map to 0-99
+                let first_byte = hash_bytes.get(0).unwrap_or(0) as u32;
                 let bucket = first_byte % 100;
 
                 bucket < flag.rollout_percentage

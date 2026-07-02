@@ -10,6 +10,7 @@ This document tracks items that are planned for future development. These items 
 
 ## Medium Priority
 - **Testutils Dependencies**: Re-enable `notification_tests` and ensure the `testutils` dependencies function appropriately without linking issues.
+- **Event Accumulation Across Calls (`test_cross_contract_interactions.rs`)**: `test_event_multiple_modules_emit_events` is `#[ignore]`d - `env.events().all()` doesn't appear to accumulate events across three separate client calls the way the test assumes (only 1 event observed, expected >= 4). Needs investigation into soroban-sdk 25.x event-scoping semantics before re-enabling.
 
 ## Low Priority
 - **Automated Fuzz Testing Parsers (`test_generator.rs`)**: Finalize the parsing logic for inputs during fuzz testing to ensure appropriate types are passed to arbitrary functions.

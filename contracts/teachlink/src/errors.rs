@@ -2,7 +2,7 @@ use soroban_sdk::contracterror;
 
 /// Bridge module errors.
 ///
-/// Error codes are in the range 100–147.  Each code is stable across contract
+/// Error codes are in the range 100–151.  Each code is stable across contract
 /// upgrades — never reuse or renumber a code, only append new ones.
 ///
 /// # Code Ranges
@@ -18,9 +18,11 @@ use soroban_sdk::contracterror;
 /// | 134–137 | Atomic swaps (HTLC)             |
 /// | 138–142 | General / retry                 |
 /// | 143–147 | Storage / versioning / reentrancy|
+/// | 148–149 | Timestamp validation / batch limits|
+/// | 150–151 | Feature flags                   |
 ///
 /// # TODO
-/// - Add `BridgeError::RateLimitExceeded` (148) for per-user rate limiting
+/// - Add `BridgeError::RateLimitExceeded` (152) for per-user rate limiting
 ///   once the rate-limiting module is fully integrated.
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -84,6 +86,9 @@ pub enum BridgeError {
     ReentrancyDetected = 147,
     InvalidTimestamp = 148,
     BatchSizeLimitExceeded = 149,
+    // Feature Flag Errors
+    InvalidParameter = 150,
+    FeatureFlagNotFound = 151,
 }
 
 #[contracterror]
