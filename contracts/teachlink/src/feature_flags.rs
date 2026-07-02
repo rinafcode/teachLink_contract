@@ -48,7 +48,7 @@ impl FeatureFlagManager {
 
         let mut flags = Self::get_all_flags(env);
         let timestamp = env.ledger().timestamp();
-        
+
         // Preserve kill_switch and created_at if updating
         let (kill_switch_enabled, created_at) = if let Some(existing) = flags.get(name.clone()) {
             (existing.kill_switch_enabled, existing.created_at)
@@ -91,10 +91,10 @@ impl FeatureFlagManager {
 
         let mut flags = Self::get_all_flags(env);
         let mut flag = flags.get(name.clone()).ok_or(BridgeError::NotFound)?;
-        
+
         flag.kill_switch_enabled = enabled;
         flag.updated_at = env.ledger().timestamp();
-        
+
         flags.set(name, flag);
         Self::save_all_flags(env, &flags);
 
@@ -125,29 +125,29 @@ impl FeatureFlagManager {
         // Handle FeatureStatus::Rollout
         match flag.strategy {
             RolloutStrategy::Global => {
-                // If Rollout and Global, it's effectively enabled for everyone 
+                // If Rollout and Global, it's effectively enabled for everyone
                 // up to rollout_percentage. If 100%, all pass.
                 // Wait, global implies true/false based on flag status.
-                // But let's treat Global as "on" if rollout > 0, for simplicity, 
+                // But let's treat Global as "on" if rollout > 0, for simplicity,
                 // or just use rollout percentage for everyone.
                 flag.rollout_percentage == 100
             }
             RolloutStrategy::PercentageBased | RolloutStrategy::ABTest => {
                 // Determine user's bucket (0-99) deterministically
                 let mut data = Bytes::new(env);
-                
+
                 // Note: user.to_xdr(env) would be ideal but Bytes::from_slice with string is easier
                 // For simplicity, we just use the name and user string representation
                 // In a real implementation we'd use XDR or bytes from the Address type directly.
                 // Address string representation can be used as unique material.
                 let user_str = user.to_string();
-                
+
                 data.append(&user_str.into());
                 let name_bytes: Bytes = name.to_string().into();
                 data.append(&name_bytes);
 
                 let hash = env.crypto().sha256(&data);
-                
+
                 // Get the first byte as the hash bucket (0-255)
                 // Map to 0-99
                 let first_byte = hash.get(0).unwrap_or(0) as u32;
