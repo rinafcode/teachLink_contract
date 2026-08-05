@@ -49,10 +49,14 @@ impl ContentTokenization {
                 crate::validation::AddressValidator::validate(env, &creator).unwrap();
 
                 // Metadata validation (if title/description were String, we'd use StringValidator)
-                // Since they are Bytes, we check length
-                crate::validation::BytesValidator::validate_length(&title, 1, 100).unwrap();
-                crate::validation::BytesValidator::validate_length(&description, 1, 1000).unwrap();
-                crate::validation::BytesValidator::validate_length(&content_hash, 32, 32).unwrap();
+                // Since they are Bytes, we check length. Propagate as a proper
+                // contract error instead of panicking the invocation (#485).
+                crate::validation::BytesValidator::validate_length(&title, 1, 100)
+                    .map_err(|_| TokenizationError::InvalidMetadata)?;
+                crate::validation::BytesValidator::validate_length(&description, 1, 1000)
+                    .map_err(|_| TokenizationError::InvalidMetadata)?;
+                crate::validation::BytesValidator::validate_length(&content_hash, 32, 32)
+                    .map_err(|_| TokenizationError::InvalidMetadata)?;
 
                 if royalty_percentage > 100 {
                     panic!("Royalty percentage cannot exceed 100");
