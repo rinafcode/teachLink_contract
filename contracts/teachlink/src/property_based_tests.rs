@@ -6,13 +6,40 @@
 mod tests {
     use proptest::prelude::*;
 
-    // For n validators, BFT threshold is floor(2n/3) + 1.
+    // Stake-weighted BFT threshold (#496): given total stake `S`, a quorum
+    // must control `floor(2 * S / 3) + 1` stake. `n` (validator count) no
+    // longer drives the threshold.
     proptest! {
         #[test]
-        fn bft_threshold_is_bounded(n in 1u32..=10_000) {
-            let threshold = (2 * n) / 3 + 1;
+        fn stake_weighted_bft_threshold_is_bounded(total_stake in 1i128..=1_000_000_000_000i128) {
+            let threshold = (total_stake.saturating_mul(2) / 3) + 1;
+            // The threshold is a real quorum: strictly positive and never more
+            // than the whole stake (so it is always reachable by full consensus).
             prop_assert!(threshold >= 1);
-            prop_assert!(threshold <= n);
+            prop_assert!(threshold <= total_stake);
+        }
+
+        // Sybil resistance: reaching the stake-weighted quorum requires
+        // controlling strictly more than 2/3 of the total stake. Splitting a
+        // fixed adversarial stake across many low-stake (Sybil) validators
+        // raises `total_stake` — and therefore the threshold — in lockstep, so
+        // validator *count* never lets an under-2/3 adversary reach quorum.
+        #[test]
+        fn stake_threshold_resists_sybil_count(
+            honest_stake in 1i128..=1_000_000_000i128,
+            sybil_unit in 1i128..=1_000_000i128,
+            sybil_count in 0i128..=100_000i128,
+        ) {
+            let adversary_stake = sybil_unit.saturating_mul(sybil_count);
+            let total_stake = honest_stake.saturating_add(adversary_stake);
+            let threshold = (total_stake.saturating_mul(2) / 3) + 1;
+            // For every possible split of stake into validators, the adversary
+            // is either below the quorum threshold or genuinely controls more
+            // than 2/3 of the total stake — never merely by adding validators.
+            prop_assert!(
+                adversary_stake < threshold
+                    || adversary_stake.saturating_mul(3) > total_stake.saturating_mul(2)
+            );
         }
 
         #[test]

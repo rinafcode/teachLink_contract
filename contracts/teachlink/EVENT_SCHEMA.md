@@ -152,7 +152,7 @@ Emitted when a new proposal is created.
 |-------|------|-------------|
 | `proposal_id` | `u64` | Proposal identifier |
 | `message` | `CrossChainMessage` | Proposal message |
-| `required_votes` | `u32` | Votes needed for approval |
+| `required_votes` | `i128` | Approving stake needed for approval (stake-weighted Byzantine threshold) |
 
 #### ProposalVotedEvent
 Emitted when a validator votes on a proposal.
@@ -162,7 +162,7 @@ Emitted when a validator votes on a proposal.
 | `proposal_id` | `u64` | Proposal identifier |
 | `validator` | `Address` | Voting validator |
 | `vote` | `bool` | Vote value (true/false) |
-| `vote_count` | `u32` | Current vote count |
+| `vote_count` | `i128` | Current approving stake tally (stake-weighted) |
 
 #### ProposalExecutedEvent
 Emitted when a proposal is executed.

@@ -137,7 +137,8 @@ pub struct MinValidatorsUpdatedEvent {
 pub struct ProposalCreatedEvent {
     pub proposal_id: u64,
     pub message: CrossChainMessage,
-    pub required_votes: u32,
+    /// Stake-weighted approving stake required for consensus (#496).
+    pub required_votes: i128,
 }
 
 #[contractevent]
@@ -146,7 +147,8 @@ pub struct ProposalVotedEvent {
     pub proposal_id: u64,
     pub validator: Address,
     pub vote: bool,
-    pub vote_count: u32,
+    /// Stake-weighted tally of approving votes so far (#496).
+    pub vote_count: i128,
 }
 
 #[contractevent]
