@@ -188,8 +188,12 @@ pub struct BridgeProposal {
     pub proposal_id: u64,
     pub message: CrossChainMessage,
     pub votes: Map<Address, bool>,
-    pub vote_count: u32,
-    pub required_votes: u32,
+    /// Stake-weighted tally of approving votes: the sum of the stake of every
+    /// validator that has approved, not a raw vote count (#496).
+    pub vote_count: i128,
+    /// Approving stake required to reach consensus — the stake-weighted
+    /// Byzantine threshold captured at proposal creation (#496).
+    pub required_votes: i128,
     pub status: ProposalStatus,
     pub created_at: u64,
     pub expires_at: u64,
@@ -210,7 +214,9 @@ pub enum ProposalStatus {
 pub struct ConsensusState {
     pub total_stake: i128,
     pub active_validators: u32,
-    pub byzantine_threshold: u32,
+    /// Stake-weighted Byzantine threshold: the approving stake required for
+    /// consensus, `floor(2 * total_stake / 3) + 1` (#496).
+    pub byzantine_threshold: i128,
     pub last_consensus_round: u64,
 }
 

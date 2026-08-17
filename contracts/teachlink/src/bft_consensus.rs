@@ -3,21 +3,26 @@
 //! This module implements a BFT consensus mechanism for bridge validators,
 //! ensuring that the bridge can tolerate up to f faulty validators out of 3f+1 total validators.
 //!
-//! # BFT Threshold Algorithm
+//! # BFT Threshold Algorithm (stake-weighted)
 //!
-//! The Byzantine threshold (minimum votes required to approve a proposal) is
-//! computed as:
+//! The Byzantine threshold (minimum approving *stake* required to approve a
+//! proposal) is computed from the total staked value, not the validator
+//! count:
 //!
 //! ```text
-//! byzantine_threshold = floor(2 * n / 3) + 1
+//! byzantine_threshold = floor(2 * total_stake / 3) + 1
 //! ```
 //!
-//! where `n` is the number of active validators.  This satisfies the classic
-//! BFT requirement: a quorum of ⌈2n/3⌉ guarantees safety even when up to
-//! ⌊n/3⌋ validators are Byzantine (malicious or offline).
+//! where `total_stake` is the sum of the stake of all active validators.  Each
+//! approving vote contributes the voting validator's stake toward the
+//! threshold.  This satisfies the classic BFT requirement in stake terms: a
+//! quorum controlling more than 2/3 of the stake guarantees safety even when
+//! up to (just under) 1/3 of the stake is Byzantine (malicious or offline).
 //!
-//! Example: with 10 validators, threshold = (2*10/3)+1 = 7.  An attacker
-//! controlling 3 validators cannot reach quorum alone.
+//! Weighting by stake rather than validator count keeps Sybil attacks
+//! expensive: registering many low-stake validators raises `total_stake` — and
+//! therefore the threshold — proportionally, so an attacker still needs a
+//! genuine 2/3 stake majority to force consensus (#496).
 //!
 //! # Proposal Lifecycle
 //!
@@ -467,10 +472,19 @@ impl BFTConsensus {
             return Err(BridgeError::ProposalAlreadyVoted);
         }
 
-        // Record vote
+        // Record vote (stake-weighted, #496): an approval contributes the
+        // voter's stake to `vote_count` rather than a flat +1, so consensus is
+        // reached only once the approving validators jointly control the
+        // stake-weighted Byzantine threshold.
         proposal.votes.set(validator.clone(), approve);
         if approve {
-            proposal.vote_count += 1;
+            let stakes: Map<Address, i128> = env
+                .storage()
+                .instance()
+                .get(&VALIDATOR_STAKES)
+                .unwrap_or_else(|| Map::new(env));
+            let voter_stake = stakes.get(validator.clone()).unwrap_or(0);
+            proposal.vote_count = proposal.vote_count.saturating_add(voter_stake);
         }
         proposals.set(proposal_id, proposal.clone());
         env.storage().instance().set(&BRIDGE_PROPOSALS, &proposals);
@@ -547,23 +561,22 @@ impl BFTConsensus {
     ///
     /// # Algorithm
     ///
-    /// Iterates all registered validators, summing stake and counting active
-    /// entries.  Then computes the Byzantine threshold:
+    /// Iterates all registered validators, summing the stake of active
+    /// entries.  Then computes the stake-weighted Byzantine threshold:
     ///
     /// ```text
-    /// byzantine_threshold = floor(2 * active_validators / 3) + 1
+    /// byzantine_threshold = floor(2 * total_stake / 3) + 1
     /// ```
     ///
-    /// This is the minimum number of approving votes required for a proposal
-    /// to reach consensus.  The formula satisfies BFT safety: with `n = 3f+1`
-    /// validators, `2f+1` votes are needed, tolerating `f` Byzantine nodes.
+    /// This is the minimum approving *stake* required for a proposal to reach
+    /// consensus.  The formula satisfies BFT safety in stake terms: a quorum
+    /// controlling more than 2/3 of the total stake tolerates up to (just
+    /// under) 1/3 Byzantine stake.  Because the threshold scales with stake,
+    /// registering additional low-stake validators cannot cheapen a Sybil
+    /// attack (#496).
     ///
     /// Called after every validator registration or unregistration to keep the
-    /// threshold in sync with the current validator set size.
-    ///
-    /// # TODO
-    /// - Weight the threshold by stake rather than validator count to make
-    ///   Sybil attacks more expensive (stake-weighted BFT).
+    /// threshold in sync with the current total stake.
     fn update_consensus_state(env: &Env) -> Result<(), BridgeError> {
         let validators: Map<Address, bool> = env
             .storage()
@@ -590,10 +603,14 @@ impl BFTConsensus {
             }
         }
 
-        // Byzantine threshold: 2f+1 where n = 3f+1
-        // For n validators, we need ceil(2n/3) + 1 for BFT
-        let byzantine_threshold = if active_validators > 0 {
-            ((2 * active_validators) / 3) + 1
+        // Stake-weighted Byzantine threshold (#496): a quorum must control more
+        // than 2/3 of the total staked value, not merely 2/3 of the validator
+        // count. Expressed in stake units this is `floor(2 * total_stake / 3) +
+        // 1`, preserving the classic `2f+1`-of-`3f+1` safety margin while
+        // making Sybil attacks as expensive as acquiring a proportional share
+        // of total stake.
+        let byzantine_threshold: i128 = if total_stake > 0 {
+            (total_stake.saturating_mul(2) / 3) + 1
         } else {
             1
         };
@@ -946,5 +963,65 @@ mod tests {
         });
 
         assert!(after_rep > 90, "reputation should increase after voting");
+    }
+
+    #[test]
+    fn threshold_and_votes_are_stake_weighted_and_sybil_resistant() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_ledger(&env, 1_000, 1);
+
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+
+        // One large-stake validator plus three minimum-stake "Sybil" validators.
+        let whale = soroban_sdk::Address::generate(&env);
+        let sybil_a = soroban_sdk::Address::generate(&env);
+        let sybil_b = soroban_sdk::Address::generate(&env);
+        let sybil_c = soroban_sdk::Address::generate(&env);
+
+        let whale_stake = MIN_VALIDATOR_STAKE * 10;
+        client.register_validator(&whale, &whale_stake);
+        client.register_validator(&sybil_a, &MIN_VALIDATOR_STAKE);
+        client.register_validator(&sybil_b, &MIN_VALIDATOR_STAKE);
+        client.register_validator(&sybil_c, &MIN_VALIDATOR_STAKE);
+
+        // The threshold is derived from total stake, not validator count.
+        let total_stake = whale_stake + MIN_VALIDATOR_STAKE * 3;
+        let expected_threshold = (total_stake * 2) / 3 + 1;
+        let state = client.get_consensus_state();
+        assert_eq!(state.total_stake, total_stake);
+        assert_eq!(state.active_validators, 4);
+        assert_eq!(state.byzantine_threshold, expected_threshold);
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0x22; 32]),
+            nonce: 1,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&msg);
+
+        // All three Sybil validators approve. Their combined stake
+        // (3 * MIN_VALIDATOR_STAKE) is far below the 2/3 stake threshold, so
+        // increasing validator *count* alone cannot reach consensus.
+        client.vote_on_proposal(&sybil_a, &proposal_id, &true);
+        client.vote_on_proposal(&sybil_b, &proposal_id, &true);
+        client.vote_on_proposal(&sybil_c, &proposal_id, &true);
+
+        let pending = client.get_proposal(&proposal_id).unwrap();
+        assert_eq!(pending.vote_count, MIN_VALIDATOR_STAKE * 3);
+        assert_eq!(pending.status, crate::types::ProposalStatus::Pending);
+        assert!(pending.vote_count < pending.required_votes);
+
+        // The whale's stake pushes the approving stake past the threshold, so
+        // the proposal now reaches consensus and is approved.
+        client.vote_on_proposal(&whale, &proposal_id, &true);
+        let approved = client.get_proposal(&proposal_id).unwrap();
+        assert_eq!(approved.vote_count, total_stake);
+        assert_eq!(approved.status, crate::types::ProposalStatus::Approved);
     }
 }
