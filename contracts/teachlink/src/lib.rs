@@ -797,6 +797,16 @@ impl TeachLinkBridge {
         liquidity::LiquidityManager::get_available_liquidity(&env, chain_id)
     }
 
+    /// Record fee revenue collected by a pool (admin only)
+    pub fn record_fee_revenue(env: Env, chain_id: u32, amount: i128) -> Result<i128, BridgeError> {
+        liquidity::LiquidityManager::record_fee_revenue(&env, chain_id, amount)
+    }
+
+    /// Get accumulated fee revenue for a pool
+    pub fn get_accumulated_fees(env: Env, chain_id: u32) -> i128 {
+        liquidity::LiquidityManager::get_accumulated_fees(&env, chain_id)
+    }
+
     // ========== Message Passing Functions ==========
 
     /// Send a cross-chain packet
