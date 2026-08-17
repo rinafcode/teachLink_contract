@@ -329,11 +329,7 @@ impl LiquidityManager {
     /// Credits `amount` to the pool's `accumulated_fees` balance. LP rewards
     /// are drawn from this balance, so recorded fees must correspond to fees
     /// actually collected by the bridge for the pool's token.
-    pub fn record_fee_revenue(
-        env: &Env,
-        chain_id: u32,
-        amount: i128,
-    ) -> Result<i128, BridgeError> {
+    pub fn record_fee_revenue(env: &Env, chain_id: u32, amount: i128) -> Result<i128, BridgeError> {
         Self::require_admin(env);
 
         NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
