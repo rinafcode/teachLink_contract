@@ -270,6 +270,10 @@ pub struct LiquidityPool {
     pub total_liquidity: i128,
     pub available_liquidity: i128,
     pub locked_liquidity: i128,
+    /// Real fee revenue collected by the pool. LP rewards are drawn from this
+    /// balance so payouts are backed by actual protocol income rather than a
+    /// synthetic formula.
+    pub accumulated_fees: i128,
     pub lp_providers: Map<Address, LPPosition>,
 }
 

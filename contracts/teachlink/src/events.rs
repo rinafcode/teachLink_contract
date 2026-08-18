@@ -267,6 +267,14 @@ pub struct FeeUpdatedEvent {
     pub multiplier: u32,
 }
 
+#[contractevent]
+#[derive(Clone, Debug)]
+pub struct FeeRevenueRecordedEvent {
+    pub chain_id: u32,
+    pub amount: i128,
+    pub accumulated_fees: i128,
+}
+
 // ================= Message Passing Events =================
 
 #[contractevent]

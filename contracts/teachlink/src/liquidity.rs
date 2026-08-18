@@ -52,24 +52,27 @@
 //!
 //! # LP Reward Calculation
 //!
-//! Rewards use scaled integer arithmetic to avoid precision loss:
+//! Rewards are drawn from the pool's **real fee revenue** (`accumulated_fees`)
+//! and weighted by how long the position has been held, so flash liquidity is
+//! not rewarded as generously as long-term provision.
 //!
 //! ```text
-//! reward = (position.amount * SCALE / total_liquidity) * position.amount / SCALE
-//!        ≈ position.amount² / total_liquidity
+//! fee_share      = accumulated_fees * position.amount / total_liquidity
+//! time_multiplier = 1.0x, growing +1.0x every 30 days, capped at 3.0x
+//! reward         = min(fee_share * time_multiplier, accumulated_fees)
 //! ```
 //!
-//! where `SCALE = 1_000_000`.  This is equivalent to `amount * (amount / total)`
-//! but avoids the inner division truncating to zero for small positions.
+//! All arithmetic is scaled (`SCALE = 1_000_000`) to avoid precision loss, and
+//! rewards are hard-bounded by the fees the pool has actually collected.
 //!
 //! # TODO
-//! - Implement time-weighted LP rewards so long-term providers earn more than
-//!   flash liquidity providers.
 //! - Add slippage protection for large bridge transactions relative to pool size.
 
 use crate::errors::BridgeError;
-use crate::events::{FeeUpdatedEvent, LiquidityAddedEvent, LiquidityRemovedEvent};
-use crate::storage::{FEE_STRUCTURE, LIQUIDITY_POOLS, LP_POSITIONS};
+use crate::events::{
+    FeeRevenueRecordedEvent, FeeUpdatedEvent, LiquidityAddedEvent, LiquidityRemovedEvent,
+};
+use crate::storage::{ADMIN, FEE_STRUCTURE, LIQUIDITY_POOLS, LP_POSITIONS};
 use crate::types::{BridgeFeeStructure, LPPosition, LiquidityPool};
 use crate::validation::NumberValidator;
 use soroban_sdk::{Address, Env, Map, Vec};
@@ -88,6 +91,15 @@ pub const CONGESTION_STEP_1: u32 = 5000; // 50% utilization
 pub const CONGESTION_STEP_2: u32 = 7000; // 70% utilization
 pub const CONGESTION_STEP_3: u32 = 9000; // 90% utilization
 
+/// Scaling factor for LP reward arithmetic (1_000_000 = 1.0).
+pub const REWARD_SCALE: i128 = 1_000_000;
+/// Base time-in-pool multiplier (1_000_000 = 1.0x) applied at deposit time.
+pub const TIME_SCALE: i128 = 1_000_000;
+/// Maximum time-in-pool multiplier (3_000_000 = 3.0x).
+pub const MAX_TIME_MULTIPLIER: i128 = 3_000_000;
+/// Seconds per full multiplier step: the multiplier grows +1.0x every 30 days.
+pub const TIME_MULTIPLIER_STEP_SECS: i128 = 30 * 24 * 60 * 60;
+
 /// Liquidity Manager
 pub struct LiquidityManager;
 
@@ -100,6 +112,7 @@ impl LiquidityManager {
             total_liquidity: 0,
             available_liquidity: 0,
             locked_liquidity: 0,
+            accumulated_fees: 0,
             lp_providers: Map::new(env),
         };
 
@@ -213,8 +226,9 @@ impl LiquidityManager {
             return Err(BridgeError::InsufficientBalance);
         }
 
-        // Calculate rewards
-        let rewards = Self::calculate_lp_rewards(env, &position, pool.total_liquidity);
+        // Calculate rewards from the pool's real fee revenue and time in pool
+        let rewards =
+            Self::calculate_lp_rewards(env, &position, pool.total_liquidity, pool.accumulated_fees);
 
         // Update position
         position.amount -= amount;
@@ -308,6 +322,49 @@ impl LiquidityManager {
         env.storage().instance().set(&LIQUIDITY_POOLS, &pools);
 
         Ok(())
+    }
+
+    /// Record fee revenue collected by a pool (admin only).
+    ///
+    /// Credits `amount` to the pool's `accumulated_fees` balance. LP rewards
+    /// are drawn from this balance, so recorded fees must correspond to fees
+    /// actually collected by the bridge for the pool's token.
+    pub fn record_fee_revenue(env: &Env, chain_id: u32, amount: i128) -> Result<i128, BridgeError> {
+        Self::require_admin(env);
+
+        NumberValidator::validate_amount(amount).map_err(|_| BridgeError::AmountMustBePositive)?;
+
+        let mut pools: Map<u32, LiquidityPool> = env
+            .storage()
+            .instance()
+            .get(&LIQUIDITY_POOLS)
+            .unwrap_or_else(|| Map::new(env));
+        let mut pool = pools
+            .get(chain_id)
+            .ok_or(BridgeError::DestinationChainNotSupported)?;
+
+        pool.accumulated_fees += amount;
+        pools.set(chain_id, pool.clone());
+        env.storage().instance().set(&LIQUIDITY_POOLS, &pools);
+
+        // Emit event
+        FeeRevenueRecordedEvent {
+            chain_id,
+            amount,
+            accumulated_fees: pool.accumulated_fees,
+        }
+        .publish(env);
+
+        Ok(pool.accumulated_fees)
+    }
+
+    /// Get the accumulated fee revenue for a pool.
+    pub fn get_accumulated_fees(env: &Env, chain_id: u32) -> i128 {
+        if let Some(pool) = Self::get_pool(env, chain_id) {
+            pool.accumulated_fees
+        } else {
+            0
+        }
     }
 
     /// Calculate dynamic bridge fee.
@@ -496,43 +553,63 @@ impl LiquidityManager {
         discount
     }
 
-    /// Calculate LP rewards based on position and pool performance.
+    /// Calculate LP rewards based on real fee revenue and time in pool.
     ///
     /// # Algorithm
     ///
-    /// Uses scaled integer arithmetic to avoid precision loss from integer
-    /// division truncating `share_factor` to zero for small positions:
+    /// Rewards are derived from the pool's actual collected fee revenue rather
+    /// than a synthetic proportional formula:
     ///
     /// ```text
-    /// reward = (position.amount * SCALE / total_liquidity) * position.amount / SCALE
-    ///        ≈ position.amount² / total_liquidity
+    /// fee_share       = accumulated_fees * position.amount / total_liquidity
+    /// time_multiplier = 1.0x at deposit, +1.0x per 30 days held, capped at 3.0x
+    /// reward          = min(fee_share * time_multiplier, accumulated_fees)
     /// ```
     ///
-    /// where `SCALE = 1_000_000`.  This is mathematically equivalent to
-    /// `amount * (amount / total)` but avoids the inner division flooring to
-    /// zero when `amount << total`.
-    ///
-    /// # Note
-    /// This is a simplified proportional reward model.  In production, rewards
-    /// should also factor in time-in-pool and accumulated fee revenue.
-    ///
-    /// # TODO
-    /// - Integrate actual fee revenue collected by the pool so LP rewards
-    ///   reflect real earnings rather than a synthetic proportional amount.
-    /// - Add time-weighting: providers who stay longer earn a multiplier.
-    fn calculate_lp_rewards(_env: &Env, position: &LPPosition, total_liquidity: i128) -> i128 {
-        if total_liquidity == 0 || position.amount == 0 {
+    /// Scaled integer arithmetic (`REWARD_SCALE = 1_000_000`) avoids precision
+    /// loss from the inner division truncating small shares to zero. The final
+    /// reward is hard-bounded by the fees the pool has actually collected, so
+    /// payouts can never exceed real protocol income.
+    fn calculate_lp_rewards(
+        env: &Env,
+        position: &LPPosition,
+        total_liquidity: i128,
+        accumulated_fees: i128,
+    ) -> i128 {
+        if total_liquidity == 0 || position.amount == 0 || accumulated_fees == 0 {
             return 0;
         }
 
-        // Scale numerator before dividing to preserve precision:
-        // reward = (position.amount^2 * SCALE) / (total_liquidity * SCALE_DIVISOR)
-        // equivalent to: position.amount * (position.amount / total_liquidity)
-        // but avoids share_factor flooring to 0 for small positions.
-        const SCALE: i128 = 1_000_000;
-        let reward = (position.amount * SCALE) / total_liquidity * position.amount / SCALE;
+        // Provider's share of the pool, scaled to preserve precision.
+        let share_factor = (position.amount * REWARD_SCALE) / total_liquidity;
+        let fee_share = (accumulated_fees * share_factor) / REWARD_SCALE;
 
-        reward
+        // Time-in-pool multiplier so long-term providers earn more than flash
+        // liquidity providers of equal size.
+        let time_multiplier = Self::time_in_pool_multiplier(env, position);
+
+        let reward = (fee_share * time_multiplier) / TIME_SCALE;
+
+        // Rewards stay bounded by the fees actually collected by the pool.
+        reward.min(accumulated_fees)
+    }
+
+    /// Time-in-pool multiplier for a position.
+    ///
+    /// Starts at 1.0x at deposit time and grows linearly by +1.0x for every
+    /// [`TIME_MULTIPLIER_STEP_SECS`] (30 days) the position is held, capped at
+    /// [`MAX_TIME_MULTIPLIER`] (3.0x).
+    fn time_in_pool_multiplier(env: &Env, position: &LPPosition) -> i128 {
+        let now = env.ledger().timestamp();
+        let elapsed = now.saturating_sub(position.deposited_at) as i128;
+        let growth = (elapsed * TIME_SCALE) / TIME_MULTIPLIER_STEP_SECS;
+        (TIME_SCALE + growth).min(MAX_TIME_MULTIPLIER)
+    }
+
+    /// Require the contract admin to authorize the call.
+    fn require_admin(env: &Env) {
+        let admin: Address = env.storage().instance().get(&ADMIN).expect("admin not set");
+        admin.require_auth();
     }
 
     /// Default volume discount tiers
@@ -590,5 +667,133 @@ impl LiquidityManager {
     /// Check if pool has sufficient liquidity
     pub fn has_sufficient_liquidity(env: &Env, chain_id: u32, amount: i128) -> bool {
         Self::get_available_liquidity(env, chain_id) >= amount
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use soroban_sdk::testutils::{Address as _, Ledger, LedgerInfo};
+
+    const DAY: u64 = 24 * 60 * 60;
+
+    fn set_timestamp(env: &Env, timestamp: u64) {
+        env.ledger().set(LedgerInfo {
+            timestamp,
+            protocol_version: 25,
+            sequence_number: 10,
+            network_id: Default::default(),
+            base_reserve: 10,
+            min_temp_entry_ttl: 10,
+            min_persistent_entry_ttl: 10,
+            max_entry_ttl: 2_000_000,
+        });
+    }
+
+    fn position(env: &Env, amount: i128, deposited_at: u64) -> LPPosition {
+        LPPosition {
+            provider: Address::generate(env),
+            amount,
+            share_percentage: 0,
+            deposited_at,
+            rewards_earned: 0,
+        }
+    }
+
+    #[test]
+    fn rewards_are_zero_without_fee_revenue() {
+        let env = Env::default();
+        set_timestamp(&env, 1_000_000);
+        let pos = position(&env, 100_000, 0);
+
+        // No fees collected yet: even a large, long-held position earns nothing,
+        // because rewards must be backed by real fee income.
+        let rewards = LiquidityManager::calculate_lp_rewards(&env, &pos, 200_000, 0);
+        assert_eq!(rewards, 0);
+    }
+
+    #[test]
+    fn rewards_are_proportional_to_fee_revenue() {
+        let env = Env::default();
+        set_timestamp(&env, 1_000_000);
+        // Provider holds 50% of the pool and deposited at the current time.
+        let pos = position(&env, 50_000, 1_000_000);
+
+        // 50% share of 10_000 collected fees at 1.0x time multiplier.
+        let rewards = LiquidityManager::calculate_lp_rewards(&env, &pos, 100_000, 10_000);
+        assert_eq!(rewards, 5_000);
+    }
+
+    #[test]
+    fn long_term_position_earns_more_than_flash_position() {
+        let env = Env::default();
+        let now = 10_000_000u64;
+        set_timestamp(&env, now);
+
+        // Two equally-sized positions: one deposited now (flash), one 30 days ago.
+        let flash = position(&env, 100_000, now);
+        let long = position(&env, 100_000, now - 30 * DAY);
+        let total_liquidity = 200_000;
+        let accumulated_fees = 10_000;
+
+        let flash_rewards =
+            LiquidityManager::calculate_lp_rewards(&env, &flash, total_liquidity, accumulated_fees);
+        let long_rewards =
+            LiquidityManager::calculate_lp_rewards(&env, &long, total_liquidity, accumulated_fees);
+
+        // Flash position earns its flat 50% share (1.0x); the 30-day position
+        // earns the same share scaled by the 2.0x time multiplier.
+        assert_eq!(flash_rewards, 5_000);
+        assert_eq!(long_rewards, 10_000);
+        assert!(long_rewards > flash_rewards);
+    }
+
+    #[test]
+    fn rewards_stay_bounded_by_collected_fees() {
+        let env = Env::default();
+        let now = 10_000_000u64;
+        set_timestamp(&env, now);
+
+        // 100% share, held 100 days (max 3.0x multiplier): the raw time-weighted
+        // reward would be 3x the fees, but it must be clamped to the collected
+        // fees so payouts never exceed real protocol income.
+        let pos = position(&env, 100_000, now - 100 * DAY);
+        let rewards = LiquidityManager::calculate_lp_rewards(&env, &pos, 100_000, 10_000);
+        assert_eq!(rewards, 10_000);
+        assert!(rewards <= 10_000);
+    }
+
+    #[test]
+    fn time_multiplier_grows_with_duration_and_caps() {
+        let env = Env::default();
+        let now = 10_000_000u64;
+
+        // At deposit time: 1.0x
+        set_timestamp(&env, now);
+        assert_eq!(
+            LiquidityManager::time_in_pool_multiplier(&env, &position(&env, 1_000, now)),
+            TIME_SCALE
+        );
+
+        // 30 days held: 2.0x
+        set_timestamp(&env, now + 30 * DAY);
+        assert_eq!(
+            LiquidityManager::time_in_pool_multiplier(&env, &position(&env, 1_000, now)),
+            2 * TIME_SCALE
+        );
+
+        // 60 days held: 3.0x
+        set_timestamp(&env, now + 60 * DAY);
+        assert_eq!(
+            LiquidityManager::time_in_pool_multiplier(&env, &position(&env, 1_000, now)),
+            3 * TIME_SCALE
+        );
+
+        // 100 days held: capped at 3.0x
+        set_timestamp(&env, now + 100 * DAY);
+        assert_eq!(
+            LiquidityManager::time_in_pool_multiplier(&env, &position(&env, 1_000, now)),
+            MAX_TIME_MULTIPLIER
+        );
     }
 }

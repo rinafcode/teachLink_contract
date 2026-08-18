@@ -40,3 +40,7 @@ path = "tests/test_cross_contract_interactions.rs"
 [[test]]
 name = "test_gas_benchmarks"
 path = "tests/test_gas_benchmarks.rs"
+
+[[test]]
+name = "test_liquidity_rewards"
+path = "tests/test_liquidity_rewards.rs"
