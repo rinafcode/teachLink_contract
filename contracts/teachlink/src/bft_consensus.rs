@@ -311,10 +311,20 @@ impl BFTConsensus {
     ///
     /// A proposal is considered expired if *either* signal is exceeded.
     ///
-    /// # TODO
-    /// - Add a proposer field so off-chain indexers can attribute proposals
-    ///   to specific relayers for analytics and accountability.
-    pub fn create_proposal(env: &Env, message: CrossChainMessage) -> Result<u64, BridgeError> {
+    /// # Proposer Attribution
+    ///
+    /// `proposer` is the relayer/caller submitting the proposal. It is
+    /// authenticated via `require_auth()`, stored on the proposal, and
+    /// included in the `ProposalCreatedEvent` so off-chain indexers can
+    /// attribute proposals to specific relayers without an extra storage
+    /// read (#495).
+    pub fn create_proposal(
+        env: &Env,
+        proposer: Address,
+        message: CrossChainMessage,
+    ) -> Result<u64, BridgeError> {
+        proposer.require_auth();
+
         // Get proposal counter
         let mut proposal_counter: u64 = env
             .storage()
@@ -344,6 +354,7 @@ impl BFTConsensus {
         let proposal = BridgeProposal {
             proposal_id: proposal_counter,
             message: message.clone(),
+            proposer: proposer.clone(),
             votes: Map::new(env),
             vote_count: 0,
             required_votes,
@@ -384,6 +395,7 @@ impl BFTConsensus {
             proposal_id: proposal_counter,
             message,
             required_votes,
+            proposer,
         }
         .publish(env);
 
@@ -834,8 +846,8 @@ mod tests {
     use crate::types::CrossChainMessage;
     use crate::TeachLinkBridge;
     use crate::TeachLinkBridgeClient;
-    use soroban_sdk::testutils::{Address as _, Ledger};
-    use soroban_sdk::{Bytes, Env, Map};
+    use soroban_sdk::testutils::{Address as _, Events, Ledger};
+    use soroban_sdk::{vec, Bytes, Env, Event as _, Map, Val};
 
     fn set_ledger(env: &Env, timestamp: u64, sequence: u32) {
         env.ledger().with_mut(|li| {
@@ -869,7 +881,10 @@ mod tests {
             recipient: soroban_sdk::Address::generate(&env),
             destination_chain: 2,
         };
-        let proposal_id = client.try_create_bridge_proposal(&msg).unwrap().unwrap();
+        let proposal_id = client
+            .try_create_bridge_proposal(&validator, &msg)
+            .unwrap()
+            .unwrap();
 
         // Ensure the sequence-based expiry is stored.
         let deadline = env.as_contract(&contract_id, || {
@@ -951,7 +966,7 @@ mod tests {
             recipient: soroban_sdk::Address::generate(&env),
             destination_chain: 2,
         };
-        let proposal_id = client.create_bridge_proposal(&msg);
+        let proposal_id = client.create_bridge_proposal(&validator, &msg);
         client.vote_on_proposal(&validator, &proposal_id, &true);
 
         let after_rep = env.as_contract(&contract_id, || {
@@ -1003,7 +1018,7 @@ mod tests {
             recipient: soroban_sdk::Address::generate(&env),
             destination_chain: 2,
         };
-        let proposal_id = client.create_bridge_proposal(&msg);
+        let proposal_id = client.create_bridge_proposal(&whale, &msg);
 
         // All three Sybil validators approve. Their combined stake
         // (3 * MIN_VALIDATOR_STAKE) is far below the 2/3 stake threshold, so
@@ -1023,5 +1038,48 @@ mod tests {
         let approved = client.get_proposal(&proposal_id).unwrap();
         assert_eq!(approved.vote_count, total_stake);
         assert_eq!(approved.status, crate::types::ProposalStatus::Approved);
+    }
+
+    #[test]
+    fn create_proposal_records_and_emits_proposer() {
+        let env = Env::default();
+        env.mock_all_auths();
+        let contract_id = env.register(TeachLinkBridge, ());
+        set_ledger(&env, 1_000, 1);
+
+        let relayer = soroban_sdk::Address::generate(&env);
+        let client = TeachLinkBridgeClient::new(&env, &contract_id);
+        client.register_validator(&relayer, &MIN_VALIDATOR_STAKE);
+
+        let msg = CrossChainMessage {
+            source_chain: 1,
+            source_tx_hash: Bytes::from_slice(&env, &[0x33; 32]),
+            nonce: 1,
+            token: soroban_sdk::Address::generate(&env),
+            amount: 1,
+            recipient: soroban_sdk::Address::generate(&env),
+            destination_chain: 2,
+        };
+        let proposal_id = client.create_bridge_proposal(&relayer, &msg);
+
+        // Capture events from the create_bridge_proposal invocation before any
+        // further contract calls reset the "last invocation" event log.
+        let emitted_events = env.events().all();
+
+        // The stored proposal attributes the relayer as proposer.
+        let proposal = client.get_proposal(&proposal_id).unwrap();
+        assert_eq!(proposal.proposer, relayer);
+
+        // The emitted ProposalCreatedEvent carries the same proposer (#495).
+        let expected_event = crate::events::ProposalCreatedEvent {
+            proposal_id,
+            message: msg,
+            required_votes: proposal.required_votes,
+            proposer: relayer.clone(),
+        };
+        let expected_topics: soroban_sdk::Vec<Val> = expected_event.topics(&env);
+        let expected_data: Val = expected_event.data(&env);
+        let expected = vec![&env, (contract_id.clone(), expected_topics, expected_data)];
+        assert_eq!(emitted_events, expected);
     }
 }

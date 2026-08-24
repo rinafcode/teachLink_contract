@@ -522,9 +522,10 @@ impl TeachLinkBridge {
     /// Create a bridge proposal for BFT consensus
     pub fn create_bridge_proposal(
         env: Env,
+        proposer: Address,
         message: CrossChainMessage,
     ) -> Result<u64, BridgeError> {
-        bft_consensus::BFTConsensus::create_proposal(&env, message)
+        bft_consensus::BFTConsensus::create_proposal(&env, proposer, message)
     }
 
     /// Vote on a bridge proposal
