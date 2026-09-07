@@ -278,12 +278,12 @@ Production monitoring and alerting is built around the long-running **indexer ru
 
 See:
 
-- [OBSERVABILITY.md](OBSERVABILITY.md)
+- [OBSERVABILITY.md](docs/OBSERVABILITY.md)
 - [indexer/MONITORING.md](indexer/MONITORING.md)
 
 ## Architecture
 
-For full architecture documentation including system diagrams, data flow diagrams, and component interaction maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For a high-level overview of the entire ecosystem, see [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md).
+For full architecture documentation including system diagrams, data flow diagrams, and component interaction maps, see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). For a high-level overview of the entire ecosystem, see [SYSTEM_OVERVIEW.md](docs/SYSTEM_OVERVIEW.md).
 
 **High-level overview:**
 
@@ -369,7 +369,7 @@ We welcome contributions that improve contract quality, developer experience, an
 
 ## Glossary
 
-For definitions of key terms and concepts used across the TeachLink ecosystem, see [GLOSSARY.md](GLOSSARY.md).
+For definitions of key terms and concepts used across the TeachLink ecosystem, see [GLOSSARY.md](docs/GLOSSARY.md).
 
 ### Code example (contract + test)
 
