@@ -110,7 +110,7 @@ fn test_proposal_vote_then_bridge_completion() {
 
     // Create a bridge proposal via BFT
     let message = make_cross_chain_message(&env, &token, &recipient, 1, 500);
-    let proposal_id = client.create_bridge_proposal(&message);
+    let proposal_id = client.create_bridge_proposal(&validator, &message);
 
     // Vote to approve
     client.vote_on_proposal(&validator, &proposal_id, &true);
@@ -145,7 +145,7 @@ fn test_proposal_rejected_blocks_consensus() {
     client.register_validator(&v3, &100_000_000);
 
     let message = make_cross_chain_message(&env, &token, &recipient, 1, 1000);
-    let proposal_id = client.create_bridge_proposal(&message);
+    let proposal_id = client.create_bridge_proposal(&v1, &message);
 
     // Two validators reject
     client.vote_on_proposal(&v1, &proposal_id, &false);
@@ -212,7 +212,7 @@ fn test_reward_validator_after_consensus_participation() {
 
     // Participate in consensus
     let message = make_cross_chain_message(&env, &token, &recipient, 1, 100);
-    let proposal_id = client.create_bridge_proposal(&message);
+    let proposal_id = client.create_bridge_proposal(&validator, &message);
     client.vote_on_proposal(&validator, &proposal_id, &true);
     assert!(client.is_consensus_reached(&proposal_id));
 

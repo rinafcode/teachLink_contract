@@ -187,6 +187,11 @@ pub struct ValidatorInfo {
 pub struct BridgeProposal {
     pub proposal_id: u64,
     pub message: CrossChainMessage,
+    /// The relayer/validator that submitted this proposal, authenticated via
+    /// `require_auth()` at creation time. Enables off-chain indexers to
+    /// attribute proposals to specific relayers for analytics and
+    /// accountability (#495).
+    pub proposer: Address,
     pub votes: Map<Address, bool>,
     /// Stake-weighted tally of approving votes: the sum of the stake of every
     /// validator that has approved, not a raw vote count (#496).

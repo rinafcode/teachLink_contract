@@ -139,6 +139,8 @@ pub struct ProposalCreatedEvent {
     pub message: CrossChainMessage,
     /// Stake-weighted approving stake required for consensus (#496).
     pub required_votes: i128,
+    /// The relayer/validator that submitted this proposal (#495).
+    pub proposer: Address,
 }
 
 #[contractevent]
